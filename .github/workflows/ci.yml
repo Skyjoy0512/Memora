@@ -1,4 +1,5 @@
 # Memora GitHub Actions Configuration
+# NOTE: Temporarily disabled until Xcode project is created and pushed
 
 name: iOS CI
 
@@ -7,6 +8,36 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+
+# TEMPORARY: Disable CI until Xcode project is ready
+# Uncomment this section when Xcode project is pushed
+# jobs:
+#   build-and-test:
+#     runs-on: macos-latest
+#
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
+#
+#       - name: Set up Xcode
+#         run: |
+#           xcodebuild -version
+#           xcodebuild -showsdks
+#
+#       - name: Resolve Swift Package Dependencies
+#         run: |
+#           cd Memora
+#           xcodebuild -resolvePackageDependencies
+#
+#       - name: Build project
+#         run: |
+#           cd Memora
+#           xcodebuild -scheme Memora -configuration Debug clean build
+#
+#       - name: Run tests
+#         run: |
+#           cd Memora
+#           xcodebuild test -scheme Memora -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
 
 jobs:
   build-and-test:
