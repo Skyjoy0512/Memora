@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(read:.env)",
+      "Bash(read:.env.*)",
+      "Bash(read:secrets/*)",
+      "Bash(read:**/*.secrets)",
+      "Bash(read:**/*secret*.json)",
+      "Bash(read:**/*apikey*)",
+      "Bash(read:**/*key*.env*)"
+    ]
+  },
+  "hooks": {
+    "pre_tool_use": [],
+    "post_tool_use": [],
+    "pre_edit": [],
+    "post_edit": []
+  }
+}
