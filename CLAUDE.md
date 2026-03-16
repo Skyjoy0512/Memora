@@ -103,6 +103,48 @@
 - **開発環境**: Xcode 15+ / VS Code (Windows)
 - **アシスタント**: Claude Code
 
+## iPhone からのリモート承認
+
+このプロジェクトは iPhone の Claude アプリからリモートで操作を承認できるように設定されています。
+
+### 設定方法
+
+#### 前提条件
+
+1. **同じ Anthropic アカウントでログイン**
+   - Claude Code: 現在 OAuth でログイン済み
+   - iOS Claude アプリ: 同じアカウントでログイン
+
+#### 承認フロー
+
+1. **Claude Code セッションの開始**
+   ```bash
+   cd C:\Users\KENICHI HASHIMOTO\OneDrive\デスクトップ\Memora
+   claude
+   ```
+
+2. **Claude が変更を提案したとき**
+   - Claude Code が iPhone に承認リクエストを送信
+   - iOS Claude アプリで通知を受け取る
+   - 承認または拒否をタップ
+
+3. **承認結果**
+   - 承認: 変更が実行される
+   - 拒否: 変更がキャンセルされる
+
+### 設定の確認
+
+現在の認証状態:
+- ログイン済み: はい
+- 認証方法: OAuth トークン
+- プロバイダー: Anthropic (firstParty)
+
+### 注意点
+
+- iPhone と同じネットワーク環境である必要があります
+- セキュリティのため、本番環境では慎重に使用してください
+- 操作履歴は Claude Code 側に記録されます
+
 ## プロジェクト構成
 
 ```

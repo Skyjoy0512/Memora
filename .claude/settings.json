@@ -10,11 +10,5 @@
       "Bash(read:**/*apikey*)",
       "Bash(read:**/*key*.env*)"
     ]
-  },
-  "hooks": {
-    "pre_tool_use": [],
-    "post_tool_use": [],
-    "pre_edit": [],
-    "post_edit": []
   }
 }
