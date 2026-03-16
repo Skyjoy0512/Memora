@@ -1,0 +1,2791 @@
+
+
+# Memora 詳細実装仕様書 v2.0
+
+**作成日:** 2026-03-16
+**目的:** Codex / Claude Code による実装着手が可能な粒度まで設計を具体化する
+**前提:** 元仕様書 v2 の方針・画面構成・データモデルをすべて踏襲する
+
+---
+
+## 第1部 プロジェクト基盤
+
+### 1.1 開発環境
+
+本プロジェクトは iOS 18 以上を最小デプロイターゲットとし、Xcode 16 系でビルドする。言語は Swift 6 を採用し、Strict Concurrency を有効にする。UIフレームワークは SwiftUI を主体とし、AVFoundation など UIKit 依存が必須な箇所のみ UIViewRepresentable でブリッジする。パッケージ管理は Swift Package Manager に統一し、CocoaPods / Carthage は使用しない。
+
+アーキテクチャは TCA（The Composable Architecture）を採用する。各画面を Feature 単位の Reducer として分離し、State / Action / Reducer / Effect の4要素で構成する。依存注入は TCA の DependencyKey プロトコルを利用し、テスト時にはモックへ差し替え可能にする。
+
+CI は GitHub Actions を前提とし、push ごとに `xcodebuild test` を実行する。Codex / Claude Code が生成したコードもこのパイプラインで検証する。
+
+### 1.2 ディレクトリ構造
+
+```
+Memora/
+├── App/
+│   ├── MemoraApp.swift
+│   ├── AppDelegate.swift
+│   └── AppReducer.swift
+├── Core/
+│   ├── Models/
+│   │   ├── AudioFile.swift
+│   │   ├── Transcript.swift
+│   │   ├── MeetingNote.swift
+│   │   ├── Project.swift
+│   │   ├── TodoItem.swift
+│   │   ├── Attachment.swift
+│   │   ├── ProcessingJob.swift
+│   │   ├── ProcessingChunk.swift
+│   │   └── ChatScope.swift
+│   ├── Persistence/
+│   │   ├── SwiftDataStack.swift
+│   │   ├── AudioFileRepository.swift
+│   │   ├── TranscriptRepository.swift
+│   │   ├── MeetingNoteRepository.swift
+│   │   ├── ProjectRepository.swift
+│   │   ├── TodoRepository.swift
+│   │   ├── AttachmentRepository.swift
+│   │   └── JobRepository.swift
+│   ├── Services/
+│   │   ├── AudioRecorder.swift
+│   │   ├── AudioPlayer.swift
+│   │   ├── AudioChunker.swift
+│   │   ├── TranscriptionEngine.swift
+│   │   ├── SummarizationEngine.swift
+│   │   ├── DecisionExtractor.swift
+│   │   ├── TodoExtractor.swift
+│   │   ├── PipelineCoordinator.swift
+│   │   ├── LLMRouter.swift
+│   │   ├── LLMProviders/
+│   │   │   ├── LocalLLMProvider.swift
+│   │   │   ├── OpenAIProvider.swift
+│   │   │   ├── AnthropicProvider.swift
+│   │   │   ├── GeminiProvider.swift
+│   │   │   └── DeepSeekProvider.swift
+│   │   ├── AuthService.swift
+│   │   ├── SubscriptionService.swift
+│   │   └── AdService.swift
+│   ├── Networking/
+│   │   ├── APIClient.swift
+│   │   ├── Endpoints.swift
+│   │   └── APIKeyStore.swift
+│   └── Utilities/
+│       ├── DateFormatter+Memora.swift
+│       ├── Duration+Format.swift
+│       ├── FileManager+Memora.swift
+│       └── Logger+Memora.swift
+├── Features/
+│   ├── Onboarding/
+│   │   ├── OnboardingReducer.swift
+│   │   ├── OnboardingView.swift
+│   │   └── OnboardingPageView.swift
+│   ├── Auth/
+│   │   ├── AuthReducer.swift
+│   │   └── AuthView.swift
+│   ├── Paywall/
+│   │   ├── PaywallReducer.swift
+│   │   └── PaywallView.swift
+│   ├── Files/
+│   │   ├── FilesList/
+│   │   │   ├── FilesListReducer.swift
+│   │   │   ├── FilesListView.swift
+│   │   │   └── FilesRowView.swift
+│   │   ├── FileDetail/
+│   │   │   ├── FileDetailReducer.swift
+│   │   │   ├── FileDetailView.swift
+│   │   │   ├── AudioPlayerView.swift
+│   │   │   ├── AttachmentGalleryView.swift
+│   │   │   ├── TranscriptView.swift
+│   │   │   ├── SummaryView.swift
+│   │   │   └── GenerationFlowSheet.swift
+│   │   ├── Recording/
+│   │   │   ├── RecordingReducer.swift
+│   │   │   └── RecordingView.swift
+│   │   └── Import/
+│   │       ├── ImportReducer.swift
+│   │       └── ImportView.swift
+│   ├── Projects/
+│   │   ├── ProjectsList/
+│   │   │   ├── ProjectsListReducer.swift
+│   │   │   ├── ProjectsListView.swift
+│   │   │   └── ProjectsRowView.swift
+│   │   └── ProjectDetail/
+│   │       ├── ProjectDetailReducer.swift
+│   │       └── ProjectDetailView.swift
+│   ├── Todo/
+│   │   ├── TodoListReducer.swift
+│   │   ├── TodoListView.swift
+│   │   ├── TodoRowView.swift
+│   │   └── TodoEditSheet.swift
+│   ├── AskAI/
+│   │   ├── AskAIReducer.swift
+│   │   ├── AskAIView.swift
+│   │   ├── ChatBubbleView.swift
+│   │   └── SuggestionCardView.swift
+│   └── Settings/
+│       ├── SettingsReducer.swift
+│       ├── SettingsView.swift
+│       ├── AccountSection.swift
+│       ├── PlanSection.swift
+│       ├── StoragePolicySection.swift
+│       ├── AIModelSection.swift
+│       ├── ExportSection.swift
+│       ├── APIKeySection.swift
+│       ├── PLAUDSection.swift
+│       └── LegalSection.swift
+├── DesignSystem/
+│   ├── Theme.swift
+│   ├── Typography.swift
+│   ├── Colors.swift
+│   ├── Components/
+│   │   ├── LiquidGlassModifier.swift
+│   │   ├── FABMenu.swift
+│   │   ├── ToastOverlay.swift
+│   │   ├── PillButton.swift
+│   │   ├── SkeletonView.swift
+│   │   ├── EmptyStateView.swift
+│   │   └── LiveRecordingBanner.swift
+│   └── Icons/
+│       └── SparkleIcon.swift
+├── Resources/
+│   ├── Assets.xcassets
+│   ├── Localizable.xcstrings
+│   └── Onboarding/
+│       └── (illustration assets)
+└── Tests/
+    ├── CoreTests/
+    ├── FeatureTests/
+    └── SnapshotTests/
+```
+
+### 1.3 依存パッケージ
+
+TCA は `swift-composable-architecture` 1.17 以上を使用する。認証では `AuthenticationServices`（Apple 標準）と `GoogleSignIn-iOS` 7.x を使用する。課金は `StoreKit 2` をネイティブで使用し、RevenueCat は Phase 1 では導入しない。ローカル文字起こしには `Speech` フレームワーク（SFSpeechRecognizer）を使用し、端末ローカルで完結させる。広告は `GoogleMobileAds` 11.x を使用する。ネットワーク層は `Foundation.URLSession` をベースに薄いラッパーを自作する。テストでは `swift-snapshot-testing` を使用してUI回帰テストを行う。
+
+---
+
+## 第2部 デザインシステム
+
+### 2.1 カラートークン
+
+カラーは Semantic Token として定義し、すべてのビューでこのトークン経由で参照する。ライトモードを Phase 1 の主軸とし、ダークモードは Phase 2 で対応する。
+
+```swift
+// Colors.swift
+import SwiftUI
+
+enum MemoraColor {
+    // Backgrounds
+    static let surfacePrimary   = Color(hex: "F5F5F7")
+    static let surfaceSecondary = Color(hex: "FFFFFF")
+    static let surfaceElevated  = Color(hex: "FFFFFF").opacity(0.72)
+    static let surfaceGlass     = Color(hex: "FFFFFF").opacity(0.48)
+
+    // Text
+    static let textPrimary   = Color(hex: "1C1C1E")
+    static let textSecondary = Color(hex: "8E8E93")
+    static let textTertiary  = Color(hex: "AEAEB2")
+
+    // Accents
+    static let accentPrimary = Color(hex: "1C1C1E")
+    static let accentBlue    = Color(hex: "007AFF")
+    static let accentRed     = Color(hex: "FF3B30")
+    static let accentGreen   = Color(hex: "34C759")
+
+    // Dividers
+    static let divider = Color(hex: "E5E5EA")
+
+    // Shadows
+    static let shadowLight = Color.black.opacity(0.04)
+    static let shadowMedium = Color.black.opacity(0.08)
+}
+```
+
+### 2.2 タイポグラフィトークン
+
+iOS のシステムフォントを基本とし、Dynamic Type に完全対応する。
+
+```swift
+// Typography.swift
+import SwiftUI
+
+enum MemoraTypography {
+    static let largeTitle  = Font.system(.largeTitle, design: .default, weight: .bold)
+    static let title1      = Font.system(.title, design: .default, weight: .semibold)
+    static let title2      = Font.system(.title2, design: .default, weight: .semibold)
+    static let title3      = Font.system(.title3, design: .default, weight: .medium)
+    static let headline    = Font.system(.headline, design: .default, weight: .semibold)
+    static let body        = Font.system(.body, design: .default, weight: .regular)
+    static let callout     = Font.system(.callout, design: .default, weight: .regular)
+    static let subheadline = Font.system(.subheadline, design: .default, weight: .regular)
+    static let footnote    = Font.system(.footnote, design: .default, weight: .regular)
+    static let caption1    = Font.system(.caption, design: .default, weight: .regular)
+    static let caption2    = Font.system(.caption2, design: .default, weight: .regular)
+}
+```
+
+### 2.3 Liquid Glass モディファイア
+
+液体ガラスの質感は、背景ブラー、半透明オーバーレイ、ソフトシャドウの3層で構成する。
+
+```swift
+// LiquidGlassModifier.swift
+import SwiftUI
+
+struct LiquidGlassModifier: ViewModifier {
+    var cornerRadius: CGFloat = 16
+    var opacity: Double = 0.72
+    var shadowRadius: CGFloat = 12
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.white.opacity(opacity))
+                    .blendMode(.overlay)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(color: MemoraColor.shadowMedium, radius: shadowRadius, x: 0, y: 4)
+    }
+}
+
+extension View {
+    func liquidGlass(
+        cornerRadius: CGFloat = 16,
+        opacity: Double = 0.72,
+        shadowRadius: CGFloat = 12
+    ) -> some View {
+        modifier(LiquidGlassModifier(
+            cornerRadius: cornerRadius,
+            opacity: opacity,
+            shadowRadius: shadowRadius
+        ))
+    }
+}
+```
+
+### 2.4 間隔トークン
+
+```swift
+enum MemoraSpacing {
+    static let xxxs: CGFloat = 2
+    static let xxs: CGFloat  = 4
+    static let xs: CGFloat   = 8
+    static let sm: CGFloat   = 12
+    static let md: CGFloat   = 16
+    static let lg: CGFloat   = 20
+    static let xl: CGFloat   = 24
+    static let xxl: CGFloat  = 32
+    static let xxxl: CGFloat = 40
+    static let xxxxl: CGFloat = 56
+}
+```
+
+### 2.5 共通コンポーネント仕様
+
+**FABMenu** は画面右下に配置する丸型ボタンで、タップすると「端末録音」「ファイルインポート」の2選択肢が扇状に展開する。ボタンの直径は 56pt、展開時の子ボタンは 44pt とする。展開アニメーションは spring(response: 0.35, dampingFraction: 0.75) で制御する。背景は liquidGlass を適用する。
+
+**ToastOverlay** は画面上部から下降するバナー型の通知で、失敗通知に使用する。高さは自動伸縮、左にアイコン、中央にメッセージ、右に閉じるボタンを配置する。表示時間は 4 秒で自動消去する。liquidGlass を適用し、角丸は 12pt とする。
+
+**EmptyStateView** は中央にイラスト（またはSFSymbol）、その下にタイトルと説明文、さらにその下にプライマリアクションボタンを配置する構造を持つ。Files / Projects / ToDo の各空状態で再利用する。
+
+**SkeletonView** は生成処理中のプレースホルダーで、角丸の矩形が shimmer アニメーション（左から右への光沢移動）を繰り返す。高さは使用箇所に応じて可変とする。
+
+**LiveRecordingBanner** は録音中に Files 一覧の最上部に表示される横長バナーで、赤い録音インジケータドット、経過時間、波形インジケータ、停止ボタンを横一列に配置する。タップするとRecordingViewへ遷移する。
+
+---
+
+## 第3部 データ層
+
+### 3.1 永続化方針
+
+Phase 1 のローカル保存には SwiftData を採用する。ModelContainer は MemoraApp の起動時に1つだけ生成し、環境経由ですべてのビューに渡す。マイグレーションは VersionedSchema で管理し、スキーマ変更時には MigrationPlan を必ず定義する。
+
+音声ファイル本体と添付ファイルは FileManager の Application Support ディレクトリ配下にサブディレクトリを切って保存する。SwiftData には相対パスのみ記録し、ベースパスは起動時に解決する。
+
+### 3.2 SwiftData モデル定義
+
+```swift
+// AudioFile.swift
+import Foundation
+import SwiftData
+
+@Model
+final class AudioFile {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var recordedAt: Date
+    var durationSec: Double
+    var localPath: String
+    var sourceType: SourceType
+    var summaryLine: String?
+
+    @Relationship(deleteRule: .cascade, inverse: \Transcript.audioFile)
+    var transcript: Transcript?
+
+    @Relationship(deleteRule: .cascade, inverse: \MeetingNote.audioFile)
+    var meetingNote: MeetingNote?
+
+    @Relationship(deleteRule: .cascade, inverse: \Attachment.audioFile)
+    var attachments: [Attachment]
+
+    @Relationship(deleteRule: .cascade, inverse: \ProcessingJob.audioFile)
+    var jobs: [ProcessingJob]
+
+    var project: Project?
+
+    var createdAt: Date
+
+    enum SourceType: String, Codable {
+        case iphoneRecording = "iphone_recording"
+        case importedFile    = "imported_file"
+        case plaudSync       = "plaud_sync"
+    }
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        recordedAt: Date = Date(),
+        durationSec: Double,
+        localPath: String,
+        sourceType: SourceType,
+        summaryLine: String? = nil,
+        project: Project? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.recordedAt = recordedAt
+        self.durationSec = durationSec
+        self.localPath = localPath
+        self.sourceType = sourceType
+        self.summaryLine = summaryLine
+        self.project = project
+        self.attachments = []
+        self.jobs = []
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// Transcript.swift
+import Foundation
+import SwiftData
+
+@Model
+final class Transcript {
+    @Attribute(.unique) var id: UUID
+    var audioFile: AudioFile?
+    var fullText: String
+    var language: String
+    var speakerSegments: [SpeakerSegment]
+    var createdAt: Date
+
+    struct SpeakerSegment: Codable {
+        var speakerLabel: String   // "Speaker 1" etc.
+        var startSec: Double
+        var endSec: Double
+        var text: String
+    }
+
+    init(
+        id: UUID = UUID(),
+        fullText: String,
+        language: String,
+        speakerSegments: [SpeakerSegment] = []
+    ) {
+        self.id = id
+        self.fullText = fullText
+        self.language = language
+        self.speakerSegments = speakerSegments
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// MeetingNote.swift
+import Foundation
+import SwiftData
+
+@Model
+final class MeetingNote {
+    @Attribute(.unique) var id: UUID
+    var audioFile: AudioFile?
+    var templateType: TemplateType
+    var summary: String
+    var decisions: [String]
+    var actionItems: [String]
+    var generatedByModel: String
+    var createdAt: Date
+
+    enum TemplateType: String, Codable {
+        case summary         = "summary"
+        case detailed        = "detailed"
+        case actionFocused   = "action_focused"
+    }
+
+    init(
+        id: UUID = UUID(),
+        templateType: TemplateType,
+        summary: String,
+        decisions: [String],
+        actionItems: [String],
+        generatedByModel: String
+    ) {
+        self.id = id
+        self.templateType = templateType
+        self.summary = summary
+        self.decisions = decisions
+        self.actionItems = actionItems
+        self.generatedByModel = generatedByModel
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// Project.swift
+import Foundation
+import SwiftData
+
+@Model
+final class Project {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var descriptionText: String?
+
+    @Relationship(deleteRule: .nullify, inverse: \AudioFile.project)
+    var files: [AudioFile]
+
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        descriptionText: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.descriptionText = descriptionText
+        self.files = []
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// TodoItem.swift
+import Foundation
+import SwiftData
+
+@Model
+final class TodoItem {
+    @Attribute(.unique) var id: UUID
+    var title: String
+    var sourceFileId: UUID?
+    var sourceFileTitle: String?
+    var projectId: UUID?
+    var assigneeLabel: String?
+    var dueDate: Date?
+    var isCompleted: Bool
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        sourceFileId: UUID? = nil,
+        sourceFileTitle: String? = nil,
+        projectId: UUID? = nil,
+        assigneeLabel: String? = nil,
+        dueDate: Date? = nil,
+        isCompleted: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.sourceFileId = sourceFileId
+        self.sourceFileTitle = sourceFileTitle
+        self.projectId = projectId
+        self.assigneeLabel = assigneeLabel
+        self.dueDate = dueDate
+        self.isCompleted = isCompleted
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// Attachment.swift
+import Foundation
+import SwiftData
+
+@Model
+final class Attachment {
+    @Attribute(.unique) var id: UUID
+    var audioFile: AudioFile?
+    var type: AttachmentType
+    var localPath: String
+    var thumbnailPath: String?
+    var createdAt: Date
+
+    enum AttachmentType: String, Codable {
+        case image = "image"
+        case pdf   = "pdf"
+    }
+
+    init(
+        id: UUID = UUID(),
+        type: AttachmentType,
+        localPath: String,
+        thumbnailPath: String? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.localPath = localPath
+        self.thumbnailPath = thumbnailPath
+        self.createdAt = Date()
+    }
+}
+```
+
+```swift
+// ProcessingJob.swift
+import Foundation
+import SwiftData
+
+@Model
+final class ProcessingJob {
+    @Attribute(.unique) var id: UUID
+    var audioFile: AudioFile?
+    var templateType: String
+    var modelProvider: String
+    var status: JobStatus
+    var step: JobStep
+    var errorMessage: String?
+    var createdAt: Date
+    var updatedAt: Date
+
+    @Relationship(deleteRule: .cascade, inverse: \ProcessingChunk.job)
+    var chunks: [ProcessingChunk]
+
+    enum JobStatus: String, Codable {
+        case queued    = "queued"
+        case running   = "running"
+        case completed = "completed"
+        case failed    = "failed"
+    }
+
+    enum JobStep: String, Codable {
+        case transcription = "transcription"
+        case summary       = "summary"
+        case decisions     = "decisions"
+        case todos         = "todos"
+    }
+
+    init(
+        id: UUID = UUID(),
+        templateType: String,
+        modelProvider: String,
+        status: JobStatus = .queued,
+        step: JobStep = .transcription
+    ) {
+        self.id = id
+        self.templateType = templateType
+        self.modelProvider = modelProvider
+        self.status = status
+        self.step = step
+        self.chunks = []
+        self.createdAt = Date()
+        self.updatedAt = Date()
+    }
+}
+```
+
+```swift
+// ProcessingChunk.swift
+import Foundation
+import SwiftData
+
+@Model
+final class ProcessingChunk {
+    @Attribute(.unique) var id: UUID
+    var job: ProcessingJob?
+    var chunkIndex: Int
+    var timeRangeStartSec: Double
+    var timeRangeEndSec: Double
+    var status: ProcessingJob.JobStatus
+    var retryCount: Int
+    var partialTranscript: String?
+
+    init(
+        id: UUID = UUID(),
+        chunkIndex: Int,
+        timeRangeStartSec: Double,
+        timeRangeEndSec: Double,
+        status: ProcessingJob.JobStatus = .queued,
+        retryCount: Int = 0
+    ) {
+        self.id = id
+        self.chunkIndex = chunkIndex
+        self.timeRangeStartSec = timeRangeStartSec
+        self.timeRangeEndSec = timeRangeEndSec
+        self.status = status
+        self.retryCount = retryCount
+    }
+}
+```
+
+```swift
+// ChatScope.swift
+import Foundation
+
+enum ChatScope: Equatable, Hashable {
+    case file(fileId: UUID)
+    case project(projectId: UUID)
+    case global
+}
+```
+
+### 3.3 Repository パターン
+
+各エンティティに対して Repository プロトコルを定義し、SwiftData の ModelContext を直接ビューや Reducer から触らせない。これによりテスト時のモック化とデータアクセスの一元管理を実現する。
+
+```swift
+// AudioFileRepository.swift
+import Foundation
+import SwiftData
+
+protocol AudioFileRepositoryProtocol: Sendable {
+    func fetchAll() async throws -> [AudioFile]
+    func fetch(id: UUID) async throws -> AudioFile?
+    func save(_ file: AudioFile) async throws
+    func delete(_ file: AudioFile) async throws
+    func fetchByProject(_ projectId: UUID) async throws -> [AudioFile]
+}
+
+final class AudioFileRepository: AudioFileRepositoryProtocol {
+    private let modelContainer: ModelContainer
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+    }
+
+    @ModelActor
+    actor Worker {
+        func fetchAll() throws -> [AudioFile] {
+            let descriptor = FetchDescriptor<AudioFile>(
+                sortBy: [SortDescriptor(\.recordedAt, order: .reverse)]
+            )
+            return try modelContext.fetch(descriptor)
+        }
+
+        func fetch(id: UUID) throws -> AudioFile? {
+            let descriptor = FetchDescriptor<AudioFile>(
+                predicate: #Predicate { $0.id == id }
+            )
+            return try modelContext.fetch(descriptor).first
+        }
+
+        func save(_ file: AudioFile) throws {
+            modelContext.insert(file)
+            try modelContext.save()
+        }
+
+        func delete(_ file: AudioFile) throws {
+            modelContext.delete(file)
+            try modelContext.save()
+        }
+
+        func fetchByProject(_ projectId: UUID) throws -> [AudioFile] {
+            let descriptor = FetchDescriptor<AudioFile>(
+                predicate: #Predicate { $0.project?.id == projectId },
+                sortBy: [SortDescriptor(\.recordedAt, order: .reverse)]
+            )
+            return try modelContext.fetch(descriptor)
+        }
+    }
+
+    func fetchAll() async throws -> [AudioFile] {
+        let worker = Worker(modelContainer: modelContainer)
+        return try await worker.fetchAll()
+    }
+
+    func fetch(id: UUID) async throws -> AudioFile? {
+        let worker = Worker(modelContainer: modelContainer)
+        return try await worker.fetch(id: id)
+    }
+
+    func save(_ file: AudioFile) async throws {
+        let worker = Worker(modelContainer: modelContainer)
+        try await worker.save(file)
+    }
+
+    func delete(_ file: AudioFile) async throws {
+        let worker = Worker(modelContainer: modelContainer)
+        try await worker.delete(file)
+    }
+
+    func fetchByProject(_ projectId: UUID) async throws -> [AudioFile] {
+        let worker = Worker(modelContainer: modelContainer)
+        return try await worker.fetchByProject(projectId)
+    }
+}
+```
+
+他のエンティティ（Transcript, MeetingNote, Project, TodoItem, Attachment, ProcessingJob）も同一のパターンで実装する。各 Repository は TCA の `DependencyKey` として登録し、Reducer から `@Dependency(\.audioFileRepository)` で取得する。
+
+---
+
+## 第4部 認証・課金・広告
+
+### 4.1 認証フロー
+
+AuthService は Sign in with Apple と Sign in with Google の2つのプロバイダをサポートする。内部的には Firebase Authentication を使用し、各プロバイダの認証トークンを Firebase credential に変換して統一的に管理する。
+
+```swift
+// AuthService.swift
+import AuthenticationServices
+import GoogleSignIn
+
+protocol AuthServiceProtocol: Sendable {
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async throws -> AuthUser
+    func signInWithGoogle(presentingWindow: UIWindow) async throws -> AuthUser
+    func signOut() async throws
+    func currentUser() async -> AuthUser?
+    func observeAuthState() -> AsyncStream<AuthUser?>
+}
+
+struct AuthUser: Equatable, Sendable {
+    let uid: String
+    let email: String?
+    let displayName: String?
+    let provider: AuthProvider
+}
+
+enum AuthProvider: String, Codable, Sendable {
+    case apple  = "apple"
+    case google = "google"
+}
+```
+
+AuthReducer は以下の State / Action を持つ。
+
+```swift
+@Reducer
+struct AuthReducer {
+    @ObservableState
+    struct State: Equatable {
+        var isLoading: Bool = false
+        var user: AuthUser? = nil
+        var error: String? = nil
+    }
+
+    enum Action {
+        case onAppear
+        case signInWithAppleTapped
+        case signInWithAppleResponse(Result<AuthUser, Error>)
+        case signInWithGoogleTapped
+        case signInWithGoogleResponse(Result<AuthUser, Error>)
+        case signOutTapped
+        case signOutResponse(Result<Void, Error>)
+        case authStateChanged(AuthUser?)
+    }
+
+    @Dependency(\.authService) var authService
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                return .run { send in
+                    for await user in authService.observeAuthState() {
+                        await send(.authStateChanged(user))
+                    }
+                }
+            case .signInWithAppleTapped:
+                state.isLoading = true
+                state.error = nil
+                return .none // Apple Sign In は ASAuthorizationController のデリゲート経由
+            case .signInWithAppleResponse(.success(let user)):
+                state.isLoading = false
+                state.user = user
+                return .none
+            case .signInWithAppleResponse(.failure(let error)):
+                state.isLoading = false
+                state.error = error.localizedDescription
+                return .none
+            case .signInWithGoogleTapped:
+                state.isLoading = true
+                state.error = nil
+                return .run { send in
+                    // UIWindow は Environment 経由で取得
+                    // 実装時に適切に対応
+                }
+            case .signInWithGoogleResponse(.success(let user)):
+                state.isLoading = false
+                state.user = user
+                return .none
+            case .signInWithGoogleResponse(.failure(let error)):
+                state.isLoading = false
+                state.error = error.localizedDescription
+                return .none
+            case .signOutTapped:
+                return .run { send in
+                    try await authService.signOut()
+                    await send(.signOutResponse(.success(())))
+                }
+            case .signOutResponse(.success):
+                state.user = nil
+                return .none
+            case .signOutResponse(.failure(let error)):
+                state.error = error.localizedDescription
+                return .none
+            case .authStateChanged(let user):
+                state.user = user
+                return .none
+            }
+        }
+    }
+}
+```
+
+### 4.2 課金
+
+StoreKit 2 を直接使用する。Product ID は以下の通り定義する。
+
+```
+com.memora.subscription.monthly    → 月額プラン
+com.memora.subscription.yearly     → 年額プラン
+```
+
+SubscriptionService は購入処理、復元処理、現在のサブスクリプション状態の取得を担う。`Transaction.updates` を監視し、購入状態の変化をリアルタイムで AppState に反映する。
+
+```swift
+// SubscriptionService.swift
+import StoreKit
+
+protocol SubscriptionServiceProtocol: Sendable {
+    func fetchProducts() async throws -> [Product]
+    func purchase(_ product: Product) async throws -> Transaction?
+    func currentEntitlement() async -> SubscriptionStatus
+    func observeTransactions() -> AsyncStream<SubscriptionStatus>
+}
+
+enum SubscriptionStatus: Equatable, Sendable {
+    case free
+    case premium(expiresAt: Date)
+    case expired
+}
+```
+
+PaywallReducer は初回起動時に表示される画面を管理する。フリープランの機能と有料プランの機能を並べて表示し、Product 情報をロードして価格を動的に表示する。購入完了後は自動的に Files タブへ遷移する。
+
+### 4.3 広告
+
+AdService は Google Mobile Ads SDK を使用する。Phase 1 では以下の2種類の広告を使用する。
+
+Files 一覧の下部に表示するバナー広告は、`GADBannerView` を `UIViewRepresentable` でラップして配置する。バナー高さは 50pt 固定とし、リストの `safeAreaInset(edge: .bottom)` で常時表示する。
+
+生成完了後に表示するインタースティシャル広告は、生成パイプラインの完了時に `GADInterstitialAd` をロードし、結果表示画面への遷移直前にフルスクリーンで表示する。
+
+いずれも `SubscriptionStatus` が `.premium` の場合は表示をスキップする。
+
+---
+
+## 第5部 画面別実装仕様
+
+### 5.1 オンボーディング（OB-01〜04）
+
+4ページのページングスクロールで構成する。各ページには中央にイラスト、下部にタイトルと説明文を配置する。最下部に「次へ」ボタンと現在のページインジケータ（ドット）を配置する。最終ページのボタンテキストは「始める」とする。
+
+```swift
+@Reducer
+struct OnboardingReducer {
+    @ObservableState
+    struct State: Equatable {
+        var currentPage: Int = 0
+        let totalPages: Int = 4
+    }
+
+    enum Action {
+        case nextTapped
+        case pageChanged(Int)
+        case completed
+    }
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .nextTapped:
+                if state.currentPage < state.totalPages - 1 {
+                    state.currentPage += 1
+                    return .none
+                } else {
+                    return .send(.completed)
+                }
+            case .pageChanged(let page):
+                state.currentPage = page
+                return .none
+            case .completed:
+                return .none // 親 Reducer がハンドル
+            }
+        }
+    }
+}
+```
+
+OnboardingView は `TabView` の `.tabViewStyle(.page)` を使用し、`selection` を State.currentPage にバインドする。背景は `MemoraColor.surfacePrimary`、ボタンは黒背景白文字の pill 形状（高さ 50pt、角丸 25pt）とする。
+
+### 5.2 サインイン（AUTH-01）
+
+画面中央にアプリロゴ、その下に「Sign in with Apple」ボタンと「Sign in with Google」ボタンを縦に並べる。Apple ボタンは `SignInWithAppleButton` を使用し、黒背景白文字のシステム標準スタイルを採用する。Google ボタンは `GIDSignInButton` をラップする。下部に利用規約・プライバシーポリシーへのテキストリンクを配置する。
+
+### 5.3 Paywall（BILL-01）
+
+上部にタイトル「Memora Premium」、中段にフリープランと有料プランの機能比較をリスト表示する。各機能行にはチェックマークまたはロックアイコンを表示する。下部に月額・年額のプラン選択カード（pill形状）を横並びまたは縦並びで配置し、選択中のプランはボーダーで強調する。最下部に「購入」ボタン（pill 形状）と「あとで」テキストボタンを配置する。「あとで」は free ユーザーとして Files タブに遷移する。
+
+### 5.4 Files 一覧（FILE-01, FILE-02, FILE-11, FILE-13）
+
+**空状態（FILE-01）:** EmptyStateView を使用し、アイコンは `waveform` SFSymbol、タイトルは「ファイルがありません」、説明文は「録音またはファイルインポートで始めましょう」、ボタンは「録音を開始」とする。
+
+**一覧（FILE-02）:** NavigationStack のルートビュー。ナビゲーションタイトルは「Files」で `.large` 表示。リストは `List` を使用し、`.listStyle(.plain)` を適用する。各行は `FilesRowView` で、レイアウトは以下の通り。
+
+```
+┌─────────────────────────────────────────┐
+│ Meeting Title                       ⋮   │
+│ 2026/03/16  ·  1h 23m                   │
+│ サマリーが入る場合の1行テキスト...        │
+└─────────────────────────────────────────┘
+```
+
+タイトルは `MemoraTypography.headline`、日付と時間は `MemoraTypography.subheadline` + `MemoraColor.textSecondary`、サマリーは `MemoraTypography.footnote` + `MemoraColor.textTertiary`。行の高さは summaryLine がある場合は約 76pt、ない場合は約 56pt。区切り線は `MemoraColor.divider` で、左端を 16pt インデントする。
+
+右上には sparkle アイコン（`sparkles` SFSymbol）を配置し、タップで生成方式選択へのクイックアクセスを提供する（Phase 1 ではシンプルにスパークルアイコンを表示し、将来的に一括操作を拡張する余地を残す）。
+
+右端のオーバーフローメニュー（`⋮`）は `.contextMenu` で実装し、以下の項目を持つ：「名前を変更」「Projectに追加」「共有」「削除」。
+
+**録音中ライブ表示（FILE-11）:** 録音中は一覧最上部に `LiveRecordingBanner` を `Section` ヘッダーとして表示する。バナーの高さは 52pt、背景は liquidGlass、赤い丸インジケータ（6pt）が点滅アニメーション（0.8秒周期の opacity 切り替え）で動作する。
+
+**FABメニュー（FILE-13）:** 画面右下に FABMenu を overlay で配置する。展開時のメニュー項目は「端末録音を開始」（マイクアイコン）と「ファイルをインポート」（フォルダアイコン）の2つ。
+
+**広告バナー:** リスト下部に `safeAreaInset(edge: .bottom)` で50pt の余白を確保し、そこにバナー広告ビューを配置する。premium ユーザーの場合はこのインセットを適用しない。
+
+```swift
+@Reducer
+struct FilesListReducer {
+    @ObservableState
+    struct State: Equatable {
+        var files: IdentifiedArrayOf<AudioFileRow> = []
+        var isRecording: Bool = false
+        var recordingDuration: TimeInterval = 0
+        var isFABExpanded: Bool = false
+        var toast: ToastMessage? = nil
+
+        @Presents var destination: Destination.State?
+
+        struct AudioFileRow: Equatable, Identifiable {
+            let id: UUID
+            let title: String
+            let recordedAt: Date
+            let durationSec: Double
+            let summaryLine: String?
+        }
+    }
+
+    enum Action {
+        case onAppear
+        case filesLoaded([AudioFileRow])
+        case fileTapped(UUID)
+        case fileMenuAction(UUID, FileMenuAction)
+        case fabTapped
+        case fabDismissed
+        case startRecordingTapped
+        case importFileTapped
+        case recordingBannerTapped
+        case toastDismissed
+        case destination(PresentationAction<Destination.Action>)
+
+        enum FileMenuAction {
+            case rename
+            case addToProject
+            case share
+            case delete
+        }
+    }
+
+    @Reducer
+    enum Destination {
+        case fileDetail(FileDetailReducer)
+        case recording(RecordingReducer)
+        case importFile(ImportReducer)
+        case renameAlert(AlertState<RenameAction>)
+
+        enum RenameAction {
+            case confirmed(String)
+            case cancelled
+        }
+    }
+
+    @Dependency(\.audioFileRepository) var audioFileRepository
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                return .run { send in
+                    let files = try await audioFileRepository.fetchAll()
+                    let rows = files.map { file in
+                        State.AudioFileRow(
+                            id: file.id,
+                            title: file.title,
+                            recordedAt: file.recordedAt,
+                            durationSec: file.durationSec,
+                            summaryLine: file.summaryLine
+                        )
+                    }
+                    await send(.filesLoaded(rows))
+                }
+            case .filesLoaded(let rows):
+                state.files = IdentifiedArray(uniqueElements: rows)
+                return .none
+            case .fileTapped(let id):
+                state.destination = .fileDetail(FileDetailReducer.State(fileId: id))
+                return .none
+            case .fabTapped:
+                state.isFABExpanded.toggle()
+                return .none
+            case .fabDismissed:
+                state.isFABExpanded = false
+                return .none
+            case .startRecordingTapped:
+                state.isFABExpanded = false
+                state.destination = .recording(RecordingReducer.State())
+                return .none
+            case .importFileTapped:
+                state.isFABExpanded = false
+                state.destination = .importFile(ImportReducer.State())
+                return .none
+            case .fileMenuAction(let id, let action):
+                switch action {
+                case .delete:
+                    return .run { [id] send in
+                        if let file = try await audioFileRepository.fetch(id: id) {
+                            try await audioFileRepository.delete(file)
+                        }
+                        await send(.onAppear) // reload
+                    }
+                case .rename, .addToProject, .share:
+                    return .none // 各アクション個別実装
+                }
+            default:
+                return .none
+            }
+        }
+        .ifLet(\.$destination, action: \.destination)
+    }
+}
+```
+
+### 5.5 ファイル詳細（FILE-03〜FILE-10, FILE-12）
+
+**未生成状態（FILE-03）:** 上部にナビゲーションバー（戻る、共有、メニュー）。その直下に AudioPlayerView を配置する。AudioPlayerView はコンパクトな横長バーで、再生/停止ボタン、シークバー（UISlider ライク）、現在時間/総時間のラベルを持つ。背景は `MemoraColor.surfaceSecondary`、角丸 12pt。
+
+AudioPlayerView の直下に「Upload image」ボタンを配置する。ボタンはアウトラインスタイル（ボーダー + テキスト、背景なし）で、左にカメラアイコン、右に「Upload image」テキスト。タップで PHPickerViewController（画像選択）またはドキュメントピッカー（PDF選択）を表示する。
+
+中央寄せで生成導線を配置する。sparkle アイコンと「議事録を生成」テキストのセット。タップで GenerationFlowSheet を表示する。
+
+**生成方式選択（FILE-04）:** ボトムシートで表示する。`.presentationDetents([.medium])` を使用。タイトル「生成方式を選択」の下に「AI特化」と「カスタム生成」の2つの選択肢を縦に並べる。各選択肢はタップ可能な行で、左にアイコン、右にタイトルと説明文。
+
+**テンプレート選択（FILE-05）:** 生成方式選択の次のステップとしてシートを更新する。「要約」「詳細な議事録」「アクション重視」の3つのテンプレートを縦に並べる。
+
+**AIモデル選択（FILE-06）:** テンプレート選択の次のステップ。セクションヘッダーで「ローカル」「ChatGPT」「Claude」「Gemini」「DeepSeek」をグルーピングし、各モデルをラジオボタン付きの行で表示する。無料ユーザーが高性能モデルを選択しようとした場合はロックアイコンと「Premium」ラベルを表示し、Paywall へ誘導する。
+
+**生成中（FILE-07）:** シートを閉じ、詳細画面のコンテンツ領域に SkeletonView を表示する。ステップ名（「文字起こし中...」「要約を生成中...」「決定事項を抽出中...」「ToDoを抽出中...」）を SkeletonView の上部にテキストで表示し、進行中のステップを示す。
+
+**生成結果 / サマリー表示（FILE-08）:** 生成完了後、詳細画面のレイアウトは上から順に以下の要素を ScrollView 内に縦積みする。
+
+1. AudioPlayerView（上部固定ではなくスクロール対象に含める）
+2. Upload image ボタン行
+3. 添付サムネイル列（attachments がある場合のみ。横スクロールの LazyHStack で 80x80pt のサムネイルを表示）
+4. 「Summary」セクションヘッダー + サマリーテキスト
+5. 「Decisions」セクションヘッダー + 決定事項リスト（番号付き）
+6. 「Action Items」セクションヘッダー + アクション項目リスト
+7. 「Transcript」セクションヘッダー + 文字起こし冒頭3行 + 「全文を表示」ボタン
+8. Ask AI 入力欄（画面最下部に固定、`safeAreaInset(edge: .bottom)`）
+
+各セクションの間隔は `MemoraSpacing.xl`（24pt）。セクションヘッダーは `MemoraTypography.title3` + `MemoraColor.textPrimary`。
+
+**文字起こし全文（FILE-09）:** NavigationLink で遷移する全画面ビュー。ナビゲーションタイトルは「Transcript」。話者セグメントごとにラベル（「Speaker 1」など）を太字で表示し、その下にテキストを配置する。各セグメント間に `MemoraSpacing.md` の余白を設ける。
+
+**Ask AI 遷移（FILE-10）:** 詳細画面下部の入力欄をタップすると、`ChatScope.file(fileId:)` を注入した AskAIView に NavigationLink で遷移する。
+
+**失敗トースト（FILE-12）:** 生成パイプラインが失敗した場合、ToastOverlay を画面上部に表示する。メッセージは「生成に失敗しました。再試行してください。」アイコンは `exclamationmark.triangle` SFSymbol、色は `MemoraColor.accentRed`。
+
+```swift
+@Reducer
+struct FileDetailReducer {
+    @ObservableState
+    struct State: Equatable {
+        let fileId: UUID
+        var file: AudioFile?
+        var transcript: Transcript?
+        var meetingNote: MeetingNote?
+        var attachments: [Attachment] = []
+        var isPlaying: Bool = false
+        var playbackPosition: TimeInterval = 0
+        var playbackDuration: TimeInterval = 0
+        var generationState: GenerationState = .idle
+        var toast: ToastMessage? = nil
+
+        @Presents var sheet: Sheet.State?
+        @Presents var destination: Destination.State?
+
+        enum GenerationState: Equatable {
+            case idle
+            case selectingMethod
+            case selectingTemplate(method: GenerationMethod)
+            case selectingModel(method: GenerationMethod, template: TemplateType)
+            case processing(step: ProcessingStep)
+            case completed
+            case failed(message: String)
+        }
+
+        enum GenerationMethod: Equatable {
+            case aiOptimized
+            case custom
+        }
+
+        enum TemplateType: String, Equatable {
+            case summary
+            case detailed
+            case actionFocused
+        }
+
+        enum ProcessingStep: String, Equatable {
+            case transcription = "文字起こし中..."
+            case summary       = "要約を生成中..."
+            case decisions     = "決定事項を抽出中..."
+            case todos         = "ToDoを抽出中..."
+        }
+    }
+
+    enum Action {
+        case onAppear
+        case fileLoaded(AudioFile?, Transcript?, MeetingNote?, [Attachment])
+        // Playback
+        case playPauseTapped
+        case seeked(TimeInterval)
+        case playbackPositionUpdated(TimeInterval)
+        case playbackFinished
+        // Attachment
+        case uploadImageTapped
+        case imageSelected(URL)
+        case pdfSelected(URL)
+        // Generation flow
+        case generateTapped
+        case methodSelected(State.GenerationMethod)
+        case templateSelected(State.TemplateType)
+        case modelSelected(String)
+        case generationStepUpdated(State.ProcessingStep)
+        case generationCompleted
+        case generationFailed(String)
+        case retryTapped
+        // Navigation
+        case fullTranscriptTapped
+        case askAITapped
+        case sheet(PresentationAction<Sheet.Action>)
+        case destination(PresentationAction<Destination.Action>)
+        case toastDismissed
+    }
+
+    @Reducer
+    enum Sheet {
+        case generationFlow(GenerationFlowReducer)
+        case imagePicker(ImagePickerReducer)
+    }
+
+    @Reducer
+    enum Destination {
+        case fullTranscript(TranscriptFullReducer)
+        case askAI(AskAIReducer)
+    }
+
+    @Dependency(\.audioFileRepository) var audioFileRepository
+    @Dependency(\.audioPlayer) var audioPlayer
+    @Dependency(\.pipelineCoordinator) var pipelineCoordinator
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                let fileId = state.fileId
+                return .run { send in
+                    // Load file, transcript, meetingNote, attachments
+                    // ...
+                }
+            case .generateTapped:
+                state.generationState = .selectingMethod
+                state.sheet = .generationFlow(GenerationFlowReducer.State())
+                return .none
+            case .generationStepUpdated(let step):
+                state.generationState = .processing(step: step)
+                return .none
+            case .generationCompleted:
+                state.generationState = .completed
+                return .send(.onAppear) // reload data
+            case .generationFailed(let message):
+                state.generationState = .failed(message: message)
+                state.toast = ToastMessage(
+                    icon: "exclamationmark.triangle",
+                    message: "生成に失敗しました。再試行してください。",
+                    style: .error
+                )
+                return .none
+            case .askAITapped:
+                state.destination = .askAI(
+                    AskAIReducer.State(scope: .file(fileId: state.fileId))
+                )
+                return .none
+            default:
+                return .none
+            }
+        }
+        .ifLet(\.$sheet, action: \.sheet)
+        .ifLet(\.$destination, action: \.destination)
+    }
+}
+```
+
+### 5.6 録音（REC-01）
+
+RecordingView は全画面のモーダルとして表示する。背景は `MemoraColor.surfacePrimary`。中央に大きな経過時間ラベル（`MemoraTypography.largeTitle`）を配置する。その下に波形ビジュアライザー（AVAudioRecorder の `averagePower(forChannel:)` からリアルタイムに描画する横長のバー群）を配置する。最下部に録音停止ボタン（赤い丸型、直径 72pt）を配置する。
+
+```swift
+@Reducer
+struct RecordingReducer {
+    @ObservableState
+    struct State: Equatable {
+        var isRecording: Bool = false
+        var duration: TimeInterval = 0
+        var audioLevels: [Float] = []
+        var savedFileId: UUID? = nil
+    }
+
+    enum Action {
+        case onAppear
+        case startRecording
+        case stopRecording
+        case timerTicked
+        case audioLevelUpdated(Float)
+        case recordingSaved(UUID)
+        case recordingFailed(String)
+        case dismiss
+    }
+
+    @Dependency(\.audioRecorder) var audioRecorder
+    @Dependency(\.continuousClock) var clock
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                return .send(.startRecording)
+            case .startRecording:
+                state.isRecording = true
+                state.duration = 0
+                return .merge(
+                    .run { send in
+                        try await audioRecorder.startRecording()
+                        for await _ in clock.timer(interval: .seconds(1)) {
+                            await send(.timerTicked)
+                        }
+                    },
+                    .run { send in
+                        for await level in audioRecorder.audioLevels() {
+                            await send(.audioLevelUpdated(level))
+                        }
+                    }
+                )
+            case .stopRecording:
+                state.isRecording = false
+                return .run { send in
+                    let fileId = try await audioRecorder.stopRecording()
+                    await send(.recordingSaved(fileId))
+                }
+            case .timerTicked:
+                state.duration += 1
+                return .none
+            case .audioLevelUpdated(let level):
+                state.audioLevels.append(level)
+                if state.audioLevels.count > 50 {
+                    state.audioLevels.removeFirst()
+                }
+                return .none
+            case .recordingSaved:
+                return .send(.dismiss)
+            case .recordingFailed:
+                return .send(.dismiss)
+            case .dismiss:
+                return .none // 親がハンドル
+            }
+        }
+    }
+}
+```
+
+AudioRecorder サービスは AVAudioSession と AVAudioRecorder をラップする。録音フォーマットは m4a（AAC、サンプリングレート 44100Hz、ビットレート 128kbps）。録音停止時にファイルを Application Support に保存し、AudioFile エンティティを生成して永続化する。
+
+### 5.7 インポート（IMP-01）
+
+iOS 標準のドキュメントピッカー（`UIDocumentPickerViewController`）を `UIViewControllerRepresentable` でラップする。許可する UTType は `UTType.audio`（.mp3, .m4a, .wav, .caf, .aiff）。選択完了後、ファイルを Application Support にコピーし、AVAsset でメタデータ（duration）を取得して AudioFile エンティティを生成する。完了後は Files 一覧に戻る。
+
+### 5.8 Projects（PRJ-01〜PRJ-04）
+
+**空状態（PRJ-01）:** EmptyStateView。アイコンは `folder` SFSymbol、タイトル「プロジェクトがありません」、説明「ファイルをまとめて管理できます」、ボタン「プロジェクトを作成」。
+
+**一覧（PRJ-02）:** Files 一覧と同じくフラットリスト。各行には Project タイトル、ファイル件数、作成日を表示する。一覧末尾に「+ 新しいプロジェクト」行を配置し、タップで作成アラート（TextFieldAlert）を表示する。右下にも FAB（+アイコンのみ）を配置する。
+
+```
+┌─────────────────────────────────────────┐
+│ Project Title                           │
+│ 3 files  ·  2026/03/10                  │
+└─────────────────────────────────────────┘
+│ Another Project                         │
+│ 0 files  ·  2026/03/15                  │
+└─────────────────────────────────────────┘
+│ + 新しいプロジェクト                      │
+└─────────────────────────────────────────┘
+```
+
+**詳細（PRJ-03）:** ナビゲーションタイトルは Project タイトル。配下の AudioFile を Files 一覧と同じ `FilesRowView` でリスト表示する。右上メニューに「ファイルを追加」「Ask AI」「プロジェクト名を変更」「削除」を配置する。「Ask AI」は `ChatScope.project(projectId:)` で AskAIView に遷移する。「ファイルを追加」はシートで Files 一覧（チェックボックス付き）を表示し、複数選択で追加できるようにする。
+
+### 5.9 ToDo（TODO-01〜TODO-04）
+
+**空状態（TODO-01）:** EmptyStateView。アイコンは `checklist` SFSymbol、タイトル「ToDoはまだありません」、説明「議事録から自動で抽出されます」。
+
+**一覧（TODO-02）:** セクションで「未完了」と「完了済み」を分ける。各行は `TodoRowView` で以下のレイアウト。
+
+```
+┌─────────────────────────────────────────┐
+│ ○  ToDo タイトルテキスト                  │
+│    Meeting File Name  ·  3/20まで        │
+└─────────────────────────────────────────┘
+```
+
+左端のチェックマーク（○ / ✓）はタップで完了トグル。タイトルは `MemoraTypography.body`。サブテキスト行に出典ファイル名（`MemoraTypography.caption1` + `MemoraColor.textSecondary`）と期限（期限超過の場合は `MemoraColor.accentRed`）を表示する。
+
+行タップで TodoEditSheet を表示する。
+
+**作成・編集（TODO-03）:** ボトムシートで表示する。タイトル入力欄、担当者入力欄（Speaker ラベルを選択肢として提示）、期限設定ボタン、出典ファイルの参照表示を配置する。右上に「保存」ボタン。
+
+**期限設定（TODO-04）:** 期限設定ボタンタップで DatePicker を inline で展開表示する。`DatePicker` の `displayedComponents: .date` を使用する。
+
+```swift
+@Reducer
+struct TodoListReducer {
+    @ObservableState
+    struct State: Equatable {
+        var incompleteTodos: IdentifiedArrayOf<TodoItemRow> = []
+        var completedTodos: IdentifiedArrayOf<TodoItemRow> = []
+
+        @Presents var editSheet: TodoEditReducer.State?
+
+        struct TodoItemRow: Equatable, Identifiable {
+            let id: UUID
+            var title: String
+            var isCompleted: Bool
+            var sourceFileTitle: String?
+            var assigneeLabel: String?
+            var dueDate: Date?
+            var isOverdue: Bool
+        }
+    }
+
+    enum Action {
+        case onAppear
+        case todosLoaded([TodoItemRow])
+        case toggleCompleted(UUID)
+        case todoTapped(UUID)
+        case addTapped
+        case editSheet(PresentationAction<TodoEditReducer.Action>)
+    }
+
+    @Dependency(\.todoRepository) var todoRepository
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                return .run { send in
+                    let todos = try await todoRepository.fetchAll()
+                    let rows = todos.map { todo in
+                        State.TodoItemRow(
+                            id: todo.id,
+                            title: todo.title,
+                            isCompleted: todo.isCompleted,
+                            sourceFileTitle: todo.sourceFileTitle,
+                            assigneeLabel: todo.assigneeLabel,
+                            dueDate: todo.dueDate,
+                            isOverdue: todo.dueDate.map { $0 < Date() } ?? false
+                        )
+                    }
+                    await send(.todosLoaded(rows))
+                }
+            case .todosLoaded(let rows):
+                state.incompleteTodos = IdentifiedArray(
+                    uniqueElements: rows.filter { !$0.isCompleted }
+                )
+                state.completedTodos = IdentifiedArray(
+                    uniqueElements: rows.filter { $0.isCompleted }
+                )
+                return .none
+            case .toggleCompleted(let id):
+                return .run { [id] send in
+                    try await todoRepository.toggleCompleted(id: id)
+                    await send(.onAppear)
+                }
+            case .todoTapped(let id):
+                state.editSheet = TodoEditReducer.State(todoId: id)
+                return .none
+            case .addTapped:
+                state.editSheet = TodoEditReducer.State(todoId: nil)
+                return .none
+            default:
+                return .none
+            }
+        }
+        .ifLet(\.$editSheet, action: \.editSheet)
+    }
+}
+```
+
+### 5.10 Ask AI（ASK-01〜ASK-03）
+
+AskAIView は ChatScope を初期化パラメータとして受け取る再利用可能なコンポーネントである。
+
+**初期状態（ASK-01）:** 画面上部にスコープ表示（「Meeting Title について質問」や「Project Name について質問」）。中央にサジェストカードを2x2のグリッドで表示する。サジェスト例は「要点をまとめて」「決定事項を確認」「次のアクションは？」「参加者の発言を分析」。各カードは liquidGlass スタイルで、タップするとそのテキストが入力欄に入り、自動送信される。
+
+**会話表示（ASK-02）:** チャットバブルを縦積み表示する。ユーザーのバブルは右寄せで `MemoraColor.accentPrimary` 背景白文字。AIのバブルは左寄せで `MemoraColor.surfaceSecondary` 背景。最新メッセージが下に来るように自動スクロールする。
+
+**生成中（ASK-03）:** AI バブルの位置に「Thinking...」テキストと3点ドットのアニメーション（各ドットが順番にバウンスする）を表示する。
+
+**入力欄:** 画面最下部に固定。liquidGlass スタイルの横長バー。左端に添付ボタン（`paperclip` SFSymbol）、中央にテキスト入力欄（1行、自動拡張は最大3行）、右側にモデル切替ボタン（現在のモデル名のチップ表示）、右端に送信ボタン（`arrow.up.circle.fill`）。送信ボタンはテキストが空の場合は非活性。音声入力ボタン（`mic` SFSymbol）は送信ボタンの左に配置し、タップで SFSpeechRecognizer によるリアルタイム音声入力を開始する。
+
+```swift
+@Reducer
+struct AskAIReducer {
+    @ObservableState
+    struct State: Equatable {
+        let scope: ChatScope
+        var messages: [ChatMessage] = []
+        var inputText: String = ""
+        var isGenerating: Bool = false
+        var suggestions: [String] = [
+            "要点をまとめて",
+            "決定事項を確認",
+            "次のアクションは？",
+            "参加者の発言を分析"
+        ]
+        var selectedModel: String = "local"
+        var isVoiceInputActive: Bool = false
+    }
+
+    struct ChatMessage: Equatable, Identifiable {
+        let id: UUID
+        let role: Role
+        var content: String
+        let timestamp: Date
+
+        enum Role: Equatable {
+            case user
+            case assistant
+        }
+    }
+
+    enum Action {
+        case inputTextChanged(String)
+        case sendTapped
+        case suggestionTapped(String)
+        case responseReceived(String)
+        case responseStreamChunk(String)
+        case responseFailed(String)
+        case modelSwitchTapped
+        case modelSelected(String)
+        case voiceInputTapped
+        case voiceInputResult(String)
+        case attachTapped
+    }
+
+    @Dependency(\.llmRouter) var llmRouter
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .inputTextChanged(let text):
+                state.inputText = text
+                return .none
+            case .sendTapped:
+                let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { return .none }
+                let userMessage = ChatMessage(
+                    id: UUID(), role: .user, content: text, timestamp: Date()
+                )
+                state.messages.append(userMessage)
+                state.inputText = ""
+                state.isGenerating = true
+                state.suggestions = []
+
+                let scope = state.scope
+                let model = state.selectedModel
+                let history = state.messages
+
+                return .run { send in
+                    let response = try await llmRouter.chat(
+                        scope: scope,
+                        model: model,
+                        messages: history
+                    )
+                    await send(.responseReceived(response))
+                } catch: { error, send in
+                    await send(.responseFailed(error.localizedDescription))
+                }
+            case .suggestionTapped(let text):
+                state.inputText = text
+                return .send(.sendTapped)
+            case .responseReceived(let content):
+                state.isGenerating = false
+                let aiMessage = ChatMessage(
+                    id: UUID(), role: .assistant, content: content, timestamp: Date()
+                )
+                state.messages.append(aiMessage)
+                return .none
+            case .responseFailed(let error):
+                state.isGenerating = false
+                // Show error in chat
+                let errorMessage = ChatMessage(
+                    id: UUID(), role: .assistant,
+                    content: "エラーが発生しました: \(error)",
+                    timestamp: Date()
+                )
+                state.messages.append(errorMessage)
+                return .none
+            default:
+                return .none
+            }
+        }
+    }
+}
+```
+
+### 5.11 Settings（SET-01〜SET-09）
+
+Settings は `List` + `Section` で構成する。各セクションは以下の通り。
+
+**アカウント（SET-02）:** ログイン中のメールアドレス、プロバイダ（Apple / Google）を表示。「サインアウト」ボタン。
+
+**プラン（SET-03）:** 現在のプラン（Free / Premium）を表示。Free の場合は「アップグレード」ボタンで Paywall を表示。Premium の場合は有効期限と「サブスクリプション管理」ボタン（iOS 設定アプリへの遷移）。
+
+**保存ポリシー（SET-04）:** 「録音データの保持期間」をピッカーで設定（無制限 / 30日 / 90日 / 1年）。「ストレージ使用量」を現在の使用量で表示。
+
+**AIモデル設定（SET-05）:** デフォルトモデルの選択。FILE-06 と同じモデル一覧を表示し、デフォルトを設定する。
+
+**外部送信設定（SET-06）:** 「外部サービス連携」のオンオフ。Phase 1 では設定UIのみ配置し、実際の連携は Phase 2 以降。
+
+**APIキー管理（SET-07）:** プロバイダ（OpenAI, Anthropic, Google, DeepSeek）ごとに APIキー入力欄を設ける。入力は SecureField で、保存は Keychain に行う。
+
+**PLAUD接続状態（SET-08）:** Bluetooth 接続状態を表示（接続中 / 未接続）。Phase 1 では表示のみ。
+
+**利用規約 / プライバシー（SET-09）:** Safari ビュー（`SFSafariViewController`）で外部URLを表示。
+
+---
+
+## 第6部 サービス層
+
+### 6.1 AudioRecorder
+
+```swift
+// AudioRecorder.swift
+import AVFoundation
+
+protocol AudioRecorderProtocol: Sendable {
+    func startRecording() async throws
+    func stopRecording() async throws -> UUID
+    func audioLevels() -> AsyncStream<Float>
+}
+
+final class AudioRecorder: AudioRecorderProtocol, @unchecked Sendable {
+    private var recorder: AVAudioRecorder?
+    private var audioFileId: UUID?
+    private let levelContinuation: AsyncStream<Float>.Continuation?
+
+    func startRecording() async throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+        try session.setActive(true)
+
+        let fileId = UUID()
+        let url = FileManager.memora.audioDirectory
+            .appendingPathComponent("\(fileId.uuidString).m4a")
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 44100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVEncoderBitRateKey: 128000
+        ]
+
+        recorder = try AVAudioRecorder(url: url, settings: settings)
+        recorder?.isMeteringEnabled = true
+        recorder?.record()
+        audioFileId = fileId
+    }
+
+    func stopRecording() async throws -> UUID {
+        guard let recorder = recorder, let fileId = audioFileId else {
+            throw RecordingError.noActiveRecording
+        }
+        recorder.stop()
+
+        let duration = AVURLAsset(url: recorder.url).duration.seconds
+
+        // Save AudioFile entity
+        let audioFile = AudioFile(
+            id: fileId,
+            title: "Recording \(Date().formatted(date: .abbreviated, time: .shortened))",
+            recordedAt: Date(),
+            durationSec: duration,
+            localPath: recorder.url.lastPathComponent,
+            sourceType: .iphoneRecording
+        )
+        // Repository save is handled by caller
+        self.recorder = nil
+        self.audioFileId = nil
+        return fileId
+    }
+
+    func audioLevels() -> AsyncStream<Float> {
+        AsyncStream { continuation in
+            // Timer-based metering: poll averagePower every 0.05s
+            // Implementation detail
+        }
+    }
+}
+```
+
+### 6.2 AudioPlayer
+
+```swift
+// AudioPlayer.swift
+import AVFoundation
+
+protocol AudioPlayerProtocol: Sendable {
+    func load(url: URL) async throws
+    func play() async
+    func pause() async
+    func seek(to time: TimeInterval) async
+    func currentTime() async -> TimeInterval
+    func duration() async -> TimeInterval
+    func playbackProgress() -> AsyncStream<TimeInterval>
+}
+```
+
+AVAudioPlayer または AVPlayer をラップする。playbackProgress は 0.1秒間隔で現在位置を emit する AsyncStream を返す。
+
+### 6.3 AudioChunker
+
+長時間ファイルの分割を担当する。
+
+```swift
+// AudioChunker.swift
+import AVFoundation
+
+protocol AudioChunkerProtocol: Sendable {
+    func analyzeAndChunk(fileURL: URL) async throws -> [AudioChunk]
+}
+
+struct AudioChunk: Sendable {
+    let index: Int
+    let startSec: Double
+    let endSec: Double
+    let url: URL
+}
+
+final class AudioChunker: AudioChunkerProtocol {
+    private let shortThreshold: TimeInterval = 60 * 60       // 60min
+    private let longThreshold: TimeInterval = 60 * 60 * 3    // 180min
+    private let standardChunkDuration: TimeInterval = 10 * 60 // 10min
+    private let smallChunkDuration: TimeInterval = 5 * 60     // 5min
+
+    func analyzeAndChunk(fileURL: URL) async throws -> [AudioChunk] {
+        let asset = AVURLAsset(url: fileURL)
+        let duration = try await asset.load(.duration).seconds
+
+        if duration < shortThreshold {
+            // 60分未満: 分割なし
+            return [AudioChunk(index: 0, startSec: 0, endSec: duration, url: fileURL)]
+        }
+
+        let chunkDuration = duration < longThreshold
+            ? standardChunkDuration  // 60-180min: 10分
+            : smallChunkDuration     // 180min超: 5分
+
+        var chunks: [AudioChunk] = []
+        var start: Double = 0
+        var index = 0
+
+        while start < duration {
+            let end = min(start + chunkDuration, duration)
+            let chunkURL = try await exportChunk(
+                from: asset, start: start, end: end, index: index
+            )
+            chunks.append(AudioChunk(
+                index: index, startSec: start, endSec: end, url: chunkURL
+            ))
+            start = end
+            index += 1
+        }
+
+        return chunks
+    }
+
+    private func exportChunk(
+        from asset: AVURLAsset,
+        start: Double,
+        end: Double,
+        index: Int
+    ) async throws -> URL {
+        let exportURL = FileManager.memora.chunksDirectory
+            .appendingPathComponent("chunk_\(index)_\(UUID().uuidString).m4a")
+
+        let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetAppleM4A
+        )!
+        exportSession.outputURL = exportURL
+        exportSession.outputFileType = .m4a
+        exportSession.timeRange = CMTimeRange(
+            start: CMTime(seconds: start, preferredTimescale: 600),
+            end: CMTime(seconds: end, preferredTimescale: 600)
+        )
+        await exportSession.export()
+
+        guard exportSession.status == .completed else {
+            throw ChunkError.exportFailed(exportSession.error)
+        }
+        return exportURL
+    }
+}
+```
+
+### 6.4 TranscriptionEngine
+
+```swift
+// TranscriptionEngine.swift
+import Speech
+
+protocol TranscriptionEngineProtocol: Sendable {
+    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptionResult
+}
+
+struct TranscriptionResult: Sendable {
+    let fullText: String
+    let segments: [SegmentResult]
+
+    struct SegmentResult: Sendable {
+        let text: String
+        let startSec: Double
+        let endSec: Double
+        let speakerLabel: String?
+    }
+}
+
+final class TranscriptionEngine: TranscriptionEngineProtocol {
+    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptionResult {
+        let locale = language.map { Locale(identifier: $0) } ?? Locale.current
+        guard let recognizer = SFSpeechRecognizer(locale: locale),
+              recognizer.isAvailable else {
+            throw TranscriptionError.recognizerUnavailable
+        }
+
+        let request = SFSpeechURLRecognitionRequest(url: audioURL)
+        request.shouldReportPartialResults = false
+        request.addsPunctuation = true
+
+        let result = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
+            recognizer.recognitionTask(with: request) { result, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let result = result, result.isFinal {
+                    continuation.resume(returning: result)
+                }
+            }
+        }
+
+        let segments = result.bestTranscription.segments.map { segment in
+            TranscriptionResult.SegmentResult(
+                text: segment.substring,
+                startSec: segment.timestamp,
+                endSec: segment.timestamp + segment.duration,
+                speakerLabel: nil // SFSpeech doesn't provide speaker diarization natively
+            )
+        }
+
+        return TranscriptionResult(
+            fullText: result.bestTranscription.formattedString,
+            segments: segments
+        )
+    }
+}
+```
+
+話者分離（Speaker Diarization）は Phase 1 では SFSpeechRecognizer の標準機能では限定的であるため、文字起こし後に LLM を用いて推定するか、将来的にサードパーティ SDK を導入する余地を残す。Phase 1 では仮に全テキストを「Speaker 1」として格納し、将来の拡張に備える。
+
+### 6.5 LLMRouter
+
+```swift
+// LLMRouter.swift
+
+protocol LLMRouterProtocol: Sendable {
+    func summarize(
+        transcript: String,
+        template: MeetingNote.TemplateType,
+        model: String
+    ) async throws -> SummarizationResult
+
+    func extractDecisions(transcript: String, model: String) async throws -> [String]
+    func extractTodos(transcript: String, model: String) async throws -> [ExtractedTodo]
+
+    func chat(
+        scope: ChatScope,
+        model: String,
+        messages: [AskAIReducer.ChatMessage]
+    ) async throws -> String
+}
+
+struct SummarizationResult: Sendable {
+    let summary: String
+    let decisions: [String]
+    let actionItems: [String]
+}
+
+struct ExtractedTodo: Sendable {
+    let title: String
+    let assigneeLabel: String?
+}
+```
+
+LLMRouter はモデル名文字列（"local", "gpt-4o", "claude-sonnet-4", "gemini-2.0-flash", "deepseek-chat"）に基づいて適切な Provider に処理を委譲する。各 Provider は以下の共通プロトコルに準拠する。
+
+```swift
+protocol LLMProviderProtocol: Sendable {
+    func complete(prompt: String, systemPrompt: String?) async throws -> String
+    func chat(messages: [LLMMessage]) async throws -> String
+}
+
+struct LLMMessage: Sendable {
+    let role: String  // "system", "user", "assistant"
+    let content: String
+}
+```
+
+LocalLLMProvider は Apple Foundation Models（iOS 18.x 以降で利用可能な場合）をラップする。利用不可の場合は小型のオンデバイスモデルへのフォールバックを検討するが、Phase 1 では利用不可の場合はエラーを返し、ユーザーに外部モデルの使用を促す。
+
+各外部 Provider（OpenAI, Anthropic, Gemini, DeepSeek）は Keychain から APIキーを取得し、各社の REST API にリクエストを送信する。APIキーが未登録の場合はエラーを返す。
+
+### 6.6 PipelineCoordinator
+
+生成パイプライン全体を統括するサービスである。
+
+```swift
+// PipelineCoordinator.swift
+
+protocol PipelineCoordinatorProtocol: Sendable {
+    func execute(
+        fileId: UUID,
+        template: MeetingNote.TemplateType,
+        model: String
+    ) -> AsyncStream<PipelineEvent>
+}
+
+enum PipelineEvent: Sendable {
+    case stepStarted(ProcessingJob.JobStep)
+    case stepCompleted(ProcessingJob.JobStep)
+    case chunkProgress(current: Int, total: Int)
+    case completed
+    case failed(step: ProcessingJob.JobStep, error: String)
+}
+
+final class PipelineCoordinator: PipelineCoordinatorProtocol {
+    @Dependency(\.audioFileRepository) var audioFileRepository
+    @Dependency(\.audioChunker) var audioChunker
+    @Dependency(\.transcriptionEngine) var transcriptionEngine
+    @Dependency(\.llmRouter) var llmRouter
+    @Dependency(\.jobRepository) var jobRepository
+    @Dependency(\.transcriptRepository) var transcriptRepository
+    @Dependency(\.meetingNoteRepository) var meetingNoteRepository
+    @Dependency(\.todoRepository) var todoRepository
+
+    func execute(
+        fileId: UUID,
+        template: MeetingNote.TemplateType,
+        model: String
+    ) -> AsyncStream<PipelineEvent> {
+        AsyncStream { continuation in
+            Task {
+                do {
+                    guard let file = try await audioFileRepository.fetch(id: fileId) else {
+                        continuation.yield(.failed(step: .transcription, error: "File not found"))
+                        continuation.finish()
+                        return
+                    }
+
+                    let fileURL = FileManager.memora.audioDirectory
+                        .appendingPathComponent(file.localPath)
+
+                    // Create job
+                    let job = ProcessingJob(
+                        templateType: template.rawValue,
+                        modelProvider: model,
+                        status: .running,
+                        step: .transcription
+                    )
+                    job.audioFile = file
+                    try await jobRepository.save(job)
+
+                    // Step 1: Transcription
+                    continuation.yield(.stepStarted(.transcription))
+                    let chunks = try await audioChunker.analyzeAndChunk(fileURL: fileURL)
+
+                    // Create chunk records
+                    for chunk in chunks {
+                        let chunkRecord = ProcessingChunk(
+                            chunkIndex: chunk.index,
+                            timeRangeStartSec: chunk.startSec,
+                            timeRangeEndSec: chunk.endSec
+                        )
+                        chunkRecord.job = job
+                        try await jobRepository.saveChunk(chunkRecord)
+                    }
+
+                    // Transcribe each chunk
+                    var transcriptParts: [(Int, TranscriptionResult)] = []
+                    for (i, chunk) in chunks.enumerated() {
+                        let result = try await transcriptionEngine.transcribe(
+                            audioURL: chunk.url, language: nil
+                        )
+                        transcriptParts.append((chunk.index, result))
+                        continuation.yield(.chunkProgress(current: i + 1, total: chunks.count))
+                    }
+
+                    // Merge transcripts
+                    transcriptParts.sort { $0.0 < $1.0 }
+                    let fullText = transcriptParts.map { $0.1.fullText }.joined(separator: "\n\n")
+                    let allSegments = transcriptParts.flatMap { pair in
+                        pair.1.segments.map { seg in
+                            Transcript.SpeakerSegment(
+                                speakerLabel: seg.speakerLabel ?? "Speaker 1",
+                                startSec: seg.startSec,
+                                endSec: seg.endSec,
+                                text: seg.text
+                            )
+                        }
+                    }
+
+                    let transcript = Transcript(
+                        fullText: fullText,
+                        language: Locale.current.language.languageCode?.identifier ?? "en",
+                        speakerSegments: allSegments
+                    )
+                    transcript.audioFile = file
+                    try await transcriptRepository.save(transcript)
+                    continuation.yield(.stepCompleted(.transcription))
+
+                    // Step 2: Summary
+                    continuation.yield(.stepStarted(.summary))
+                    let summaryResult = try await llmRouter.summarize(
+                        transcript: fullText, template: template, model: model
+                    )
+                    continuation.yield(.stepCompleted(.summary))
+
+                    // Step 3: Decisions
+                    continuation.yield(.stepStarted(.decisions))
+                    let decisions = try await llmRouter.extractDecisions(
+                        transcript: fullText, model: model
+                    )
+                    continuation.yield(.stepCompleted(.decisions))
+
+                    // Step 4: Todos
+                    continuation.yield(.stepStarted(.todos))
+                    let extractedTodos = try await llmRouter.extractTodos(
+                        transcript: fullText, model: model
+                    )
+                    continuation.yield(.stepCompleted(.todos))
+
+                    // Save MeetingNote
+                    let note = MeetingNote(
+                        templateType: template,
+                        summary: summaryResult.summary,
+                        decisions: decisions,
+                        actionItems: summaryResult.actionItems,
+                        generatedByModel: model
+                    )
+                    note.audioFile = file
+                    try await meetingNoteRepository.save(note)
+
+                    // Save Todos
+                    for todo in extractedTodos {
+                        let item = TodoItem(
+                            title: todo.title,
+                            sourceFileId: fileId,
+                            sourceFileTitle: file.title,
+                            projectId: file.project?.id,
+                            assigneeLabel: todo.assigneeLabel
+                        )
+                        try await todoRepository.save(item)
+                    }
+
+                    // Update summaryLine on file
+                    file.summaryLine = String(summaryResult.summary.prefix(80))
+                    try await audioFileRepository.save(file)
+
+                    // Mark job complete
+                    job.status = .completed
+                    job.updatedAt = Date()
+                    try await jobRepository.save(job)
+
+                    continuation.yield(.completed)
+                    continuation.finish()
+                } catch {
+                    continuation.yield(.failed(
+                        step: .transcription,
+                        error: error.localizedDescription
+                    ))
+                    continuation.finish()
+                }
+            }
+        }
+    }
+}
+```
+
+### 6.7 APIキーストア
+
+```swift
+// APIKeyStore.swift
+import Security
+
+protocol APIKeyStoreProtocol: Sendable {
+    func save(provider: LLMProviderType, key: String) throws
+    func retrieve(provider: LLMProviderType) throws -> String?
+    func delete(provider: LLMProviderType) throws
+}
+
+enum LLMProviderType: String, CaseIterable, Sendable {
+    case openAI    = "openai"
+    case anthropic = "anthropic"
+    case google    = "google"
+    case deepSeek  = "deepseek"
+}
+
+final class APIKeyStore: APIKeyStoreProtocol {
+    private let serviceName = "com.memora.apikeys"
+
+    func save(provider: LLMProviderType, key: String) throws {
+        let data = Data(key.utf8)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: provider.rawValue,
+            kSecValueData as String: data
+        ]
+        SecItemDelete(query as CFDictionary)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        guard status == errSecSuccess else {
+            throw KeychainError.saveFailed(status)
+        }
+    }
+
+    func retrieve(provider: LLMProviderType) throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: provider.rawValue,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    func delete(provider: LLMProviderType) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: provider.rawValue
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+}
+```
+
+---
+
+## 第7部 App ルート構成
+
+### 7.1 AppReducer
+
+```swift
+@Reducer
+struct AppReducer {
+    @ObservableState
+    struct State: Equatable {
+        var hasCompletedOnboarding: Bool = false
+        var authState: AuthReducer.State = AuthReducer.State()
+        var subscriptionStatus: SubscriptionStatus = .free
+        var showPaywall: Bool = false
+        var selectedTab: Tab = .files
+
+        // Tab states
+        var filesState: FilesListReducer.State = FilesListReducer.State()
+        var projectsState: ProjectsListReducer.State = ProjectsListReducer.State()
+        var todoState: TodoListReducer.State = TodoListReducer.State()
+        var settingsState: SettingsReducer.State = SettingsReducer.State()
+
+        // Flow states
+        var onboardingState: OnboardingReducer.State? = OnboardingReducer.State()
+        var paywallState: PaywallReducer.State? = nil
+
+        enum Tab: String, CaseIterable {
+            case files    = "Files"
+            case projects = "Projects"
+            case todo     = "ToDo"
+            case settings = "Settings"
+        }
+    }
+
+    enum Action {
+        case onLaunch
+        case tabSelected(State.Tab)
+        case onboarding(OnboardingReducer.Action)
+        case auth(AuthReducer.Action)
+        case paywall(PaywallReducer.Action)
+        case files(FilesListReducer.Action)
+        case projects(ProjectsListReducer.Action)
+        case todo(TodoListReducer.Action)
+        case settings(SettingsReducer.Action)
+        case subscriptionStatusChanged(SubscriptionStatus)
+    }
+
+    var body: some ReducerOf<Self> {
+        Scope(state: \.authState, action: \.auth) { AuthReducer() }
+        Scope(state: \.filesState, action: \.files) { FilesListReducer() }
+        Scope(state: \.projectsState, action: \.projects) { ProjectsListReducer() }
+        Scope(state: \.todoState, action: \.todo) { TodoListReducer() }
+        Scope(state: \.settingsState, action: \.settings) { SettingsReducer() }
+
+        Reduce { state, action in
+            switch action {
+            case .onLaunch:
+                let completed = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+                state.hasCompletedOnboarding = completed
+                if completed {
+                    state.onboardingState = nil
+                }
+                return .send(.auth(.onAppear))
+
+            case .onboarding(.completed):
+                state.hasCompletedOnboarding = true
+                UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+                state.onboardingState = nil
+                // After onboarding, show auth if not logged in
+                return .none
+
+            case .auth(.authStateChanged(let user)):
+                if user != nil && !state.showPaywall {
+                    // First login → show paywall
+                    let shownBefore = UserDefaults.standard.bool(forKey: "hasShownPaywall")
+                    if !shownBefore {
+                        state.showPaywall = true
+                        state.paywallState = PaywallReducer.State()
+                        UserDefaults.standard.set(true, forKey: "hasShownPaywall")
+                    }
+                }
+                return .none
+
+            case .paywall(.dismissed), .paywall(.purchased):
+                state.showPaywall = false
+                state.paywallState = nil
+                return .none
+
+            case .tabSelected(let tab):
+                state.selectedTab = tab
+                return .none
+
+            case .subscriptionStatusChanged(let status):
+                state.subscriptionStatus = status
+                return .none
+
+            default:
+                return .none
+            }
+        }
+        .ifLet(\.onboardingState, action: \.onboarding) { OnboardingReducer() }
+        .ifLet(\.paywallState, action: \.paywall) { PaywallReducer() }
+    }
+}
+```
+
+### 7.2 MemoraApp エントリポイント
+
+```swift
+// MemoraApp.swift
+import SwiftUI
+import SwiftData
+import ComposableArchitecture
+
+@main
+struct MemoraApp: App {
+    let store = Store(initialState: AppReducer.State()) {
+        AppReducer()
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            RootView(store: store)
+                .modelContainer(for: [
+                    AudioFile.self,
+                    Transcript.self,
+                    MeetingNote.self,
+                    Project.self,
+                    TodoItem.self,
+                    Attachment.self,
+                    ProcessingJob.self,
+                    ProcessingChunk.self
+                ])
+        }
+    }
+}
+
+struct RootView: View {
+    let store: StoreOf<AppReducer>
+
+    var body: some View {
+        WithPerceptionTracking {
+            if store.onboardingState != nil {
+                if let onboardingStore = store.scope(
+                    state: \.onboardingState,
+                    action: \.onboarding
+                ) {
+                    OnboardingView(store: onboardingStore)
+                }
+            } else if store.authState.user == nil {
+                AuthView(store: store.scope(state: \.authState, action: \.auth))
+            } else if store.showPaywall, let paywallStore = store.scope(
+                state: \.paywallState,
+                action: \.paywall
+            ) {
+                PaywallView(store: paywallStore)
+            } else {
+                MainTabView(store: store)
+            }
+        }
+        .task { store.send(.onLaunch) }
+    }
+}
+
+struct MainTabView: View {
+    let store: StoreOf<AppReducer>
+
+    var body: some View {
+        WithPerceptionTracking {
+            TabView(selection: Binding(
+                get: { store.selectedTab },
+                set: { store.send(.tabSelected($0)) }
+            )) {
+                NavigationStack {
+                    FilesListView(store: store.scope(
+                        state: \.filesState, action: \.files
+                    ))
+                }
+                .tabItem {
+                    Label("Files", systemImage: "doc.text")
+                }
+                .tag(AppReducer.State.Tab.files)
+
+                NavigationStack {
+                    ProjectsListView(store: store.scope(
+                        state: \.projectsState, action: \.projects
+                    ))
+                }
+                .tabItem {
+                    Label("Projects", systemImage: "folder")
+                }
+                .tag(AppReducer.State.Tab.projects)
+
+                NavigationStack {
+                    TodoListView(store: store.scope(
+                        state: \.todoState, action: \.todo
+                    ))
+                }
+                .tabItem {
+                    Label("ToDo", systemImage: "checklist")
+                }
+                .tag(AppReducer.State.Tab.todo)
+
+                NavigationStack {
+                    SettingsView(store: store.scope(
+                        state: \.settingsState, action: \.settings
+                    ))
+                }
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .tag(AppReducer.State.Tab.settings)
+            }
+            .tint(MemoraColor.accentPrimary)
+        }
+    }
+}
+```
+
+---
+
+## 第8部 プロンプト設計
+
+### 8.1 要約プロンプト
+
+各テンプレートタイプに応じてシステムプロンプトを切り替える。
+
+```swift
+enum PromptTemplates {
+    static func summarySystemPrompt(template: MeetingNote.TemplateType) -> String {
+        switch template {
+        case .summary:
+            return """
+            あなたは議事録作成のプロフェッショナルです。
+            以下の文字起こしテキストを簡潔な要約にまとめてください。
+
+            出力フォーマット:
+            - 概要: 会議の目的と全体の流れを3-5文で
+            - 主要なポイント: 箇条書きで5項目以内
+            - 結論: 会議の結論を1-2文で
+
+            日本語で出力してください。文字起こしの言語に関わらず、日本語で要約してください。
+            """
+        case .detailed:
+            return """
+            あなたは議事録作成のプロフェッショナルです。
+            以下の文字起こしテキストから詳細な議事録を作成してください。
+
+            出力フォーマット:
+            ## 会議概要
+            - 日時、参加者（判別可能な場合）、目的
+
+            ## 議論の詳細
+            - 各議題について、発言の要旨を時系列で記述
+
+            ## 決定事項
+            - 番号付きリストで
+
+            ## 次のアクション
+            - 担当者（判別可能な場合）とアクション内容
+
+            日本語で出力してください。
+            """
+        case .actionFocused:
+            return """
+            あなたは議事録作成のプロフェッショナルです。
+            以下の文字起こしテキストから、アクションアイテムに焦点を当てた要約を作成してください。
+
+            出力フォーマット:
+            ## 要約（3文以内）
+
+            ## アクションアイテム
+            各アイテムについて:
+            - タスク内容
+            - 担当者（判別可能な場合、不明の場合は「未定」）
+            - 期限（言及がある場合のみ）
+            - 優先度（High/Medium/Low、文脈から推定）
+
+            日本語で出力してください。
+            """
+        }
+    }
+
+    static let decisionExtractionPrompt = """
+    以下の文字起こしテキストから、会議で決定された事項のみを抽出してください。
+    提案や議論中の事項ではなく、明確に合意・決定された事項のみを含めてください。
+
+    JSON配列形式で出力してください:
+    ["決定事項1", "決定事項2", ...]
+
+    決定事項がない場合は空配列 [] を返してください。
+    """
+
+    static let todoExtractionPrompt = """
+    以下の文字起こしテキストから、アクションアイテム（ToDo）を抽出してください。
+
+    JSON配列形式で出力してください:
+    [
+      {"title": "タスク内容", "assignee": "担当者名またはnull"},
+      ...
+    ]
+
+    担当者が不明な場合は assignee を null にしてください。
+    タスクがない場合は空配列 [] を返してください。
+    """
+}
+```
+
+### 8.2 Ask AI プロンプト
+
+```swift
+extension PromptTemplates {
+    static func askAISystemPrompt(scope: ChatScope, context: String) -> String {
+        switch scope {
+        case .file:
+            return """
+            あなたは会議内容に関する質問に答えるアシスタントです。
+            以下の文字起こしと要約を参考に、ユーザーの質問に正確に答えてください。
+            情報が文字起こしに含まれていない場合は、その旨を伝えてください。
+
+            === 参考情報 ===
+            \(context)
+            ===============
+            """
+        case .project:
+            return """
+            あなたはプロジェクトに関する質問に答えるアシスタントです。
+            以下のプロジェクト配下の会議記録を参考に、ユーザーの質問に答えてください。
+            複数の会議にまたがる情報を統合して回答してください。
+
+            === プロジェクト内の会議記録 ===
+            \(context)
+            ==============================
+            """
+        case .global:
+            return "あなたは汎用的なAIアシスタントです。ユーザーの質問に答えてください。"
+        }
+    }
+}
+```
+
+---
+
+## 第9部 エラーハンドリング
+
+### 9.1 エラー型定義
+
+```swift
+enum MemoraError: LocalizedError {
+    // Recording
+    case microphonePermissionDenied
+    case recordingFailed(underlying: Error)
+    case noActiveRecording
+
+    // Import
+    case unsupportedFileFormat
+    case fileCopyFailed(underlying: Error)
+
+    // Transcription
+    case speechRecognitionPermissionDenied
+    case recognizerUnavailable
+    case transcriptionFailed(underlying: Error)
+
+    // LLM
+    case apiKeyMissing(provider: LLMProviderType)
+    case modelUnavailable(model: String)
+    case rateLimitExceeded
+    case llmRequestFailed(underlying: Error)
+    case invalidResponse
+
+    // Pipeline
+    case fileNotFound
+    case chunkExportFailed(underlying: Error?)
+    case pipelineStepFailed(step: ProcessingJob.JobStep, underlying: Error)
+
+    // General
+    case persistenceFailed(underlying: Error)
+    case unknown(underlying: Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .microphonePermissionDenied:
+            return "マイクへのアクセスが許可されていません。設定から許可してください。"
+        case .speechRecognitionPermissionDenied:
+            return "音声認識へのアクセスが許可されていません。設定から許可してください。"
+        case .apiKeyMissing(let provider):
+            return "\(provider.rawValue) のAPIキーが設定されていません。"
+        case .rateLimitExceeded:
+            return "利用回数の上限に達しました。"
+        case .recognizerUnavailable:
+            return "音声認識が利用できません。"
+        default:
+            return "エラーが発生しました。再試行してください。"
+        }
+    }
+}
+```
+
+### 9.2 リトライ方針
+
+パイプラインのチャンク処理では、各チャンクに最大3回のリトライを許可する。リトライ間隔は指数バックオフ（1秒、3秒、9秒）とする。3回失敗した場合、そのチャンクを `failed` に設定し、他のチャンクの処理は継続する。全チャンク完了後、失敗チャンクがある場合はジョブ全体を `failed` にし、ユーザーに部分的な再試行を提案する。
+
+LLM リクエストでは HTTP 429（Rate Limit）を受けた場合、`Retry-After` ヘッダーの値に従って待機する。HTTP 5xx の場合は3回まで指数バックオフでリトライする。HTTP 4xx（429以外）はリトライせずにエラーを返す。
+
+### 9.3 パーミッション管理
+
+マイクと音声認識のパーミッションは、録音開始前と文字起こし開始前にそれぞれチェックする。未許可の場合は iOS 標準のパーミッションダイアログを表示する。拒否済みの場合は設定アプリへの誘導アラートを表示する。
+
+```swift
+enum PermissionManager {
+    static func requestMicrophonePermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVAudioApplication.requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+
+    static func requestSpeechRecognitionPermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status == .authorized)
+            }
+        }
+    }
+}
+```
+
+---
+
+## 第10部 テスト戦略
+
+### 10.1 ユニットテスト
+
+TCA の `TestStore` を使用して各 Reducer のロジックをテストする。すべての依存はモック化し、外部サービスへの実際のアクセスは行わない。
+
+```swift
+// FilesListReducerTests.swift
+import ComposableArchitecture
+import XCTest
+
+@MainActor
+final class FilesListReducerTests: XCTestCase {
+    func testOnAppearLoadsFiles() async {
+        let store = TestStore(
+            initialState: FilesListReducer.State()
+        ) {
+            FilesListReducer()
+        } withDependencies: {
+            $0.audioFileRepository = MockAudioFileRepository(
+                files: [
+                    AudioFile(
+                        title: "Test Meeting",
+                        durationSec: 3600,
+                        localPath: "test.m4a",
+                        sourceType: .iphoneRecording
+                    )
+                ]
+            )
+        }
+
+        await store.send(.onAppear)
+        await store.receive(\.filesLoaded) { state in
+            XCTAssertEqual(state.files.count, 1)
+            XCTAssertEqual(state.files[0].title, "Test Meeting")
+        }
+    }
+
+    func testDeleteFileRemovesFromList() async {
+        // ...
+    }
+
+    func testFABToggle() async {
+        let store = TestStore(
+            initialState: FilesListReducer.State()
+        ) {
+            FilesListReducer()
+        }
+
+        await store.send(.fabTapped) { state in
+            state.isFABExpanded = true
+        }
+        await store.send(.fabTapped) { state in
+            state.isFABExpanded = false
+        }
+    }
+}
+```
+
+### 10.2 テスト対象の優先順位
+
+MVP-1 に含まれる機能を最優先でテストする。具体的には、FilesListReducer, FileDetailReducer, RecordingReducer, ImportReducer の Reducer テスト、AudioChunker のチャンク分割ロジックテスト、PipelineCoordinator のステップ遷移テスト、各 Repository の CRUD テストを最初に作成する。
+
+スナップショットテストは EmptyStateView, FilesRowView, TodoRowView, ChatBubbleView など再利用性の高い共通コンポーネントに対して作成する。
+
+---
+
+## 第11部 実装タスク分割（Codex / Claude Code 向け）
+
+以下のタスクリストは、Codex または Claude Code に個別の実装指示として渡すことを想定している。各タスクは独立して実装可能な粒度に分割してあり、依存関係のあるものは番号で示す。
+
+### Phase MVP-1
+
+**TASK-001: プロジェクト初期構成**
+Xcode プロジェクトの作成、ディレクトリ構造の構築、SPM 依存の追加（TCA, GoogleSignIn）、SwiftData の ModelContainer 初期化、MemoraApp エントリポイントの実装。
+
+**TASK-002: デザインシステム基盤**
+Colors.swift, Typography.swift, MemoraSpacing, LiquidGlassModifier, Theme.swift の実装。
+
+**TASK-003: 共通UIコンポーネント**
+FABMenu, ToastOverlay, EmptyStateView, SkeletonView, PillButton, LiveRecordingBanner の実装。TASK-002 に依存。
+
+**TASK-004: SwiftData モデル定義**
+AudioFile, Transcript, MeetingNote, Project, TodoItem, Attachment, ProcessingJob, ProcessingChunk の全モデル定義。
+
+**TASK-005: Repository 層**
+全エンティティの Repository プロトコルおよび SwiftData 実装。TASK-004 に依存。
+
+**TASK-006: AppReducer + タブ構成**
+AppReducer, RootView, MainTabView の実装。タブ4つの空ビューまで。TASK-001, TASK-002 に依存。
+
+**TASK-007: オンボーディング**
+OnboardingReducer, OnboardingView, ページコンテンツ。TASK-006 に依存。
+
+**TASK-008: 認証**
+AuthService（Firebase Auth + Apple + Google）, AuthReducer, AuthView。TASK-006 に依存。
+
+**TASK-009: Paywall**
+SubscriptionService（StoreKit 2）, PaywallReducer, PaywallView。TASK-008 に依存。
+
+**TASK-010: AudioRecorder サービス**
+AVFoundation ベースの録音サービス。パーミッション管理を含む。
+
+**TASK-011: 録音画面**
+RecordingReducer, RecordingView, 波形ビジュアライザー。TASK-003, TASK-010 に依存。
+
+**TASK-012: インポート機能**
+ImportReducer, ImportView（ドキュメントピッカー）, ファイルコピー処理。TASK-005 に依存。
+
+**TASK-013: Files 一覧画面**
+FilesListReducer, FilesListView, FilesRowView, FAB 統合, LiveRecordingBanner 統合。TASK-003, TASK-005, TASK-011, TASK-012 に依存。
+
+**TASK-014: AudioPlayer サービス**
+AVFoundation ベースの再生サービス。
+
+**TASK-015: ファイル詳細画面（未生成状態）**
+FileDetailReducer（部分）, FileDetailView, AudioPlayerView, Upload image ボタン。TASK-005, TASK-014 に依存。
+
+**TASK-016: TranscriptionEngine**
+SFSpeechRecognizer ベースの文字起こしエンジン。
+
+**TASK-017: AudioChunker**
+長時間ファイル分割ロジック。AVAssetExportSession ベース。
+
+**TASK-018: LLMRouter + LocalProvider**
+LLMRouter, LLMProviderProtocol, LocalLLMProvider の実装。
+
+**TASK-019: PipelineCoordinator**
+パイプライン全体の統括ロジック。TASK-005, TASK-016, TASK-017, TASK-018 に依存。
+
+**TASK-020: 生成フロー UI**
+GenerationFlowSheet（方式選択 → テンプレート選択 → モデル選択 → 生成中）。TASK-015, TASK-019 に依存。
+
+**TASK-021: 生成結果表示**
+FileDetailView への生成結果表示統合（サマリー、決定事項、アクション、文字起こし冒頭）。TranscriptView 全文画面。TASK-020 に依存。
+
+**TASK-022: 失敗トースト統合**
+PipelineCoordinator のエラーを ToastOverlay で表示する統合。TASK-003, TASK-019 に依存。
+
+### Phase MVP-2
+
+**TASK-023: 添付ファイル保存・プレビュー**
+画像/PDF の保存、AttachmentGalleryView のサムネイル表示、QuickLook プレビュー。TASK-004, TASK-005 に依存。
+
+**TASK-024: ToDo 抽出統合**
+PipelineCoordinator の ToDo 抽出ステップと TodoRepository への保存。TASK-005, TASK-019 に依存。
+
+**TASK-025: ToDo 一覧・編集画面**
+TodoListReducer, TodoListView, TodoRowView, TodoEditSheet, 期限 DatePicker。TASK-005, TASK-024 に依存。
+
+**TASK-026: Project 作成・一覧画面**
+ProjectsListReducer, ProjectsListView, ProjectsRowView, 新規作成。TASK-005 に依存。
+
+**TASK-027: Project 詳細画面**
+ProjectDetailReducer, ProjectDetailView, ファイル追加シート。TASK-013, TASK-026 に依存。
+
+### Phase MVP-3
+
+**TASK-028: Ask AI（File スコープ）**
+AskAIReducer, AskAIView, ChatBubbleView, SuggestionCardView。FileDetail からの遷移統合。TASK-018, TASK-021 に依存。
+
+**TASK-029: Ask AI（Project スコープ）**
+Project 配下の文字起こしコンテキスト収集、ProjectDetail からの遷移統合。TASK-027, TASK-028 に依存。
+
+**TASK-030: 外部 LLM Provider 実装**
+OpenAIProvider, AnthropicProvider, GeminiProvider, DeepSeekProvider の REST API クライアント。TASK-018 に依存。
+
+**TASK-031: モデル切替 UI**
+ファイル詳細のモデル選択シート、Ask AI 入力欄のモデル切替チップ。TASK-020, TASK-028, TASK-030 に依存。
+
+**TASK-032: 使用回数制限**
+無料ユーザー向けの LLM 使用回数カウント・制限ロジック。UserDefaults またはサーバーサイドで管理。TASK-009 に依存。
+
+**TASK-033: 広告表示**
+AdService, Files 一覧バナー広告、生成後インタースティシャル広告。TASK-009, TASK-013 に依存。
+
+### Phase MVP-4
+
+**TASK-034: APIキー管理 UI**
+APIKeyStore, Settings の APIKeySection UI。TASK-030 に依存。
+
+**TASK-035: クラウド保存**
+CloudKit または独自バックエンド連携（Phase 2 以降のスコープだが設計のみ先行）。
+
+**TASK-036: PLAUD 接続状態管理**
+Bluetooth 状態表示、Settings の PLAUDSection。
+
+**TASK-037: 外部サービス連携**
+Slack / Notion / Google Docs 等への送信（Phase 2 以降の詳細設計が必要）。
+
+---
+
+## 第12部 非機能要件
+
+### 12.1 パフォーマンス
+
+Files 一覧は 1000 件のファイルでもスムーズにスクロールできるように、SwiftData の `FetchDescriptor` に `fetchLimit` と `fetchOffset` を設定したページネーションを実装する。1回のフェッチで 50 件を取得し、リスト末尾到達時に次のバッチをロードする。
+
+録音中の AudioLevel の更新は 0.05 秒間隔で行うが、UI 更新は 0.1 秒間隔に間引く。
+
+文字起こしと LLM リクエストは常にバックグラウンドタスクとして実行し、メインスレッドをブロックしない。
+
+### 12.2 アクセシビリティ
+
+すべてのインタラクティブ要素に `accessibilityLabel` を設定する。Dynamic Type の全サイズに対応する。VoiceOver でのナビゲーションが可能であることを各画面で確認する。色のみに依存する情報表現は行わず、アイコンやテキストを併用する。
+
+### 12.3 ローカライゼーション
+
+Phase 1 では日本語をプライマリ、英語をセカンダリとする。すべてのユーザー向け文字列は `Localizable.xcstrings` で管理し、ハードコードしない。日付フォーマットは `Date.FormatStyle` を使用してロケール適応させる。
+
+### 12.4 セキュリティ
+
+APIキーは Keychain に保存し、UserDefaults やファイルには書き出さない。音声ファイルと添付ファイルは Application Support ディレクトリに保存し、iTunes バックアップ対象外フラグ（`isExcludedFromBackup`）は Phase 1 では設定しない（クラウドバックアップは Phase 2 で検討）。ネットワーク通信は HTTPS のみを使用する。
+
+---
+
+この仕様書に基づき、TASK-001 から順に Codex / Claude Code で実装を進めることで、元仕様書 v2 の Phase 1 機能を完全にカバーするアプリケーションが構築される。各タスクは独立して着手可能であり、依存関係を尊重した順序で並列実装も可能である。
