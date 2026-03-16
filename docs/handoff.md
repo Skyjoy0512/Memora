@@ -5,7 +5,13 @@
 ### プロジェクト進捗
 - **フェーズ**: 初期設計・準備完了
 - **開発開始**: 未実装（これから Xcode プロジェクト作成）
-- **完了済み**: プロジェクト構成・ドキュメント整備
+- **完了済み**: プロジェクト構成・ドキュメント整備・GitHub 連携
+- **GitHub**: https://github.com/Skyjoy0512/Memora (master ブランチ)
+
+### レポジトリ設定
+- **リモート**: origin (https://github.com/Skyjoy0512/Memora.git)
+- **現在のブランチ**: master
+- **連携状況**: origin/master と同期完了
 
 ### 完了した作業
 - [x] CLAUDE.md 作成（Claude Code 協働ルール）
@@ -13,9 +19,9 @@
 - [x] .gitignore 作成（iOS 開発対応）
 - [x] docs/architecture.md 作成（アーキテクチャ設計）
 - [x] docs/todo.md 作成（タスク管理）
-- [ ] README.md 作成
+- [x] README.md 作成（プロジェクト概要）
+- [x] GitHub レポジトリ連携（master ブランチ）
 - [ ] Xcode プロジェクト作成
-- [ ] git リポジトリ初期化
 
 ### 現在の環境
 - **OS**: Windows / macOS ハイブリッド対応を目指す設計
@@ -98,20 +104,51 @@
 
 ## 開発フロー
 
-### Windows / macOS 協働フロー
+### Windows / macOS 並行開発
+
+このプロジェクトは GitHub レポジトリをマスターとして、Windows と macOS の両方で並行して開発できます。
+
+#### 並行開発の仕組み
+- **GitHub**: マスターとしてコードを共有
+- **Windows 側**: 設計・計画・ドキュメント管理・Claude Code での開発
+- **macOS 側**: Xcode での実装・テスト・ビルド
+
+#### クローンとセットアップ
+
+**Windows 側:**
+```bash
+git clone https://github.com/Skyjoy0512/Memora.git
+cd Memora
+# Claude Code での開発開始
+claude
+```
+
+**macOS 側:**
+```bash
+git clone https://github.com/Skyjoy0512/Memora.git
+cd Memora
+# Xcode でプロジェクト作成と実装開始
+```
+
+#### 開発サイクル
+
 1. **Windows 側**
    - ドキュメント更新
    - 設計・計画
    - 要件調整
+   - Git プッシュ
 
 2. **macOS 側**
+   - Git プル
    - Xcode での実装
    - テスト実行
    - ビルド確認
+   - Git プッシュ
 
 3. **共通**
-   - git でのコード管理
+   - GitHub でのコード管理
    - Claude Code での協働開発
+   - Issue での課題管理
 
 ### Claude Code の活用
 - 設計・計画: Windows 側で可能
