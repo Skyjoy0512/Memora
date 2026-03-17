@@ -12,6 +12,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("Projects", systemImage: "folder")
                 }
+
+            // SettingsView() // 一時的に無効化
+            //     .tabItem {
+            //         Label("Settings", systemImage: "gearshape")
+            //     }
         }
     }
 }
@@ -20,3 +25,5 @@ struct ContentView: View {
     ContentView()
         .modelContainer(for: AudioFile.self, inMemory: true)
 }
+
+

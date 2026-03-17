@@ -1,0 +1,47 @@
+import SwiftUI
+
+struct SettingsView: View {
+    @State private var apiKey = ""
+    @State private var showDeleteAlert = false
+
+    var body: some View {
+        List {
+            Section("AI サービス設定") {
+                SecureField("API キー", text: $apiKey)
+                    .textFieldStyle(.plain)
+            }
+
+            Section("使用方法") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("文字起こし・要約には AI API が必要です。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text("API キーはローカルにのみ保存されます。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("データ管理") {
+                Button {
+                    Text("API キーを削除")
+                }
+            }
+        }
+        .navigationTitle("設定")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("API キー削除", isPresented: $showDeleteAlert) {
+            Button("キャンセル", role: .cancel) {}
+            Button("削除", role: .destructive) {
+                apiKey = ""
+            }
+        } message: {
+            Text("API キーを削除しますか？")
+        }
+    }
+}
+
+#Preview {
+    SettingsView()
+}

@@ -17,21 +17,10 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
 
-    private var currentTask: Task<Void, Never>?
-
     func transcribe(audioURL: URL) async throws -> TranscriptResult {
         isTranscribing = true
         progress = 0
 
-        return try await withTaskCancellationHandler {
-            try await simulateTranscription(for: audioURL)
-        } onCancel: {
-            currentTask?.cancel()
-            isTranscribing = false
-        }
-    }
-
-    private func simulateTranscription(for url: URL) async throws -> TranscriptResult {
         // TODO: 実際の API を呼び出す
         // ここではシミュレーション
 
@@ -82,7 +71,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         return TranscriptResult(
             text: text,
             segments: segments,
-            duration: audioFileDuration(for: url)
+            duration: audioFileDuration(for: audioURL)
         )
     }
 
@@ -91,4 +80,3 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         return 60 // 1分と仮定
     }
 }
-

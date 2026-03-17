@@ -17,21 +17,10 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
     @Published var isSummarizing = false
     @Published var progress = 0.0
 
-    private var currentTask: Task<Void, Never>?
-
     func summarize(transcript: String) async throws -> SummaryResult {
         isSummarizing = true
         progress = 0
 
-        return try await withTaskCancellationHandler {
-            try await simulateSummarization(transcript: transcript)
-        } onCancel: {
-            currentTask?.cancel()
-            isSummarizing = false
-        }
-    }
-
-    private func simulateSummarization(transcript: String) async throws -> SummaryResult {
         // TODO: 実際の AI API を呼び出す
         // ここではシミュレーション
 
@@ -52,8 +41,6 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         本会議ではプロジェクトの進捗状況と今後の予定について議論しました。
 
         現在の状況として、UIの実装が80%完了しています。次のフェーズとして文字起こし機能の実装が予定されており、音声からテキストへの変換処理が必要となります。
-
-        チームメンバーは現状確認から開始し、具体的な次のステップについて合意しました。
         """
 
         let keyPoints = [
