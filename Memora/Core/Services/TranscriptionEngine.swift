@@ -22,7 +22,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
 
-    private let sttService = STTService()
+    private let sttService: STTServiceProtocol = STTService()
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var apiKey = ""
@@ -39,7 +39,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         self.apiKey = apiKey
         self.provider = provider
         self.transcriptionMode = transcriptionMode
-        sttService.updateConfiguration(
+        (sttService as? STTService)?.updateConfiguration(
             apiKey: apiKey,
             provider: provider,
             transcriptionMode: transcriptionMode
