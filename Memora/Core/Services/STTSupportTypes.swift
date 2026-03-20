@@ -1,6 +1,8 @@
 import Foundation
 import Speech
 
+// UI 互換用の内部ラッパー。STT 境界の DTO は Core 契約の
+// `TranscriptionResult` のみを使用する。
 struct TranscriptResult {
     let text: String
     let segments: [SpeakerSegment]
@@ -54,6 +56,7 @@ struct STTExecutionConfiguration: Sendable {
     )
 }
 
+// Core 契約 `STTTaskHandleProtocol` の実装本体。
 final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     let id: String
     var taskId: String { id }
@@ -130,6 +133,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     }
 }
 
+// Core 契約 `STTReadinessProtocol` の実装本体。
 final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
     private let preferredLocale = Locale(identifier: "ja_JP")
 
@@ -180,6 +184,7 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
     }
 }
 
+// Core 契約 `STTServiceProtocol` の実装本体。
 final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let stateLock = NSLock()
     private let configurationLock = NSLock()

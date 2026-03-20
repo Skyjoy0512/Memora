@@ -3,7 +3,7 @@ import Foundation
 import Speech
 
 @MainActor
-protocol TranscriptionEngineProtocol: Sendable {
+private protocol TranscriptionEngineProtocol: Sendable {
     var isTranscribing: Bool { get }
     var progress: Double { get }
 
