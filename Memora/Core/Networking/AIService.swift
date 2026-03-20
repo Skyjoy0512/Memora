@@ -94,8 +94,9 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                 // 結果収集タスク
                 group.addTask { [weak self] in
                     guard let self = self else { throw LocalTranscriptionError.notSupported }
+                    guard let transcriber = self.transcriber else { throw LocalTranscriptionError.notSupported }
                     var parts: [String] = []
-                    for try await result in self.transcriber!.results {
+                    for try await result in transcriber.results {
                         let text = result.text.description
                         if !text.isEmpty {
                             parts.append(text)
