@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -37,7 +37,7 @@
 		1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectView.swift; sourceTree = "<group>"; };
 		35B8C2466FE7F2C1FE124533 /* AudioFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFile.swift; sourceTree = "<group>"; };
 		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
-		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
@@ -204,7 +204,6 @@
 			);
 			mainGroup = 1D97CAA097CB00D88EFE700B;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 70;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -373,6 +372,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -385,7 +385,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -399,6 +399,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -411,7 +412,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;

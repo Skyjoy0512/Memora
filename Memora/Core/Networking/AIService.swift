@@ -59,36 +59,57 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
             progress = 0.3
 
-            // 結果収集用のタスク
-            var transcriptParts: [String] = []
-            Task {
-                for try await result in transcriber!.results {
-                    let text = result.text.description
-                    if !text.isEmpty {
-                        transcriptParts.append(text)
+            // TaskGroup を使用して並列実行
+            return try await withThrowingTaskGroup(of: (analysisDone: Bool, transcript: String).self) { group in
+                // 結果収集タスク
+                group.addTask { [weak self] in
+                    guard let self = self else { throw LocalTranscriptionError.notSupported }
+                    var parts: [String] = []
+                    for try await result in self.transcriber!.results {
+                        let text = result.text.description
+                        if !text.isEmpty {
+                            parts.append(text)
+                        }
+                    }
+                    return (false, parts.joined(separator: "\n"))
+                }
+
+                // 分析実行タスク
+                group.addTask {
+                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile)
+                    try await analyzer.start(inputSequence: audioSequence)
+                    try await analyzer.finalizeAndFinishThroughEndOfInput()
+                    return (true, "")
+                }
+
+                // 分析の完了を待つ
+                var analysisDone = false
+                var transcriptParts: [String] = []
+
+                for try await result in group {
+                    if result.analysisDone {
+                        analysisDone = true
+                        // 分析完了後、さらに少し待って結果を収集
+                        if transcriptParts.isEmpty {
+                            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒待機
+                        }
+                    } else {
+                        transcriptParts.append(result.transcript)
+                    }
+
+                    // 分析完了かつ結果がある場合は完了
+                    if analysisDone && !transcriptParts.isEmpty {
+                        group.cancelAll()
+                        break
                     }
                 }
+
+                progress = 1.0
+                isTranscribing = false
+
+                let transcript = transcriptParts.joined(separator: "\n")
+                return transcript.isEmpty ? "文字起こしの結果がありません" : transcript
             }
-
-            // AudioBuffer から AsyncSequence を作成して分析を実行
-            let audioSequence = AudioFileAsyncSequence(audioFile: audioFile)
-            try await analyzer.start(inputSequence: audioSequence)
-
-            progress = 0.5
-
-            // 終了
-            try await analyzer.finalizeAndFinishThroughEndOfInput()
-
-            progress = 0.8
-
-            // 少し待って結果の収集を完了させる
-            try await Task.sleep(nanoseconds: 500_000_000) // 0.5秒待機
-
-            progress = 1.0
-            isTranscribing = false
-
-            let transcript = transcriptParts.joined(separator: "\n")
-            return transcript.isEmpty ? "文字起こしの結果がありません" : transcript
         } catch {
             isTranscribing = false
             throw LocalTranscriptionError.transcriptionFailed(error)
