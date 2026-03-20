@@ -9,6 +9,12 @@
 /* Begin PBXBuildFile section */
 		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
 		256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */; };
+		A1B2C3D4E5F67890 /* AudioFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67891 /* AudioFileTests.swift */; };
+		A1B2C3D4E5F67891 /* ProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67892 /* ProjectTests.swift */; };
+		A1B2C3D4E5F67892 /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67893 /* TranscriptTests.swift */; };
+		A1B2C3D4E5F67893 /* HomeViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67894 /* HomeViewModelTests.swift */; };
+		A1B2C3D4E5F67894 /* RecordingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67895 /* RecordingViewModelTests.swift */; };
+		A1B2C3D4E5F67895 /* MemoraTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67896 /* MemoraTests.swift */; };
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
 		355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
