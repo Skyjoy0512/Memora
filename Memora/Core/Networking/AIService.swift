@@ -20,17 +20,28 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
     private var analyzer: SpeechAnalyzer?
     private var transcriber: SpeechTranscriber?
+    private var formatConverter: AVAudioConverter?
     private let jaLocale = Locale(identifier: "ja_JP")
 
     private func setup() async throws {
-        // サポートされているロケールを確認
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale) else {
+        // インストール済みのロケールを確認
+        let installedLocales = await SpeechTranscriber.installedLocales
+        print("インストール済みロケール: \(installedLocales)")
+
+        // 日本語ロケールがインストールされているか確認
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale),
+              installedLocales.contains(supportedLocale) else {
+            print("日本語ロケールが利用可能ではありません。インストール済みロケール: \(installedLocales)")
             throw LocalTranscriptionError.localeNotSupported
         }
 
         // SpeechTranscriber を作成
-        let transcriptionPreset = SpeechTranscriber.Preset.timeIndexedProgressiveTranscription
+        let transcriptionPreset = SpeechTranscriber.Preset.transcription
         transcriber = SpeechTranscriber(locale: supportedLocale, preset: transcriptionPreset)
+
+        // 対応オーディオフォーマットを確認
+        let compatibleFormats = await transcriber!.availableCompatibleAudioFormats
+        print("対応オーディオフォーマット: \(compatibleFormats)")
 
         // SpeechAnalyzer を作成
         let options = SpeechAnalyzer.Options(
@@ -38,6 +49,10 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             modelRetention: .whileInUse
         )
         analyzer = SpeechAnalyzer(modules: [transcriber!], options: options)
+    }
+
+    deinit {
+        formatConverter = nil
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -125,26 +140,48 @@ struct AudioFileAsyncSequence: AsyncSequence {
     let audioFile: AVAudioFile
 
     func makeAsyncIterator() -> AsyncStream<AnalyzerInput>.Iterator {
-        AsyncStream { continuation in
+        // オーディオフォーマットを確認
+        let sourceFormat = audioFile.processingFormat
+
+        print("ソースフォーマット: \(sourceFormat)")
+        print("  - サンプルレート: \(sourceFormat.sampleRate)")
+        print("  - チャンネル数: \(sourceFormat.channelCount)")
+        print("  - コモンフォーマット: \(sourceFormat.commonFormat)")
+
+        return AsyncStream { continuation in
             Task {
                 do {
                     let frameCount: AVAudioFrameCount = 4096
+
                     while true {
-                        guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat, frameCapacity: frameCount) else {
+                        // バッファを作成
+                        guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
                             break
                         }
 
-                        try audioFile.read(into: buffer)
+                        // ファイルから読み込み
+                        do {
+                            try audioFile.read(into: buffer)
+                        } catch {
+                            print("ファイル読み込みエラー: \(error)")
+                            break
+                        }
 
+                        let framesRead = buffer.frameLength
+
+                        if framesRead == 0 {
+                            print("ファイル読み込み完了")
+                            break
+                        }
+
+                        // AnalyzerInput を作成（フォーマット変換はスキップ）
                         let input = AnalyzerInput(buffer: buffer)
                         continuation.yield(input)
-
-                        if buffer.frameLength == 0 {
-                            break
-                        }
                     }
+
                     continuation.finish()
                 } catch {
+                    print("AudioFileAsyncSequence エラー: \(error)")
                     continuation.finish()
                 }
             }
