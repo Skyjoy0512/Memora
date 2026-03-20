@@ -29,15 +29,30 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         print("インストール済みロケール: \(installedLocales)")
 
         // 日本語ロケールがインストールされているか確認
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale),
-              installedLocales.contains(supportedLocale) else {
-            print("日本語ロケールが利用可能ではありません。インストール済みロケール: \(installedLocales)")
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale) else {
+            print("日本語ロケールが利用可能ではありません")
             throw LocalTranscriptionError.localeNotSupported
+        }
+
+        // 日本語がインストールされているか確認
+        var useLocale: Locale = supportedLocale
+        if !installedLocales.contains(where: { $0.identifier == supportedLocale.identifier }) {
+            print("日本語ロケールがインストールされていません。英語を試します...")
+
+            let enLocale = Locale(identifier: "en_US")
+            if let enSupported = await SpeechTranscriber.supportedLocale(equivalentTo: enLocale),
+               installedLocales.contains(where: { $0.identifier == enSupported.identifier }) {
+                useLocale = enSupported
+            } else {
+                print("英語もインストールされていません。インストール済みロケール: \(installedLocales)")
+                throw LocalTranscriptionError.localeNotSupported
+            }
         }
 
         // SpeechTranscriber を作成
         let transcriptionPreset = SpeechTranscriber.Preset.transcription
-        transcriber = SpeechTranscriber(locale: supportedLocale, preset: transcriptionPreset)
+        transcriber = SpeechTranscriber(locale: useLocale, preset: transcriptionPreset)
+        print("使用ロケール: \(useLocale)")
 
         // 対応オーディオフォーマットを確認
         let compatibleFormats = await transcriber!.availableCompatibleAudioFormats
@@ -119,14 +134,18 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                     }
                 }
 
-                progress = 1.0
-                isTranscribing = false
+                await MainActor.run {
+                    progress = 1.0
+                    isTranscribing = false
+                }
 
                 let transcript = transcriptParts.joined(separator: "\n")
                 return transcript.isEmpty ? "文字起こしの結果がありません" : transcript
             }
         } catch {
-            isTranscribing = false
+            await MainActor.run {
+                isTranscribing = false
+            }
             throw LocalTranscriptionError.transcriptionFailed(error)
         }
     }
@@ -837,6 +856,7 @@ enum LocalTranscriptionError: LocalizedError {
     case notSupported
     case transcriptionFailed(Error)
     case localeNotSupported
+    case permissionDenied
 
     var errorDescription: String? {
         switch self {
@@ -846,6 +866,8 @@ enum LocalTranscriptionError: LocalizedError {
             return "文字起こしに失敗しました: \(error.localizedDescription)"
         case .localeNotSupported:
             return "この言語はサポートされていません"
+        case .permissionDenied:
+            return "音声認識の権限が許可されていません"
         }
     }
 }
