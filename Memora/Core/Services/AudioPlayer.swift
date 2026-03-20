@@ -1,89 +1,194 @@
 import Foundation
-import AVFoundation
+@preconcurrency import AVFoundation
 
-protocol AudioPlayerProtocol {
+@MainActor
+protocol AudioPlayerProtocol: Sendable {
     var isPlaying: Bool { get }
     var currentTime: TimeInterval { get }
     var duration: TimeInterval { get }
+
+    func load(url: URL) async throws
+    func play() async
     func play(url: URL) throws
     func pause()
+    func pause() async
     func stop()
     func seek(to time: TimeInterval)
+    func seek(to time: TimeInterval) async
+    func playbackProgress() -> AsyncStream<TimeInterval>
 }
 
+@MainActor
 final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
     @Published var isPlaying = false
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
 
     private var audioPlayer: AVAudioPlayer?
-    private var timer: Timer?
+    private var loadedURL: URL?
+    private var progressContinuations: [UUID: AsyncStream<TimeInterval>.Continuation] = [:]
+    private var progressTimer: Timer?
 
     override init() {
         super.init()
-        setupAudioSession()
     }
 
-    private func setupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(
-                .playback,
-                mode: .default,
-                options: []
-            )
-        } catch {
-            print("Failed to setup audio session: \(error)")
-        }
+    deinit {
+        stopProgressTimer()
+    }
+
+    func load(url: URL) async throws {
+        try loadPlayer(url: url)
     }
 
     func play(url: URL) throws {
-        audioPlayer = try AVAudioPlayer(contentsOf: url)
-        audioPlayer?.delegate = self
-        audioPlayer?.prepareToPlay()
+        try loadPlayer(url: url)
+        playLoadedPlayer()
+    }
 
-        duration = audioPlayer?.duration ?? 0
-        currentTime = 0
-
-        audioPlayer?.play()
-        isPlaying = true
-
-        startTimer()
+    func play() async {
+        playLoadedPlayer()
     }
 
     func pause() {
-        audioPlayer?.pause()
-        isPlaying = false
-        stopTimer()
+        pauseCore()
+    }
+
+    func pause() async {
+        pauseCore()
     }
 
     func stop() {
         audioPlayer?.stop()
         audioPlayer?.currentTime = 0
-        isPlaying = false
-        stopTimer()
         currentTime = 0
+        isPlaying = false
+        stopProgressTimer()
+        yieldProgress(currentTime)
     }
 
     func seek(to time: TimeInterval) {
-        audioPlayer?.currentTime = time
-        currentTime = time
+        seekCore(to: time)
     }
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.currentTime = self?.audioPlayer?.currentTime ?? 0
+    func seek(to time: TimeInterval) async {
+        seekCore(to: time)
+    }
+
+    func playbackProgress() -> AsyncStream<TimeInterval> {
+        AsyncStream { continuation in
+            let id = UUID()
+            progressContinuations[id] = continuation
+            continuation.yield(currentTime)
+
+            continuation.onTermination = { [weak self] _ in
+                Task { @MainActor in
+                    self?.progressContinuations.removeValue(forKey: id)
+                }
+            }
         }
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func loadPlayer(url: URL) throws {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true)
+
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.delegate = self
+            player.prepareToPlay()
+
+            audioPlayer = player
+            loadedURL = url
+            duration = player.duration
+            currentTime = player.currentTime
+            isPlaying = false
+            yieldProgress(currentTime)
+        } catch {
+            throw PlaybackError.loadFailed(error)
+        }
+    }
+
+    private func playLoadedPlayer() {
+        guard let player = audioPlayer ?? loadedURL.flatMap({ try? AVAudioPlayer(contentsOf: $0) }) else {
+            return
+        }
+
+        if audioPlayer == nil {
+            audioPlayer = player
+            audioPlayer?.delegate = self
+            audioPlayer?.prepareToPlay()
+            duration = player.duration
+        }
+
+        audioPlayer?.play()
+        isPlaying = true
+        startProgressTimer()
+    }
+
+    private func startProgressTimer() {
+        stopProgressTimer()
+        progressTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(handleProgressTimer), userInfo: nil, repeats: true)
+    }
+
+    private func stopProgressTimer() {
+        progressTimer?.invalidate()
+        progressTimer = nil
+    }
+
+    private func pauseCore() {
+        audioPlayer?.pause()
+        isPlaying = false
+        stopProgressTimer()
+    }
+
+    private func seekCore(to time: TimeInterval) {
+        let clamped = max(0, min(time, duration))
+        audioPlayer?.currentTime = clamped
+        currentTime = clamped
+        yieldProgress(clamped)
+    }
+
+    private func yieldProgress(_ value: TimeInterval) {
+        for continuation in progressContinuations.values {
+            continuation.yield(value)
+        }
+    }
+
+    @objc
+    private func handleProgressTimer() {
+        guard let player = audioPlayer else { return }
+        currentTime = player.currentTime
+        yieldProgress(currentTime)
+    }
+
+    enum PlaybackError: LocalizedError {
+        case loadFailed(Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .loadFailed(let error):
+                return "音声ファイルの読み込みに失敗しました: \(error.localizedDescription)"
+            }
+        }
     }
 }
 
 extension AudioPlayer: AVAudioPlayerDelegate {
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor [weak self] in
+            self?.handlePlaybackFinished()
+        }
+    }
+}
+
+@MainActor
+private extension AudioPlayer {
+    func handlePlaybackFinished() {
         isPlaying = false
-        stopTimer()
+        currentTime = 0
+        stopProgressTimer()
+        yieldProgress(currentTime)
     }
 }

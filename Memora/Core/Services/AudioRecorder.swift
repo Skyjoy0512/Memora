@@ -1,145 +1,224 @@
 import Foundation
 import AVFoundation
 
-// MARK: - Audio Settings Constants
-
-/// 共有のオーディオフォーマット設定
-/// 文字起こしエンジンとの統一のため、16kHz mono PCM 16-bit を使用
-enum AudioSettings {
-    /// 推奨オーディオフォーマット（16kHz mono PCM 16-bit）
-    static let preferredFormat: [String: Any] = [
-        AVFormatIDKey: kAudioFormatLinearPCM,
-        AVSampleRateKey: 16000.0,
-        AVNumberOfChannelsKey: 1,
-        AVLinearPCMBitDepthKey: 16,
-        AVLinearPCMIsBigEndianKey: false,
-        AVLinearPCMIsFloatKey: false,
-        AVLinearPCMIsNonInterleaved: false
-    ]
+struct RecordingResult: Sendable {
+    let fileID: UUID
+    let fileURL: URL
+    let duration: TimeInterval
 }
 
-// MARK: - Audio Recorder Protocol
-
-protocol AudioRecorderProtocol {
+@MainActor
+protocol AudioRecorderProtocol: Sendable {
     var isRecording: Bool { get }
     var recordingTime: TimeInterval { get }
+
     func startRecording() throws
     func stopRecording() throws -> URL
     func cancelRecording()
+
+    func startRecording() async throws
+    func stopRecording() async throws -> RecordingResult
+    func audioLevels() -> AsyncStream<Float>
 }
 
-// MARK: - Audio Recorder Implementation
-
-final class AudioRecorder: AudioRecorderProtocol, ObservableObject {
+@MainActor
+final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
     @Published var isRecording = false
     @Published var recordingTime: TimeInterval = 0
 
-    private var audioRecorder: AVAudioRecorder?
+    private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
-    private var timer: Timer?
+    private var recordingFileID: UUID?
+    private var levelContinuations: [UUID: AsyncStream<Float>.Continuation] = [:]
+    private var meteringTimer: Timer?
 
-    init() {
-        setupAudioSession()
-    }
-
-    private func setupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(
-                .record,
-                mode: .default,
-                options: [.allowBluetoothA2DP, .allowAirPlay]
-            )
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Failed to setup audio session: \(error)")
-        }
+    deinit {
+        stopMetering()
+        finishAudioLevels()
     }
 
     func startRecording() throws {
-        print("AudioRecorder: 録音開始をリクエスト")
-        let session = AVAudioSession.sharedInstance()
-        do {
-            print("AudioRecorder: AudioSessionをアクティブ化")
-            try session.setActive(true)
-        } catch {
-            print("AudioRecorder: AudioSessionのアクティブ化に失敗: \(error)")
-            throw RecordingError.audioSessionFailed
+        try startRecordingCore()
+    }
+
+    func startRecording() async throws {
+        let granted = try await requestMicrophonePermissionIfNeeded()
+        guard granted else {
+            throw RecordingError.microphonePermissionDenied
         }
 
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let timestamp = Date().timeIntervalSince1970
-        let filename = "recording_\(timestamp).m4a"  // M4A形式は16-bit PCM をサポート
-
-        recordingURL = documentsURL.appendingPathComponent(filename)
-
-        // 共有フォーマット設定を使用
-        let settings = AudioSettings.preferredFormat
-
-        print("AudioRecorder: AVAudioRecorderを作成: \(recordingURL!.path)")
-        print("  - サンプルレート: 16000Hz")
-        print("  - チャンネル数: 1 (mono)")
-        print("  - ビット深度: 16-bit")
-        print("  - フォーマット: Linear PCM")
-
-        audioRecorder = try AVAudioRecorder(url: recordingURL!, settings: settings)
-        if let recorder = audioRecorder {
-            print("AudioRecorder: 録音開始")
-            recorder.record()
-            isRecording = true
-            startTimer()
-            print("AudioRecorder: 録音中 \(recorder.isRecording)")
-        } else {
-            print("AudioRecorder: recorderがnil")
-            throw RecordingError.noRecording
-        }
+        try startRecordingCore()
     }
 
     func stopRecording() throws -> URL {
-        guard let url = recordingURL else {
-            throw RecordingError.noRecording
-        }
+        try stopRecordingCore().fileURL
+    }
 
-        audioRecorder?.stop()
-        isRecording = false
-        stopTimer()
-        print("AudioRecorder: 録音停止")
-        return url
+    func stopRecording() async throws -> RecordingResult {
+        try stopRecordingCore()
     }
 
     func cancelRecording() {
-        audioRecorder?.stop()
-        isRecording = false
-        stopTimer()
-
-        if let url = recordingURL {
-            try? FileManager.default.removeItem(at: url)
-        }
+        recorder?.stop()
+        recorder = nil
         recordingURL = nil
+        recordingFileID = nil
+        isRecording = false
+        stopMetering()
+        finishAudioLevels()
     }
 
-    private func startTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.recordingTime += 0.1
+    func audioLevels() -> AsyncStream<Float> {
+        AsyncStream { continuation in
+            let id = UUID()
+            levelContinuations[id] = continuation
+
+            continuation.onTermination = { [weak self] _ in
+                Task { @MainActor in
+                    self?.levelContinuations.removeValue(forKey: id)
+                }
+            }
         }
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+    private func startRecordingCore() throws {
+        let session = AVAudioSession.sharedInstance()
+
+        switch AVAudioApplication.shared.recordPermission {
+        case .denied:
+            throw RecordingError.microphonePermissionDenied
+        case .undetermined, .granted:
+            break
+        @unknown default:
+            break
+        }
+
+        do {
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+            try session.setActive(true)
+        } catch {
+            throw RecordingError.audioSessionFailed(error)
+        }
+
+        let fileID = UUID()
+        let fileURL = try STTFileLocations.audioDirectory()
+            .appendingPathComponent("\(fileID.uuidString).m4a")
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 44_100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVEncoderBitRateKey: 128_000
+        ]
+
+        do {
+            let recorder = try AVAudioRecorder(url: fileURL, settings: settings)
+            recorder.isMeteringEnabled = true
+
+            guard recorder.record() else {
+                throw RecordingError.recordingFailed()
+            }
+
+            self.recorder = recorder
+            recordingURL = fileURL
+            recordingFileID = fileID
+            isRecording = true
+            recordingTime = 0
+            startMetering()
+        } catch let error as RecordingError {
+            throw error
+        } catch {
+            throw RecordingError.recordingFailed(error)
+        }
+    }
+
+    private func stopRecordingCore() throws -> RecordingResult {
+        guard let recorder, let recordingURL, let recordingFileID else {
+            throw RecordingError.noActiveRecording
+        }
+
+        recorder.stop()
+        let duration = recorder.currentTime
+
+        self.recorder = nil
+        self.recordingURL = nil
+        self.recordingFileID = nil
+        isRecording = false
+        stopMetering()
+        finishAudioLevels()
+
+        return RecordingResult(fileID: recordingFileID, fileURL: recordingURL, duration: duration)
+    }
+
+    private func startMetering() {
+        stopMetering()
+        meteringTimer = Timer.scheduledTimer(timeInterval: 0.05, target: self, selector: #selector(handleMeteringTimer), userInfo: nil, repeats: true)
+    }
+
+    private func stopMetering() {
+        meteringTimer?.invalidate()
+        meteringTimer = nil
         recordingTime = 0
     }
 
-    enum RecordingError: Error, LocalizedError {
-        case noRecording
-        case audioSessionFailed
+    private func finishAudioLevels() {
+        for continuation in levelContinuations.values {
+            continuation.finish()
+        }
+        levelContinuations.removeAll()
+    }
+
+    private func requestMicrophonePermissionIfNeeded() async throws -> Bool {
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            return true
+        case .denied:
+            return false
+        case .undetermined:
+            return await withCheckedContinuation { continuation in
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        @unknown default:
+            return false
+        }
+    }
+
+    @objc
+    private func handleMeteringTimer() {
+        guard let recorder else { return }
+
+        recorder.updateMeters()
+        recordingTime = recorder.currentTime
+
+        let averagePower = recorder.averagePower(forChannel: 0)
+        let linearLevel = max(0, powf(10, averagePower / 20))
+        for continuation in levelContinuations.values {
+            continuation.yield(linearLevel)
+        }
+    }
+
+    enum RecordingError: LocalizedError {
+        case noActiveRecording
+        case microphonePermissionDenied
+        case audioSessionFailed(Error)
+        case recordingFailed(Error? = nil)
 
         var errorDescription: String? {
             switch self {
-            case .noRecording:
+            case .noActiveRecording:
                 return "録音が開始されていません"
-            case .audioSessionFailed:
-                return "オーディオセッションの設定に失敗しました"
+            case .microphonePermissionDenied:
+                return "マイクへのアクセスが許可されていません"
+            case .audioSessionFailed(let error):
+                return "オーディオセッションの設定に失敗しました: \(error.localizedDescription)"
+            case .recordingFailed(let error):
+                if let error {
+                    return "録音に失敗しました: \(error.localizedDescription)"
+                }
+                return "録音に失敗しました"
             }
         }
     }
