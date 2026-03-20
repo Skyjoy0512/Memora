@@ -5,6 +5,11 @@ struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let audioFile: AudioFile
+    @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
+    @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
+    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
+    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
+    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @StateObject private var audioPlayer = AudioPlayer()
     @StateObject private var transcriptionEngine = TranscriptionEngine()
     @StateObject private var summarizationEngine = SummarizationEngine()
@@ -18,6 +23,25 @@ struct FileDetailView: View {
     @State private var showShareSheet = false
     @State private var transcriptResult: TranscriptResult?
     @State private var summaryResult: SummaryResult?
+
+    var currentProvider: AIProvider {
+        AIProvider(rawValue: selectedProvider) ?? .openai
+    }
+
+    var currentTranscriptionMode: TranscriptionMode {
+        TranscriptionMode(rawValue: transcriptionMode) ?? .local
+    }
+
+    var currentAPIKey: String {
+        switch currentProvider {
+        case .openai:
+            return apiKeyOpenAI
+        case .gemini:
+            return apiKeyGemini
+        case .deepseek:
+            return apiKeyDeepSeek
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -223,6 +247,9 @@ struct FileDetailView: View {
         .onAppear {
             setupAudioPlayer()
         }
+        .task {
+            await setupEngines()
+        }
         .onDisappear {
             audioPlayer.stop()
         }
@@ -278,6 +305,21 @@ struct FileDetailView: View {
         playbackPosition = 0
     }
 
+    private func setupEngines() async {
+        if !currentAPIKey.isEmpty || currentTranscriptionMode == .local {
+            do {
+                try await transcriptionEngine.configure(
+                    apiKey: currentAPIKey,
+                    provider: currentProvider,
+                    transcriptionMode: currentTranscriptionMode
+                )
+                try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
+            } catch {
+                print("エンジン設定エラー: \(error)")
+            }
+        }
+    }
+
     private func togglePlayback() {
         guard let url = audioURL else {
             print("音声URLがありません")
@@ -328,7 +370,13 @@ struct FileDetailView: View {
             transcriptText = result.text
         } else {
             // SwiftData から既存の文字起こしを取得
-            transcriptText = ""
+            let descriptor = FetchDescriptor<Transcript>()
+            let transcripts = try? modelContext.fetch(descriptor)
+            if let transcript = transcripts?.first(where: { $0.audioFileID == audioFile.id }) {
+                transcriptText = transcript.text
+            } else {
+                transcriptText = ""
+            }
         }
 
         guard !transcriptText.isEmpty else {

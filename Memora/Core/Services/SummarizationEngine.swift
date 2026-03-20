@@ -17,48 +17,38 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
     @Published var isSummarizing = false
     @Published var progress = 0.0
 
+    private var aiService: AIService?
+
+    func configure(apiKey: String, provider: AIProvider = .openai) async throws {
+        let service = AIService()
+        service.setProvider(provider)
+        try await service.configure(apiKey: apiKey)
+        self.aiService = service
+    }
+
     func summarize(transcript: String) async throws -> SummaryResult {
+        guard let service = aiService else {
+            throw AIError.notConfigured
+        }
+
         isSummarizing = true
         progress = 0
 
-        // TODO: 実際の AI API を呼び出す
-        // ここではシミュレーション
+        do {
+            progress = 0.5
+            let (summary, keyPoints, actionItems) = try await service.summarize(transcript: transcript)
+            progress = 1.0
 
-        let totalDuration: TimeInterval = 3 // 3秒のシミュレーション
-        let steps = 100
-        let stepDuration = totalDuration / Double(steps)
+            isSummarizing = false
 
-        for i in 0...steps {
-            try Task.checkCancellation()
-            progress = Double(i) / Double(steps)
-            try await Task.sleep(nanoseconds: UInt64(stepDuration * 1_000_000_000))
+            return SummaryResult(
+                summary: summary,
+                keyPoints: keyPoints,
+                actionItems: actionItems
+            )
+        } catch {
+            isSummarizing = false
+            throw error
         }
-
-        isSummarizing = false
-
-        // サンプル結果
-        let summary = """
-        本会議ではプロジェクトの進捗状況と今後の予定について議論しました。
-
-        現在の状況として、UIの実装が80%完了しています。次のフェーズとして文字起こし機能の実装が予定されており、音声からテキストへの変換処理が必要となります。
-        """
-
-        let keyPoints = [
-            "UI実装が80%完了",
-            "次は文字起こし機能の実装",
-            "音声からテキスト変換が必要"
-        ]
-
-        let actionItems = [
-            "文字起こし機能の実装",
-            "音声処理ライブラリの調査",
-            "次回会議の日程調整"
-        ]
-
-        return SummaryResult(
-            summary: summary,
-            keyPoints: keyPoints,
-            actionItems: actionItems
-        )
     }
 }

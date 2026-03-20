@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 
 protocol TranscriptionEngineProtocol {
     var isTranscribing: Bool { get }
@@ -17,66 +18,71 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
 
+    private var aiService: AIService?
+    private var transcriptionMode: TranscriptionMode = .local
+
+    func configure(apiKey: String, provider: AIProvider = .openai, transcriptionMode: TranscriptionMode = .local) async throws {
+        self.transcriptionMode = transcriptionMode
+
+        let service = AIService()
+        service.setProvider(provider)
+        service.setTranscriptionMode(transcriptionMode)
+
+        // APIキー設定（ローカルモードでも要約用に必要）
+        try await service.configure(apiKey: apiKey)
+
+        self.aiService = service
+    }
+
     func transcribe(audioURL: URL) async throws -> TranscriptResult {
+        guard let service = aiService else {
+            throw AIError.notConfigured
+        }
+
         isTranscribing = true
         progress = 0
 
-        // TODO: 実際の API を呼び出す
-        // ここではシミュレーション
+        do {
+            let transcriptText = try await service.transcribe(audioURL: audioURL)
+            progress = 1.0
 
-        let totalDuration: TimeInterval = 5 // 5秒のシミュレーション
-        let steps = 100
-        let stepDuration = totalDuration / Double(steps)
+            isTranscribing = false
 
-        for i in 0...steps {
-            try Task.checkCancellation()
-            progress = Double(i) / Double(steps)
-            try await Task.sleep(nanoseconds: UInt64(stepDuration * 1_000_000_000))
+            // 簡易的なセグメント作成（話者分離は次のフェーズで実装）
+            let segments = createSimpleSegments(from: transcriptText)
+
+            return TranscriptResult(
+                text: transcriptText,
+                segments: segments,
+                duration: audioFileDuration(for: audioURL)
+            )
+        } catch {
+            isTranscribing = false
+            throw error
+        }
+    }
+
+    private func createSimpleSegments(from text: String) -> [SpeakerSegment] {
+        let lines = text.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        var segments: [SpeakerSegment] = []
+        var currentTime: TimeInterval = 0
+
+        for (index, line) in lines.enumerated() {
+            let segmentDuration = TimeInterval(line.count) * 0.3
+            segments.append(SpeakerSegment(
+                speakerLabel: "Speaker \((index % 2) + 1)",
+                startTime: currentTime,
+                endTime: currentTime + segmentDuration,
+                text: line
+            ))
+            currentTime += segmentDuration
         }
 
-        isTranscribing = false
-
-        // サンプル結果
-        let text = """
-        これはテスト用の文字起こし結果です。
-
-        Speaker 1: 今日はプロジェクトの進捗について議論します。
-        Speaker 2: 了解しました。まず現状から確認しましょう。
-        Speaker 1: 現在、UIの実装が80%ほど完了しています。
-        Speaker 2: 次は文字起こし機能の実装ですね。
-        Speaker 1: その通りです。音声からテキストに変換する必要があります。
-        """
-
-        let segments = [
-            SpeakerSegment(
-                speakerLabel: "Speaker 1",
-                startTime: 0,
-                endTime: 5,
-                text: "今日はプロジェクトの進捗について議論します。"
-            ),
-            SpeakerSegment(
-                speakerLabel: "Speaker 2",
-                startTime: 5,
-                endTime: 10,
-                text: "了解しました。まず現状から確認しましょう。"
-            ),
-            SpeakerSegment(
-                speakerLabel: "Speaker 1",
-                startTime: 10,
-                endTime: 15,
-                text: "現在、UIの実装が80%ほど完了しています。"
-            )
-        ]
-
-        return TranscriptResult(
-            text: text,
-            segments: segments,
-            duration: audioFileDuration(for: audioURL)
-        )
+        return segments
     }
 
     private func audioFileDuration(for url: URL) -> TimeInterval {
-        // TODO: 実際の音声ファイルの長さを取得
-        return 60 // 1分と仮定
+        let asset = AVAsset(url: url)
+        return CMTimeGetSeconds(asset.duration)
     }
 }
