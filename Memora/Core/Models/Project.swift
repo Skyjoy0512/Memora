@@ -3,15 +3,24 @@ import SwiftData
 
 @Model
 final class Project {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var title: String
-    var createdAt: Date
-    var updatedAt: Date
+    var descriptionText: String?
 
-    init(title: String) {
-        self.id = UUID()
+    @Relationship(deleteRule: .nullify, inverse: \AudioFile.project)
+    var files: [AudioFile]
+
+    var createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        descriptionText: String? = nil
+    ) {
+        self.id = id
         self.title = title
+        self.descriptionText = descriptionText
+        self.files = []
         self.createdAt = Date()
-        self.updatedAt = Date()
     }
 }
