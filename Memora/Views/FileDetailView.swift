@@ -45,9 +45,9 @@ struct FileDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 21) {
                 Spacer()
-                    .frame(height: 20)
+                    .frame(height: 21)
 
                 // 音声波形イメージ
                 Image(systemName: "waveform")
@@ -64,7 +64,7 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // メタデータ
-                HStack(spacing: 20) {
+                HStack(spacing: 21) {
                     Label(formatDate(audioFile.createdAt), systemImage: "calendar")
                     Label(formatDuration(audioFile.duration), systemImage: "clock")
                 }
@@ -75,9 +75,9 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // プレイヤーコントロール
-                VStack(spacing: 20) {
+                VStack(spacing: 21) {
                     // プログレスバー
-                    VStack(spacing: 8) {
+                    VStack(spacing: 5) {
                         Slider(
                             value: $playbackPosition,
                             in: 0...max(audioDuration, 1),
@@ -116,16 +116,16 @@ struct FileDetailView: View {
                         }
                     }
                 }
-                .padding(.vertical, 20)
+                .padding(.vertical, 21)
 
                 Divider()
                     .padding(.horizontal)
 
                 // アクションボタン
-                VStack(spacing: 12) {
+                VStack(spacing: 13) {
                     if transcriptionEngine.isTranscribing {
                         // 文字起こし中
-                        VStack(spacing: 12) {
+                        VStack(spacing: 13) {
                             ProgressView(value: transcriptionEngine.progress)
                                 .tint(.gray)
                             Text("文字起こし中... \(Int(transcriptionEngine.progress * 100))%")
@@ -135,25 +135,25 @@ struct FileDetailView: View {
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
+                        .cornerRadius(13)
                     } else if let result = transcriptResult {
                         // 文字起こし完了 - 結果表示ボタン
                         Button(action: { showTranscriptView = true }) {
                             Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
                     } else if audioFile.isTranscribed {
                         // 既に文字起こし済み
                         Button(action: { showTranscriptView = true }) {
                             Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -163,14 +163,14 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
                     }
 
                     if summarizationEngine.isSummarizing {
                         // 要約中
-                        VStack(spacing: 12) {
+                        VStack(spacing: 13) {
                             ProgressView(value: summarizationEngine.progress)
                                 .tint(.gray)
                             Text("要約中... \(Int(summarizationEngine.progress * 100))%")
@@ -180,15 +180,15 @@ struct FileDetailView: View {
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
+                        .cornerRadius(13)
                     } else if let result = summaryResult {
                         // 要約完了 - 結果表示ボタン
                         Button(action: { showSummaryView = true }) {
                             Label("要約結果を表示", systemImage: "text.quote")
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
                     } else if transcriptResult != nil || audioFile.isTranscribed {
@@ -198,7 +198,7 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -208,7 +208,7 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.gray.opacity(0.05))
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .foregroundStyle(.secondary)
                     }

@@ -12,7 +12,7 @@ struct HomeView: View {
             ZStack {
                 if audioFiles.isEmpty {
                     // 空の状態
-                    VStack(spacing: 20) {
+                    VStack(spacing: 21) {
                         Image(systemName: "waveform")
                             .resizable()
                             .frame(width: 60, height: 60)
@@ -33,15 +33,15 @@ struct HomeView: View {
                                 .font(.headline)
                                 .foregroundStyle(.white)
                                 .padding()
-                                .frame(maxWidth: .infinity)
+                                .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(Color.gray)
-                                .cornerRadius(12)
+                                .cornerRadius(13)
                         }
                         .padding()
 
                         Text("まだ録音ファイルがありません")
                             .foregroundStyle(.secondary)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, 34)
                     }
                     .navigationTitle("Files")
                     .navigationBarTitleDisplayMode(.large)
@@ -83,19 +83,19 @@ struct AudioFileRow: View {
     let audioFile: AudioFile
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 13) {
             // アイコン
             Image(systemName: "waveform")
                 .font(.title2)
                 .foregroundStyle(.gray)
                 .frame(width: 40, height: 40)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(audioFile.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 5) {
                     Text(formatDate(audioFile.createdAt))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -116,7 +116,7 @@ struct AudioFileRow: View {
                     .foregroundStyle(.gray)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 
     private func formatDate(_ date: Date) -> String {
