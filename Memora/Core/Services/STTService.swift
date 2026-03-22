@@ -215,6 +215,33 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         handle: STTTaskHandle,
         configuration: STTExecutionConfiguration
     ) async throws -> TranscriptionResult {
+        let maxRetries = 3
+        let retryDelay: TimeInterval = 1.0
+
+        for attempt in 0..<maxRetries {
+            do {
+                return try await executeTranscription(handle: handle, configuration: configuration)
+            } catch let coreError as CoreError {
+                if case .sttError(let sttError) = coreError {
+                    if sttError.isRetryable && attempt < maxRetries - 1 {
+                        handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
+                        let delay = retryDelay * Double(attempt + 1)
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        handle.yield(.transcriptionStarted(taskId: handle.taskId))
+                        continue
+                    }
+                }
+                throw coreError
+            }
+        }
+
+        throw CoreError.sttError(.transcriptionFailed("Maximum retries exceeded", retryable: false))
+    }
+
+    private func executeTranscription(
+        handle: STTTaskHandle,
+        configuration: STTExecutionConfiguration
+    ) async throws -> TranscriptionResult {
         let chunker = chunkerFactory()
         var preparedChunks: [AudioChunk] = []
 

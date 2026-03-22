@@ -19,6 +19,8 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
     case transcriptionError(TranscriptionError)
     case llmError(LLMError)
     case audioError(AudioError)
+    case summaryError(SummaryError)
+    case sttError(STTError)
     case dependencyNotSet(String)
 
     public var errorDescription: String? {
@@ -37,6 +39,10 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
             return "LLM error: \(error.localizedDescription)"
         case .audioError(let error):
             return "Audio error: \(error.localizedDescription)"
+        case .summaryError(let error):
+            return "Summary error: \(error.localizedDescription)"
+        case .sttError(let error):
+            return "STT error: \(error.localizedDescription)"
         case .dependencyNotSet(let name):
             return "Dependency not set: \(name)"
         }
@@ -107,6 +113,76 @@ public enum TranscriptionError: LocalizedError, Equatable, Sendable {
             return "Transcription failed: \(message)"
         case .engineNotAvailable:
             return "Transcription engine not available"
+        }
+    }
+}
+
+// MARK: - SummaryError
+
+public enum SummaryError: LocalizedError, Equatable, Sendable {
+    case transcriptionNotAvailable
+    case saveFailed(String)
+    case loadFailed(String)
+    case emptyTranscript
+    case generationFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .transcriptionNotAvailable:
+            return "文字起こしデータがありません"
+        case .saveFailed(let message):
+            return "要約の保存に失敗しました: \(message)"
+        case .loadFailed(let message):
+            return "要約の読み込みに失敗しました: \(message)"
+        case .emptyTranscript:
+            return "文字起こしが空です"
+        case .generationFailed(let message):
+            return "要約の生成に失敗しました: \(message)"
+        }
+    }
+}
+
+// MARK: - STTError
+
+public enum STTError: LocalizedError, Equatable, Sendable {
+    case transcriptionInProgress
+    case transcriptionFailed(String, retryable: Bool = true)
+    case networkError(String)
+    case permissionDenied
+    case serviceUnavailable
+    case timeout
+
+    public var isRetryable: Bool {
+        switch self {
+        case .transcriptionInProgress:
+            return false
+        case .transcriptionFailed(_, let retryable):
+            return retryable
+        case .networkError:
+            return true
+        case .permissionDenied:
+            return false
+        case .serviceUnavailable:
+            return true
+        case .timeout:
+            return true
+        }
+    }
+
+    public var errorDescription: String? {
+        switch self {
+        case .transcriptionInProgress:
+            return "文字起こし処理中です"
+        case .transcriptionFailed(let message, _):
+            return "文字起こしに失敗しました: \(message)"
+        case .networkError(let message):
+            return "ネットワークエラー: \(message)"
+        case .permissionDenied:
+            return "マイクへのアクセスが許可されていません"
+        case .serviceUnavailable:
+            return "文字起こしサービスが利用できません"
+        case .timeout:
+            return "処理がタイムアウトしました"
         }
     }
 }
