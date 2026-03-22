@@ -1,0 +1,78 @@
+name: Issue Form Label Sync
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-form-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply lane/agent labels from issue form
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+
+            function extractSection(title) {
+              const regex = new RegExp(`###\\s+${title}\\s*\\n+([\\s\\S]*?)(?=\\n###\\s+|$)`, 'i');
+              const match = body.match(regex);
+              return match ? match[1].trim().replace(/\r/g, '') : '';
+            }
+
+            const laneText = extractSection('Lane');
+            const agentText = extractSection('Agent');
+
+            const laneMap = {
+              'Lane A (UI)': 'lane:ui',
+              'Lane B (Audio/STT)': 'lane:audio-stt',
+              'Lane C (Models/ViewModels/Contracts)': 'lane:model-state',
+              'Lane D (App/Project/CI)': 'lane:app-infra',
+              'Lane E (QA/Operations)': 'lane:qa-ops'
+            };
+
+            const agentMap = {
+              'Codex': 'agent:codex',
+              'Claude': 'agent:claude',
+              'Claude + Codex': 'agent:pair'
+            };
+
+            const laneLabel = laneMap[laneText];
+            const agentLabel = agentMap[agentText];
+
+            if (!laneLabel && !agentLabel) {
+              core.info('No lane/agent selection found.');
+              return;
+            }
+
+            const laneLabels = Object.values(laneMap);
+            const agentLabels = Object.values(agentMap);
+
+            const current = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number
+            });
+
+            const preserved = current.data
+              .map(label => label.name)
+              .filter(name => !laneLabels.includes(name) && !agentLabels.includes(name));
+
+            const next = [...preserved];
+            if (laneLabel) next.push(laneLabel);
+            if (agentLabel) next.push(agentLabel);
+
+            await github.rest.issues.setLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: next
+            });
+
+            core.info(`Applied labels: ${[laneLabel, agentLabel].filter(Boolean).join(', ')}`);
+

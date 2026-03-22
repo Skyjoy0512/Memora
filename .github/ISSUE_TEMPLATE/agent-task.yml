@@ -1,0 +1,87 @@
+name: Agent Task
+description: 並列開発でエージェントに割り当てる作業チケット
+title: "[Task] "
+labels:
+  - type:task
+  - status:todo
+body:
+  - type: markdown
+    attributes:
+      value: |
+        並列開発用テンプレートです。`1 Issue = 1 Agent = 1 Branch`で運用してください。
+
+  - type: input
+    id: summary
+    attributes:
+      label: 概要
+      description: 何を達成するIssueかを1-2文で記載
+      placeholder: 例) 録音画面のエラー表示を統一する
+    validations:
+      required: true
+
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Lane
+      description: 変更対象の責務レーン
+      options:
+        - Lane A (UI)
+        - Lane B (Audio/STT)
+        - Lane C (Models/ViewModels/Contracts)
+        - Lane D (App/Project/CI)
+        - Lane E (QA/Operations)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      description: 主担当エージェント
+      options:
+        - Codex
+        - Claude
+        - Claude + Codex
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      description: 完了判定を箇条書きで記載
+      placeholder: |
+        - [ ] 条件1
+        - [ ] 条件2
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 変更対象ファイル/ディレクトリ
+      description: 想定変更範囲を明記
+      placeholder: |
+        - Memora/Views/RecordingView.swift
+        - Memora/Core/Services/TranscriptionEngine.swift
+    validations:
+      required: true
+
+  - type: textarea
+    id: deps
+    attributes:
+      label: 依存・ブロッカー
+      description: 他Issue依存や先行PRがあれば記載
+      placeholder: 例) #123 のマージ待ち
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 運用チェック
+      options:
+        - label: 1 Issue = 1 Branch で進める
+          required: true
+        - label: レーン外変更をしない
+          required: true
+        - label: 完了時に検証結果（build/test/log）を報告する
+          required: true

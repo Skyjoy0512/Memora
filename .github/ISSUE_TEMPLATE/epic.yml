@@ -1,0 +1,56 @@
+name: Epic / PM Breakdown
+description: PMエージェントで分解するための大きめ要件
+title: "[Epic] "
+labels:
+  - type:task
+  - status:todo
+body:
+  - type: input
+    id: goal
+    attributes:
+      label: 目的
+      description: このEpicで達成したいビジネス/UXゴール
+      placeholder: 例) 録音から要約までの体験を安定化し、失敗率を下げる
+    validations:
+      required: true
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: 要件
+      description: 実現したい要件を箇条書きで記載
+      placeholder: |
+        - 録音失敗時の再試行導線
+        - STT中の進捗可視化
+        - 要約の保存失敗時ハンドリング
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 制約
+      description: 期限、非機能、技術制約
+      placeholder: |
+        - iOS 17 target維持
+        - 既存データ破壊禁止
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 今回やらないこと
+      description: スコープ外を明示
+      placeholder: |
+        - UI全面刷新はしない
+        - APIプロバイダの変更はしない
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 完了条件
+      description: Epic完了の判断条件
+      placeholder: |
+        - 主要フローでクラッシュしない
+        - 失敗ケースで復帰導線がある
+    validations:
+      required: true

@@ -1,0 +1,231 @@
+name: Project V2 Sync
+
+on:
+  issues:
+    types: [opened, reopened, assigned, closed]
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  repository-projects: write
+
+jobs:
+  sync:
+    if: ${{ vars.GH_PROJECT_OWNER != '' && vars.GH_PROJECT_NUMBER != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync issue/PR to GitHub Project V2
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_PROJECT_AUTOMATION_TOKEN != '' && secrets.GH_PROJECT_AUTOMATION_TOKEN || github.token }}
+          script: |
+            const owner = process.env.PROJECT_OWNER;
+            const projectNumber = Number(process.env.PROJECT_NUMBER);
+            const statusFieldName = process.env.PROJECT_STATUS_FIELD || 'Status';
+
+            const statusNames = {
+              todo: process.env.PROJECT_STATUS_TODO || 'Todo',
+              inProgress: process.env.PROJECT_STATUS_IN_PROGRESS || 'In Progress',
+              review: process.env.PROJECT_STATUS_REVIEW || 'In Review',
+              done: process.env.PROJECT_STATUS_DONE || 'Done'
+            };
+
+            if (!owner || Number.isNaN(projectNumber)) {
+              core.setFailed('GH_PROJECT_OWNER / GH_PROJECT_NUMBER is invalid.');
+              return;
+            }
+
+            function resolveTargetStatus() {
+              if (context.eventName === 'issues') {
+                if (context.payload.action === 'closed') return statusNames.done;
+                if (context.payload.action === 'assigned') return statusNames.inProgress;
+                if (context.payload.action === 'opened' || context.payload.action === 'reopened') return statusNames.todo;
+              }
+
+              if (context.eventName === 'pull_request') {
+                const pr = context.payload.pull_request;
+                const action = context.payload.action;
+                if (action === 'closed') return pr.merged ? statusNames.done : statusNames.inProgress;
+                if (action === 'ready_for_review') return statusNames.review;
+                if (action === 'converted_to_draft') return statusNames.inProgress;
+                if (action === 'opened' || action === 'reopened' || action === 'synchronize') {
+                  return pr.draft ? statusNames.inProgress : statusNames.review;
+                }
+              }
+
+              if (context.eventName === 'pull_request_review') {
+                return statusNames.review;
+              }
+
+              return null;
+            }
+
+            const targetStatusName = resolveTargetStatus();
+            if (!targetStatusName) {
+              core.info('No project status update needed for this event.');
+              return;
+            }
+
+            const contentNodeId =
+              context.payload.issue?.node_id ??
+              context.payload.pull_request?.node_id;
+
+            if (!contentNodeId) {
+              core.info('No issue/pr node id found.');
+              return;
+            }
+
+            const projectResult = await github.graphql(
+              `
+              query($owner: String!, $number: Int!) {
+                organization(login: $owner) {
+                  projectV2(number: $number) {
+                    id
+                    title
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                user(login: $owner) {
+                  projectV2(number: $number) {
+                    id
+                    title
+                    fields(first: 50) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              `,
+              { owner, number: projectNumber }
+            );
+
+            const project = projectResult.organization?.projectV2 ?? projectResult.user?.projectV2;
+            if (!project) {
+              core.setFailed(`Project V2 not found for ${owner} / ${projectNumber}`);
+              return;
+            }
+
+            const statusField = project.fields.nodes.find(
+              field => field?.name === statusFieldName
+            );
+            if (!statusField) {
+              core.setFailed(`Status field "${statusFieldName}" not found.`);
+              return;
+            }
+
+            const option = statusField.options.find(opt => opt.name === targetStatusName);
+            if (!option) {
+              core.setFailed(`Status option "${targetStatusName}" not found in field "${statusFieldName}".`);
+              return;
+            }
+
+            const itemResult = await github.graphql(
+              `
+              query($id: ID!) {
+                node(id: $id) {
+                  ... on Issue {
+                    projectItems(first: 100) {
+                      nodes {
+                        id
+                        project {
+                          id
+                        }
+                      }
+                    }
+                  }
+                  ... on PullRequest {
+                    projectItems(first: 100) {
+                      nodes {
+                        id
+                        project {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              `,
+              { id: contentNodeId }
+            );
+
+            const existingItems = itemResult.node?.projectItems?.nodes ?? [];
+            let item = existingItems.find(node => node.project.id === project.id);
+
+            if (!item) {
+              const addResult = await github.graphql(
+                `
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item {
+                      id
+                    }
+                  }
+                }
+                `,
+                { projectId: project.id, contentId: contentNodeId }
+              );
+              item = addResult.addProjectV2ItemById.item;
+              core.info('Added item to project.');
+            }
+
+            await github.graphql(
+              `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { singleSelectOptionId: $optionId }
+                  }
+                ) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+              `,
+              {
+                projectId: project.id,
+                itemId: item.id,
+                fieldId: statusField.id,
+                optionId: option.id
+              }
+            );
+
+            core.info(`Updated project status to "${targetStatusName}".`);
+        env:
+          PROJECT_OWNER: ${{ vars.GH_PROJECT_OWNER }}
+          PROJECT_NUMBER: ${{ vars.GH_PROJECT_NUMBER }}
+          PROJECT_STATUS_FIELD: ${{ vars.GH_PROJECT_STATUS_FIELD }}
+          PROJECT_STATUS_TODO: ${{ vars.GH_PROJECT_STATUS_TODO }}
+          PROJECT_STATUS_IN_PROGRESS: ${{ vars.GH_PROJECT_STATUS_IN_PROGRESS }}
+          PROJECT_STATUS_REVIEW: ${{ vars.GH_PROJECT_STATUS_REVIEW }}
+          PROJECT_STATUS_DONE: ${{ vars.GH_PROJECT_STATUS_DONE }}
+

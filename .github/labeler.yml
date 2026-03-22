@@ -1,0 +1,28 @@
+lane:ui:
+  - changed-files:
+      - any-glob-to-any-file: 'Memora/Views/**'
+
+lane:audio-stt:
+  - changed-files:
+      - any-glob-to-any-file: 'Memora/Core/Services/Audio*'
+      - any-glob-to-any-file: 'Memora/Core/Services/STT*'
+      - any-glob-to-any-file: 'Memora/Core/Services/TranscriptionEngine.swift'
+
+lane:model-state:
+  - changed-files:
+      - any-glob-to-any-file: 'Memora/Core/Models/**'
+      - any-glob-to-any-file: 'Memora/Core/ViewModels/**'
+      - any-glob-to-any-file: 'Memora/Core/Contracts/**'
+
+lane:app-infra:
+  - changed-files:
+      - any-glob-to-any-file: 'Memora/App/**'
+      - any-glob-to-any-file: 'Memora.xcodeproj/**'
+      - any-glob-to-any-file: 'project.yml'
+      - any-glob-to-any-file: '.github/**'
+
+lane:qa-ops:
+  - changed-files:
+      - any-glob-to-any-file: 'docs/**'
+      - any-glob-to-any-file: 'README.md'
+      - any-glob-to-any-file: 'CLAUDE.md'

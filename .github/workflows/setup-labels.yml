@@ -1,0 +1,63 @@
+name: Setup Labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create/update labels used for parallel development
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              { name: 'type:task', color: '0e8a16', description: 'Implementation task' },
+              { name: 'type:bug', color: 'd73a4a', description: 'Bug report' },
+              { name: 'status:todo', color: 'd4c5f9', description: 'Ready to start' },
+              { name: 'status:in-progress', color: 'fbca04', description: 'Actively being developed' },
+              { name: 'status:review', color: '0e8a16', description: 'Under review' },
+              { name: 'status:done', color: '5319e7', description: 'Completed' },
+              { name: 'lane:ui', color: '1d76db', description: 'Lane A: UI' },
+              { name: 'lane:audio-stt', color: '0052cc', description: 'Lane B: Audio and STT' },
+              { name: 'lane:model-state', color: '0366d6', description: 'Lane C: Models and state' },
+              { name: 'lane:app-infra', color: '5319e7', description: 'Lane D: App and infrastructure' },
+              { name: 'lane:qa-ops', color: '6f42c1', description: 'Lane E: QA and operations' },
+              { name: 'agent:codex', color: 'bfdadc', description: 'Primary agent: Codex' },
+              { name: 'agent:claude', color: 'c5def5', description: 'Primary agent: Claude' },
+              { name: 'agent:pair', color: 'fef2c0', description: 'Codex + Claude pair task' }
+            ];
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name
+                });
+                await github.rest.issues.updateLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  new_name: label.name,
+                  color: label.color,
+                  description: label.description
+                });
+                core.info(`Updated label: ${label.name}`);
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description
+                });
+                core.info(`Created label: ${label.name}`);
+              }
+            }
+
