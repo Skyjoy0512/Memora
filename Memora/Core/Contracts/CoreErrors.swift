@@ -139,6 +139,49 @@ public enum AudioError: LocalizedError, Equatable, Sendable {
     }
 }
 
+// MARK: - STTError
+
+public enum STTError: LocalizedError, Equatable, Sendable {
+    case transcriptionInProgress
+    case transcriptionFailed(String, retryable: Bool = true)
+    case networkError(String)
+    case permissionDenied
+    case serviceUnavailable
+    case timeout
+
+    public var errorDescription: String? {
+        switch self {
+        case .transcriptionInProgress:
+            return "文字起こし中"
+        case .transcriptionFailed(let message, let retryable):
+            if retryable {
+                return "文字起こしに失敗しました: \(message)"
+            } else {
+                return "文字起こしに失敗しました（再試行不可）: \(message)"
+            }
+        case .networkError(let message):
+            return "ネットワークエラー: \(message)"
+        case .permissionDenied:
+            return "権限がありません"
+        case .serviceUnavailable:
+            return "サービスが利用できません"
+        case .timeout:
+            return "タイムアウトしました"
+        }
+    }
+
+    public var isRetryable: Bool {
+        switch self {
+        case .transcriptionFailed(_, let retryable):
+            return retryable
+        case .networkError, .serviceUnavailable, .timeout:
+            return true
+        case .transcriptionInProgress, .permissionDenied:
+            return false
+        }
+    }
+}
+
 // MARK: - LLMError
 
 public enum LLMError: LocalizedError, Equatable, Sendable {
