@@ -8,12 +8,20 @@
 ## 追加した自動化
 - `.github/workflows/setup-labels.yml`
   - 初期ラベル（`status:*`, `lane:*`, `agent:*`, `type:*`）を作成/更新
+- `.github/workflows/ci.yml`
+  - `master` への push / PR で iOSビルドを実行
 - `.github/workflows/pr-labeler.yml`
   - PR差分のパスから `lane:*` ラベルを自動付与
+- `.github/workflows/auto-pr-from-push.yml`
+  - `master` 以外のブランチに push したら、未作成なら Draft PR を自動作成
+- `.github/workflows/auto-enable-automerge.yml`
+  - PR に `automerge` ラベルが付いたら Auto-merge を自動有効化（リポジトリ設定側でAuto-merge有効が前提）
 - `.github/workflows/status-label-sync.yml`
   - Issue/PRイベントに応じて `status:*` ラベルを自動で1つに統一
 - `.github/workflows/issue-form-label-sync.yml`
   - Issueフォームの `Lane` / `Agent` 回答を `lane:*` / `agent:*` ラベルへ自動同期
+- `.github/workflows/epic-auto-split.yml`
+  - `[Epic]` Issue の `要件` 箇条書きから子Taskを自動起票
 - `.github/workflows/project-v2-sync.yml`
   - Issue/PRを Project V2 に追加し、Status列を自動更新
 - `.github/workflows/pr-progress-comment.yml`
@@ -25,7 +33,7 @@
 
 ### 1) 一度だけ実行
 1. Actions タブから `Setup Labels` を手動実行
-2. `type:* / status:* / lane:* / agent:*` ラベルが作成されることを確認
+2. `type:* / status:* / lane:* / agent:* / automerge / needs:pm-triage` ラベルが作成されることを確認
 
 ### 2) Repository Variables（Project同期を使う場合のみ）
 `Settings > Secrets and variables > Actions > Variables` に以下を追加:
@@ -59,9 +67,14 @@
 1. Actions で `Setup Labels` を1回実行
 2. `Agent Task` テンプレートでIssue作成
 3. PR本文に `Closes #<issue-number>` を書いてPR作成
-4. 以降はラベルとIssueコメントが自動更新される
+4. 以降はPR自動作成・ラベル・Issueコメント・status更新が自動で動く
 
 この運用だけでも「誰がどのIssueをどこまで進めたか」は追跡可能。
+
+## Agent Teamsとの関係
+- GitHub Actionsは「Issue/PR/CI/マージ」の自動化を担当。
+- Claude Code Agent Teams（Lead + Teammates）は「実装作業」の並列化を担当。
+- Agent Teams自体をGitHub Actions上で直接実行する構成は想定しない（対話的セッションのため）。
 
 ## 現時点の制限
 - `agent:*` ラベルは Issueフォームの選択値に依存（フォームを使わないIssueでは自動付与されない）

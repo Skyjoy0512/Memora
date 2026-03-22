@@ -1,5 +1,3 @@
-# Memora GitHub Actions Configuration
-# TEMPORARY: Disabled until Xcode project is pushed and ready
 name: iOS CI
 
 on:
@@ -8,5 +6,29 @@ on:
   pull_request:
     branches: [ master ]
 
-# TEMPORARY: Disabled until Xcode project is ready
-# Uncomment this section when ready to re-enable CI
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build (iOS Simulator)
+        run: |
+          xcodebuild \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build

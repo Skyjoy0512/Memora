@@ -2,8 +2,9 @@ name: Epic / PM Breakdown
 description: PMエージェントで分解するための大きめ要件
 title: "[Epic] "
 labels:
-  - type:task
+  - type:epic
   - status:todo
+  - needs:pm-triage
 body:
   - type: input
     id: goal

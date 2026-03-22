@@ -1,0 +1,47 @@
+name: Auto Enable Automerge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  enable:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable automerge for labeled PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = (pr.labels || []).map(label => label.name);
+            if (!labels.includes('automerge')) {
+              core.info('No automerge label; skipping.');
+              return;
+            }
+
+            try {
+              await github.graphql(
+                `
+                mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+                    pullRequest {
+                      number
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+                `,
+                { pullRequestId: pr.node_id }
+              );
+              core.info(`Automerge enabled for PR #${pr.number}`);
+            } catch (error) {
+              core.warning(`Failed to enable automerge: ${error.message}`);
+            }
+

@@ -17,7 +17,11 @@ jobs:
           script: |
             const labels = [
               { name: 'type:task', color: '0e8a16', description: 'Implementation task' },
+              { name: 'type:epic', color: '5319e7', description: 'Epic parent issue' },
               { name: 'type:bug', color: 'd73a4a', description: 'Bug report' },
+              { name: 'automerge', color: '0e8a16', description: 'Enable GitHub auto-merge for this PR' },
+              { name: 'needs:pm-triage', color: 'fef2c0', description: 'Needs PM/Lead decomposition or lane assignment' },
+              { name: 'epic:child', color: 'c2e0c6', description: 'Issue created from an epic' },
               { name: 'status:todo', color: 'd4c5f9', description: 'Ready to start' },
               { name: 'status:in-progress', color: 'fbca04', description: 'Actively being developed' },
               { name: 'status:review', color: '0e8a16', description: 'Under review' },
@@ -60,4 +64,3 @@ jobs:
                 core.info(`Created label: ${label.name}`);
               }
             }
-

@@ -40,6 +40,7 @@ and wait for teammates to finish before final integration.
 - PR本文に `Closes #<issue-number>` を必ず書く
 - Draft中は `status:in-progress`、Review可能で `status:review`、mergeで `status:done`
 - Leadは定期的に各Teammateの進捗を回収して再配分する
+- ブランチ push 時のPR作成とラベル同期は GitHub Actions が自動実行する
 
 ## 進捗が見えないとき
 - in-process modeでは、画面上にTeammateが見えにくい場合がある

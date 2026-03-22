@@ -1,0 +1,88 @@
+name: Epic Auto Split
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  split:
+    if: ${{ startsWith(github.event.issue.title, '[Epic]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create child task issues from epic requirements
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const section = body.match(/###\s+要件\s*\n+([\s\S]*?)(?=\n###\s+|$)/i);
+            if (!section) {
+              core.info('No 要件 section found; skipping.');
+              return;
+            }
+
+            const requirements = section[1]
+              .split('\n')
+              .map(line => line.trim())
+              .filter(line => /^-\s+/.test(line))
+              .map(line => line.replace(/^-\s+/, '').trim())
+              .filter(Boolean);
+
+            if (requirements.length === 0) {
+              core.info('No bullet requirements found; skipping.');
+              return;
+            }
+
+            const created = [];
+            for (const req of requirements) {
+              const childTitle = `[Task] ${req}`;
+              const childBody = [
+                `Auto-generated from Epic #${issue.number}.`,
+                '',
+                `## Parent Epic`,
+                `- #${issue.number}`,
+                '',
+                `## Goal`,
+                req,
+                '',
+                '## Acceptance Criteria',
+                '- [ ] Define concrete acceptance criteria',
+                '- [ ] Implement and verify',
+                '',
+                '## Scope',
+                '- TBD (PM/Lead assigns lane + agent)'
+              ].join('\n');
+
+              const child = await github.rest.issues.create({
+                owner,
+                repo,
+                title: childTitle,
+                body: childBody,
+                labels: ['type:task', 'status:todo', 'needs:pm-triage', 'epic:child']
+              });
+              created.push(child.data.number);
+            }
+
+            const summary = [
+              '### Auto Split Result',
+              `Parent Epic: #${issue.number}`,
+              '',
+              ...created.map(num => `- #${num}`)
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: summary
+            });
+
+            core.info(`Created ${created.length} child issues.`);
+
