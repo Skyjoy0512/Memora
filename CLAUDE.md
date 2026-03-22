@@ -91,7 +91,7 @@ npx vibe-kanban
 
 実際の自動反映手順は `docs/parallel-development-automation.md` を参照する。
 
-### 4.1 必須設定（`master`）
+### 4.1 必須設定（`main`）
 - Branch protection を有効化
 - Required status checks を必須化
 - Require pull request before merging を有効化
@@ -176,7 +176,7 @@ npx vibe-kanban
 - Claude Code では `/pm-breakdown` と `/pm-assign` を使ってIssue分解・再アサインを行う。
 
 ## 9. 禁止事項
-- `master` への直接 push
+- `main` への直接 push
 - 担当レーン外の無断変更
 - 証拠なしの「動作したはず」報告
 - 仕様変更をコード先行で進めること
