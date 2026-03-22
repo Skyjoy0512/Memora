@@ -1,0 +1,453 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
+		256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */; };
+		A1B2C3D4E5F67890 /* AudioFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67891 /* AudioFileTests.swift */; };
+		A1B2C3D4E5F67891 /* ProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67892 /* ProjectTests.swift */; };
+		A1B2C3D4E5F67892 /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67893 /* TranscriptTests.swift */; };
+		A1B2C3D4E5F67893 /* HomeViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67894 /* HomeViewModelTests.swift */; };
+		A1B2C3D4E5F67894 /* RecordingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67895 /* RecordingViewModelTests.swift */; };
+		A1B2C3D4E5F67895 /* MemoraTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67896 /* MemoraTests.swift */; };
+		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
+		355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */; };
+		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
+		401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */; };
+		4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */; };
+		5049E6A60A1FA1850E01960F /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14147F1C9E60307352CD67F /* Project.swift */; };
+		58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */; };
+		5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */; };
+		5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68DC49DD8967C2F47CF0809 /* SummaryView.swift */; };
+		652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */; };
+		68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */; };
+		705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFAE9CD0723E38AB21228D1E /* HomeView.swift */; };
+		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
+		8CCCEF5AA0CD48710C2B1D40 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B326B618C8C1EE53C70ABF /* ContentView.swift */; };
+		8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870629046CE7C04AC6AB8A7D /* AppDelegate.swift */; };
+		95F6A87B37DC08084BCB2326 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */; };
+		9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */; };
+		9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */; };
+		BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21EE7F002FD01C0D547BA99 /* Transcript.swift */; };
+		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
+		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
+		F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B8C2466FE7F2C1FE124533 /* AudioFile.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectView.swift; sourceTree = "<group>"; };
+		35B8C2466FE7F2C1FE124533 /* AudioFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFile.swift; sourceTree = "<group>"; };
+		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
+		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
+		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
+		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
+		870629046CE7C04AC6AB8A7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A9B326B618C8C1EE53C70ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AFAE9CD0723E38AB21228D1E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
+		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
+		D14147F1C9E60307352CD67F /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraApp.swift; sourceTree = "<group>"; };
+		D68DC49DD8967C2F47CF0809 /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
+		DA571A46847D132339E20442 /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
+		DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPickerSheet.swift; sourceTree = "<group>"; };
+		DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
+		E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailView.swift; sourceTree = "<group>"; };
+		EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsView.swift; sourceTree = "<group>"; };
+		EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
+		F21EE7F002FD01C0D547BA99 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
+		F9EDFC7810796167A7286C95 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1D97CAA097CB00D88EFE700B = {
+			isa = PBXGroup;
+			children = (
+				223A403183333114F9B2B160 /* Memora */,
+				F89763A1B6DAA80D26902011 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		223A403183333114F9B2B160 /* Memora */ = {
+			isa = PBXGroup;
+			children = (
+				EEAC3F39AF0BAF6A487B0FA0 /* App */,
+				345340EB32FFC99C3344F792 /* Core */,
+				263956AA903B4FE180AEBDCA /* Views */,
+			);
+			path = Memora;
+			sourceTree = "<group>";
+		};
+		263956AA903B4FE180AEBDCA /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */,
+				E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */,
+				AFAE9CD0723E38AB21228D1E /* HomeView.swift */,
+				DA571A46847D132339E20442 /* ProjectDetailView.swift */,
+				DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */,
+				EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */,
+				DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */,
+				F9EDFC7810796167A7286C95 /* SettingsView.swift */,
+				5B9B239A10FD480509DFB57B /* ShareSheet.swift */,
+				D68DC49DD8967C2F47CF0809 /* SummaryView.swift */,
+				EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		326F8DFE600109A52BEC818C /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */,
+				7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		32A603169E96B6A30D07373D /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
+				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
+				CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */,
+				4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		345340EB32FFC99C3344F792 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				AAA29B6187B411700E874C1A /* Models */,
+				38C374DDEF23A65411819DCF /* Networking */,
+				32A603169E96B6A30D07373D /* Services */,
+				326F8DFE600109A52BEC818C /* ViewModels */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		38C374DDEF23A65411819DCF /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		AAA29B6187B411700E874C1A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				35B8C2466FE7F2C1FE124533 /* AudioFile.swift */,
+				D14147F1C9E60307352CD67F /* Project.swift */,
+				F21EE7F002FD01C0D547BA99 /* Transcript.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		EEAC3F39AF0BAF6A487B0FA0 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				870629046CE7C04AC6AB8A7D /* AppDelegate.swift */,
+				A9B326B618C8C1EE53C70ABF /* ContentView.swift */,
+				D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		F89763A1B6DAA80D26902011 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				507EBB154305FB72B7DDAF65 /* Memora.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2E6DA4591090D4834F76D9D1 /* Memora */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F06078A9F7780E94FD8DF56D /* Build configuration list for PBXNativeTarget "Memora" */;
+			buildPhases = (
+				8EF4EEF5807D4B75493863D9 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Memora;
+			packageProductDependencies = (
+			);
+			productName = Memora;
+			productReference = 507EBB154305FB72B7DDAF65 /* Memora.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0D72A297557F8CE3A66DE6E4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = D182E03E8071A136C12F9B33 /* Build configuration list for PBXProject "Memora" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ja;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ja,
+			);
+			mainGroup = 1D97CAA097CB00D88EFE700B;
+			minimizedProjectReferenceProxies = 1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				2E6DA4591090D4834F76D9D1 /* Memora */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8EF4EEF5807D4B75493863D9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
+				8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */,
+				F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */,
+				4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */,
+				E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */,
+				8CCCEF5AA0CD48710C2B1D40 /* ContentView.swift in Sources */,
+				355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */,
+				256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */,
+				705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */,
+				58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */,
+				EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */,
+				5049E6A60A1FA1850E01960F /* Project.swift in Sources */,
+				302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */,
+				9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */,
+				5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */,
+				95F6A87B37DC08084BCB2326 /* RecordingView.swift in Sources */,
+				9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */,
+				017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */,
+				85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */,
+				652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */,
+				5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */,
+				BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */,
+				68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */,
+				38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		20099D22BBDB35490251C7BD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A392B4562A191B3B5734ED49 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B03E8364D10B13AFE9BDE65B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Memora/Resources/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
+				PRODUCT_NAME = Memora;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D73DF3E8DB52B9709678C7B7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Memora/Resources/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
+				PRODUCT_NAME = Memora;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D182E03E8071A136C12F9B33 /* Build configuration list for PBXProject "Memora" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				20099D22BBDB35490251C7BD /* Debug */,
+				A392B4562A191B3B5734ED49 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F06078A9F7780E94FD8DF56D /* Build configuration list for PBXNativeTarget "Memora" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D73DF3E8DB52B9709678C7B7 /* Debug */,
+				B03E8364D10B13AFE9BDE65B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0D72A297557F8CE3A66DE6E4 /* Project object */;
+}

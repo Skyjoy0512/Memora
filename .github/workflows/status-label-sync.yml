@@ -1,0 +1,115 @@
+name: Status Label Sync
+
+on:
+  issues:
+    types: [opened, reopened, assigned, closed]
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  sync-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync status labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const statusLabels = [
+              'status:todo',
+              'status:in-progress',
+              'status:review',
+              'status:done'
+            ];
+
+            const labelMeta = {
+              'status:todo': { color: 'd4c5f9', description: 'Ready to start' },
+              'status:in-progress': { color: 'fbca04', description: 'Actively being developed' },
+              'status:review': { color: '0e8a16', description: 'Under review' },
+              'status:done': { color: '5319e7', description: 'Completed' }
+            };
+
+            async function ensureStatusLabel(name) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                const meta = labelMeta[name];
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name,
+                  color: meta.color,
+                  description: meta.description
+                });
+              }
+            }
+
+            function resolveStatus() {
+              if (context.eventName === 'issues') {
+                if (context.payload.action === 'closed') return 'status:done';
+                if (context.payload.action === 'assigned') return 'status:in-progress';
+                if (context.payload.action === 'opened' || context.payload.action === 'reopened') return 'status:todo';
+                return null;
+              }
+
+              if (context.eventName === 'pull_request') {
+                const pr = context.payload.pull_request;
+                const action = context.payload.action;
+                if (action === 'closed') {
+                  return pr.merged ? 'status:done' : 'status:in-progress';
+                }
+                if (action === 'ready_for_review') return 'status:review';
+                if (action === 'converted_to_draft') return 'status:in-progress';
+                if (action === 'opened' || action === 'reopened' || action === 'synchronize') {
+                  return pr.draft ? 'status:in-progress' : 'status:review';
+                }
+              }
+
+              return null;
+            }
+
+            const targetStatus = resolveStatus();
+            if (!targetStatus) {
+              core.info('No status update needed for this event.');
+              return;
+            }
+
+            for (const label of statusLabels) {
+              await ensureStatusLabel(label);
+            }
+
+            const issueNumber = context.payload.issue?.number ?? context.payload.pull_request?.number;
+            if (!issueNumber) {
+              core.info('No issue/PR number found.');
+              return;
+            }
+
+            const current = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            const preserved = current.data
+              .map(label => label.name)
+              .filter(name => !statusLabels.includes(name));
+
+            const next = [...preserved, targetStatus];
+            await github.rest.issues.setLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: next
+            });
+
+            core.info(`Set ${targetStatus} on #${issueNumber}`);
+
