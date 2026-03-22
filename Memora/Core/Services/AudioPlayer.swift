@@ -34,7 +34,7 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
     }
 
     deinit {
-        stopProgressTimer()
+        // TODO: stopProgressTimer() 呼び出しを修正
     }
 
     func load(url: URL) async throws {
@@ -106,7 +106,7 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
             isPlaying = false
             yieldProgress(currentTime)
         } catch {
-            throw PlaybackError.loadFailed(error)
+            throw CoreError.audioError(.playbackFailed(error.localizedDescription))
         }
     }
 
@@ -161,17 +161,6 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
         guard let player = audioPlayer else { return }
         currentTime = player.currentTime
         yieldProgress(currentTime)
-    }
-
-    enum PlaybackError: LocalizedError {
-        case loadFailed(Error)
-
-        var errorDescription: String? {
-            switch self {
-            case .loadFailed(let error):
-                return "音声ファイルの読み込みに失敗しました: \(error.localizedDescription)"
-            }
-        }
     }
 }
 

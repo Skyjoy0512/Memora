@@ -18,6 +18,7 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
     case pipelineError(PipelineError)
     case transcriptionError(TranscriptionError)
     case llmError(LLMError)
+    case audioError(AudioError)
     case dependencyNotSet(String)
 
     public var errorDescription: String? {
@@ -34,6 +35,8 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
             return "Transcription error: \(error.localizedDescription)"
         case .llmError(let error):
             return "LLM error: \(error.localizedDescription)"
+        case .audioError(let error):
+            return "Audio error: \(error.localizedDescription)"
         case .dependencyNotSet(let name):
             return "Dependency not set: \(name)"
         }
@@ -104,6 +107,34 @@ public enum TranscriptionError: LocalizedError, Equatable, Sendable {
             return "Transcription failed: \(message)"
         case .engineNotAvailable:
             return "Transcription engine not available"
+        }
+    }
+}
+
+// MARK: - AudioError
+
+public enum AudioError: LocalizedError, Equatable, Sendable {
+    case noActiveRecording
+    case microphonePermissionDenied
+    case audioSessionFailed(String)
+    case recordingFailed(String?)
+    case playbackFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .noActiveRecording:
+            return "録音が開始されていません"
+        case .microphonePermissionDenied:
+            return "マイクへのアクセスが許可されていません"
+        case .audioSessionFailed(let message):
+            return "オーディオセッションの設定に失敗しました: \(message)"
+        case .recordingFailed(let message):
+            if let message {
+                return "録音に失敗しました: \(message)"
+            }
+            return "録音に失敗しました"
+        case .playbackFailed(let message):
+            return "音声ファイルの読み込みに失敗しました: \(message)"
         }
     }
 }
