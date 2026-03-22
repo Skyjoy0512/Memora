@@ -31,7 +31,7 @@ struct RecordingView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 13)
                     .padding(.vertical, 8)
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(8)
@@ -43,7 +43,7 @@ struct RecordingView: View {
 
             Divider()
 
-            VStack(spacing: 30) {
+            VStack(spacing: 21) {
                 Spacer()
 
                 // エラーメッセージ表示
@@ -63,7 +63,7 @@ struct RecordingView: View {
                     .foregroundStyle(.primary)
 
                 // 波形表示（プレースホルダー）
-                HStack(spacing: 2) {
+                HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
                         Rectangle()
                             .fill(audioRecorder.isRecording ? Color.gray : Color.gray.opacity(0.3))
@@ -85,7 +85,7 @@ struct RecordingView: View {
                     ZStack {
                         Circle()
                             .fill(Color.gray)
-                            .frame(width: 80, height: 80)
+                            .frame(width: 70, height: 70)
 
                         if audioRecorder.isRecording {
                             Rectangle()
@@ -99,7 +99,7 @@ struct RecordingView: View {
                         }
                     }
                 }
-                .padding(.bottom, 50)
+                .padding(.bottom, 34)
             }
         }
         .navigationTitle("録音")
