@@ -122,10 +122,10 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // アクションボタン
-                VStack(spacing: 13) {
+                VStack(spacing: 12) {
                     if transcriptionEngine.isTranscribing {
                         // 文字起こし中
-                        VStack(spacing: 13) {
+                        VStack(spacing: 12) {
                             ProgressView(value: transcriptionEngine.progress)
                                 .tint(.gray)
                             Text("文字起こし中... \(Int(transcriptionEngine.progress * 100))%")
@@ -135,7 +135,36 @@ struct FileDetailView: View {
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(Color.gray.opacity(0.1))
-                        .cornerRadius(13)
+                        .cornerRadius(12)
+                    } else if let errorMessage = transcriptionEngine.errorMessage {
+                        // エラー表示とリトライ
+                        VStack(spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.red)
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
+                            }
+                            .multilineTextAlignment(.leading)
+                            .padding()
+
+                            if transcriptionEngine.isRetryable {
+                                Button(action: retryTranscription) {
+                                    Label("リトライ", systemImage: "arrow.clockwise")
+                                        .font(.subheadline)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(Color.red)
+                                        .cornerRadius(8)
+                                }
+                                .foregroundStyle(.white)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(12)
                     } else if let result = transcriptResult {
                         // 文字起こし完了 - 結果表示ボタン
                         Button(action: { showTranscriptView = true }) {
@@ -143,7 +172,7 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .cornerRadius(12)
                         }
                         .foregroundStyle(.primary)
                     } else if audioFile.isTranscribed {
@@ -153,7 +182,7 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .cornerRadius(12)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -163,7 +192,7 @@ struct FileDetailView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .cornerRadius(12)
                         }
                         .foregroundStyle(.primary)
                     }
@@ -360,6 +389,24 @@ struct FileDetailView: View {
                 }
             } catch {
                 print("文字起こしエラー: \(error)")
+            }
+        }
+    }
+
+    private func retryTranscription() {
+        Task {
+            do {
+                let result = try await transcriptionEngine.retryTranscription()
+                await MainActor.run {
+                    transcriptResult = result
+                    audioFile.isTranscribed = true
+
+                    // Transcript を保存
+                    let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
+                    modelContext.insert(transcript)
+                }
+            } catch {
+                print("リトライエラー: \(error)")
             }
         }
     }
