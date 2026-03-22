@@ -10,6 +10,12 @@ final class AudioFile {
     var audioURL: String
     var isTranscribed: Bool = false
     var projectID: UUID?
+    // 要約関連フィールド
+    var isSummarized: Bool = false
+    var summary: String?
+    var keyPoints: String?
+    var actionItems: String?
+
 
     init(title: String, audioURL: String, projectID: UUID? = nil) {
         self.id = UUID()
