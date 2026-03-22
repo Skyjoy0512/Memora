@@ -191,6 +191,16 @@ struct FileDetailView: View {
                                 .cornerRadius(13)
                         }
                         .foregroundStyle(.primary)
+                    } else if audioFile.isSummarized {
+                        // 既に要約済み - 結果表示ボタン
+                        Button(action: { showSummaryView = true }) {
+                            Label("要約結果を表示", systemImage: "text.quote")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(13)
+                        }
+                        .foregroundStyle(.primary)
                     } else if transcriptResult != nil || audioFile.isTranscribed {
                         // 要約開始ボタン
                         Button(action: startSummarization) {
@@ -246,6 +256,7 @@ struct FileDetailView: View {
         }
         .onAppear {
             setupAudioPlayer()
+            loadSavedSummary()
         }
         .task {
             await setupEngines()
@@ -389,6 +400,11 @@ struct FileDetailView: View {
                 let result = try await summarizationEngine.summarize(transcript: transcriptText)
                 await MainActor.run {
                     summaryResult = result
+                    // 要約を AudioFile に保存
+                    audioFile.isSummarized = true
+                    audioFile.summary = result.summary
+                    audioFile.keyPoints = result.keyPoints
+                    audioFile.actionItems = result.actionItems
                 }
             } catch {
                 print("要約エラー: \(error)")
@@ -424,6 +440,20 @@ struct FileDetailView: View {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private func loadSavedSummary() {
+        guard audioFile.isSummarized,
+              let summary = audioFile.summary,
+              let keyPoints = audioFile.keyPoints,
+              let actionItems = audioFile.actionItems else {
+            return
+        }
+        summaryResult = SummaryResult(
+            summary: summary,
+            keyPoints: keyPoints,
+            actionItems: actionItems
+        )
     }
 }
 

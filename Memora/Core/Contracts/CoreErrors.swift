@@ -19,6 +19,7 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
     case transcriptionError(TranscriptionError)
     case llmError(LLMError)
     case audioError(AudioError)
+    case summaryError(SummaryError)
     case dependencyNotSet(String)
 
     public var errorDescription: String? {
@@ -37,6 +38,8 @@ public enum CoreError: LocalizedError, Equatable, Sendable {
             return "LLM error: \(error.localizedDescription)"
         case .audioError(let error):
             return "Audio error: \(error.localizedDescription)"
+        case .summaryError(let error):
+            return "Summary error: \(error.localizedDescription)"
         case .dependencyNotSet(let name):
             return "Dependency not set: \(name)"
         }
@@ -107,6 +110,31 @@ public enum TranscriptionError: LocalizedError, Equatable, Sendable {
             return "Transcription failed: \(message)"
         case .engineNotAvailable:
             return "Transcription engine not available"
+        }
+    }
+}
+
+// MARK: - SummaryError
+
+public enum SummaryError: LocalizedError, Equatable, Sendable {
+    case transcriptionNotAvailable
+    case saveFailed(String)
+    case loadFailed(String)
+    case emptyTranscript
+    case generationFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .transcriptionNotAvailable:
+            return "文字起こしデータがありません"
+        case .saveFailed(let message):
+            return "要約の保存に失敗しました: \(message)"
+        case .loadFailed(let message):
+            return "要約の読み込みに失敗しました: \(message)"
+        case .emptyTranscript:
+            return "文字起こしが空です"
+        case .generationFailed(let message):
+            return "要約の生成に失敗しました: \(message)"
         }
     }
 }
