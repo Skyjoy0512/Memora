@@ -21,11 +21,17 @@ private protocol TranscriptionEngineProtocol: Sendable {
 final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
+    @Published var errorMessage: String?
+    @Published var isRetryable = false
+    @Published var retryCount = 0
 
     private let sttService: STTServiceProtocol = STTService()
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var apiKey = ""
+
+    private var lastAudioURL: URL?
+    private var lastLanguage: String?
 
     func configure(
         apiKey: String,
@@ -51,14 +57,48 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     }
 
     func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult {
+        lastAudioURL = audioURL
+        lastLanguage = language
+        errorMessage = nil
+        isRetryable = false
+        retryCount = 0
+
         isTranscribing = true
         progress = 0
 
         defer {
-            isTranscribing = false
-            progress = 0
+            if errorMessage == nil {
+                isTranscribing = false
+                progress = 0
+            }
         }
 
+        return try await transcribeInternal(audioURL: audioURL, language: language)
+    }
+
+    func retryTranscription() async throws -> TranscriptResult {
+        guard let audioURL = lastAudioURL else {
+            throw CoreError.transcriptionError(.transcriptionFailed("No audio URL to retry"))
+        }
+
+        errorMessage = nil
+        isRetryable = false
+        retryCount += 1
+
+        isTranscribing = true
+        progress = 0
+
+        defer {
+            if errorMessage == nil {
+                isTranscribing = false
+                progress = 0
+            }
+        }
+
+        return try await transcribeInternal(audioURL: audioURL, language: lastLanguage)
+    }
+
+    private func transcribeInternal(audioURL: URL, language: String?) async throws -> TranscriptResult {
         let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
 
         var finalResult: TranscriptionResult?
@@ -72,9 +112,14 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             case .transcriptionCompleted(_, let result):
                 progress = 1.0
                 finalResult = result
+                isTranscribing = false
+                progress = 0
             case .transcriptionFailed(_, let error):
+                handleTranscriptionError(error)
                 throw error
             case .transcriptionCancelled:
+                isTranscribing = false
+                progress = 0
                 throw CancellationError()
             case .transcriptionPartialResult,
                  .audioChunkStarted,
@@ -92,6 +137,20 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             coreResult: finalResult,
             duration: await audioFileDuration(for: audioURL)
         )
+    }
+
+    private func handleTranscriptionError(_ error: CoreError) {
+        switch error {
+        case .sttError(let sttError):
+            errorMessage = sttError.localizedDescription
+            isRetryable = sttError.isRetryable
+        case .transcriptionError(let transcriptionError):
+            errorMessage = transcriptionError.localizedDescription
+            isRetryable = false
+        default:
+            errorMessage = error.localizedDescription
+            isRetryable = false
+        }
     }
 
     private func audioFileDuration(for url: URL) async -> TimeInterval {

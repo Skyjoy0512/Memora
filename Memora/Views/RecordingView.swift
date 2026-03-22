@@ -48,13 +48,25 @@ struct RecordingView: View {
 
                 // エラーメッセージ表示
                 if let error = errorMessage {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .padding()
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
+                    VStack(spacing: 8) {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+
+                        Button(action: retryRecording) {
+                            Text("リトライ")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                        }
+                    }
                 }
 
                 // 録音時間表示
@@ -185,6 +197,21 @@ struct RecordingView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
         return "録音 \(formatter.string(from: Date()))"
+    }
+
+    private func retryRecording() {
+        if audioRecorder.isRecording {
+            return
+        }
+
+        errorMessage = nil
+        do {
+            try audioRecorder.startRecording()
+            startTimer()
+        } catch {
+            errorMessage = "録音開始エラー: \(error.localizedDescription)\n\nシミュレータではマイクが使えない場合があります"
+            print("録音開始エラー: \(error)")
+        }
     }
 }
 
