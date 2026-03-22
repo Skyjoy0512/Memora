@@ -32,9 +32,14 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
     private var levelContinuations: [UUID: AsyncStream<Float>.Continuation] = [:]
     private var meteringTimer: Timer?
 
-    deinit {
-        stopMetering()
-        finishAudioLevels()
+    nonisolated deinit {
+        meteringTimer?.invalidate()
+        meteringTimer = nil
+
+        for continuation in levelContinuations.values {
+            continuation.finish()
+        }
+        levelContinuations.removeAll()
     }
 
     func startRecording() throws {
@@ -145,8 +150,12 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
         self.recordingURL = nil
         self.recordingFileID = nil
         isRecording = false
-        stopMetering()
-        finishAudioLevels()
+
+        // MainActor.run を使用して非同期にクリーンアップ
+        Task { @MainActor [weak self] in
+            self?.stopMetering()
+            self?.finishAudioLevels()
+        }
 
         return RecordingResult(fileID: recordingFileID, fileURL: recordingURL, duration: duration)
     }

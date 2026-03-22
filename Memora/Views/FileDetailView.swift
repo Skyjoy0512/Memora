@@ -403,8 +403,8 @@ struct FileDetailView: View {
                     // 要約を AudioFile に保存
                     audioFile.isSummarized = true
                     audioFile.summary = result.summary
-                    audioFile.keyPoints = result.keyPoints
-                    audioFile.actionItems = result.actionItems
+                    audioFile.keyPoints = result.keyPoints.joined(separator: "\n")
+                    audioFile.actionItems = result.actionItems.joined(separator: "\n")
                 }
             } catch {
                 print("要約エラー: \(error)")
@@ -451,8 +451,8 @@ struct FileDetailView: View {
         }
         summaryResult = SummaryResult(
             summary: summary,
-            keyPoints: keyPoints,
-            actionItems: actionItems
+            keyPoints: keyPoints.split(separator: "\n", omittingEmptySubsequences: true).map(String.init),
+            actionItems: actionItems.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
         )
     }
 }

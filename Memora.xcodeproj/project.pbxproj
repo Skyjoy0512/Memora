@@ -26,7 +26,6 @@
 		6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */; };
 		652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */; };
 		68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */; };
-		6F93BDF0D17C1B32271D1D84 /* CoreDependencyKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */; };
 		705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFAE9CD0723E38AB21228D1E /* HomeView.swift */; };
 		856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */; };
 		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
@@ -36,7 +35,6 @@
 		95F6A87B37DC08084BCB2326 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */; };
 		9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */; };
 		9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */; };
-		AA11DE727A61F2A6F62580DB /* CoreProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0792210571C21855DB7C19 /* CoreProtocols.swift */; };
 		BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21EE7F002FD01C0D547BA99 /* Transcript.swift */; };
 		D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A0D42867DF06711C803A32 /* ProcessingJob.swift */; };
 		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
@@ -54,14 +52,12 @@
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
-		6D0792210571C21855DB7C19 /* CoreProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProtocols.swift; sourceTree = "<group>"; };
 		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		870629046CE7C04AC6AB8A7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTSupportTypes.swift; sourceTree = "<group>"; };
 		A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNote.swift; sourceTree = "<group>"; };
 		A94DFEC599490C7591292000 /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		A9B326B618C8C1EE53C70ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDependencyKeys.swift; sourceTree = "<group>"; };
 		AFAE9CD0723E38AB21228D1E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
@@ -182,10 +178,8 @@
 			isa = PBXGroup;
 			children = (
 				E37BBEF978E82980F741AB32 /* CoreDependency.swift */,
-				AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */,
 				B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */,
 				DB40DDE449A3128087A977E0 /* CoreErrors.swift */,
-				6D0792210571C21855DB7C19 /* CoreProtocols.swift */,
 				E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */,
 			);
 			path = Contracts;
@@ -237,6 +231,12 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					2E6DA4591090D4834F76D9D1 = {
+						DevelopmentTeam = 4R82H2PVGL;
+						ProvisioningStyle = Automatic;
+					};
+				};
 			};
 			buildConfigurationList = D182E03E8071A136C12F9B33 /* Build configuration list for PBXProject "Memora" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -271,9 +271,7 @@
 				8CCCEF5AA0CD48710C2B1D40 /* ContentView.swift in Sources */,
 				075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */,
 				2996D6545E74E503CDF974E8 /* CoreDependency.swift in Sources */,
-				6F93BDF0D17C1B32271D1D84 /* CoreDependencyKeys.swift in Sources */,
 				0EAD9E04FB8D7C53B513F93B /* CoreErrors.swift in Sources */,
-				AA11DE727A61F2A6F62580DB /* CoreProtocols.swift in Sources */,
 				355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */,
 				8723075A229518276BA46013 /* FeatureDependencySurface.swift in Sources */,
 				256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */,
@@ -428,7 +426,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -441,7 +441,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -454,7 +454,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -467,7 +469,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;

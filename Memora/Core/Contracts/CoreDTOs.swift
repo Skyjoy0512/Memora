@@ -125,6 +125,21 @@ public enum ChatRole: String, Equatable, Hashable, Sendable {
     case system = "system"
 }
 
+// MARK: - STT Event DTO
+
+/// STT 処理イベント
+public enum STTEvent: Sendable {
+    case transcriptionStarted(taskId: String)
+    case transcriptionProgress(taskId: String, progress: Double)
+    case transcriptionPartialResult(taskId: String, text: String)
+    case transcriptionCompleted(taskId: String, result: TranscriptionResult)
+    case transcriptionFailed(taskId: String, error: CoreError)
+    case transcriptionCancelled(taskId: String)
+    case audioChunkStarted(chunkIndex: Int)
+    case audioChunkProgress(chunkIndex: Int, progress: Double)
+    case audioChunkCompleted(chunkIndex: Int, result: TranscriptionResult)
+}
+
 // MARK: - Transcription DTO
 
 /// 文字起こし結果
