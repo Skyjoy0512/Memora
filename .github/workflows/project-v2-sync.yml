@@ -83,36 +83,39 @@ jobs:
             const projectResult = await github.graphql(
               `
               query($owner: String!, $number: Int!) {
-                organization(login: $owner) {
-                  projectV2(number: $number) {
-                    id
-                    title
-                    fields(first: 50) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options {
+                repositoryOwner(login: $owner) {
+                  __typename
+                  ... on Organization {
+                    projectV2(number: $number) {
+                      id
+                      title
+                      fields(first: 50) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
                             id
                             name
+                            options {
+                              id
+                              name
+                            }
                           }
                         }
                       }
                     }
                   }
-                }
-                user(login: $owner) {
-                  projectV2(number: $number) {
-                    id
-                    title
-                    fields(first: 50) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options {
+                  ... on User {
+                    projectV2(number: $number) {
+                      id
+                      title
+                      fields(first: 50) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
                             id
                             name
+                            options {
+                              id
+                              name
+                            }
                           }
                         }
                       }
@@ -124,7 +127,8 @@ jobs:
               { owner, number: projectNumber }
             );
 
-            const project = projectResult.organization?.projectV2 ?? projectResult.user?.projectV2;
+            const ownerNode = projectResult.repositoryOwner;
+            const project = ownerNode?.projectV2;
             if (!project) {
               core.setFailed(`Project V2 not found for ${owner} / ${projectNumber}`);
               return;
@@ -228,4 +232,3 @@ jobs:
           PROJECT_STATUS_IN_PROGRESS: ${{ vars.GH_PROJECT_STATUS_IN_PROGRESS }}
           PROJECT_STATUS_REVIEW: ${{ vars.GH_PROJECT_STATUS_REVIEW }}
           PROJECT_STATUS_DONE: ${{ vars.GH_PROJECT_STATUS_DONE }}
-
