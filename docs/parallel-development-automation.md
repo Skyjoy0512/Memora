@@ -9,11 +9,11 @@
 - `.github/workflows/setup-labels.yml`
   - 初期ラベル（`status:*`, `lane:*`, `agent:*`, `type:*`）を作成/更新
 - `.github/workflows/ci.yml`
-  - `master` への push / PR で iOSビルドを実行
+  - `main`（互換で `master` も対象）への push / PR で iOSビルドを実行
 - `.github/workflows/pr-labeler.yml`
   - PR差分のパスから `lane:*` ラベルを自動付与
 - `.github/workflows/auto-pr-from-push.yml`
-  - `master` 以外のブランチに push したら、未作成なら Draft PR を自動作成
+  - デフォルトブランチ（`main`）以外に push したら、未作成なら Draft PR を自動作成
 - `.github/workflows/auto-enable-automerge.yml`
   - PR に `automerge` ラベルが付いたら Auto-merge を自動有効化（リポジトリ設定側でAuto-merge有効が前提）
 - `.github/workflows/status-label-sync.yml`

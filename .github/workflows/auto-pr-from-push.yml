@@ -3,6 +3,7 @@ name: Auto PR From Branch Push
 on:
   push:
     branches-ignore:
+      - main
       - master
 
 permissions:
@@ -21,7 +22,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const branch = context.ref.replace('refs/heads/', '');
-            const base = 'master';
+            const base = context.payload.repository.default_branch || 'main';
 
             if (branch === base) {
               core.info('Base branch push; skipping.');
@@ -63,4 +64,3 @@ jobs:
             });
 
             core.info(`Created PR #${pr.data.number}`);
-
