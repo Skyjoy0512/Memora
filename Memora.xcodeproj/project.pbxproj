@@ -3,18 +3,17 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
+		075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */; };
+		0EAD9E04FB8D7C53B513F93B /* CoreErrors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB40DDE449A3128087A977E0 /* CoreErrors.swift */; };
 		256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */; };
-		A1B2C3D4E5F67890 /* AudioFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67891 /* AudioFileTests.swift */; };
-		A1B2C3D4E5F67891 /* ProjectTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67892 /* ProjectTests.swift */; };
-		A1B2C3D4E5F67892 /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67893 /* TranscriptTests.swift */; };
-		A1B2C3D4E5F67893 /* HomeViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67894 /* HomeViewModelTests.swift */; };
-		A1B2C3D4E5F67894 /* RecordingViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67895 /* RecordingViewModelTests.swift */; };
-		A1B2C3D4E5F67895 /* MemoraTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A67896 /* MemoraTests.swift */; };
+		2996D6545E74E503CDF974E8 /* CoreDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37BBEF978E82980F741AB32 /* CoreDependency.swift */; };
+		29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94DFEC599490C7591292000 /* TodoItem.swift */; };
+		2CF214094F1D5694E31D8951 /* STTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4D1F89D958FA1B55DCF5023 /* STTService.swift */; };
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
 		355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
@@ -24,46 +23,65 @@
 		58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */; };
 		5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */; };
 		5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68DC49DD8967C2F47CF0809 /* SummaryView.swift */; };
+		6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */; };
 		652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */; };
 		68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */; };
+		6F93BDF0D17C1B32271D1D84 /* CoreDependencyKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */; };
 		705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFAE9CD0723E38AB21228D1E /* HomeView.swift */; };
+		856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */; };
 		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
+		8723075A229518276BA46013 /* FeatureDependencySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */; };
 		8CCCEF5AA0CD48710C2B1D40 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9B326B618C8C1EE53C70ABF /* ContentView.swift */; };
 		8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870629046CE7C04AC6AB8A7D /* AppDelegate.swift */; };
 		95F6A87B37DC08084BCB2326 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */; };
 		9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */; };
 		9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */; };
+		AA11DE727A61F2A6F62580DB /* CoreProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0792210571C21855DB7C19 /* CoreProtocols.swift */; };
 		BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21EE7F002FD01C0D547BA99 /* Transcript.swift */; };
+		D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A0D42867DF06711C803A32 /* ProcessingJob.swift */; };
 		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
+		EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */; };
 		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
 		F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B8C2466FE7F2C1FE124533 /* AudioFile.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		07A0D42867DF06711C803A32 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
 		1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectView.swift; sourceTree = "<group>"; };
 		35B8C2466FE7F2C1FE124533 /* AudioFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFile.swift; sourceTree = "<group>"; };
 		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
-		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		6D0792210571C21855DB7C19 /* CoreProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProtocols.swift; sourceTree = "<group>"; };
 		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		870629046CE7C04AC6AB8A7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTSupportTypes.swift; sourceTree = "<group>"; };
+		A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNote.swift; sourceTree = "<group>"; };
+		A94DFEC599490C7591292000 /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
 		A9B326B618C8C1EE53C70ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDependencyKeys.swift; sourceTree = "<group>"; };
 		AFAE9CD0723E38AB21228D1E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
+		B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDTOs.swift; sourceTree = "<group>"; };
 		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
 		D14147F1C9E60307352CD67F /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		D4D1F89D958FA1B55DCF5023 /* STTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTService.swift; sourceTree = "<group>"; };
 		D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraApp.swift; sourceTree = "<group>"; };
 		D68DC49DD8967C2F47CF0809 /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
 		DA571A46847D132339E20442 /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
+		DB40DDE449A3128087A977E0 /* CoreErrors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreErrors.swift; sourceTree = "<group>"; };
 		DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPickerSheet.swift; sourceTree = "<group>"; };
 		DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
+		E37BBEF978E82980F741AB32 /* CoreDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDependency.swift; sourceTree = "<group>"; };
 		E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailView.swift; sourceTree = "<group>"; };
+		E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureDependencySurface.swift; sourceTree = "<group>"; };
 		EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsView.swift; sourceTree = "<group>"; };
 		EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptView.swift; sourceTree = "<group>"; };
 		F21EE7F002FD01C0D547BA99 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
+		F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChunker.swift; sourceTree = "<group>"; };
 		F9EDFC7810796167A7286C95 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -116,8 +134,11 @@
 		32A603169E96B6A30D07373D /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */,
 				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
 				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
+				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
+				9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */,
 				CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */,
 				4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */,
 			);
@@ -127,6 +148,7 @@
 		345340EB32FFC99C3344F792 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				CE3B825F616D090FBEB31CB1 /* Contracts */,
 				AAA29B6187B411700E874C1A /* Models */,
 				38C374DDEF23A65411819DCF /* Networking */,
 				32A603169E96B6A30D07373D /* Services */,
@@ -147,10 +169,26 @@
 			isa = PBXGroup;
 			children = (
 				35B8C2466FE7F2C1FE124533 /* AudioFile.swift */,
+				A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */,
+				07A0D42867DF06711C803A32 /* ProcessingJob.swift */,
 				D14147F1C9E60307352CD67F /* Project.swift */,
+				A94DFEC599490C7591292000 /* TodoItem.swift */,
 				F21EE7F002FD01C0D547BA99 /* Transcript.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		CE3B825F616D090FBEB31CB1 /* Contracts */ = {
+			isa = PBXGroup;
+			children = (
+				E37BBEF978E82980F741AB32 /* CoreDependency.swift */,
+				AA31888C907465DB5504F4F7 /* CoreDependencyKeys.swift */,
+				B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */,
+				DB40DDE449A3128087A977E0 /* CoreErrors.swift */,
+				6D0792210571C21855DB7C19 /* CoreProtocols.swift */,
+				E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */,
+			);
+			path = Contracts;
 			sourceTree = "<group>";
 		};
 		EEAC3F39AF0BAF6A487B0FA0 /* App */ = {
@@ -210,6 +248,7 @@
 			);
 			mainGroup = 1D97CAA097CB00D88EFE700B;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 70;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -225,25 +264,37 @@
 			files = (
 				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
 				8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */,
+				856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */,
 				F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */,
 				4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */,
 				E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */,
 				8CCCEF5AA0CD48710C2B1D40 /* ContentView.swift in Sources */,
+				075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */,
+				2996D6545E74E503CDF974E8 /* CoreDependency.swift in Sources */,
+				6F93BDF0D17C1B32271D1D84 /* CoreDependencyKeys.swift in Sources */,
+				0EAD9E04FB8D7C53B513F93B /* CoreErrors.swift in Sources */,
+				AA11DE727A61F2A6F62580DB /* CoreProtocols.swift in Sources */,
 				355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */,
+				8723075A229518276BA46013 /* FeatureDependencySurface.swift in Sources */,
 				256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */,
 				705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */,
 				58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */,
+				EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */,
 				EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */,
+				D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */,
 				5049E6A60A1FA1850E01960F /* Project.swift in Sources */,
 				302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */,
 				9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */,
 				5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */,
 				95F6A87B37DC08084BCB2326 /* RecordingView.swift in Sources */,
 				9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */,
+				2CF214094F1D5694E31D8951 /* STTService.swift in Sources */,
+				6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */,
 				017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */,
 				85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */,
 				652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */,
 				5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */,
+				29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */,
 				BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */,
 				68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */,
 				38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */,
@@ -378,7 +429,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
-				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -391,7 +441,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
@@ -405,7 +455,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Resources/Preview Content\"";
-				DEVELOPMENT_TEAM = 4R82H2PVGL;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = Memora/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -418,7 +467,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kenichihashimoto.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
