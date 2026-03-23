@@ -7,6 +7,75 @@ struct HomeView: View {
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
 
+    // 検索・フィルタリング用
+    @State private var searchText = ""
+    @State private var showFilterSheet = false
+    @State private var filterTranscribed: Bool? = nil // nil=すべて, true=済み, false=未済み
+    @State private var filterSummarized: Bool? = nil // nil=すべて, true=済み, false=未済み
+    @State private var filterLifeLog: Bool? = nil // nil=すべて, true=ライフログのみ
+    @State private var selectedTag: String? = nil // タグフィルタ
+    @State private var sortOption: SortOption = .dateDesc
+    @State private var viewMode: ViewMode = .list // 表示モード
+
+    enum SortOption: String, CaseIterable {
+        case dateDesc = "日付（新しい順）"
+        case dateAsc = "日付（古い順）"
+        case titleAsc = "タイトル（昇順）"
+        case titleDesc = "タイトル（降順）"
+    }
+
+    enum ViewMode: String, CaseIterable {
+        case list = "リスト"
+        case timeline = "タイムライン"
+        case calendar = "カレンダー"
+    }
+
+    // フィルタリング・ソート後のファイル一覧
+    var filteredFiles: [AudioFile] {
+        var files = audioFiles
+
+        // 検索
+        if !searchText.isEmpty {
+            files = files.filter { file in
+                file.title.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+
+        // 文字起こしステータスでフィルタ
+        if let transcribed = filterTranscribed {
+            files = files.filter { $0.isTranscribed == transcribed }
+        }
+
+        // 要約ステータスでフィルタ
+        if let summarized = filterSummarized {
+            files = files.filter { $0.isSummarized == summarized }
+        }
+
+        // ライフログでフィルタ
+        if let lifeLog = filterLifeLog {
+            files = files.filter { $0.isLifeLog == lifeLog }
+        }
+
+        // タグでフィルタ
+        if let tag = selectedTag, !tag.isEmpty {
+            files = files.filter { $0.lifeLogTags.contains(tag) }
+        }
+
+        // ソート
+        switch sortOption {
+        case .dateDesc:
+            files.sort { $0.createdAt > $1.createdAt }
+        case .dateAsc:
+            files.sort { $0.createdAt < $1.createdAt }
+        case .titleAsc:
+            files.sort { $0.title < $1.title }
+        case .titleDesc:
+            files.sort { $0.title > $1.title }
+        }
+
+        return files
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -43,13 +112,72 @@ struct HomeView: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 34)
                     }
-                    .navigationTitle("Files")
-                    .navigationBarTitleDisplayMode(.large)
                 } else {
                     // ファイル一覧
                     VStack(spacing: 0) {
+                        // 表示モード選択
+                        Picker("表示モード", selection: $viewMode) {
+                            Text("リスト").tag(ViewMode.list)
+                            Text("タイムライン").tag(ViewMode.timeline)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+
+                        // 検索バー
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+
+                            TextField("検索", text: $searchText)
+                                .textFieldStyle(.plain)
+
+                            if !searchText.isEmpty {
+                                Button(action: { searchText = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 8)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+
+                        // フィルター・ソートバー
+                        HStack(spacing: 8) {
+                            // フィルターボタン
+                            Button(action: { showFilterSheet = true }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "line.3.horizontal.decrease.circle")
+                                    Text("フィルター")
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, 13)
+                                .padding(.vertical, 6)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                            }
+
+                            Spacer()
+
+                            // ソート選択
+                            Picker("", selection: $sortOption) {
+                                ForEach(SortOption.allCases, id: \.self) { option in
+                                    Text(option.rawValue).tag(option)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .font(.caption)
+                        }
+                        .padding(.horizontal)
+
+                        Divider()
+
+                        // ファイル一覧
                         List {
-                            ForEach(audioFiles) { file in
+                            ForEach(filteredFiles) { file in
                                 AudioFileRow(audioFile: file)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
@@ -59,23 +187,30 @@ struct HomeView: View {
                             .onDelete(perform: deleteAudioFiles)
                         }
                     }
-                    .navigationTitle("Files")
-                    .navigationBarTitleDisplayMode(.large)
                 }
             }
+            .navigationTitle("Files")
+            .navigationBarTitleDisplayMode(.large)
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView()
             }
             .navigationDestination(item: $selectedAudioFile) { file in
                 FileDetailView(audioFile: file)
             }
+            .sheet(isPresented: $showFilterSheet) {
+                FilterSheet(
+                    filterTranscribed: $filterTranscribed,
+                    filterSummarized: $filterSummarized
+                )
+            }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(audioFiles[index])
+            modelContext.delete(filteredFiles[index])
         }
+        try? modelContext.save()
     }
 }
 

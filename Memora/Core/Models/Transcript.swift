@@ -7,30 +7,27 @@ final class Transcript {
     var audioFileID: UUID
     var text: String
     var createdAt: Date
-    var speakers: [SpeakerSegment]
+    var speakerLabels: [String] = []
+    var segmentStartTimes: [Double] = []
+    var segmentEndTimes: [Double] = []
+    var segmentTexts: [String] = []
 
     init(audioFileID: UUID, text: String) {
         self.id = UUID()
         self.audioFileID = audioFileID
         self.text = text
         self.createdAt = Date()
-        self.speakers = []
+        self.speakerLabels = []
+        self.segmentStartTimes = []
+        self.segmentEndTimes = []
+        self.segmentTexts = []
     }
-}
 
-@Model
-final class SpeakerSegment {
-    var speakerID: String
-    var speakerLabel: String
-    var startTime: TimeInterval
-    var endTime: TimeInterval
-    var text: String
-
-    init(speakerLabel: String, startTime: TimeInterval, endTime: TimeInterval, text: String) {
-        self.speakerID = UUID().uuidString
-        self.speakerLabel = speakerLabel
-        self.startTime = startTime
-        self.endTime = endTime
-        self.text = text
+    /// スピーカーセグメントを追加するヘルパーメソッド
+    func addSpeakerSegment(speakerLabel: String, startTime: Double, endTime: Double, text: String) {
+        speakerLabels.append(speakerLabel)
+        segmentStartTimes.append(startTime)
+        segmentEndTimes.append(endTime)
+        segmentTexts.append(text)
     }
 }

@@ -9,9 +9,13 @@ struct MemoraApp: App {
                 AudioFile.self,
                 Transcript.self,
                 Project.self,
-                SpeakerSegment.self
+                MeetingNote.self,
+                TodoItem.self,
+                ProcessingJob.self,
+                WebhookSettings.self,
+                PlaudSettings.self
             ])
-            let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
+            let configuration = ModelConfiguration(isStoredInMemoryOnly: false, allowsSave: true, cloudKitDatabase: .none)
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             fatalError("ModelContainer の作成に失敗: \(error)")

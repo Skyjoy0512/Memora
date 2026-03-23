@@ -138,6 +138,7 @@ struct RecordingView: View {
                 audioFile.duration = recordingTime
 
                 modelContext.insert(audioFile)
+                try? modelContext.save()
 
                 dismiss()
             } catch {

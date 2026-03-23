@@ -23,6 +23,13 @@ struct FileDetailView: View {
     @State private var showShareSheet = false
     @State private var transcriptResult: TranscriptResult?
     @State private var summaryResult: SummaryResult?
+    @State private var errorMessage: String?
+    @State private var showErrorAlert = false
+
+    // Webhook
+    @Query private var webhookSettingsList: [WebhookSettings]
+    private var webhookSettings: WebhookSettings? { webhookSettingsList.first }
+    private let webhookService = WebhookService()
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -256,6 +263,7 @@ struct FileDetailView: View {
         }
         .onAppear {
             setupAudioPlayer()
+            loadSavedTranscript()
             loadSavedSummary()
         }
         .task {
@@ -281,7 +289,8 @@ struct FileDetailView: View {
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(
                 shareText: transcriptResult?.text,
-                shareURL: audioURL
+                shareURL: audioURL,
+                audioFile: audioFile
             )
         }
         .alert("ファイルを削除", isPresented: $showDeleteAlert) {
@@ -292,6 +301,16 @@ struct FileDetailView: View {
             }
         } message: {
             Text("この録音ファイルを削除しますか？")
+        }
+        .alert("エラー", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+                showErrorAlert = false
+            }
+        } message: {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+            }
         }
     }
 
@@ -317,16 +336,29 @@ struct FileDetailView: View {
     }
 
     private func setupEngines() async {
-        if !currentAPIKey.isEmpty || currentTranscriptionMode == .local {
+        // 文字起こしエンジンを設定
+        do {
+            try await transcriptionEngine.configure(
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                transcriptionMode: currentTranscriptionMode
+            )
+        } catch {
+            await MainActor.run {
+                errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
+                showErrorAlert = true
+            }
+        }
+
+        // 要約エンジンは API キーが必要
+        if !currentAPIKey.isEmpty {
             do {
-                try await transcriptionEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider,
-                    transcriptionMode: currentTranscriptionMode
-                )
                 try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
             } catch {
-                print("エンジン設定エラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
@@ -354,28 +386,73 @@ struct FileDetailView: View {
 
     private func startTranscription() {
         guard let url = audioURL else {
-            print("音声URLがありません")
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
             return
         }
 
         Task {
             do {
+                // トランスクリプションエンジンを設定
+                try await transcriptionEngine.configure(
+                    apiKey: currentAPIKey,
+                    provider: currentProvider,
+                    transcriptionMode: currentTranscriptionMode
+                )
+
                 let result = try await transcriptionEngine.transcribe(audioURL: url)
                 await MainActor.run {
-                    transcriptResult = result
-                    audioFile.isTranscribed = true
-
                     // Transcript を保存
                     let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
                     modelContext.insert(transcript)
+                    try? modelContext.save()
+
+                    // スピーカーセグメントを保存
+                    print("保存するセグメント数: \(result.segments.count)")
+                    for (index, segment) in result.segments.enumerated() {
+                        transcript.addSpeakerSegment(
+                            speakerLabel: segment.speakerLabel,
+                            startTime: segment.startTime,
+                            endTime: segment.endTime,
+                            text: segment.text
+                        )
+                        print("セグメント \(index): \(segment.speakerLabel) - \(segment.text)")
+                    }
+                    print("保存後の speakerLabels 配列サイズ: \(transcript.speakerLabels.count)")
+                    try? modelContext.save()
+
+                    // audioFile のフラグを更新
+                    audioFile.isTranscribed = true
+                    try? modelContext.save()
+
+                    transcriptResult = result
                 }
+
+                // Webhook 送信
+                await sendWebhook(event: .transcriptionCompleted, data: [
+                    "audioFileId": audioFile.id.uuidString,
+                    "title": audioFile.title,
+                    "duration": audioFile.duration,
+                    "transcript": result.text,
+                    "segments": result.segments.count
+                ])
             } catch {
-                print("文字起こしエラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "文字起こしエラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
 
     private func startSummarization() {
+        // API キーが設定されているか確認
+        guard !currentAPIKey.isEmpty else {
+            errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
+            showErrorAlert = true
+            return
+        }
+
         let transcriptText: String
         if let result = transcriptResult {
             transcriptText = result.text
@@ -391,12 +468,16 @@ struct FileDetailView: View {
         }
 
         guard !transcriptText.isEmpty else {
-            print("文字起こしデータがありません")
+            errorMessage = "文字起こしデータがありません"
+            showErrorAlert = true
             return
         }
 
         Task {
             do {
+                // 要約エンジンを設定（API キーが設定されている場合）
+                try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
+
                 let result = try await summarizationEngine.summarize(transcript: transcriptText)
                 await MainActor.run {
                     summaryResult = result
@@ -405,9 +486,24 @@ struct FileDetailView: View {
                     audioFile.summary = result.summary
                     audioFile.keyPoints = result.keyPoints.joined(separator: "\n")
                     audioFile.actionItems = result.actionItems.joined(separator: "\n")
+                    try? modelContext.save()
+
+                    // Webhook 送信
+                    Task {
+                        await sendWebhook(event: .summarizationCompleted, data: [
+                            "audioFileId": audioFile.id.uuidString,
+                            "title": audioFile.title,
+                            "summary": result.summary,
+                            "keyPoints": result.keyPoints,
+                            "actionItems": result.actionItems
+                        ])
+                    }
                 }
             } catch {
-                print("要約エラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "要約エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
@@ -442,6 +538,20 @@ struct FileDetailView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
+        guard let settings = webhookSettings else { return }
+
+        do {
+            try await webhookService.sendWebhook(
+                eventType: event,
+                data: data,
+                settings: settings
+            )
+        } catch {
+            print("Webhook 送信エラー: \(error.localizedDescription)")
+        }
+    }
+
     private func loadSavedSummary() {
         guard audioFile.isSummarized,
               let summary = audioFile.summary,
@@ -453,6 +563,42 @@ struct FileDetailView: View {
             summary: summary,
             keyPoints: keyPoints.split(separator: "\n", omittingEmptySubsequences: true).map(String.init),
             actionItems: actionItems.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        )
+    }
+
+    private func loadSavedTranscript() {
+        guard audioFile.isTranscribed else { return }
+
+        let descriptor = FetchDescriptor<Transcript>()
+        guard let transcripts = try? modelContext.fetch(descriptor),
+              let transcript = transcripts.first(where: { $0.audioFileID == audioFile.id }) else {
+            print("Transcript が見つかりません。audioFileID: \(audioFile.id)")
+            return
+        }
+
+        print("読み込んだ Transcript - speakerLabels 配列サイズ: \(transcript.speakerLabels.count)")
+
+        // スピーカーセグメントを構築
+        var segments: [SpeakerSegment] = []
+        for i in 0..<transcript.speakerLabels.count {
+            if i < transcript.segmentStartTimes.count &&
+               i < transcript.segmentEndTimes.count &&
+               i < transcript.segmentTexts.count {
+                segments.append(SpeakerSegment(
+                    speakerLabel: transcript.speakerLabels[i],
+                    startTime: transcript.segmentStartTimes[i],
+                    endTime: transcript.segmentEndTimes[i],
+                    text: transcript.segmentTexts[i]
+                ))
+            }
+        }
+
+        print("構築したセグメント数: \(segments.count)")
+
+        transcriptResult = TranscriptResult(
+            text: transcript.text,
+            segments: segments,
+            duration: audioFile.duration
         )
     }
 }

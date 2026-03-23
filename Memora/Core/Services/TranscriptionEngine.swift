@@ -26,6 +26,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var apiKey = ""
+    private let diarizationService: SpeakerDiarizationProtocol = SpeakerDiarizationService()
 
     func configure(
         apiKey: String,
@@ -107,9 +108,11 @@ final class InternalTranscriptionEngine {
     private let configuration: STTExecutionConfiguration
     private let stateLock = NSLock()
     private var recognitionTask: SFSpeechRecognitionTask?
+    private let diarizationService: SpeakerDiarizationProtocol
 
-    init(configuration: STTExecutionConfiguration) {
+    init(configuration: STTExecutionConfiguration, diarizationService: SpeakerDiarizationProtocol) {
         self.configuration = configuration
+        self.diarizationService = diarizationService
     }
 
     func transcribe(
@@ -207,18 +210,27 @@ final class InternalTranscriptionEngine {
 
         progress(0.92)
 
+        // 基本セグメントを生成
+        let baseSegments = recognitionResult.bestTranscription.segments.enumerated().map { index, segment in
+            TranscriptionSegment(
+                id: "segment-\(index)",
+                speakerLabel: "Speaker 1", // 仮ラベル
+                startSec: segment.timestamp,
+                endSec: segment.timestamp + segment.duration,
+                text: segment.substring
+            )
+        }
+
+        // 話者分離を適用
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
         return TranscriptionResult(
             fullText: recognitionResult.bestTranscription.formattedString,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
-            segments: recognitionResult.bestTranscription.segments.enumerated().map { index, segment in
-                TranscriptionSegment(
-                    id: "segment-\(index)",
-                    speakerLabel: "Speaker 1",
-                    startSec: segment.timestamp,
-                    endSec: segment.timestamp + segment.duration,
-                    text: segment.substring
-                )
-            }
+            segments: segmentsWithSpeakers
         )
     }
 
@@ -241,10 +253,20 @@ final class InternalTranscriptionEngine {
         progress(0.92)
 
         let duration = await audioFileDuration(for: audioURL)
+
+        // 基本セグメントを生成
+        let baseSegments = makeFallbackSegments(from: text, duration: duration)
+
+        // 話者分離を適用
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
         return TranscriptionResult(
             fullText: text,
             language: language.map(STTLanguageNormalizer.baseLanguageCode(for:)) ?? "ja",
-            segments: makeFallbackSegments(from: text, duration: duration)
+            segments: segmentsWithSpeakers
         )
     }
 
@@ -265,7 +287,7 @@ final class InternalTranscriptionEngine {
             let end = duration > 0 ? min(start + segmentDuration, duration) : start
             return TranscriptionSegment(
                 id: "segment-\(index)",
-                speakerLabel: "Speaker 1",
+                speakerLabel: "Speaker 1", // 仮ラベル
                 startSec: start,
                 endSec: end,
                 text: line

@@ -18,7 +18,7 @@ targets:
     settings:
       PRODUCT_NAME: Memora
       PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora
-      SWIFT_VERSION: 5.9
+      SWIFT_VERSION: 5.5
       TARGETED_DEVICE_FAMILY: "1,2"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       INFOPLIST_FILE: Memora/Resources/Info.plist

@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
+    @StateObject private var bluetoothService = BluetoothAudioService()
+
     var body: some View {
         TabView {
             HomeView()
@@ -16,6 +19,7 @@ struct ContentView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
         }
+        .environmentObject(bluetoothService)
     }
 }
 
@@ -44,7 +48,6 @@ struct SpeechAPIInfoView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.green.opacity(0.1))
                 )
-
                 Text("iOS 26 SpeechAnalyzer API を使用した強力な文字起こしが可能です。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -64,7 +67,6 @@ struct SpeechAPIInfoView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.blue.opacity(0.1))
                 )
-
                 Text("現在は iOS 10+ の SFSpeechRecognizer を使用した実装となっています。")
                     .font(.caption)
                     .foregroundStyle(.secondary)

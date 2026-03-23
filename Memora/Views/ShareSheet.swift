@@ -1,9 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct ShareSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     let shareText: String?
     let shareURL: URL?
+    let audioFile: AudioFile
+    @State private var showExportOptions = false
 
     var body: some View {
         NavigationStack {
@@ -11,6 +15,16 @@ struct ShareSheet: View {
                 Text("共有")
                     .font(.headline)
                     .padding()
+
+                // エクスポートボタン
+                Button(action: { showExportOptions = true }) {
+                    Label("エクスポート", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
+                }
+                .foregroundStyle(.primary)
 
                 if let text = shareText {
                     Button(action: { shareText(text) }) {
@@ -45,6 +59,9 @@ struct ShareSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .sheet(isPresented: $showExportOptions) {
+                ExportOptionsSheet(audioFile: audioFile)
             }
         }
     }
