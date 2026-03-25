@@ -55,16 +55,16 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     // Omi デバイスのサービス UUID（実際のデバイスで検証済み）
     private let omiServiceUUIDs: [CBUUID] = [
         CBUUID(string: "00001804-0000-1000-8000-00805F9B34FB"), // Device Information Service (検証済み)
-        CBUUID(string: "F000FFC1-04514000-B000-0000-0000-0000F000FFC1"), // Nordic UART Service (検証済み - RX)
-        CBUUID(string: "F000FFC1-04514001-B000-0000-0000-0000F000FFC1"), // Nordic UART Service (検証済み - TX)
+        CBUUID(string: "F000FFC1-0451-4000-B000-000000000000"), // Nordic UART Service (検証済み - RX)
+        CBUUID(string: "F000FFC1-0451-4001-B000-000000000000"), // Nordic UART Service (検証済み - TX)
         CBUUID(string: "00001800-0000-1000-8000-00805F9B34FB"), // Generic Access Service
         CBUUID(string: "00001801-0000-1000-8000-00805F9B34FB")  // Generic Attribute Service
     ]
 
     // オーディオキャラクタリスティック UUID（Omiデバイスで検証済み）
     private let audioCharacteristicUUIDs: [CBUUID] = [
-        CBUUID(string: "F000FFC1-04514001-B000-0000-0000-0000F000FFC1"), // Nordic UART TX (通知/インジケート - 検証済み)
-        CBUUID(string: "F000FFC1-04514000-B000-0000-0000-0000F000FFC1"), // Nordic UART RX
+        CBUUID(string: "F000FFC1-0451-4001-B000-000000000000"), // Nordic UART TX (通知/インジケート - 検証済み)
+        CBUUID(string: "F000FFC1-0451-4000-B000-000000000000"), // Nordic UART RX
         CBUUID(string: "00002A29-0000-1000-8000-00805F9B34FB"), // Manufacturer Name String
         CBUUID(string: "00002A24-0000-1000-8000-00805F9B34FB"), // Model Number String
         CBUUID(string: "00002A25-0000-1000-8000-00805F9B34FB"), // Serial Number String
