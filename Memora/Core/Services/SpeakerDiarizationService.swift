@@ -1,69 +1,26 @@
 import Foundation
 import AVFoundation
-import Accelerate
 
 /// 話者分離サービス（ローカル）
-/// 音声のピッチ（基本周波数）を分析して簡易的に話者を分離します
+/// 複数の音響特徴を使って話者をクラスタリングし、登録済みプロフィール名にマッチします。
 final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
+    private let featureExtractor = SpeakerVoiceFeatureExtractor()
+    private let profileStore = SpeakerProfileStore.shared
+
     /// 音声ファイルから話者セグメントを生成
     func detectSpeakers(audioURL: URL, segments: [TranscriptionSegment]) async -> [TranscriptionSegment] {
         guard !segments.isEmpty else { return segments }
 
         do {
-            // 音声ファイルを読み込む
-            let audioFile = try AVAudioFile(forReading: audioURL)
-            let audioFormat = audioFile.processingFormat
-            let frameCount = AVAudioFrameCount(audioFile.length)
+            let features = try featureExtractor.extractSegmentFeatures(audioURL: audioURL, segments: segments)
+            let rawLabels = clusterSpeakers(features: features)
+            let smoothedLabels = smoothLabels(rawLabels, segments: segments, features: features)
+            let speakerLabels = resolveDisplayLabels(clusterLabels: smoothedLabels, features: features)
 
-            // バッファを確保
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: audioFormat, frameCapacity: frameCount) else {
-                return segments.map { segment in
-                    TranscriptionSegment(
-                        id: segment.id,
-                        speakerLabel: "Speaker 1",
-                        startSec: segment.startSec,
-                        endSec: segment.endSec,
-                        text: segment.text
-                    )
-                }
-            }
-
-            try audioFile.read(into: buffer)
-
-            // 各セグメントの代表ピッチを取得
-            var segmentPitches: [Double] = []
-            for segment in segments {
-                let startFrame = Int64(segment.startSec * audioFormat.sampleRate)
-                let endFrame = Int64(segment.endSec * audioFormat.sampleRate)
-                let length = AVAudioFrameCount(endFrame - startFrame)
-
-                guard length > 0, Int64(length) + startFrame <= frameCount else {
-                    segmentPitches.append(200.0) // デフォルト値
-                    continue
-                }
-
-                // セグメント部分のピッチを計算
-                if let pitch = calculatePitch(
-                    buffer: buffer,
-                    channel: 0,
-                    startFrame: startFrame,
-                    length: length,
-                    sampleRate: audioFormat.sampleRate
-                ) {
-                    segmentPitches.append(pitch)
-                } else {
-                    segmentPitches.append(200.0)
-                }
-            }
-
-            // ピッチを基準に話者をクラスタリング
-            let speakerLabels = clusterSpeakers(pitches: segmentPitches)
-
-            // セグメントに話者ラベルを割り当て
             return zip(segments, speakerLabels).map { segment, label in
                 TranscriptionSegment(
                     id: segment.id,
-                    speakerLabel: "Speaker \(label)",
+                    speakerLabel: label,
                     startSec: segment.startSec,
                     endSec: segment.endSec,
                     text: segment.text
@@ -71,175 +28,156 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
             }
         } catch {
             print("話者分離エラー: \(error.localizedDescription)")
-            return segments.map { segment in
-                TranscriptionSegment(
-                    id: segment.id,
-                    speakerLabel: "Speaker 1",
-                    startSec: segment.startSec,
-                    endSec: segment.endSec,
-                    text: segment.text
-                )
-            }
+            return defaultSegments(for: segments)
         }
     }
 
-    /// ピッチを計算（自己相関法）
-    private func calculatePitch(
-        buffer: AVAudioPCMBuffer,
-        channel: Int,
-        startFrame: Int64,
-        length: AVAudioFrameCount,
-        sampleRate: Double
-    ) -> Double? {
-        guard channel < buffer.format.channelCount, length > 0 else { return nil }
-
-        let data = buffer.floatChannelData![channel]
-        let startIdx = Int(startFrame)
-        let frameLength = Int(length)
-
-        // フレーム全体の平均ピッチを計算
-        var pitchSum = 0.0
-        var pitchCount = 0
-
-        let frameSize = 2048 // 分析フレームサイズ
-        let hopSize = 512
-
-        for i in stride(from: 0, to: frameLength, by: hopSize) {
-            let end = min(i + frameSize, frameLength)
-            let subLength = end - i
-
-            guard subLength > 100 else { continue } // 十分な長さが必要
-
-            if let pitch = autocorrelationPitch(
-                data: data.advanced(by: startIdx + i),
-                length: subLength,
-                sampleRate: sampleRate
-            ) {
-                pitchSum += pitch
-                pitchCount += 1
-            }
+    private func defaultSegments(for segments: [TranscriptionSegment]) -> [TranscriptionSegment] {
+        segments.map { segment in
+            TranscriptionSegment(
+                id: segment.id,
+                speakerLabel: "Speaker 1",
+                startSec: segment.startSec,
+                endSec: segment.endSec,
+                text: segment.text
+            )
         }
-
-        guard pitchCount > 0 else { return nil }
-        return pitchSum / Double(pitchCount)
     }
 
-    /// 自己相関法によるピッチ抽出
-    private func autocorrelationPitch(
-        data: UnsafePointer<Float>,
-        length: Int,
-        sampleRate: Double
-    ) -> Double? {
-        let minPeriod = Int(sampleRate / 500) // 最低 500Hz
-        let maxPeriod = Int(sampleRate / 50)  // 最高 50Hz
+    private func clusterSpeakers(features: [SpeakerVoiceFeatures]) -> [Int] {
+        guard features.count > 1 else { return [0] }
 
-        guard length > maxPeriod else { return nil }
+        let maxSpeakers = min(3, features.count)
+        let speakerCount = determineOptimalSpeakerCount(features: features, maxSpeakers: maxSpeakers)
+        var centroids = initializeCentroids(features: features, count: speakerCount)
 
-        // 自己相関を計算
-        var correlation: [Float] = Array(repeating: 0, count: maxPeriod)
-
-        for lag in minPeriod..<maxPeriod {
-            var sum: Float = 0
-            for i in 0..<(length - lag) {
-                sum += data[i] * data[i + lag]
-            }
-            correlation[lag] = sum
-        }
-
-        // 最大相関値を見つける
-        var bestLag = minPeriod
-        var maxCorrelation = correlation[minPeriod]
-
-        for lag in (minPeriod + 1)..<maxPeriod {
-            if correlation[lag] > maxCorrelation {
-                maxCorrelation = correlation[lag]
-                bestLag = lag
-            }
-        }
-
-        // 相関が低い場合は有効なピッチとみなさない
-        guard maxCorrelation > 0.1 else { return nil }
-
-        // ピッチを計算
-        return Double(sampleRate) / Double(bestLag)
-    }
-
-    /// K-means クラスタリングで話者を分類
-    private func clusterSpeakers(pitches: [Double]) -> [Int] {
-        guard pitches.count > 1 else { return [1] }
-
-        // 最大3人まで話者を検出
-        let maxSpeakers = min(3, pitches.count)
-        let speakerCount = determineOptimalSpeakerCount(pitches: pitches, maxSpeakers: maxSpeakers)
-
-        // K-means クラスタリング
-        var centroids = initializeCentroids(pitches: pitches, count: speakerCount)
-
-        for _ in 0..<10 { // 最大10回イテレーション
-            var clusters: [[Double]] = Array(repeating: [], count: speakerCount)
-
-            // 各ピッチを最も近いセントロイドに割り当て
-            for pitch in pitches {
-                var minDist = Double.infinity
-                var closestCluster = 0
-
-                for (idx, centroid) in centroids.enumerated() {
-                    let dist = abs(pitch - centroid)
-                    if dist < minDist {
-                        minDist = dist
-                        closestCluster = idx
-                    }
-                }
-
-                clusters[closestCluster].append(pitch)
+        for _ in 0..<12 {
+            var clusters: [[SpeakerVoiceFeatures]] = Array(repeating: [], count: speakerCount)
+            for feature in features {
+                let closest = nearestCentroidIndex(for: feature, centroids: centroids)
+                clusters[closest].append(feature)
             }
 
-            // セントロイドを更新
-            var newCentroids: [Double] = []
-            for cluster in clusters {
-                if cluster.isEmpty {
-                    newCentroids.append(centroids[newCentroids.count])
-                } else {
-                    newCentroids.append(cluster.reduce(0, +) / Double(cluster.count))
-                }
+            let newCentroids = clusters.enumerated().map { index, cluster in
+                cluster.isEmpty ? centroids[index] : SpeakerVoiceFeatures.average(cluster)
             }
 
-            // 収束判定
-            let converged = zip(centroids, newCentroids).allSatisfy { abs($0 - $1) < 1.0 }
+            let converged = zip(centroids, newCentroids).allSatisfy { $0.distance(to: $1) < 0.03 }
             centroids = newCentroids
             if converged { break }
         }
 
-        // 各ピッチのクラスタを返す
-        var labels: [Int] = []
-        for pitch in pitches {
-            var minDist = Double.infinity
-            var closestCluster = 0
-
-            for (idx, centroid) in centroids.enumerated() {
-                let dist = abs(pitch - centroid)
-                if dist < minDist {
-                    minDist = dist
-                    closestCluster = idx
-                }
-            }
-
-            labels.append(closestCluster + 1) // 1始まり
-        }
-
-        return labels
+        return features.map { nearestCentroidIndex(for: $0, centroids: centroids) }
     }
 
-    /// 最適な話者数を決定（エルボー法）
-    private func determineOptimalSpeakerCount(pitches: [Double], maxSpeakers: Int) -> Int {
-        guard pitches.count >= 2 else { return 1 }
+    private func smoothLabels(
+        _ labels: [Int],
+        segments: [TranscriptionSegment],
+        features: [SpeakerVoiceFeatures]
+    ) -> [Int] {
+        guard labels.count >= 3 else { return labels }
+
+        var result = labels
+        for index in 1..<(labels.count - 1) {
+            let duration = segments[index].endSec - segments[index].startSec
+            let shortSegment = duration < 1.4 || segments[index].text.count < 18
+
+            if shortSegment && result[index - 1] == result[index + 1] {
+                result[index] = result[index - 1]
+                continue
+            }
+
+            let isolated = result[index] != result[index - 1] && result[index] != result[index + 1]
+            guard isolated else { continue }
+
+            let previousDistance = features[index].distance(to: features[index - 1])
+            let nextDistance = features[index].distance(to: features[index + 1])
+            let bestNeighborDistance = min(previousDistance, nextDistance)
+
+            if shortSegment || bestNeighborDistance < 0.18 {
+                result[index] = previousDistance <= nextDistance ? result[index - 1] : result[index + 1]
+            }
+        }
+
+        return result
+    }
+
+    private func resolveDisplayLabels(
+        clusterLabels: [Int],
+        features: [SpeakerVoiceFeatures]
+    ) -> [String] {
+        let profiles = profileStore.loadProfiles()
+        let orderedClusters = clusterLabels.reduce(into: [Int]()) { partialResult, label in
+            if !partialResult.contains(label) {
+                partialResult.append(label)
+            }
+        }
+
+        let clusterCentroids = Dictionary(uniqueKeysWithValues: orderedClusters.map { label in
+            let clusterFeatures = zip(clusterLabels, features)
+                .filter { $0.0 == label }
+                .map(\.1)
+            return (label, SpeakerVoiceFeatures.average(clusterFeatures))
+        })
+
+        var usedProfileIDs = Set<UUID>()
+        var labelMap: [Int: String] = [:]
+        var fallbackIndex = 1
+
+        for cluster in orderedClusters {
+            guard let centroid = clusterCentroids[cluster] else { continue }
+
+            if let match = bestMatchingProfile(
+                for: centroid,
+                profiles: profiles,
+                usedProfileIDs: usedProfileIDs
+            ) {
+                labelMap[cluster] = match.displayName
+                usedProfileIDs.insert(match.id)
+            } else {
+                labelMap[cluster] = "Speaker \(fallbackIndex)"
+                fallbackIndex += 1
+            }
+        }
+
+        return clusterLabels.map { labelMap[$0] ?? "Speaker 1" }
+    }
+
+    private func bestMatchingProfile(
+        for features: SpeakerVoiceFeatures,
+        profiles: [SpeakerProfile],
+        usedProfileIDs: Set<UUID>
+    ) -> SpeakerProfile? {
+        let candidates = profiles
+            .filter { !usedProfileIDs.contains($0.id) }
+            .map { profile in
+                (profile: profile, distance: features.distance(to: profile.voiceFeatures))
+            }
+            .sorted { $0.distance < $1.distance }
+
+        guard let best = candidates.first else { return nil }
+        let threshold = best.profile.isPrimaryUser ? 0.24 : 0.18
+        return best.distance <= threshold ? best.profile : nil
+    }
+
+    private func nearestCentroidIndex(
+        for feature: SpeakerVoiceFeatures,
+        centroids: [SpeakerVoiceFeatures]
+    ) -> Int {
+        centroids.enumerated().min { lhs, rhs in
+            feature.distance(to: lhs.element) < feature.distance(to: rhs.element)
+        }?.offset ?? 0
+    }
+
+    private func determineOptimalSpeakerCount(features: [SpeakerVoiceFeatures], maxSpeakers: Int) -> Int {
+        guard features.count >= 2 else { return 1 }
 
         var bestK = 1
         var bestScore = Double.infinity
 
         for k in 1...maxSpeakers {
-            let variance = calculateIntraClusterVariance(pitches: pitches, k: k)
-            let penalty = Double(k) * 100.0 // クラスタ数のペナルティ
+            let variance = calculateIntraClusterVariance(features: features, k: k)
+            let penalty = Double(k - 1) * 0.12
             let score = variance + penalty
 
             if score < bestScore {
@@ -251,47 +189,33 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
         return bestK
     }
 
-    /// クラスタ内分散を計算
-    private func calculateIntraClusterVariance(pitches: [Double], k: Int) -> Double {
-        var centroids = initializeCentroids(pitches: pitches, count: k)
-        var clusters: [[Double]] = Array(repeating: [], count: k)
+    private func calculateIntraClusterVariance(features: [SpeakerVoiceFeatures], k: Int) -> Double {
+        var centroids = initializeCentroids(features: features, count: k)
+        var clusters: [[SpeakerVoiceFeatures]] = Array(repeating: [], count: k)
 
-        for pitch in pitches {
-            var minDist = Double.infinity
-            var closestCluster = 0
-
-            for (idx, centroid) in centroids.enumerated() {
-                let dist = abs(pitch - centroid)
-                if dist < minDist {
-                    minDist = dist
-                    closestCluster = idx
-                }
-            }
-
-            clusters[closestCluster].append(pitch)
+        for feature in features {
+            let closest = nearestCentroidIndex(for: feature, centroids: centroids)
+            clusters[closest].append(feature)
         }
 
-        var totalVariance = 0.0
-        for cluster in clusters {
-            if let mean = cluster.first, !cluster.isEmpty {
-                let variance = cluster.map { pow($0 - mean, 2) }.reduce(0, +) / Double(cluster.count)
-                totalVariance += variance
-            }
+        var totalDistance = 0.0
+        for (index, cluster) in clusters.enumerated() where !cluster.isEmpty {
+            centroids[index] = SpeakerVoiceFeatures.average(cluster)
+            totalDistance += cluster.map { $0.distance(to: centroids[index]) }.reduce(0, +) / Double(cluster.count)
         }
 
-        return totalVariance
+        return totalDistance / Double(max(k, 1))
     }
 
-    /// セントロイドの初期化
-    private func initializeCentroids(pitches: [Double], count: Int) -> [Double] {
+    private func initializeCentroids(features: [SpeakerVoiceFeatures], count: Int) -> [SpeakerVoiceFeatures] {
         guard count > 1 else {
-            return [pitches.reduce(0, +) / Double(pitches.count)]
+            return [SpeakerVoiceFeatures.average(features)]
         }
 
-        let sorted = pitches.sorted()
+        let sorted = features.sorted { $0.pitch < $1.pitch }
         let step = Double(sorted.count - 1) / Double(count - 1)
 
-        var centroids: [Double] = []
+        var centroids: [SpeakerVoiceFeatures] = []
         for i in 0..<count {
             let idx = Int(Double(i) * step)
             centroids.append(sorted[idx])

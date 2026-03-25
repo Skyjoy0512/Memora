@@ -1,6 +1,8 @@
 import Foundation
 import Speech
 
+// Core transcription boundary. Changes require explicit STT approval and regression checks.
+
 final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     let id: String
     var taskId: String { id }

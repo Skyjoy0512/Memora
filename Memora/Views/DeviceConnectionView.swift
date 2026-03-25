@@ -24,6 +24,11 @@ struct DeviceConnectionView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    // 接続状態を表示
+                    Text("状態: \(bluetoothService.connectionState.description)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Button(action: { bluetoothService.disconnect() }) {
                         Text("切断")
                             .font(.headline)
@@ -42,6 +47,34 @@ struct DeviceConnectionView: View {
 
                     Text("デバイスを検索中...")
                         .font(.headline)
+                }
+            } else if let disconnectReason = bluetoothService.disconnectReason {
+                // 切断理由を表示
+                VStack(spacing: 21) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .resizable()
+                        .frame(width: 60, height: 60)
+                        .foregroundStyle(.orange)
+
+                    Text("接続が切断されました")
+                        .font(.headline)
+
+                    Text(disconnectReason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Button(action: { bluetoothService.startScanning() }) {
+                        Label("再接続", systemImage: "arrow.clockwise")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color.gray)
+                            .cornerRadius(13)
+                    }
+                    .padding()
                 }
             } else if !bluetoothService.discoveredDevices.isEmpty {
                 VStack(spacing: 8) {

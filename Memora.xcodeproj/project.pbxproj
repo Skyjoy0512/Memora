@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
 		075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */; };
+		0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */; };
 		0EAD9E04FB8D7C53B513F93B /* CoreErrors.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB40DDE449A3128087A977E0 /* CoreErrors.swift */; };
 		1B95C29B25AE5C7169C244D4 /* ExportOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B0D557B1D5485BF9AE954B /* ExportOptionsSheet.swift */; };
 		256AEA8A21749606B35CB851 /* FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */; };
@@ -16,6 +17,8 @@
 		29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A94DFEC599490C7591292000 /* TodoItem.swift */; };
 		2CF214094F1D5694E31D8951 /* STTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4D1F89D958FA1B55DCF5023 /* STTService.swift */; };
 		2DCD45B9F84C690B79D9118C /* SpeakerDiarizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058B06299797571747E4B64C /* SpeakerDiarizationService.swift */; };
+		2FDFEAC6A514F7A1C4C15A11 /* SpeakerProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CE2FCFB7166C3D5A1E779D2 /* SpeakerProfileStore.swift */; };
+		30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A39563D755711D640B86DA /* PlaudService.swift */; };
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
 		355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
@@ -23,6 +26,7 @@
 		401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */; };
 		4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */; };
 		5049E6A60A1FA1850E01960F /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14147F1C9E60307352CD67F /* Project.swift */; };
+		530C82B46017BC0AE11CE5C4 /* DebugLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB7BC286BAA414F45EECFD25 /* DebugLogView.swift */; };
 		58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */; };
 		5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */; };
 		5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68DC49DD8967C2F47CF0809 /* SummaryView.swift */; };
@@ -45,31 +49,34 @@
 		BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21EE7F002FD01C0D547BA99 /* Transcript.swift */; };
 		BC0FDCA50E72E5498C11BC4A /* WebhookService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111DA217ED25AE7B6816929C /* WebhookService.swift */; };
 		C2A359EBDA11B49EDAF60492 /* SpeakerDiarizationProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */; };
+		CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */; };
 		D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07A0D42867DF06711C803A32 /* ProcessingJob.swift */; };
 		DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */; };
+		E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */; };
 		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
 		EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */; };
 		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
 		F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B8C2466FE7F2C1FE124533 /* AudioFile.swift */; };
-		FF2A8B9C3D4F5E6A7B8C9D1 /* PlaudSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF2A8B9C3D4F5E6A7B8C9D2 /* PlaudSettings.swift */; };
-		FF2A8B9C3D4F5E6A7B8C9D3 /* PlaudRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF2A8B9C3D4F5E6A7B8C9D4 /* PlaudRecording.swift */; };
-		FF2A8B9C3D4F5E6A7B8C9D5 /* PlaudService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF2A8B9C3D4F5E6A7B8C9D6 /* PlaudService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		058B06299797571747E4B64C /* SpeakerDiarizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerDiarizationService.swift; sourceTree = "<group>"; };
+		05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudRecording.swift; sourceTree = "<group>"; };
 		07A0D42867DF06711C803A32 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
 		111DA217ED25AE7B6816929C /* WebhookService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookService.swift; sourceTree = "<group>"; };
 		1D386666798E98A11A464A87 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectView.swift; sourceTree = "<group>"; };
 		33B0D557B1D5485BF9AE954B /* ExportOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsSheet.swift; sourceTree = "<group>"; };
 		35B8C2466FE7F2C1FE124533 /* AudioFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFile.swift; sourceTree = "<group>"; };
+		37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
+		3CE2FCFB7166C3D5A1E779D2 /* SpeakerProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerProfileStore.swift; sourceTree = "<group>"; };
 		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
 		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5101FD06BD2A409056F3CF8E /* FilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheet.swift; sourceTree = "<group>"; };
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		78A39563D755711D640B86DA /* PlaudService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudService.swift; sourceTree = "<group>"; };
 		7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerDiarizationProtocol.swift; sourceTree = "<group>"; };
 		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		870629046CE7C04AC6AB8A7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -84,6 +91,7 @@
 		B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
 		B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDTOs.swift; sourceTree = "<group>"; };
+		BB7BC286BAA414F45EECFD25 /* DebugLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogView.swift; sourceTree = "<group>"; };
 		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
 		D14147F1C9E60307352CD67F /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
 		D4D1F89D958FA1B55DCF5023 /* STTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTService.swift; sourceTree = "<group>"; };
@@ -101,10 +109,8 @@
 		F21EE7F002FD01C0D547BA99 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
 		F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSettings.swift; sourceTree = "<group>"; };
 		F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChunker.swift; sourceTree = "<group>"; };
+		F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettings.swift; sourceTree = "<group>"; };
 		F9EDFC7810796167A7286C95 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		FF2A8B9C3D4F5E6A7B8C9D2 /* PlaudSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettings.swift; sourceTree = "<group>"; };
-		FF2A8B9C3D4F5E6A7B8C9D4 /* PlaudRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudRecording.swift; sourceTree = "<group>"; };
-		FF2A8B9C3D4F5E6A7B8C9D6 /* PlaudService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -130,6 +136,7 @@
 			isa = PBXGroup;
 			children = (
 				1E44AFA65B752CA5C784F512 /* CreateProjectView.swift */,
+				BB7BC286BAA414F45EECFD25 /* DebugLogView.swift */,
 				90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */,
 				33B0D557B1D5485BF9AE954B /* ExportOptionsSheet.swift */,
 				E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */,
@@ -164,14 +171,16 @@
 				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
 				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
 				ABE468754017ED390E23EDFE /* BluetoothAudioService.swift */,
+				37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */,
 				1D386666798E98A11A464A87 /* ExportService.swift */,
+				78A39563D755711D640B86DA /* PlaudService.swift */,
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
+				3CE2FCFB7166C3D5A1E779D2 /* SpeakerProfileStore.swift */,
 				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
 				9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */,
 				CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */,
 				4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */,
 				111DA217ED25AE7B6816929C /* WebhookService.swift */,
-				FF2A8B9C3D4F5E6A7B8C9D6 /* PlaudService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -201,13 +210,13 @@
 			children = (
 				35B8C2466FE7F2C1FE124533 /* AudioFile.swift */,
 				A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */,
+				05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */,
+				F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */,
 				07A0D42867DF06711C803A32 /* ProcessingJob.swift */,
 				D14147F1C9E60307352CD67F /* Project.swift */,
 				A94DFEC599490C7591292000 /* TodoItem.swift */,
 				F21EE7F002FD01C0D547BA99 /* Transcript.swift */,
 				F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */,
-				FF2A8B9C3D4F5E6A7B8C9D2 /* PlaudSettings.swift */,
-				FF2A8B9C3D4F5E6A7B8C9D4 /* PlaudRecording.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -313,6 +322,8 @@
 				2996D6545E74E503CDF974E8 /* CoreDependency.swift in Sources */,
 				0EAD9E04FB8D7C53B513F93B /* CoreErrors.swift in Sources */,
 				355A6D62FE11A49E45753686 /* CreateProjectView.swift in Sources */,
+				530C82B46017BC0AE11CE5C4 /* DebugLogView.swift in Sources */,
+				0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */,
 				DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */,
 				1B95C29B25AE5C7169C244D4 /* ExportOptionsSheet.swift in Sources */,
 				38FE2784E0967E5E330984CA /* ExportService.swift in Sources */,
@@ -323,6 +334,9 @@
 				58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */,
 				EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */,
 				EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */,
+				CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */,
+				30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */,
+				E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */,
 				D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */,
 				5049E6A60A1FA1850E01960F /* Project.swift in Sources */,
 				302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */,
@@ -337,6 +351,7 @@
 				85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */,
 				C2A359EBDA11B49EDAF60492 /* SpeakerDiarizationProtocol.swift in Sources */,
 				2DCD45B9F84C690B79D9118C /* SpeakerDiarizationService.swift in Sources */,
+				2FDFEAC6A514F7A1C4C15A11 /* SpeakerProfileStore.swift in Sources */,
 				652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */,
 				5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */,
 				29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */,
@@ -345,9 +360,6 @@
 				38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */,
 				BC0FDCA50E72E5498C11BC4A /* WebhookService.swift in Sources */,
 				A0C2830EC408A00821FB7C5F /* WebhookSettings.swift in Sources */,
-				FF2A8B9C3D4F5E6A7B8C9D1 /* PlaudSettings.swift in Sources */,
-				FF2A8B9C3D4F5E6A7B8C9D3 /* PlaudRecording.swift in Sources */,
-				FF2A8B9C3D4F5E6A7B8C9D5 /* PlaudService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -496,7 +508,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5.5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -524,7 +536,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.9;
+				SWIFT_VERSION = 5.5;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

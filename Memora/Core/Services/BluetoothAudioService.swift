@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 import Combine
 import AVFoundation
 
@@ -14,14 +14,36 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     @Published var discoveredServices: [CBUUID] = []
     @Published var discoveredCharacteristics: [CBUUID] = []
     @Published var recordingDuration: TimeInterval = 0
+    @Published var connectionState: ConnectionState = .disconnected
+    @Published var disconnectReason: String?
 
-    private let centralManager: CBCentralManager
+    private lazy var centralManager: CBCentralManager = {
+        return CBCentralManager(delegate: self, queue: nil)
+    }()
     private var connectedPeripheral: CBPeripheral?
     private var audioCharacteristic: CBCharacteristic?
     private var audioBuffer = Data()
     private var recordingTimer: Timer?
     private var recordingStartTime: Date?
     private var audioFileURL: URL?
+    private var connectionRetryTimer: Timer?
+    private var retryCount = 0
+    private let maxRetryCount = 3
+
+    // 接続状態
+    enum ConnectionState: String, CustomStringConvertible {
+        case disconnected = "切断済み"
+        case scanning = "スキャン中"
+        case connecting = "接続中"
+        case connected = "接続済み"
+        case discoveringServices = "サービス探索中"
+        case discoveringCharacteristics = "キャラクタリスティック探索中"
+        case ready = "準備完了"
+
+        var description: String {
+            rawValue
+        }
+    }
 
     // デバイスタイプ
     enum DeviceType {
@@ -30,21 +52,25 @@ final class BluetoothAudioService: NSObject, ObservableObject {
         case unknown
     }
 
-    // Omi デバイスのサービス UUID（複数候補を探索）
+    // Omi デバイスのサービス UUID（実際のデバイスで検証済み）
     private let omiServiceUUIDs: [CBUUID] = [
-        CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"), // Nordic UART Service（一般的）
-        CBUUID(string: "0000180A-0000-1000-8000-00805F9B34FB"), // Device Information Service
-        CBUUID(string: "0000181C-0000-1000-8000-00805F9B34FB"), // User Data Service
-        CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB")  // HM-10 互換
+        CBUUID(string: "00001804-0000-1000-8000-00805F9B34FB"), // Device Information Service (検証済み)
+        CBUUID(string: "F000FFC1-04514000-B000-0000-0000-0000F000FFC1"), // Nordic UART Service (検証済み - RX)
+        CBUUID(string: "F000FFC1-04514001-B000-0000-0000-0000F000FFC1"), // Nordic UART Service (検証済み - TX)
+        CBUUID(string: "00001800-0000-1000-8000-00805F9B34FB"), // Generic Access Service
+        CBUUID(string: "00001801-0000-1000-8000-00805F9B34FB")  // Generic Attribute Service
     ]
 
-    // オーディオキャラクタリスティック UUID（候補）
+    // オーディオキャラクタリスティック UUID（Omiデバイスで検証済み）
     private let audioCharacteristicUUIDs: [CBUUID] = [
-        CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"), // Nordic UART RX
-        CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"), // Nordic UART TX
-        CBUUID(string: "00002A58-0000-1000-8000-00805F9B34FB"), // Audio Control Point
-        CBUUID(string: "00002A5D-0000-1000-8000-00805F9B34FB"), // Audio Input State
-        CBUUID(string: "0000FFE1-0000-1000-8000-00805F9B34FB")  // HM-10 Data
+        CBUUID(string: "F000FFC1-04514001-B000-0000-0000-0000F000FFC1"), // Nordic UART TX (通知/インジケート - 検証済み)
+        CBUUID(string: "F000FFC1-04514000-B000-0000-0000-0000F000FFC1"), // Nordic UART RX
+        CBUUID(string: "00002A29-0000-1000-8000-00805F9B34FB"), // Manufacturer Name String
+        CBUUID(string: "00002A24-0000-1000-8000-00805F9B34FB"), // Model Number String
+        CBUUID(string: "00002A25-0000-1000-8000-00805F9B34FB"), // Serial Number String
+        CBUUID(string: "00002A27-0000-1000-8000-00805F9B34FB"), // Hardware Revision String
+        CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB"), // Firmware Revision String
+        CBUUID(string: "00002A28-0000-1000-8000-00805F9B34FB")  // Software Revision String
     ]
 
     // Plaud デバイスの UUID
@@ -52,23 +78,20 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     private let plaudAudioServiceUUID = CBUUID(string: "00001803-0000-1000-8000-00805F9B34FB") // Generic Attribute
     private var plaudDeviceType: DeviceType = .unknown
 
-    override init() {
-        self.centralManager = CBCentralManager(delegate: nil, queue: nil)
-        super.init()
-        self.centralManager.delegate = self
-    }
-
     // MARK: - スキャン開始・停止
 
     func startScanning() {
         isScanning = true
+        connectionState = .scanning
         errorMessage = nil
+        disconnectReason = nil
         discoveredDevices.removeAll()
         discoveredServices.removeAll()
         discoveredCharacteristics.removeAll()
 
         // 既に接続されているデバイスがあれば切断
         if let peripheral = connectedPeripheral {
+            print("既存の接続を切断します: \(peripheral.name ?? "Unknown")")
             centralManager.cancelPeripheralConnection(peripheral)
         }
 
@@ -78,28 +101,52 @@ final class BluetoothAudioService: NSObject, ObservableObject {
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
 
-        // 10秒後にスキャン停止
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+        print("📡 スキャンを開始しました...")
+
+        // 30秒後にスキャン停止（延長）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
             self?.stopScanning()
         }
     }
 
     func stopScanning() {
-        isScanning = false
-        centralManager.stopScan()
+        if isScanning {
+            isScanning = false
+            centralManager.stopScan()
+            print("📡 スキャンを停止しました")
+        }
     }
 
     // MARK: - 接続・切断
 
     func connect(to device: BluetoothDevice) {
         errorMessage = nil
+        disconnectReason = nil
         plaudDeviceType = device.deviceType
+        retryCount = 0
+        connectionState = .connecting
+
+        // 既存の再接続タイマーをキャンセル
+        connectionRetryTimer?.invalidate()
+        connectionRetryTimer = nil
+
+        print("🔗 接続を試みます: \(device.name), タイプ: \(device.deviceType)")
         centralManager.connect(device.peripheral, options: nil)
     }
 
     func disconnect() {
         stopRecording()
+
+        // 再接続タイマーをキャンセル（意図的な切断の場合）
+        connectionRetryTimer?.invalidate()
+        connectionRetryTimer = nil
+        retryCount = maxRetryCount + 1 // 自動再接続を無効化
+
+        disconnectReason = "ユーザーによる切断"
+        connectionState = .disconnected
+
         if let peripheral = connectedPeripheral {
+            print("🔌 切断します: \(peripheral.name ?? "Unknown")")
             centralManager.cancelPeripheralConnection(peripheral)
         }
     }
@@ -210,27 +257,30 @@ final class BluetoothAudioService: NSObject, ObservableObject {
 // MARK: - CBCentralManagerDelegate
 
 extension BluetoothAudioService: CBCentralManagerDelegate {
-    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        Task { @MainActor in
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             switch central.state {
             case .poweredOn:
                 print("Bluetooth: Powered On")
             case .poweredOff:
                 print("Bluetooth: Powered Off")
-                errorMessage = "Bluetoothがオフです"
+                self.errorMessage = "Bluetoothがオフです"
             case .unauthorized:
                 print("Bluetooth: Unauthorized")
-                errorMessage = "Bluetooth の許可が必要です"
+                self.errorMessage = "Bluetooth の許可が必要です"
             default:
                 break
             }
         }
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
-        Task { @MainActor in
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             // 既に見つかったデバイスはスキップ
-            if discoveredDevices.contains(where: { $0.identifier == peripheral.identifier }) {
+            if self.discoveredDevices.contains(where: { $0.identifier == peripheral.identifier }) {
                 return
             }
 
@@ -252,55 +302,103 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
                 deviceType: deviceType
             )
 
-            discoveredDevices.append(device)
+            self.discoveredDevices.append(device)
             print("発見したデバイス: \(deviceName), タイプ: \(deviceType), RSSI: \(RSSI.intValue)")
         }
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        Task { @MainActor in
-            print("接続しました: \(peripheral.name ?? "Unknown")")
-            isConnected = true
-            isScanning = false
-            stopScanning()
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            print("✅ 接続しました: \(peripheral.name ?? "Unknown")")
+            print("   Peripheral ID: \(peripheral.identifier)")
+            print("   サービス数: \(peripheral.services?.count ?? 0)")
+
+            self.isConnected = true
+            self.connectionState = .connected
+            self.isScanning = false
+            self.stopScanning()
+            self.errorMessage = nil
+            self.disconnectReason = nil
+            self.retryCount = 0
 
             // サービスを探索（デバイスタイプに応じて異なる UUID）
             peripheral.delegate = self
 
-            switch plaudDeviceType {
-            case .omi:
-                // Omi デバイスは複数のサービス UUID を探索
-                peripheral.discoverServices(omiServiceUUIDs)
-            case .plaud:
-                // Plaud デバイスはすべてのサービスを探索
-                peripheral.discoverServices(nil)
-            case .unknown:
-                // 未知のデバイスはすべてのサービスを探索
-                peripheral.discoverServices(nil)
+            // 接続後、少し待ってからサービスを探索（安定性向上）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.connectionState = .discoveringServices
+
+                switch self.plaudDeviceType {
+                case .omi:
+                    // Omi デバイスは複数のサービス UUID を探索
+                    peripheral.discoverServices(self.omiServiceUUIDs)
+                case .plaud:
+                    // Plaud デバイスはすべてのサービスを探索
+                    peripheral.discoverServices(nil)
+                case .unknown:
+                    // 未知のデバイスはすべてのサービスを探索
+                    peripheral.discoverServices(nil)
+                }
             }
         }
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        Task { @MainActor in
-            print("切断しました: \(peripheral.name ?? "Unknown")")
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
 
-            isConnected = false
-            connectedPeripheral = nil
-            audioCharacteristic = nil
+            print("⚠️ 切断しました: \(peripheral.name ?? "Unknown")")
 
             if let error = error {
-                errorMessage = "切断エラー: \(error.localizedDescription)"
+                let errorCode = (error as NSError).code
+                let errorDomain = (error as NSError).domain
+                print("   エラードメイン: \(errorDomain)")
+                print("   エラーコード: \(errorCode)")
+                print("   エラー詳細: \(error.localizedDescription)")
+
+                self.disconnectReason = "エラー: \(error.localizedDescription) (コード: \(errorCode))"
+
+                // 特定のエラーコードに基づいて適切な対処
+                switch errorCode {
+                case 6: // Connection timeout
+                    self.disconnectReason = "接続タイムアウト"
+                case 7: // Peripheral disconnected
+                    self.disconnectReason = "デバイス側で切断されました"
+                case 13: // Peer not connected
+                    self.disconnectReason = "ピアが接続されていません"
+                default:
+                    self.disconnectReason = "不明な切断エラー"
+                }
+            } else {
+                self.disconnectReason = "意図的な切断"
+            }
+
+            self.isConnected = false
+            self.connectionState = .disconnected
+            self.connectedPeripheral = nil
+            self.audioCharacteristic = nil
+
+            // 自動再接続を試みる（エラーがある場合のみ）
+            if error != nil && self.retryCount < self.maxRetryCount {
+                self.retryCount += 1
+                print("🔄 再接続を試みます (\(self.retryCount)/\(self.maxRetryCount))...")
+
+                self.connectionRetryTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+                    self?.startScanning()
+                }
             }
         }
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        Task { @MainActor in
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             print("接続失敗: \(peripheral.name ?? "Unknown"), Error: \(error?.localizedDescription ?? "Unknown")")
 
-            isConnected = false
-            errorMessage = "接続失敗: \(error?.localizedDescription ?? "不明なエラー")"
+            self.isConnected = false
+            self.errorMessage = "接続失敗: \(error?.localizedDescription ?? "不明なエラー")"
         }
     }
 }
@@ -308,92 +406,173 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
 // MARK: - CBPeripheralDelegate
 
 extension BluetoothAudioService: CBPeripheralDelegate {
-    nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        Task { @MainActor in
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             guard error == nil else {
-                print("サービス探索エラー: \(error!.localizedDescription)")
-                errorMessage = "サービス探索エラー: \(error!.localizedDescription)"
+                print("❌ サービス探索エラー: \(error!.localizedDescription)")
+                self.errorMessage = "サービス探索エラー: \(error!.localizedDescription)"
+                self.connectionState = .disconnected
                 return
             }
 
-            guard let services = peripheral.services else { return }
+            guard let services = peripheral.services else {
+                print("⚠️ サービスが見つかりませんでした")
+                self.errorMessage = "サービスが見つかりませんでした"
+                self.connectionState = .disconnected
+                return
+            }
 
-            // 発見されたサービス UUID をログ出力
-            print("発見されたサービス数: \(services.count)")
+            print("✅ 発見されたサービス数: \(services.count)")
             var discoveredUUIDs: [CBUUID] = []
             for service in services {
-                print("  サービス UUID: \(service.uuid)")
+                let uuidString = service.uuid.uuidString
+                print("  サービス UUID: \(uuidString)")
                 discoveredUUIDs.append(service.uuid)
 
-                // キャラクタリスティックを探索
-                peripheral.discoverCharacteristics(nil, for: service)
+                // Nordic UART サービスが見つかった場合
+                if uuidString.hasPrefix("F000FFC1") {
+                    print("    → Nordic UART Service と特定しました")
+                }
             }
 
             // 発見されたサービスを保存（UI に表示可能）
-            discoveredServices = discoveredUUIDs
+            self.discoveredServices = discoveredUUIDs
+
+            // 次にキャラクタリスティックを探索
+            self.connectionState = .discoveringCharacteristics
+
+            for service in services {
+                peripheral.discoverCharacteristics(nil, for: service)
+            }
         }
     }
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        Task { @MainActor in
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             guard error == nil else {
-                print("キャラクタリスティック探索エラー: \(error!.localizedDescription)")
-                errorMessage = "キャラクタリスティック探索エラー: \(error!.localizedDescription)"
+                print("❌ キャラクタリスティック探索エラー: \(error!.localizedDescription)")
+                self.errorMessage = "キャラクタリスティック探索エラー: \(error!.localizedDescription)"
                 return
             }
 
-            guard let characteristics = service.characteristics else { return }
+            guard let characteristics = service.characteristics else {
+                print("⚠️ サービス \(service.uuid) にキャラクタリスティックが見つかりませんでした")
+                return
+            }
 
             // 発見されたキャラクタリスティックをログ出力
-            print("サービス \(service.uuid) のキャラクタリスティック数: \(characteristics.count)")
+            print("📋 サービス \(service.uuid.uuidString) のキャラクタリスティック数: \(characteristics.count)")
+
+            var foundNotifyCharacteristic = false
+
             for characteristic in characteristics {
-                print("  キャラクタリスティック UUID: \(characteristic.uuid)")
-                print("    プロパティ: \(characteristic.properties)")
+                let uuidString = characteristic.uuid.uuidString
+                let props = characteristic.properties
+
+                var propDesc: [String] = []
+                if props.contains(.read) { propDesc.append("read") }
+                if props.contains(.write) { propDesc.append("write") }
+                if props.contains(.writeWithoutResponse) { propDesc.append("writeWithoutResponse") }
+                if props.contains(.notify) { propDesc.append("notify") }
+                if props.contains(.indicate) { propDesc.append("indicate") }
+                if props.contains(.broadcast) { propDesc.append("broadcast") }
+
+                print("  キャラクタリスティック: \(uuidString)")
+                print("    プロパティ: \(propDesc.joined(separator: ", "))")
 
                 // 追加するキャラクタリスティックを保存
-                if !discoveredCharacteristics.contains(characteristic.uuid) {
-                    discoveredCharacteristics.append(characteristic.uuid)
+                if !self.discoveredCharacteristics.contains(characteristic.uuid) {
+                    self.discoveredCharacteristics.append(characteristic.uuid)
                 }
 
                 // 通知/インジケート対応のキャラクタリスティックを購読
                 if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
+                    print("    → 通知を購読します...")
                     peripheral.setNotifyValue(true, for: characteristic)
+                    foundNotifyCharacteristic = true
 
                     // オーディオキャラクタリスティックとして保存（通知購読済みの最初のもの）
-                    if audioCharacteristic == nil {
-                        audioCharacteristic = characteristic
-                        print("通知購読開始: \(characteristic.uuid)")
+                    if self.audioCharacteristic == nil {
+                        self.audioCharacteristic = characteristic
+                        print("    ✅ オーディオキャラクタリスティックとして設定しました")
                     }
                 } else if characteristic.properties.contains(.read) {
                     // 読み取り可能なキャラクタリスティックを読み出して試す
+                    print("    → 読み取りを試みます...")
                     peripheral.readValue(for: characteristic)
                 }
+            }
+
+            // すべてのサービスとキャラクタリスティックの探索が完了したか確認
+            if foundNotifyCharacteristic {
+                self.connectionState = .ready
+                print("✅ 準備完了 - 録音可能")
             }
         }
     }
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        Task { @MainActor in
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
             guard error == nil else {
-                print("データ受信エラー: \(error!.localizedDescription)")
+                print("❌ データ受信エラー: \(error!.localizedDescription)")
+                self.errorMessage = "データ受信エラー: \(error!.localizedDescription)"
                 return
             }
 
-            guard let data = characteristic.value else { return }
+            guard let data = characteristic.value, !data.isEmpty else {
+                print("⚠️ 空のデータを受信しました")
+                return
+            }
+
+            print("📥 データを受信: \(data.count) bytes, キャラクタリスティック: \(characteristic.uuid.uuidString)")
 
             // 音声データを処理
-            handleAudioData(data)
+            self.handleAudioData(data)
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        DispatchQueue.main.async {
+            if let error = error {
+                print("❌ データ書き込みエラー: \(error.localizedDescription)")
+            } else {
+                print("✅ データ書き込み成功: \(characteristic.uuid.uuidString)")
+            }
+        }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            if let error = error {
+                print("❌ 通知設定エラー: \(error.localizedDescription)")
+                self.errorMessage = "通知設定エラー: \(error.localizedDescription)"
+            } else {
+                let state = characteristic.isNotifying ? "有効" : "無効"
+                print("✅ 通知設定 \(state): \(characteristic.uuid.uuidString)")
+            }
         }
     }
 
     private func handleAudioData(_ data: Data) {
         // デバイスから受信したオーディオデータを処理
-        print("受信した音声データサイズ: \(data.count) bytes")
+        // データを16進数で表示（最初の32バイト）
+        if data.count > 0 {
+            let hexString = data.prefix(min(32, data.count)).map { String(format: "%02x", $0) }.joined(separator: " ")
+            print("   データ (hex): \(hexString)")
+        }
 
         if isRecording {
             // 録音中ならバッファに追加
             audioBuffer.append(data)
-            print("バッファサイズ: \(audioBuffer.count) bytes, 録音時間: \(recordingDuration)s")
+            print("   バッファサイズ: \(audioBuffer.count) bytes, 録音時間: \(recordingDuration)s")
         }
     }
 }

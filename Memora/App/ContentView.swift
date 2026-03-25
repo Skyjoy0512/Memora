@@ -67,7 +67,7 @@ struct SpeechAPIInfoView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.blue.opacity(0.1))
                 )
-                Text("現在は iOS 10+ の SFSpeechRecognizer を使用した実装となっています。")
+                Text("現在は SFSpeechRecognizer を使用し、SpeechAnalyzer 非対応端末をカバーします。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)

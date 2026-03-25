@@ -2,6 +2,8 @@ import Foundation
 @preconcurrency import AVFoundation
 import Speech
 
+// Core transcription path. Do not modify without an explicit STT task.
+
 @MainActor
 private protocol TranscriptionEngineProtocol: Sendable {
     var isTranscribing: Bool { get }
@@ -154,6 +156,33 @@ final class InternalTranscriptionEngine {
         }
 
         let locale = localeForRecognition(language: language)
+        if #available(iOS 26.0, *) {
+            do {
+                return try await transcribeWithSpeechAnalyzer(
+                    audioURL: audioURL,
+                    locale: locale,
+                    progress: progress,
+                    partialResult: partialResult
+                )
+            } catch {
+                print("SpeechAnalyzer fallback: \(error.localizedDescription)")
+            }
+        }
+
+        return try await transcribeWithSpeechRecognizer(
+            audioURL: audioURL,
+            locale: locale,
+            progress: progress,
+            partialResult: partialResult
+        )
+    }
+
+    private func transcribeWithSpeechRecognizer(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             throw CoreError.transcriptionError(.engineNotAvailable)
         }
@@ -229,6 +258,34 @@ final class InternalTranscriptionEngine {
 
         return TranscriptionResult(
             fullText: recognitionResult.bestTranscription.formattedString,
+            language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
+            segments: segmentsWithSpeakers
+        )
+    }
+
+    @available(iOS 26.0, *)
+    private func transcribeWithSpeechAnalyzer(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        let service = SpeechAnalyzerService26()
+
+        progress(0.2)
+        let text = try await service.transcribe(audioURL: audioURL)
+        partialResult(text)
+        progress(0.92)
+
+        let duration = await audioFileDuration(for: audioURL)
+        let baseSegments = makeFallbackSegments(from: text, duration: duration)
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
+        return TranscriptionResult(
+            fullText: text,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
             segments: segmentsWithSpeakers
         )

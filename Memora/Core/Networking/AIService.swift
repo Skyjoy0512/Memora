@@ -1,6 +1,8 @@
 import Foundation
 import Speech
 
+// Core transcription/API boundary. Keep backend selection changes intentional and isolated.
+
 // MARK: - Local Transcription Protocol
 
 protocol LocalTranscriptionService {

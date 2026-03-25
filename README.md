@@ -144,6 +144,7 @@ Memora/
 ## ドキュメント
 
 - [アーキテクチャ設計](docs/architecture.md) - プロジェクトの技術的な設計
+- [文字起こしコア境界](docs/transcription-core-boundary.md) - STT コアの保護ルールと拡張方針
 - [タスク管理](docs/todo.md) - 開発タスクの進捗管理
 - [引き継ぎ情報](docs/handoff.md) - プロジェクトの引き継ぎ用情報
 

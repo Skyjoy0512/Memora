@@ -24,6 +24,7 @@ struct SettingsView: View {
     @State private var plaudSyncStatus: String?
     @State private var showPlaudStatusAlert: Bool = false
     @State private var isLoggedIn: Bool = false
+    @State private var showDebugLog: Bool = false
 
     var plaudSettings: PlaudSettings? {
         plaudSettingsList.first
@@ -49,6 +50,7 @@ struct SettingsView: View {
                 realtimeTranscriptionSection
                 bleDebugSection
                 developerFeaturesSection
+                debugSection
             }
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
@@ -121,7 +123,7 @@ struct SettingsView: View {
 
             if currentTranscriptionMode == .local {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("ローカル文字起こしはiOS標準のSpeechフレームワークを使用します。")
+                    Text("ローカル文字起こしは SpeechAnalyzer を優先し、非対応端末では SFSpeechRecognizer を使用します。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -609,6 +611,32 @@ struct SettingsView: View {
                     .disabled(isPlaudSyncing || plaudEmail.isEmpty || plaudPassword.isEmpty)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var debugSection: some View {
+        Section("デバッグ") {
+            NavigationLink {
+                DebugLogView()
+            } label: {
+                HStack {
+                    Image(systemName: "ladybug")
+                        .foregroundStyle(.orange)
+                    Text("デバッグログ")
+                    Spacer()
+                    if let lastLog = DebugLogger.shared.logs.last {
+                        Text("\(lastLog.message)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            Text("アプリ初回起動時のパフォーマンスを確認できます")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

@@ -94,10 +94,20 @@
 
 ### 拡張機能
 - [ ] 実際の録音機能実装（AVFoundation使用）
-- [ ] Speech Frameworkによるローカル文字起こし
+- [ ] `SpeechAnalyzer -> SFSpeechRecognizer` のローカル文字起こし品質改善
 - [ ] 要約生成機能
 - [ ] プロジェクト管理機能
 - [ ] Ask AI 機能
+
+### STT コア強化
+- [ ] SpeechAnalyzer 実機評価と失敗パターンの収集
+- [ ] SFSpeechRecognizer フォールバック品質の確認
+- [ ] 話者分離アルゴリズムの改善
+- [ ] 話者サンプル抽出の設計
+- [ ] 話者プロフィール保存モデルの設計
+- [ ] 自分の声登録 UI の要件定義
+- [ ] 自分の声ラベル付けまたは除外ロジックの設計
+- [ ] Omi 参照の話者埋め込みマッチング方式の比較
 
 ### UI/UX 拡張
 - [ ] ダークモード対応
@@ -155,9 +165,12 @@
 
 ### API 統合
 - [ ] 文字起こし API の選定と実装
-  - Whisper API (OpenAI)
+  - OpenAI Whisper API
   - Speech-to-Text API (Google)
   - ローカル Speech Framework
+- [ ] オンデバイス Whisper 導入判断
+  - 現時点では見送り
+  - 初回起動 UX、モデルサイズ、発熱が許容範囲なら再検討
 - [ ] 要約 API の選定と実装
   - OpenAI GPT API
   - Anthropic Claude API

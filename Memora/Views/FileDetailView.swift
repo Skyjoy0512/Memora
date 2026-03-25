@@ -25,11 +25,14 @@ struct FileDetailView: View {
     @State private var summaryResult: SummaryResult?
     @State private var errorMessage: String?
     @State private var showErrorAlert = false
+    @State private var successMessage: String?
+    @State private var showSuccessAlert = false
 
     // Webhook
     @Query private var webhookSettingsList: [WebhookSettings]
     private var webhookSettings: WebhookSettings? { webhookSettingsList.first }
     private let webhookService = WebhookService()
+    private let speakerProfileStore = SpeakerProfileStore.shared
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -229,6 +232,22 @@ struct FileDetailView: View {
                         }
                         .foregroundStyle(.secondary)
                     }
+
+                    if audioURL != nil {
+                        Button(action: registerPrimarySpeakerSample) {
+                            VStack(spacing: 6) {
+                                Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
+                                    .frame(maxWidth: .infinity)
+                                Text("1人だけが話している録音を使うと精度が安定します")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.08))
+                            .cornerRadius(13)
+                        }
+                        .foregroundStyle(.primary)
+                    }
                 }
                 .padding(.horizontal)
 
@@ -310,6 +329,16 @@ struct FileDetailView: View {
         } message: {
             if let errorMessage = errorMessage {
                 Text(errorMessage)
+            }
+        }
+        .alert("完了", isPresented: $showSuccessAlert) {
+            Button("OK", role: .cancel) {
+                successMessage = nil
+                showSuccessAlert = false
+            }
+        } message: {
+            if let successMessage = successMessage {
+                Text(successMessage)
             }
         }
     }
@@ -516,6 +545,29 @@ struct FileDetailView: View {
             if !audioPlayer.isPlaying {
                 timer.invalidate()
                 playbackPosition = 0
+            }
+        }
+    }
+
+    private func registerPrimarySpeakerSample() {
+        guard let url = audioURL else {
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
+            return
+        }
+
+        Task {
+            do {
+                let profile = try speakerProfileStore.registerPrimaryUserProfile(audioURL: url)
+                await MainActor.run {
+                    successMessage = "「\(profile.displayName)」の声サンプルを登録しました。次回の話者分離から優先的にラベル付けします。"
+                    showSuccessAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "声サンプル登録エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
