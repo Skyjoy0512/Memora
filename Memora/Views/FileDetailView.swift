@@ -21,8 +21,20 @@ struct FileDetailView: View {
     @State private var showTranscriptView = false
     @State private var showSummaryView = false
     @State private var showShareSheet = false
+    @State private var showGenerationFlow = false
     @State private var transcriptResult: TranscriptResult?
     @State private var summaryResult: SummaryResult?
+    @State private var generationConfig: GenerationConfig?
+    @State private var errorMessage: String?
+    @State private var showErrorAlert = false
+    @State private var successMessage: String?
+    @State private var showSuccessAlert = false
+
+    // Webhook
+    @Query private var webhookSettingsList: [WebhookSettings]
+    private var webhookSettings: WebhookSettings? { webhookSettingsList.first }
+    private let webhookService = WebhookService()
+    private let speakerProfileStore = SpeakerProfileStore.shared
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -45,16 +57,16 @@ struct FileDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 21) {
+            VStack(spacing: MemoraSpacing.xxl) {
                 Spacer()
-                    .frame(height: 21)
+                    .frame(height: MemoraSpacing.xxl)
 
                 // 音声波形イメージ
                 Image(systemName: "waveform")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 120, height: 120)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
                 // タイトル
                 Text(audioFile.title)
@@ -64,7 +76,7 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // メタデータ
-                HStack(spacing: 21) {
+                HStack(spacing: MemoraSpacing.xxl) {
                     Label(formatDate(audioFile.createdAt), systemImage: "calendar")
                     Label(formatDuration(audioFile.duration), systemImage: "clock")
                 }
@@ -75,7 +87,7 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // プレイヤーコントロール
-                VStack(spacing: 21) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     // プログレスバー
                     VStack(spacing: 5) {
                         Slider(
@@ -87,7 +99,7 @@ struct FileDetailView: View {
                                 }
                             }
                         )
-                        .accentColor(.gray)
+                        .accentColor(MemoraColor.textSecondary)
 
                         HStack {
                             Text(formatTime(playbackPosition))
@@ -107,7 +119,7 @@ struct FileDetailView: View {
                     Button(action: togglePlayback) {
                         ZStack {
                             Circle()
-                                .fill(Color.gray)
+                                .fill(MemoraColor.divider)
                                 .frame(width: 70, height: 70)
 
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
@@ -116,34 +128,34 @@ struct FileDetailView: View {
                         }
                     }
                 }
-                .padding(.vertical, 21)
+                .padding(.vertical, MemoraSpacing.xxl)
 
                 Divider()
                     .padding(.horizontal)
 
                 // アクションボタン
-                VStack(spacing: 13) {
+                VStack(spacing: MemoraSpacing.lg) {
                     if transcriptionEngine.isTranscribing {
                         // 文字起こし中
-                        VStack(spacing: 13) {
+                        VStack(spacing: MemoraSpacing.lg) {
                             ProgressView(value: transcriptionEngine.progress)
-                                .tint(.gray)
+                                .tint(MemoraColor.textSecondary)
                             Text("文字起こし中... \(Int(transcriptionEngine.progress * 100))%")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(13)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
                     } else if let result = transcriptResult {
                         // 文字起こし完了 - 結果表示ボタン
                         Button(action: { showTranscriptView = true }) {
                             Label("文字起こし結果を表示", systemImage: "text.alignleft")
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     } else if audioFile.isTranscribed {
@@ -152,8 +164,8 @@ struct FileDetailView: View {
                             Label("文字起こし結果を表示", systemImage: "text.alignleft")
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -162,33 +174,33 @@ struct FileDetailView: View {
                             Label("文字起こし", systemImage: "text.alignleft")
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     }
 
                     if summarizationEngine.isSummarizing {
                         // 要約中
-                        VStack(spacing: 13) {
+                        VStack(spacing: MemoraSpacing.lg) {
                             ProgressView(value: summarizationEngine.progress)
-                                .tint(.gray)
+                                .tint(MemoraColor.textSecondary)
                             Text("要約中... \(Int(summarizationEngine.progress * 100))%")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(13)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
                     } else if let result = summaryResult {
                         // 要約完了 - 結果表示ボタン
                         Button(action: { showSummaryView = true }) {
                             Label("要約結果を表示", systemImage: "text.quote")
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     } else if audioFile.isSummarized {
@@ -197,18 +209,18 @@ struct FileDetailView: View {
                             Label("要約結果を表示", systemImage: "text.quote")
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     } else if transcriptResult != nil || audioFile.isTranscribed {
-                        // 要約開始ボタン
-                        Button(action: startSummarization) {
-                            Label("要約", systemImage: "text.quote")
+                        // 生成フロー開始ボタン
+                        Button(action: { showGenerationFlow = true }) {
+                            Label("生成", systemImage: "text.quote")
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.primary)
                     } else {
@@ -217,10 +229,26 @@ struct FileDetailView: View {
                             Label("要約", systemImage: "text.quote")
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.gray.opacity(0.05))
-                                .cornerRadius(13)
+                                .background(MemoraColor.divider.opacity(0.05))
+                                .cornerRadius(MemoraRadius.md)
                         }
                         .foregroundStyle(.secondary)
+                    }
+
+                    if audioURL != nil {
+                        Button(action: registerPrimarySpeakerSample) {
+                            VStack(spacing: 6) {
+                                Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
+                                    .frame(maxWidth: .infinity)
+                                Text("1人だけが話している録音を使うと精度が安定します")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                            .background(MemoraColor.divider.opacity(0.08))
+                            .cornerRadius(MemoraRadius.md)
+                        }
+                        .foregroundStyle(.primary)
                     }
                 }
                 .padding(.horizontal)
@@ -256,6 +284,7 @@ struct FileDetailView: View {
         }
         .onAppear {
             setupAudioPlayer()
+            loadSavedTranscript()
             loadSavedSummary()
         }
         .task {
@@ -278,10 +307,17 @@ struct FileDetailView: View {
                 Text("要約データがありません")
             }
         }
+        .sheet(isPresented: $showGenerationFlow) {
+            GenerationFlowSheet(isPresented: $showGenerationFlow) { config in
+                generationConfig = config
+                startSummarization(with: config)
+            }
+        }
         .sheet(isPresented: $showShareSheet) {
             ShareSheet(
                 shareText: transcriptResult?.text,
-                shareURL: audioURL
+                shareURL: audioURL,
+                audioFile: audioFile
             )
         }
         .alert("ファイルを削除", isPresented: $showDeleteAlert) {
@@ -292,6 +328,26 @@ struct FileDetailView: View {
             }
         } message: {
             Text("この録音ファイルを削除しますか？")
+        }
+        .alert("エラー", isPresented: $showErrorAlert) {
+            Button("OK", role: .cancel) {
+                errorMessage = nil
+                showErrorAlert = false
+            }
+        } message: {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+            }
+        }
+        .alert("完了", isPresented: $showSuccessAlert) {
+            Button("OK", role: .cancel) {
+                successMessage = nil
+                showSuccessAlert = false
+            }
+        } message: {
+            if let successMessage = successMessage {
+                Text(successMessage)
+            }
         }
     }
 
@@ -317,16 +373,29 @@ struct FileDetailView: View {
     }
 
     private func setupEngines() async {
-        if !currentAPIKey.isEmpty || currentTranscriptionMode == .local {
+        // 文字起こしエンジンを設定
+        do {
+            try await transcriptionEngine.configure(
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                transcriptionMode: currentTranscriptionMode
+            )
+        } catch {
+            await MainActor.run {
+                errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
+                showErrorAlert = true
+            }
+        }
+
+        // 要約エンジンは API キーが必要
+        if !currentAPIKey.isEmpty {
             do {
-                try await transcriptionEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider,
-                    transcriptionMode: currentTranscriptionMode
-                )
                 try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
             } catch {
-                print("エンジン設定エラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
@@ -354,31 +423,78 @@ struct FileDetailView: View {
 
     private func startTranscription() {
         guard let url = audioURL else {
-            print("音声URLがありません")
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
             return
         }
 
         Task {
             do {
+                // トランスクリプションエンジンを設定
+                try await transcriptionEngine.configure(
+                    apiKey: currentAPIKey,
+                    provider: currentProvider,
+                    transcriptionMode: currentTranscriptionMode
+                )
+
                 let result = try await transcriptionEngine.transcribe(audioURL: url)
                 await MainActor.run {
-                    transcriptResult = result
-                    audioFile.isTranscribed = true
-
                     // Transcript を保存
                     let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
                     modelContext.insert(transcript)
+                    try? modelContext.save()
+
+                    // スピーカーセグメントを保存
+                    print("保存するセグメント数: \(result.segments.count)")
+                    for (index, segment) in result.segments.enumerated() {
+                        transcript.addSpeakerSegment(
+                            speakerLabel: segment.speakerLabel,
+                            startTime: segment.startTime,
+                            endTime: segment.endTime,
+                            text: segment.text
+                        )
+                        print("セグメント \(index): \(segment.speakerLabel) - \(segment.text)")
+                    }
+                    print("保存後の speakerLabels 配列サイズ: \(transcript.speakerLabels.count)")
+                    try? modelContext.save()
+
+                    // audioFile のフラグを更新
+                    audioFile.isTranscribed = true
+                    try? modelContext.save()
+
+                    transcriptResult = result
                 }
+
+                // Webhook 送信
+                await sendWebhook(event: .transcriptionCompleted, data: [
+                    "audioFileId": audioFile.id.uuidString,
+                    "title": audioFile.title,
+                    "duration": audioFile.duration,
+                    "transcript": result.text,
+                    "segments": result.segments.count
+                ])
             } catch {
-                print("文字起こしエラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "文字起こしエラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
 
-    private func startSummarization() {
+    private func startSummarization(with config: GenerationConfig = GenerationConfig()) {
+        // API キーが設定されているか確認
+        guard !currentAPIKey.isEmpty else {
+            errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
+            showErrorAlert = true
+            return
+        }
+
         let transcriptText: String
+        var segments: [SpeakerSegment] = []
         if let result = transcriptResult {
             transcriptText = result.text
+            segments = result.segments
         } else {
             // SwiftData から既存の文字起こしを取得
             let descriptor = FetchDescriptor<Transcript>()
@@ -391,23 +507,59 @@ struct FileDetailView: View {
         }
 
         guard !transcriptText.isEmpty else {
-            print("文字起こしデータがありません")
+            errorMessage = "文字起こしデータがありません"
+            showErrorAlert = true
             return
         }
 
         Task {
             do {
-                let result = try await summarizationEngine.summarize(transcript: transcriptText)
+                try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
+
+                let result: SummaryResult
+                if config.includeSpeakers && !segments.isEmpty {
+                    result = try await summarizationEngine.summarizeWithSpeakers(transcript: transcriptText, segments: segments)
+                } else {
+                    result = try await summarizationEngine.summarize(transcript: transcriptText)
+                }
+
                 await MainActor.run {
                     summaryResult = result
-                    // 要約を AudioFile に保存
                     audioFile.isSummarized = true
                     audioFile.summary = result.summary
-                    audioFile.keyPoints = result.keyPoints
-                    audioFile.actionItems = result.actionItems
+                    audioFile.keyPoints = result.keyPointsText
+                    audioFile.actionItems = result.actionItemsText
+                    try? modelContext.save()
+
+                    // アクションアイテムからTodoItem自動生成
+                    if config.autoCreateTodos {
+                        summarizationEngine.createTodoItems(
+                            from: result,
+                            sourceFileId: audioFile.id,
+                            sourceFileTitle: audioFile.title,
+                            modelContext: modelContext
+                        )
+                    }
+
+                    // Webhook 送信
+                    Task {
+                        await sendWebhook(event: .summarizationCompleted, data: [
+                            "audioFileId": audioFile.id.uuidString,
+                            "title": audioFile.title,
+                            "summary": result.summary,
+                            "keyPoints": result.keyPoints,
+                            "actionItems": result.actionItems
+                        ])
+                    }
+
+                    successMessage = "生成完了"
+                    showSuccessAlert = true
                 }
             } catch {
-                print("要約エラー: \(error)")
+                await MainActor.run {
+                    errorMessage = "要約エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
@@ -420,6 +572,29 @@ struct FileDetailView: View {
             if !audioPlayer.isPlaying {
                 timer.invalidate()
                 playbackPosition = 0
+            }
+        }
+    }
+
+    private func registerPrimarySpeakerSample() {
+        guard let url = audioURL else {
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
+            return
+        }
+
+        Task {
+            do {
+                let profile = try speakerProfileStore.registerPrimaryUserProfile(audioURL: url)
+                await MainActor.run {
+                    successMessage = "「\(profile.displayName)」の声サンプルを登録しました。次回の話者分離から優先的にラベル付けします。"
+                    showSuccessAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "声サンプル登録エラー: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }
@@ -442,6 +617,20 @@ struct FileDetailView: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
+    private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
+        guard let settings = webhookSettings else { return }
+
+        do {
+            try await webhookService.sendWebhook(
+                eventType: event,
+                data: data,
+                settings: settings
+            )
+        } catch {
+            print("Webhook 送信エラー: \(error.localizedDescription)")
+        }
+    }
+
     private func loadSavedSummary() {
         guard audioFile.isSummarized,
               let summary = audioFile.summary,
@@ -451,8 +640,44 @@ struct FileDetailView: View {
         }
         summaryResult = SummaryResult(
             summary: summary,
-            keyPoints: keyPoints,
-            actionItems: actionItems
+            keyPoints: keyPoints.split(separator: "\n", omittingEmptySubsequences: true).map(String.init),
+            actionItems: actionItems.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        )
+    }
+
+    private func loadSavedTranscript() {
+        guard audioFile.isTranscribed else { return }
+
+        let descriptor = FetchDescriptor<Transcript>()
+        guard let transcripts = try? modelContext.fetch(descriptor),
+              let transcript = transcripts.first(where: { $0.audioFileID == audioFile.id }) else {
+            print("Transcript が見つかりません。audioFileID: \(audioFile.id)")
+            return
+        }
+
+        print("読み込んだ Transcript - speakerLabels 配列サイズ: \(transcript.speakerLabels.count)")
+
+        // スピーカーセグメントを構築
+        var segments: [SpeakerSegment] = []
+        for i in 0..<transcript.speakerLabels.count {
+            if i < transcript.segmentStartTimes.count &&
+               i < transcript.segmentEndTimes.count &&
+               i < transcript.segmentTexts.count {
+                segments.append(SpeakerSegment(
+                    speakerLabel: transcript.speakerLabels[i],
+                    startTime: transcript.segmentStartTimes[i],
+                    endTime: transcript.segmentEndTimes[i],
+                    text: transcript.segmentTexts[i]
+                ))
+            }
+        }
+
+        print("構築したセグメント数: \(segments.count)")
+
+        transcriptResult = TranscriptResult(
+            text: transcript.text,
+            segments: segments,
+            duration: audioFile.duration
         )
     }
 }

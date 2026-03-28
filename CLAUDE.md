@@ -180,3 +180,20 @@ npx vibe-kanban
 - 担当レーン外の無断変更
 - 証拠なしの「動作したはず」報告
 - 仕様変更をコード先行で進めること
+
+## 10. 文字起こしコア保護ルール
+- 文字起こし機能は Memora のコア機能として扱う。詳細は `docs/transcription-core-boundary.md` を参照する。
+- 事前に「文字起こし/STT を変更する」という明示依頼がない限り、次のファイルは編集しない:
+  - `Memora/Core/Services/STTService.swift`
+  - `Memora/Core/Services/STTSupportTypes.swift`
+  - `Memora/Core/Services/SpeakerDiarizationService.swift`
+  - `Memora/Core/Services/SpeakerProfileStore.swift`
+  - `Memora/Core/Services/TranscriptionEngine.swift`
+  - `Memora/Core/Networking/AIService.swift`
+  - `Memora/Core/Contracts/CoreDTOs.swift`
+- 文字起こしコアを変更する場合は必ず以下を報告する:
+  - 変更したバックエンド選択順
+  - SpeechAnalyzer / SFSpeechRecognizer / API のどこに影響するか
+  - 話者分離と保存フォーマットへの影響
+  - build/test/log の確認結果
+- Omi 参照で検討する機能は、まずドキュメントに落としてから実装に進む。特に話者埋め込み、話者登録、自分の声ラベル付けは UI 先行で入れない。

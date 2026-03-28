@@ -1,6 +1,8 @@
 import Foundation
 import Speech
 
+// Core transcription boundary. Changes require explicit STT approval and regression checks.
+
 final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     let id: String
     var taskId: String { id }
@@ -136,6 +138,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
+    private let diarizationService: SpeakerDiarizationProtocol = SpeakerDiarizationService()
 
     init(
         readiness: STTReadinessProtocol = STTReadiness(),
@@ -247,7 +250,10 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
                 handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
 
-                let engine = InternalTranscriptionEngine(configuration: configuration)
+                let engine = InternalTranscriptionEngine(
+                    configuration: configuration,
+                    diarizationService: diarizationService
+                )
                 let result = try await engine.transcribe(
                     audioURL: chunk.url,
                     language: handle.language,

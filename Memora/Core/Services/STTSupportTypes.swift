@@ -3,6 +3,15 @@ import Speech
 
 // UI 互換用の内部ラッパー。STT 境界の DTO は Core 契約の
 // `TranscriptionResult` のみを使用する。
+
+/// スピーカーセグメント（UI 表示用）
+struct SpeakerSegment {
+    let speakerLabel: String
+    let startTime: TimeInterval
+    let endTime: TimeInterval
+    let text: String
+}
+
 struct TranscriptResult {
     let text: String
     let segments: [SpeakerSegment]

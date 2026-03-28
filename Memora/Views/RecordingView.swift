@@ -33,8 +33,8 @@ struct RecordingView: View {
                     }
                     .padding(.horizontal, 13)
                     .padding(.vertical, 8)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(MemoraColor.divider.opacity(0.1))
+                    .cornerRadius(MemoraRadius.sm)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -50,10 +50,10 @@ struct RecordingView: View {
                 if let error = errorMessage {
                     Text(error)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(MemoraColor.accentRed)
                         .padding()
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                         .padding(.horizontal)
                 }
 
@@ -66,7 +66,7 @@ struct RecordingView: View {
                 HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
                         Rectangle()
-                            .fill(audioRecorder.isRecording ? Color.gray : Color.gray.opacity(0.3))
+                            .fill(audioRecorder.isRecording ? MemoraColor.divider : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
                                 .easeInOut(duration: 0.2)
@@ -84,7 +84,7 @@ struct RecordingView: View {
                 Button(action: toggleRecording) {
                     ZStack {
                         Circle()
-                            .fill(Color.gray)
+                            .fill(MemoraColor.divider)
                             .frame(width: 70, height: 70)
 
                         if audioRecorder.isRecording {
@@ -99,7 +99,7 @@ struct RecordingView: View {
                         }
                     }
                 }
-                .padding(.bottom, 34)
+                .padding(.bottom, MemoraSpacing.xxxl)
             }
         }
         .navigationTitle("録音")
@@ -138,6 +138,7 @@ struct RecordingView: View {
                 audioFile.duration = recordingTime
 
                 modelContext.insert(audioFile)
+                try? modelContext.save()
 
                 dismiss()
             } catch {

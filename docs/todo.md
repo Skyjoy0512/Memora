@@ -1,242 +1,237 @@
-# Memora - 開発タスク
+# Memora - 開発タスク（2026-03-28 更新）
 
-## 今やること
+> **仕様書**: `Memora仕様書.txt`（2790行 / TASK-001〜037）
+> **現状**: TCA を廃止し SwiftUI + SwiftData + MVVM に移行済み。仕様書の TASK 分割は TCA 前提だが、機能要件は同じ。
 
-### 基本構築（フェーズ1-6）
-- [x] 仕様書の分析と計画立案
-- [x] Windows側準備作業の完了
-- [ ] macOS側でのXcodeプロジェクト作成
-- [ ] TCA 依存パッケージの追加
-- [ ] 基本的なディレクトリ構成の作成
+---
 
-### データモデルと永続化
-- [ ] SwiftDataモデル定義（AudioFile, Project, TodoItem）
-- [ ] SwiftDataStackの実装
-- [ ] AudioFileRepositoryの実装
-- [ ] RepositoryのDependencyKey登録
+## 仕様書との乖離サマリ
 
-### デザインシステム
-- [ ] カラートークン定義（ライトモードのみ）
-- [ ] タイポグラフィトークン定義
-- [ ] LiquidGlassModifierの実装
-- [ ] EmptyStateViewの実装
+| 分類 | 仕様書にある | 実装済 | 未実装 |
+|------|-------------|--------|--------|
+| **DesignSystem/** | Colors, Typography, Spacing, LiquidGlass, Theme | ❌ なし | 全トークン未実装。View ごとにハードコード |
+| **共通コンポーネント** | FABMenu, ToastOverlay, EmptyStateView, SkeletonView, PillButton, LiveRecordingBanner | ❌ 一部（BottomFloatingBar のみ） | 5コンポーネント未実装 |
+| **Onboarding** | 4ページのページング | ❌ なし | 未着手 |
+| **Auth** | Sign in with Apple + Google | ❌ なし | 未着手 |
+| **Paywall** | StoreKit 2 月額/年額 | ❌ なし | 未着手 |
+| **Repository 層** | 全エンティティの Repository パターン | ❌ なし | View が直接 @Query で取得 |
+| **LLMRouter** | 複数 Provider（Local, OpenAI, Claude, Gemini, DeepSeek） | ❌ なし（AIService プレースホルダのみ） | 未着手 |
+| **PipelineCoordinator** | 文字起こし→要約→決定抽出→ToDo抽出 | ❌ なし | 未着手 |
+| **GenerationFlowSheet** | 方式→テンプレート→モデル選択 | ❌ なし | 未着手 |
+| **Ask AI** | チャット UI + スコープ別コンテキスト | ❌ なし | 未着手 |
+| **Import** | ドキュメントピッカー | ❌ なし | 未着手 |
+| **AdService** | バナー + インタースティシャル | ❌ なし | 未着手 |
+| **APIKeyStore** | Keychain 管理 | ❌ なし | 未着手 |
+| **テスト** | Unit + Snapshot | ❌ なし | 未着手 |
 
-### 基本的なUI
-- [ ] FilesListReducerの実装
-- [ ] FilesListViewの実装（空の状態のみ）
-- [ ] FilesRowViewの実装
-- [ ] RecordingReducerの実装（モック）
-- [ ] RecordingViewの実装
-- [ ] AppReducerの実装
-- [ ] TabViewの実装（Filesタブのみ）
+---
 
-### 基本的なサービス
-- [ ] AudioRecorderの基本実装（モック）
-- [ ] MemoraApp.swiftのSwiftDataセットアップ
+## 完了済み（仕様書対応）
 
-## 次にやること
+| TASK | 内容 | 備考 |
+|------|------|------|
+| TASK-001（一部） | プロジェクト初期構成 | TCA は後に除去 |
+| TASK-004（一部） | SwiftData モデル定義 | AudioFile, Project, TodoItem, Transcript, MeetingNote, ProcessingJob あり。Attachment, ProcessingChunk, ChatScope 未確認 |
+| TASK-010 | AudioRecorder サービス | AVFoundation 実装済 |
+| TASK-011（一部） | 録音画面 | RecordingView あり、Reducer なし |
+| TASK-014 | AudioPlayer サービス | 実装済 |
+| TASK-016（一部） | TranscriptionEngine | SpeechAnalyzer + SFSpeechRecognizer 実装済 |
+| TASK-017 | AudioChunker | 実装済 |
+| TASK-026（一部） | Project 一覧画面 | ProjectsView あり、Reducer なし |
 
-### macOS側での作業（フェーズ1開始）
-1. **Xcodeプロジェクト作成**
-   - iOS 18+ をターゲット
-   - Swift 6 言定
-   - Strict Concurrency 有効
-   - Interface: SwiftUI
+### その他完了
+- CI/CD（GitHub Actions）
+- Omi/Plaud デバイス連携基礎
+- CBUUID 修正によるクラッシュ解決
+- スタートアップリカバリ強化
 
-2. **TCA依存の追加**
-   - swift-composable-architecture 1.17+
-   - SPMでパッケージ解決
+---
 
-3. **基本ディレクトリ構成の作成**
-   - App/, Core/, Features/, DesignSystem/ ディレクトリ作成
-   - 各サブディレクトリのグループ作成
+## WIP
 
-4. **SwiftDataセットアップの実装**
-   - モデル定義（AudioFile, Project, TodoItem）
-   - SwiftDataStack
-   - AudioFileRepository
+### feat/10-summary-persistence（現在のブランチ）
+- [ ] 未コミット変更の整理（ContentView, HomeView, BottomFloatingBar, ToDoView）
 
-5. **デザインシステムの実装**
-   - カラートークン（ライトモード）
-   - タイポグラフィトークン
-   - LiquidGlassModifier
-   - EmptyStateView
+### Draft PR（要整理）
+- PR #17: STT進捗表示（feat/9-stt-progress）
+- PR #18: STT進捗表示 v2（feat/9-stt-progress-v2）
+- PR #20: Summary persistence（feat/10-summary-persistence）
+- PR #15: Task automation workflows（feat/11-task-automation）
+- PR #2: CI smoke test
 
-6. **Files一覧画面の実装**
-   - FilesListReducer
-   - FilesListView（空の状態）
-   - FilesRowView
+---
 
-7. **基本的なReducerの実装**
-   - RecordingReducer（モック）
-   - RecordingView
-   - AppReducer
-   - TabView
+## P0 — デザインシステム + アーキテクチャ基盤（TASK-002, 003, 005）
 
-8. **基本サービスの実装**
-   - AudioRecorder（モック）
-   - MemoraApp.swiftの更新
+### TASK-002: デザインシステム基盤
+- [ ] `DesignSystem/Colors.swift` — MemoraColor トークン定義
+- [ ] `DesignSystem/Typography.swift` — MemoraTypography トークン定義
+- [ ] `DesignSystem/Theme.swift` — MemoraSpacing + テーマ統合
+- [ ] `DesignSystem/Components/LiquidGlassModifier.swift` — 3層ブラー + オーバーレイ + ストローク
+- [ ] 既存 View のハードコード値をトークン参照に置換
 
-### Windows側での作業（並行対応）
-1. **ドキュメントの更新**
-   - 進捗状況の記録
-   - 実装完了後のドキュメント更新
+### TASK-003: 共通 UI コンポーネント
+- [ ] FABMenu — 扇状展開アニメーション（spring 0.35/0.75）
+- [ ] ToastOverlay — 上部下降バナー、4秒自動消去
+- [ ] EmptyStateView — アイコン + タイトル + 説明 + ボタン
+- [ ] SkeletonView — shimmer アニメーション
+- [ ] PillButton — pill 形状のボタン
+- [ ] LiveRecordingBanner — 赤ドット点滅 + 経過時間 + 波形
 
-2. **計画の調整**
-   - macOS側での実装状況に合わせて調整
-   - 次のフェーズの計画立案
+### TASK-005: Repository 層
+- [ ] AudioFileRepository（protocol + SwiftData 実装）
+- [ ] TranscriptRepository
+- [ ] MeetingNoteRepository
+- [ ] ProjectRepository
+- [ ] TodoRepository
+- [ ] AttachmentRepository
+- [ ] JobRepository
+- [ ] 各 View の @Query を Repository 経由に変更
 
-3. **GitHubの管理**
-   - ブランチ戦略の確認
-   - 必要に応じてブランチ作成
+---
 
-## 今後やること（フェーズ2以降）
+## P1 — コア機能完成（TASK-006〜022）
 
-### 拡張機能
-- [ ] 実際の録音機能実装（AVFoundation使用）
-- [ ] Speech Frameworkによるローカル文字起こし
-- [ ] 要約生成機能
-- [ ] プロジェクト管理機能
-- [ ] Ask AI 機能
+### TASK-006: AppReducer + タブ構成
+- [ ] ContentView のフロー管理（オンボーディング → 認証 → タブ）
+- [ ] BottomFloatingBar の仕様書仕様への適合
 
-### UI/UX 拡張
-- [ ] ダークモード対応
-- [ ] 他のタブ実装（Projects, Todo, Settings）
-- [ ] アニメーションの追加
-- [ ] アクセシビリティ対応
+### TASK-007: オンボーディング
+- [ ] 4ページのページングスクロール（TabView + .page）
+- [ ] 各ページのイラスト + タイトル + 説明
+- [ ] 「次へ」「始める」ボタン
 
-### データ管理拡張
-- [ ] iCloud 同期
-- [ ] データのエクスポート・インポート
-- [ ] マイグレーション管理
+### TASK-008: 認証
+- [ ] AuthService（Sign in with Apple + Google）
+- [ ] AuthView（ロゴ + ボタン2つ + 利用規約リンク）
 
-### テスト
-- [ ] 単体テストの実装
-- [ ] UI スナップショットテスト
-- [ ] TCA テストの追加
+### TASK-009: Paywall
+- [ ] SubscriptionService（StoreKit 2）
+- [ ] PaywallView（機能比較 + プラン選択 + 購入ボタン）
 
-### データモデル実装
-- [ ] Recording モデル作成
-- [ ] Project モデル作成
-- [ ] Transcription モデル作成
-- [ ] Speaker モデル作成
+### TASK-012: インポート機能
+- [ ] ImportView（UIDocumentPickerViewController ラップ）
+- [ ] ファイルコピー + AudioFile エンティティ生成
 
-### 基本的な UI コンポーネント
-- [ ] FileCard コンポーネント作成
-- [ ] ToastView コンポーネント作成
-- [ ] LoadingView コンポーネント作成
+### TASK-013: Files 一覧画面（仕様適合）
+- [ ] FilesRowView の仕様書レイアウト適合（タイトル/日時/サマリー行）
+- [ ] LiveRecordingBanner 統合
+- [ ] FABMenu 統合
+- [ ] sparkle アイコン追加
+- [ ] コンテキストメニュー（名前変更/Project追加/共有/削除）
+- [ ] EmptyStateView 統合
 
-## 次にやること
+### TASK-015: ファイル詳細画面（仕様適合）
+- [ ] AudioPlayerView の仕様書デザイン適合
+- [ ] Upload image ボタン（アウトライン + カメラアイコン）
+- [ ] 「議事録を生成」導線
 
-### ホーム画面（Files タブ）
-- [ ] プロジェクト一覧表示
-- [ ] 録音一覧表示
-- [ ] 新規プロジェクト作成ボタン
-- [ ] 新規録音開始ボタン
+### TASK-018: LLMRouter + LocalProvider
+- [ ] LLMProviderProtocol 定義
+- [ ] LocalLLMProvider（Apple Foundation Models）
+- [ ] SummarizationEngine 本実装
 
-### 録音機能
-- [ ] 録音画面の実装
-- [ ] AudioService の基本実装
-- [ ] 録音コントロール UI
-- [ ] 録音データの保存
+### TASK-019: PipelineCoordinator
+- [ ] 文字起こし → 要約 → 決定抽出 → ToDo抽出のパイプライン
+- [ ] ProcessingJob / ProcessingChunk の状態管理
+- [ ] チャンク単位のリトライ（指数バックオフ）
 
-### 文字起こし（モック）
-- [ ] 文字起こし画面の実装
-- [ ] モックデータの作成
-- [ ] 文字起こしテキストの表示
-- [ ] 話者ラベル UI（Speaker 1/2...）
+### TASK-020: 生成フロー UI
+- [ ] GenerationFlowSheet（方式 → テンプレート → モデル選択）
+- [ ] SkeletonView 統合（ステップ名表示付き）
 
-### 要約（モック）
-- [ ] 要約画面の実装
-- [ ] モックデータの作成
-- [ ] 要約テキストの表示
+### TASK-021: 生成結果表示
+- [ ] FileDetailView のフルレイアウト（Player → 画像 → Summary → Decisions → Actions → Transcript冒頭 → Ask AI 入力欄）
+- [ ] TranscriptView 全文画面の仕様適合（話者セグメント表示）
 
-## 今後やること
+### TASK-022: 失敗トースト統合
+- [ ] PipelineCoordinator エラー → ToastOverlay 表示
 
-### API 統合
-- [ ] 文字起こし API の選定と実装
-  - Whisper API (OpenAI)
-  - Speech-to-Text API (Google)
-  - ローカル Speech Framework
-- [ ] 要約 API の選定と実装
-  - OpenAI GPT API
-  - Anthropic Claude API
-  - 他の要約サービス
-- [ ] エラーハンドリングの実装
-- [ ] リトライ処理の実装
+---
 
-### 拡張機能
-- [ ] Ask AI 機能
-  - AI チャット画面
-  - 文字起こし内容との対話
-  - 質問・回答の履歴
-- [ ] 添付資料管理
-  - 資料のアップロード
-  - 資料のプレビュー
-  - 資料と録音の紐付け
-- [ ] エクスポート機能
-  - テキスト形式
-  - PDF 形式
-  - 他形式の検討
+## P2 — 拡張機能（TASK-023〜033）
 
-### UI/UX 改善
-- [ ] アニメーションの追加
-- [ ] ダークモード対応
-- [ ] フォントサイズ調整
-- [ ] アクセシビリティ対応
+### TASK-023: 添付ファイル
+- [ ] 画像/PDF 保存・プレビュー
+- [ ] AttachmentGalleryView（80x80 横スクロールサムネイル）
 
-### データ管理
-- [ ] SwiftData/CoreData の実装
-- [ ] iCloud 同期の実装
-- [ ] データのエクスポート・インポート
-- [ ] バックアップ機能
+### TASK-024: ToDo 抽出統合
+- [ ] PipelineCoordinator の ToDo 抽出ステップ
+- [ ] TodoRepository への自動保存
 
-### テスト
-- [ ] 単体テストの実装
-- [ ] UI テストの実装
-- [ ] 統合テストの実装
+### TASK-025: ToDo 画面
+- [ ] TodoListView（未完了/完了済みセクション分割）
+- [ ] TodoRowView（チェック + タイトル + 出典 + 期限）
+- [ ] TodoEditSheet（タイトル/担当者/期限/出典）
 
-### デプロイ・リリース
-- [ ] App Store Connect の設定
-- [ ] プロビジョニングプロファイルの作成
-- [ ] スクリーンショットの作成
-- [ ] App Store 審査対応
+### TASK-026/027: Projects 画面（仕様適合）
+- [ ] ProjectsRowView の仕様書レイアウト適合
+- [ ] ProjectDetailView（ファイル追加シート + Ask AI 導線）
+
+### TASK-028/029: Ask AI
+- [ ] AskAIView（スコープ別コンテキスト）
+- [ ] ChatBubbleView（ユーザー右/AI 左）
+- [ ] SuggestionCardView（2x2 グリッド）
+- [ ] 入力欄（liquidGlass + 添付 + モデル切替 + 音声入力 + 送信）
+
+### TASK-030: 外部 LLM Provider
+- [ ] OpenAIProvider
+- [ ] AnthropicProvider
+- [ ] GeminiProvider
+- [ ] DeepSeekProvider
+
+### TASK-031: モデル切替 UI
+- [ ] ファイル詳細のモデル選択シート
+- [ ] Ask AI 入力欄のモデル切替チップ
+- [ ] Free ユーザーのロック表示
+
+### TASK-032: 使用回数制限
+- [ ] 無料ユーザー向け LLM 使用回数カウント・制限
+
+### TASK-033: 広告表示
+- [ ] AdService（Google Mobile Ads）
+- [ ] Files 一覧バナー（50pt / safeAreaInset）
+- [ ] 生成後インタースティシャル
+
+---
+
+## P3 — 将来構想（TASK-034〜037）
+
+### TASK-034: APIキー管理 UI
+- [ ] Settings の APIKeySection（SecureField + Keychain）
+
+### TASK-035: クラウド保存
+- [ ] iCloud 同期設計
+
+### TASK-036: PLAUD 接続状態管理
+- [ ] Bluetooth 状態表示
+
+### TASK-037: 外部サービス連携
+- [ ] Slack / Notion / Google Docs 連携設計
+
+---
+
+## 現在の仕様書からの主要な「方針違い」
+
+| 項目 | 仕様書 | 実際の実装 |
+|------|--------|-----------|
+| アーキテクチャ | TCA (Reducer) | SwiftUI + SwiftData (MVVM) |
+| デザイントークン | DesignSystem/ で一元管理 | 各 View にハードコード |
+| データアクセス | Repository パターン | @Query を View に直書き |
+| Liquid Glass | 独自3層モディファイア | .glassEffect()（iOS 26 API）使用 |
+| iOS target | 18+ | 17+ |
+
+> **注意**: 仕様書は TCA 前提で書かれているが、TCA は既に除去済み。
+> 機能要件（画面仕様・データモデル・サービス仕様）はそのまま参考にでき、
+> Reducer 部分は ViewModel に読み替えて実装する。
+
+---
 
 ## 優先順位の考え方
 
-### 高優先度
-- ユーザーが基本的な機能を使えるようにする
-- 録音 → 文字起こし → 要約 の基本フロー
-- データの永続化
-
-### 中優先度
-- API 統合（モックから本実装へ移行）
-- 拡張機能の実装
-- UI/UX の改善
-
-### 低優先度
-- 高度な機能
-- 統合機能
-- テスト・デプロイ（開発初期段階では）
-
-## 進捗管理
-
-### マイルストーン
-1. **MVP (Minimum Viable Product)**
-   - 録音、文字起こし（モック）、要約（モック）の基本フロー
-   - データ保存（ローカル）
-
-2. **Alpha 版**
-   - API 統合完了
-   - 基本的な UI/UX 完成
-   - テスト導入
-
-3. **Beta 版**
-   - 拡張機能実装
-   - UI/UX 完成
-   - テスト完了
-
-4. **リリース版**
-   - App Store 審査対応
-   - バグ修正
-   - パフォーマンス最適化
+| 優先度 | 目標 | 対象 TASK |
+|--------|------|-----------|
+| **P0** | デザインシステム + Repository 基盤の確立 | 002, 003, 005 |
+| **P1** | コア機能（生成パイプライン + 画面仕様適合） | 006〜022 |
+| **P2** | 拡張機能（Ask AI, ToDo, Projects, 広告） | 023〜033 |
+| **P3** | 将来構想（APIキー, クラウド, 外部連携） | 034〜037 |

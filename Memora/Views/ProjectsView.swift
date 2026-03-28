@@ -11,21 +11,20 @@ struct ProjectsView: View {
         NavigationStack {
             if projects.isEmpty {
                 // 空の状態
-                VStack(spacing: 20) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     Spacer()
 
                     Image(systemName: "folder")
                         .resizable()
                         .frame(width: 60, height: 60)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("プロジェクト")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .font(MemoraTypography.largeTitle)
 
                     Text("プロジェクトを作成して録音を整理しましょう")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(MemoraColor.textSecondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
@@ -33,17 +32,17 @@ struct ProjectsView: View {
 
                     Button(action: { showCreateProjectView = true }) {
                         Label("プロジェクトを作成", systemImage: "plus.circle.fill")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(12)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
 
                     Text("まだプロジェクトがありません")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MemoraColor.textSecondary)
                         .padding(.bottom, 40)
                 }
                 .navigationTitle("Projects")
@@ -96,22 +95,22 @@ struct ProjectRow: View {
             // フォルダアイコン
             Image(systemName: "folder")
                 .font(.title2)
-                .foregroundStyle(.gray)
+                .foregroundStyle(MemoraColor.textSecondary)
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.title)
-                    .font(.headline)
+                    .font(MemoraTypography.headline)
                     .foregroundStyle(.primary)
 
                 Text("更新: \(formatDate(project.updatedAt))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.textSecondary)
             }
 
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, MemoraSpacing.xxxs)
     }
 
     private func formatDate(_ date: Date) -> String {

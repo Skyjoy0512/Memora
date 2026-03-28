@@ -15,7 +15,10 @@ final class AudioFile {
     var summary: String?
     var keyPoints: String?
     var actionItems: String?
-
+    // ライフログ関連フィールド
+    var isLifeLog: Bool = false
+    var lifeLogTags: [String] = []
+    var calendarEventId: String?
 
     init(title: String, audioURL: String, projectID: UUID? = nil) {
         self.id = UUID()
