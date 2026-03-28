@@ -38,13 +38,6 @@ struct MemoraApp: App {
                         if isUsingTemporaryStore {
                             temporaryStoreBanner
                         }
-
-                        // デバッグログを開くジェスチャー（3回タップ）
-                        Color.clear
-                            .contentShape(Rectangle())
-                            .onTapGesture(count: 3) {
-                                showDebugLog = true
-                            }
                     }
                 } else if let error = errorMessage {
                     errorView(error)
@@ -210,7 +203,7 @@ struct MemoraApp: App {
 
         let outcome = await Self.awaitModelContainerOutcome(
             from: loadTask,
-            timeoutNanoseconds: useInMemoryStore ? nil : 8_000_000_000
+            timeoutNanoseconds: useInMemoryStore ? nil : 5_000_000_000
         )
 
         let shouldApplyResult = await MainActor.run {
@@ -251,7 +244,7 @@ struct MemoraApp: App {
             }
         case .timedOut:
             loadTask.cancel()
-            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（8秒）", level: .warning)
+            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（5秒）", level: .warning)
             DebugLogger.shared.addLog("ModelContainer", "永続ストアを諦めて一時ストアへフォールバックします", level: .warning)
 
             let fallbackResult = await Task.detached(priority: .userInitiated) {

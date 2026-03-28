@@ -6,27 +6,27 @@ struct TranscriptView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: MemoraSpacing.xxl) {
                 // 文字起こし全文
                 VStack(alignment: .leading, spacing: 12) {
                     Text("文字起こし")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     Text(result.text)
-                        .font(.body)
+                        .font(MemoraTypography.body)
                         .foregroundStyle(.primary)
                         .lineSpacing(6)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
+                .background(MemoraColor.divider.opacity(0.05))
+                .cornerRadius(MemoraRadius.md)
 
                 // 話者セグメント
                 if showSegments && !result.segments.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("話者分離")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
 
                         ForEach(result.segments.indices, id: \.self) { index in
                             SpeakerSegmentView(segment: result.segments[index])
@@ -34,8 +34,8 @@ struct TranscriptView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
+                    .background(MemoraColor.divider.opacity(0.05))
+                    .cornerRadius(MemoraRadius.md)
                 }
 
                 Spacer()
@@ -55,22 +55,22 @@ struct SpeakerSegmentView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(segment.speakerLabel)
-                    .font(.subheadline)
+                    .font(MemoraTypography.subheadline)
                     .fontWeight(.medium)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
                 Spacer()
 
                 Text(formatTime(segment.startTime))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.textSecondary)
             }
 
             Text(segment.text)
-                .font(.body)
+                .font(MemoraTypography.body)
                 .foregroundStyle(.primary)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, MemoraSpacing.xs)
     }
 
     private func formatTime(_ time: TimeInterval) -> String {

@@ -5,96 +5,96 @@ struct DeviceConnectionView: View {
     @State private var isBluetoothEnabled = false
 
     var body: some View {
-        VStack(spacing: 21) {
+        VStack(spacing: MemoraSpacing.xxl) {
             Spacer()
 
             if bluetoothService.isConnected {
-                VStack(spacing: 13) {
+                VStack(spacing: MemoraRadius.md) {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
                         .frame(width: 60, height: 60)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(MemoraColor.accentGreen)
 
                     Text("デバイスに接続されています")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     if let device = bluetoothService.discoveredDevices.first {
                         Text(device.name)
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
                     // 接続状態を表示
                     Text("状態: \(bluetoothService.connectionState.description)")
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
                     Button(action: { bluetoothService.disconnect() }) {
                         Text("切断")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.red)
-                            .cornerRadius(13)
+                            .background(MemoraColor.accentRed)
+                            .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
                 }
             } else if bluetoothService.isScanning {
-                VStack(spacing: 21) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     ProgressView()
-                        .tint(.gray)
+                        .tint(MemoraColor.textSecondary)
 
                     Text("デバイスを検索中...")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
                 }
             } else if let disconnectReason = bluetoothService.disconnectReason {
                 // 切断理由を表示
-                VStack(spacing: 21) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .resizable()
                         .frame(width: 60, height: 60)
                         .foregroundStyle(.orange)
 
                     Text("接続が切断されました")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     Text(disconnectReason)
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
                     Button(action: { bluetoothService.startScanning() }) {
                         Label("再接続", systemImage: "arrow.clockwise")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(13)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
                 }
             } else if !bluetoothService.discoveredDevices.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: MemoraSpacing.xs) {
                     Text("発見したデバイス")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     ForEach(bluetoothService.discoveredDevices) { device in
                         Button(action: { bluetoothService.connect(to: device) }) {
-                            HStack(spacing: 13) {
+                            HStack(spacing: MemoraRadius.md) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(MemoraColor.textSecondary)
                                     .frame(width: 40, height: 40)
 
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
                                     Text(device.name)
-                                        .font(.subheadline)
+                                        .font(MemoraTypography.subheadline)
                                         .foregroundStyle(.primary)
 
                                     Text("RSSI: \(device.rssi) dBm")
-                                        .font(.caption)
+                                        .font(MemoraTypography.caption1)
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -105,32 +105,32 @@ struct DeviceConnectionView: View {
                             }
                             .padding()
                         }
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                     }
                     .padding(.horizontal)
                 }
             } else {
-                VStack(spacing: 21) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     Spacer()
 
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .resizable()
                         .frame(width: 80, height: 80)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("デバイスが見つかりませんでした")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
                         .foregroundStyle(.secondary)
 
                     Button(action: { bluetoothService.startScanning() }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(13)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
 

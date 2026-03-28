@@ -52,30 +52,30 @@ final class BluetoothAudioService: NSObject, ObservableObject {
         case unknown
     }
 
-    // Omi デバイスのサービス UUID（実際のデバイスで検証済み）
-    private let omiServiceUUIDs: [CBUUID] = [
-        CBUUID(string: "00001804-0000-1000-8000-00805F9B34FB"), // Device Information Service (検証済み)
-        CBUUID(string: "F000FFC1-0451-4000-B000-000000000000"), // Nordic UART Service (検証済み - RX)
-        CBUUID(string: "F000FFC1-0451-4001-B000-000000000000"), // Nordic UART Service (検証済み - TX)
-        CBUUID(string: "00001800-0000-1000-8000-00805F9B34FB"), // Generic Access Service
-        CBUUID(string: "00001801-0000-1000-8000-00805F9B34FB")  // Generic Attribute Service
+    // Omi デバイスのサービス UUID
+    private lazy var omiServiceUUIDs: [CBUUID] = [
+        CBUUID(string: "00001804-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "f000ffc1-0451-4000-b000-000000000000"),
+        CBUUID(string: "f000ffc1-0451-4001-b000-000000000000"),
+        CBUUID(string: "00001800-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00001801-0000-1000-8000-00805f9b34fb")
     ]
 
-    // オーディオキャラクタリスティック UUID（Omiデバイスで検証済み）
-    private let audioCharacteristicUUIDs: [CBUUID] = [
-        CBUUID(string: "F000FFC1-0451-4001-B000-000000000000"), // Nordic UART TX (通知/インジケート - 検証済み)
-        CBUUID(string: "F000FFC1-0451-4000-B000-000000000000"), // Nordic UART RX
-        CBUUID(string: "00002A29-0000-1000-8000-00805F9B34FB"), // Manufacturer Name String
-        CBUUID(string: "00002A24-0000-1000-8000-00805F9B34FB"), // Model Number String
-        CBUUID(string: "00002A25-0000-1000-8000-00805F9B34FB"), // Serial Number String
-        CBUUID(string: "00002A27-0000-1000-8000-00805F9B34FB"), // Hardware Revision String
-        CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB"), // Firmware Revision String
-        CBUUID(string: "00002A28-0000-1000-8000-00805F9B34FB")  // Software Revision String
+    // オーディオキャラクタリスティック UUID
+    private lazy var audioCharacteristicUUIDs: [CBUUID] = [
+        CBUUID(string: "f000ffc1-0451-4001-b000-000000000000"),
+        CBUUID(string: "f000ffc1-0451-4000-b000-000000000000"),
+        CBUUID(string: "00002a29-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00002a24-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00002a25-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00002a27-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00002a26-0000-1000-8000-00805f9b34fb"),
+        CBUUID(string: "00002a28-0000-1000-8000-00805f9b34fb")
     ]
 
     // Plaud デバイスの UUID
-    private let plaudServiceUUID = CBUUID(string: "00001800-0000-1000-8000-00805F9B34FB") // Generic Access
-    private let plaudAudioServiceUUID = CBUUID(string: "00001803-0000-1000-8000-00805F9B34FB") // Generic Attribute
+    private lazy var plaudServiceUUID = CBUUID(string: "00001800-0000-1000-8000-00805f9b34fb")
+    private lazy var plaudAudioServiceUUID = CBUUID(string: "00001803-0000-1000-8000-00805f9b34fb")
     private var plaudDeviceType: DeviceType = .unknown
 
     // MARK: - スキャン開始・停止

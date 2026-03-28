@@ -11,9 +11,9 @@ struct ShareSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: MemoraSpacing.lg) {
                 Text("共有")
-                    .font(.headline)
+                    .font(MemoraTypography.headline)
                     .padding()
 
                 // エクスポートボタン
@@ -21,8 +21,8 @@ struct ShareSheet: View {
                     Label("エクスポート", systemImage: "square.and.arrow.down")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                 }
                 .foregroundStyle(.primary)
 
@@ -31,8 +31,8 @@ struct ShareSheet: View {
                         Label("テキストを共有", systemImage: "doc.text")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .background(MemoraColor.divider.opacity(0.1))
+                            .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)
                 }
@@ -42,8 +42,8 @@ struct ShareSheet: View {
                         Label("ファイルを共有", systemImage: "doc")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .background(MemoraColor.divider.opacity(0.1))
+                            .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)
                 }

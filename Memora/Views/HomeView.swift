@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @Binding var showRecordingFromFAB: Bool
 
     // 検索・フィルタリング用
     @State private var searchText = ""
@@ -28,6 +29,10 @@ struct HomeView: View {
         case list = "リスト"
         case timeline = "タイムライン"
         case calendar = "カレンダー"
+    }
+
+    init(showRecordingFromFAB: Binding<Bool> = .constant(false)) {
+        self._showRecordingFromFAB = showRecordingFromFAB
     }
 
     // フィルタリング・ソート後のファイル一覧
@@ -80,38 +85,30 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 if audioFiles.isEmpty {
-                    // 空の状態
-                    VStack(spacing: 21) {
+                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
+                    VStack(spacing: MemoraSpacing.xxl) {
+                        Spacer()
+
                         Image(systemName: "waveform")
                             .resizable()
                             .frame(width: 60, height: 60)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(MemoraColor.textSecondary)
 
                         Text("Memora")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
+                            .font(MemoraTypography.largeTitle)
 
                         Text("録音ファイル一覧")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.secondary)
+
+                        Text(recordingHint)
+                            .font(MemoraTypography.subheadline)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 8)
 
                         Spacer()
-
-                        Button(action: { showRecordingView = true }) {
-                            Label("録音を開始", systemImage: "mic.circle.fill")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(Color.gray)
-                                .cornerRadius(13)
-                        }
-                        .padding()
-
-                        Text("まだ録音ファイルがありません")
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom, 34)
                     }
+                    .padding(.bottom, 110)
                 } else {
                     // ファイル一覧
                     VStack(spacing: 0) {
@@ -138,10 +135,10 @@ struct HomeView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
+                        .padding(.horizontal, MemoraSpacing.lg)
+                        .padding(.vertical, MemoraSpacing.xs)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                         .padding(.horizontal)
 
                         // フィルター・ソートバー
@@ -152,12 +149,12 @@ struct HomeView: View {
                                     Image(systemName: "line.3.horizontal.decrease.circle")
                                     Text("フィルター")
                                 }
-                                .font(.caption)
+                                .font(MemoraTypography.caption1)
                                 .foregroundStyle(.primary)
-                                .padding(.horizontal, 13)
+                                .padding(.horizontal, MemoraSpacing.lg)
                                 .padding(.vertical, 6)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(8)
+                                .background(MemoraColor.divider.opacity(0.1))
+                                .cornerRadius(MemoraRadius.sm)
                             }
 
                             Spacer()
@@ -169,7 +166,7 @@ struct HomeView: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                         }
                         .padding(.horizontal)
 
@@ -189,6 +186,7 @@ struct HomeView: View {
                     }
                 }
             }
+            .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(isPresented: $showRecordingView) {
@@ -203,6 +201,12 @@ struct HomeView: View {
                     filterSummarized: $filterSummarized
                 )
             }
+            .onChange(of: showRecordingFromFAB) { _, newValue in
+                if newValue {
+                    showRecordingView = true
+                    showRecordingFromFAB = false
+                }
+            }
         }
     }
 
@@ -212,34 +216,38 @@ struct HomeView: View {
         }
         try? modelContext.save()
     }
+
+    private var recordingHint: String {
+        "右下の追加ボタンから録音を開始"
+    }
 }
 
 struct AudioFileRow: View {
     let audioFile: AudioFile
 
     var body: some View {
-        HStack(spacing: 13) {
+        HStack(spacing: MemoraSpacing.lg) {
             // アイコン
             Image(systemName: "waveform")
-                .font(.title2)
-                .foregroundStyle(.gray)
+                .font(MemoraTypography.title2)
+                .foregroundStyle(MemoraColor.textSecondary)
                 .frame(width: 40, height: 40)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(audioFile.title)
-                    .font(.headline)
+                    .font(MemoraTypography.headline)
                     .foregroundStyle(.primary)
 
                 HStack(spacing: 5) {
                     Text(formatDate(audioFile.createdAt))
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
                     Text("•")
                         .foregroundStyle(.secondary)
 
                     Text(formatDuration(audioFile.duration))
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -248,10 +256,10 @@ struct AudioFileRow: View {
 
             if audioFile.isTranscribed {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(MemoraColor.textSecondary)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, MemoraSpacing.xs)
     }
 
     private func formatDate(_ date: Date) -> String {

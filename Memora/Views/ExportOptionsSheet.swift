@@ -12,13 +12,13 @@ struct ExportOptionsSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 21) {
+            VStack(spacing: MemoraSpacing.xxl) {
                 Spacer()
 
                 // エクスポート種別選択
-                VStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: MemoraRadius.md) {
                     Text("エクスポート内容")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     Picker("", selection: $exportType) {
                         ForEach(ExportType.allCases, id: \.self) { type in
@@ -29,9 +29,9 @@ struct ExportOptionsSheet: View {
                 }
 
                 // エクスポート形式選択
-                VStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: MemoraRadius.md) {
                     Text("エクスポート形式")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
                     Picker("", selection: $exportFormat) {
                         ForEach(ExportFormat.allCases, id: \.self) { format in
@@ -44,27 +44,27 @@ struct ExportOptionsSheet: View {
                 // エクスポートボタン
                 if isExporting {
                     ProgressView()
-                        .tint(.gray)
+                        .tint(MemoraColor.textSecondary)
                 } else {
                     Button(action: export) {
                         Label("エクスポート", systemImage: "square.and.arrow.down")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray)
-                            .cornerRadius(13)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.md)
                     }
                 }
 
                 // エラーメッセージ
                 if let error = errorMessage {
                     Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentRed)
                         .padding()
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                 }
 
                 Spacer()

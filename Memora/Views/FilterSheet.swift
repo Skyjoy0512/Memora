@@ -7,50 +7,50 @@ struct FilterSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 21) {
+            VStack(spacing: MemoraSpacing.xxl) {
                 Spacer()
 
                 // 文字起こしステータス
-                VStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: MemoraRadius.md) {
                     Text("文字起こしステータス")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: MemoraSpacing.xs) {
                         filterButton(title: "すべて", selected: filterTranscribed == nil)
                         filterButton(title: "済み", selected: filterTranscribed == true)
                         filterButton(title: "未済み", selected: filterTranscribed == false)
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(13)
+                .background(MemoraColor.divider.opacity(0.05))
+                .cornerRadius(MemoraRadius.md)
 
                 // 要約ステータス
-                VStack(alignment: .leading, spacing: 13) {
+                VStack(alignment: .leading, spacing: MemoraRadius.md) {
                     Text("要約ステータス")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: MemoraSpacing.xs) {
                         filterButton(title: "すべて", selected: filterSummarized == nil)
                         filterButton(title: "済み", selected: filterSummarized == true)
                         filterButton(title: "未済み", selected: filterSummarized == false)
                     }
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(13)
+                .background(MemoraColor.divider.opacity(0.05))
+                .cornerRadius(MemoraRadius.md)
 
                 Spacer()
 
                 // リセットボタン
                 Button(action: resetFilters) {
                     Text("リセット")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.gray)
-                        .cornerRadius(13)
+                        .background(MemoraColor.divider)
+                        .cornerRadius(MemoraRadius.md)
                 }
                 .padding()
             }
@@ -79,12 +79,12 @@ struct FilterSheet: View {
             }
         }) {
             Text(title)
-                .font(.subheadline)
+                .font(MemoraTypography.subheadline)
                 .foregroundStyle(selected ?? false ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(selected ?? false ? Color.gray : Color.gray.opacity(0.1))
-                .cornerRadius(8)
+                .background(selected ?? false ? MemoraColor.divider : MemoraColor.divider.opacity(0.1))
+                .cornerRadius(MemoraRadius.sm)
         }
     }
 

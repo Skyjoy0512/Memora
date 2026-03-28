@@ -101,7 +101,7 @@ struct SettingsView: View {
                             .tag(mode.rawValue)
 
                         Text(mode.description)
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -111,27 +111,27 @@ struct SettingsView: View {
             if currentTranscriptionMode == .api {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("API文字起こしには有料プランを使用します。")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentRed)
 
                     Text("ローカル文字起こしは無料ですが、API文字起こしはプロバイダーに応じて料金が発生します。")
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, MemoraSpacing.xxxs)
             }
 
             if currentTranscriptionMode == .local {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("ローカル文字起こしは SpeechAnalyzer を優先し、非対応端末では SFSpeechRecognizer を使用します。")
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
                     Text("インターネット接続不要・無料で利用できます。")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentGreen)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, MemoraSpacing.xxxs)
             }
         }
     }
@@ -149,12 +149,12 @@ struct SettingsView: View {
 
                         if provider == currentProvider {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(.gray)
+                                .foregroundStyle(MemoraColor.textSecondary)
                         }
 
                         if !provider.supportsTranscription {
                             Text("要約のみ")
-                                .font(.caption)
+                                .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -164,29 +164,29 @@ struct SettingsView: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("選択中のプロバイダー:")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
 
                 Text(currentProvider.rawValue)
-                    .font(.subheadline)
+                    .font(MemoraTypography.subheadline)
                     .fontWeight(.semibold)
 
                 if currentTranscriptionMode == .api && !currentProvider.supportsTranscription {
                     Text("※ 選択されたプロバイダーはAPI文字起こしをサポートしていません")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentRed)
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, MemoraSpacing.xxxs)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("料金目安（参考）:")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
 
                 costInfo(for: currentProvider)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, MemoraSpacing.xxxs)
         }
     }
 
@@ -198,22 +198,22 @@ struct SettingsView: View {
 
             if !currentAPIKeyBinding.wrappedValue.isEmpty {
                 Text("API キーが設定されています")
-                    .font(.caption)
-                    .foregroundStyle(.green)
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.accentGreen)
             }
 
             if currentTranscriptionMode == .api {
                 Text("API文字起こしまたは要約には API キーが必要です。")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             } else {
                 Text("要約には API キーが必要です。")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             }
 
             Text("API キーはローカルにのみ保存されます。")
-                .font(.caption)
+                .font(MemoraTypography.caption1)
                 .foregroundStyle(.secondary)
         }
     }
@@ -222,20 +222,20 @@ struct SettingsView: View {
     private var usageInstructionsSection: some View {
         Section("使用方法") {
             Text("文字起こし・要約の流れ：")
-                .font(.headline)
+                .font(MemoraTypography.headline)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("1. Files タブでファイルを選択")
-                    .font(.subheadline)
+                    .font(MemoraTypography.subheadline)
 
                 Text("   → 録音画面を開く")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
 
                 Text("2. 詳細画面で「文字起こし」をタップ")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
 
                 Text("3. 詳細画面で「要約」をタップ")
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
             }
         }
     }
@@ -248,7 +248,7 @@ struct SettingsView: View {
             } label: {
                 Text("API キーを削除")
             }
-            .foregroundStyle(.red)
+            .foregroundStyle(MemoraColor.accentRed)
         }
     }
 
@@ -260,25 +260,25 @@ struct SettingsView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(MemoraColor.accentGreen)
 
                     Text("デバイスに接続されています")
-                        .font(.subheadline)
+                        .font(MemoraTypography.subheadline)
 
                     if let device = bluetoothService.discoveredDevices.first {
                         Text(device.name)
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
                     }
 
                     Button(action: { bluetoothService.disconnect() }) {
                         Text("切断")
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity)
-                            .background(Color.red)
-                            .cornerRadius(8)
+                            .background(MemoraColor.accentRed)
+                            .cornerRadius(MemoraRadius.sm)
                     }
                 }
             } else if bluetoothService.isScanning {
@@ -286,28 +286,28 @@ struct SettingsView: View {
                     ProgressView()
                         .tint(.gray)
                     Text("デバイスを検索中...")
-                        .font(.subheadline)
+                        .font(MemoraTypography.subheadline)
                 }
             } else if !bluetoothService.discoveredDevices.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("発見したデバイス")
-                        .font(.subheadline)
+                        .font(MemoraTypography.subheadline)
                         .fontWeight(.semibold)
 
                     ForEach(bluetoothService.discoveredDevices) { device in
                         Button(action: { bluetoothService.connect(to: device) }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(MemoraColor.textSecondary)
                                     .frame(width: 32, height: 32)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(device.name)
-                                        .font(.subheadline)
+                                        .font(MemoraTypography.subheadline)
                                         .foregroundStyle(.primary)
 
                                     Text("RSSI: \(device.rssi) dBm")
-                                        .font(.caption)
+                                        .font(MemoraTypography.caption1)
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -318,8 +318,8 @@ struct SettingsView: View {
                             }
                             .padding(8)
                         }
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                     }
                 }
             } else {
@@ -327,20 +327,20 @@ struct SettingsView: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("デバイスが見つかりませんでした")
-                        .font(.subheadline)
+                        .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
                     Button(action: { bluetoothService.startScanning() }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(8)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.sm)
                     }
                 }
             }
@@ -355,26 +355,26 @@ struct SettingsView: View {
                     // デバイス接続ステータス
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(MemoraColor.accentGreen)
                         Text("デバイスに接続されています")
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                     }
 
                     // 録音時間表示
                     if bluetoothService.isRecording {
                         VStack(spacing: 4) {
                             Text("録音中")
-                                .font(.caption)
-                                .foregroundStyle(.red)
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentRed)
                             Text(formatRecordingTime(bluetoothService.recordingDuration))
-                                .font(.title2)
+                                .font(MemoraTypography.title2)
                                 .fontDesign(.monospaced)
                                 .fontWeight(.bold)
                         }
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                     }
 
                     // 録音制御ボタン
@@ -387,12 +387,12 @@ struct SettingsView: View {
                                     Image(systemName: "stop.circle.fill")
                                     Text("停止")
                                 }
-                                .font(.subheadline)
+                                .font(MemoraTypography.subheadline)
                                 .foregroundStyle(.white)
                                 .padding(.vertical, 12)
                                 .frame(maxWidth: .infinity)
-                                .background(Color.red)
-                                .cornerRadius(8)
+                                .background(MemoraColor.accentRed)
+                                .cornerRadius(MemoraRadius.sm)
                             }
                         } else {
                             Button(action: {
@@ -402,12 +402,12 @@ struct SettingsView: View {
                                     Image(systemName: "record.circle.fill")
                                     Text("録音開始")
                                 }
-                                .font(.subheadline)
+                                .font(MemoraTypography.subheadline)
                                 .foregroundStyle(.white)
                                 .padding(.vertical, 12)
                                 .frame(maxWidth: .infinity)
-                                .background(Color.red)
-                                .cornerRadius(8)
+                                .background(MemoraColor.accentRed)
+                                .cornerRadius(MemoraRadius.sm)
                             }
                         }
 
@@ -418,12 +418,12 @@ struct SettingsView: View {
                                 Image(systemName: "xmark.circle.fill")
                                 Text("切断")
                             }
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(8)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.sm)
                         }
                     }
                 }
@@ -432,20 +432,20 @@ struct SettingsView: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("デバイスに接続していません")
-                        .font(.subheadline)
+                        .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
                     Button(action: { bluetoothService.startScanning() }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
-                            .font(.subheadline)
+                            .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(8)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.sm)
                     }
                 }
             }
@@ -459,36 +459,36 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 13) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("発見されたサービス UUID:")
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
 
                         ForEach(bluetoothService.discoveredServices, id: \.uuidString) { serviceUUID in
                             Text(serviceUUID.uuidString)
                                 .font(.system(.caption, design: .monospaced))
-                                .padding(.vertical, 2)
+                                .padding(.vertical, MemoraSpacing.xxxs)
                         }
 
                         if bluetoothService.discoveredServices.isEmpty {
                             Text("サービスが見つかりません")
-                                .font(.caption)
+                                .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
                         }
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("発見されたキャラクタリスティック UUID:")
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
 
                         ForEach(bluetoothService.discoveredCharacteristics, id: \.uuidString) { characteristicUUID in
                             Text(characteristicUUID.uuidString)
                                 .font(.system(.caption, design: .monospaced))
-                                .padding(.vertical, 2)
+                                .padding(.vertical, MemoraSpacing.xxxs)
                         }
 
                         if bluetoothService.discoveredCharacteristics.isEmpty {
                             Text("キャラクタリスティックが見つかりません")
-                                .font(.caption)
+                                .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -525,9 +525,9 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(MemoraColor.accentGreen)
                             Text("ログイン中: \(plaudSettings?.email ?? "")")
-                                .font(.subheadline)
+                                .font(MemoraTypography.subheadline)
                         }
 
                         Toggle("自動同期", isOn: Binding(
@@ -559,7 +559,7 @@ struct SettingsView: View {
 
                         if let lastSync = plaudSettings?.lastSyncAt {
                             Text("最終同期: \(formatDate(lastSync))")
-                                .font(.caption)
+                                .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
                         }
 
@@ -567,7 +567,7 @@ struct SettingsView: View {
                             logoutPlaud()
                         }) {
                             Text("ログアウト")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(MemoraColor.accentRed)
                         }
                     }
                 } else {
@@ -622,12 +622,12 @@ struct SettingsView: View {
             } label: {
                 HStack {
                     Image(systemName: "ladybug")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(MemoraColor.accentRed)
                     Text("デバッグログ")
                     Spacer()
                     if let lastLog = DebugLogger.shared.logs.last {
                         Text("\(lastLog.message)")
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -635,7 +635,7 @@ struct SettingsView: View {
             }
 
             Text("アプリ初回起動時のパフォーマンスを確認できます")
-                .font(.caption)
+                .font(MemoraTypography.caption1)
                 .foregroundStyle(.secondary)
         }
     }
@@ -677,7 +677,7 @@ struct SettingsView: View {
                 Text("• API文字起こし: $0.006 / 分")
                 Text("• 要約: $0.00015 / 1K tokens")
             }
-            .font(.caption)
+            .font(MemoraTypography.caption1)
             .foregroundStyle(.secondary)
 
         case .gemini:
@@ -685,7 +685,7 @@ struct SettingsView: View {
                 Text("• API文字起こし: $0.0025 / 15秒")
                 Text("• 要約: $0.000075 / 1K tokens (無料枠あり)")
             }
-            .font(.caption)
+            .font(MemoraTypography.caption1)
             .foregroundStyle(.secondary)
 
         case .deepseek:
@@ -693,7 +693,7 @@ struct SettingsView: View {
                 Text("• 要約: $0.00014 / 1K tokens (かなり安価)")
                 Text("• 文字起こし: 未対応（ローカル推奨）")
             }
-            .font(.caption)
+            .font(MemoraTypography.caption1)
             .foregroundStyle(.secondary)
         }
     }

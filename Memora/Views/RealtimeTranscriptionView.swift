@@ -9,44 +9,44 @@ struct RealtimeTranscriptionView: View {
         VStack(spacing: 0) {
             // デバイス接続状態
             if isBluetoothEnabled {
-                VStack(spacing: 13) {
+                VStack(spacing: MemoraRadius.md) {
                     Text("Omiデバイスが接続されています")
-                        .font(.headline)
-                        .foregroundStyle(.green)
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(MemoraColor.accentGreen)
 
                     if isRecording {
-                        HStack(spacing: 4) {
+                        HStack(spacing: MemoraSpacing.xxs) {
                             Circle()
                                 .fill(.red)
                                 .frame(width: 8, height: 8)
 
                             Text("録音中")
-                                .font(.caption)
-                                .foregroundStyle(.red)
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentRed)
                         }
                     }
                 }
             } else {
-                VStack(spacing: 21) {
+                VStack(spacing: MemoraSpacing.xxl) {
                     Spacer()
 
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .resizable()
                         .frame(width: 80, height: 80)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("Omiデバイスに接続していません")
-                        .font(.headline)
+                        .font(MemoraTypography.headline)
                         .foregroundStyle(.secondary)
 
                     Button(action: { bluetoothService.startScanning() }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.gray)
-                            .cornerRadius(13)
+                            .background(MemoraColor.divider)
+                            .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
 
@@ -62,7 +62,7 @@ struct RealtimeTranscriptionView: View {
                     isRecording.toggle()
                 }) {
                     Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
-                        .foregroundStyle(isRecording ? .red : .gray)
+                        .foregroundStyle(isRecording ? MemoraColor.accentRed : MemoraColor.textSecondary)
                 }
             }
         }

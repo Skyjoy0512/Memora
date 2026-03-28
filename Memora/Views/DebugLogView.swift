@@ -73,7 +73,7 @@ struct DebugLogView: View {
     }
 
     private var filterSection: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: MemoraSpacing.xs) {
             // テキストフィルター
             HStack {
                 Image(systemName: "magnifyingglass")
@@ -91,13 +91,13 @@ struct DebugLogView: View {
                     }
                 }
             }
-            .padding(8)
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
+            .padding(MemoraSpacing.xs)
+            .background(MemoraColor.divider.opacity(0.1))
+            .cornerRadius(MemoraRadius.sm)
 
             // レベルフィルター
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: MemoraSpacing.xs) {
                     FilterChip(title: "すべて", isSelected: selectedLevel == nil) {
                         selectedLevel = nil
                     }
@@ -108,21 +108,21 @@ struct DebugLogView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, MemoraSpacing.xxs)
             }
         }
         .padding()
     }
 
     private var emptyView: some View {
-        VStack(spacing: 13) {
+        VStack(spacing: MemoraRadius.md) {
             Image(systemName: "tray")
                 .resizable()
                 .frame(width: 40, height: 40)
-                .foregroundStyle(.gray)
+                .foregroundStyle(MemoraColor.textSecondary)
 
             Text("ログがありません")
-                .font(.subheadline)
+                .font(MemoraTypography.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -130,7 +130,7 @@ struct DebugLogView: View {
 
     private var logList: some View {
         ScrollView {
-            LazyVStack(spacing: 4) {
+            LazyVStack(spacing: MemoraSpacing.xxs) {
                 ForEach(filteredLogs) { entry in
                     LogEntryView(entry: entry)
                 }
@@ -151,21 +151,21 @@ struct LogEntryView: View {
     let entry: DebugLogEntry
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: MemoraSpacing.xs) {
             // レベルアイコン
             Image(systemName: levelIcon)
                 .foregroundStyle(levelColor)
                 .frame(width: 16)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
                 // ヘッダー
-                HStack(spacing: 8) {
+                HStack(spacing: MemoraSpacing.xs) {
                     Text(entry.category)
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .fontWeight(.semibold)
 
                     Text(formatTime(entry.timestamp))
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
                     Spacer()
@@ -173,14 +173,14 @@ struct LogEntryView: View {
 
                 // メッセージ
                 Text(entry.message)
-                    .font(.caption)
+                    .font(MemoraTypography.caption1)
                     .foregroundStyle(.primary)
             }
         }
-        .padding(8)
+        .padding(MemoraSpacing.xs)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.gray.opacity(0.05))
+                .fill(MemoraColor.divider.opacity(0.05))
         )
     }
 
@@ -200,13 +200,13 @@ struct LogEntryView: View {
     private var levelColor: Color {
         switch entry.level {
         case .debug:
-            return .gray
+            return MemoraColor.textSecondary
         case .info:
-            return .blue
+            return MemoraColor.accentBlue
         case .warning:
             return .orange
         case .error:
-            return .red
+            return MemoraColor.accentRed
         }
     }
 
@@ -225,14 +225,14 @@ struct FilterChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.caption)
+                .font(MemoraTypography.caption1)
                 .fontWeight(isSelected ? .semibold : .regular)
                 .foregroundStyle(isSelected ? .white : .primary)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, MemoraSpacing.sm)
                 .padding(.vertical, 6)
                 .background(
-                    RoundedRectangle(cornerRadius: 13)
-                        .fill(isSelected ? Color.blue : Color.gray.opacity(0.1))
+                    RoundedRectangle(cornerRadius: MemoraRadius.md)
+                        .fill(isSelected ? MemoraColor.accentBlue : MemoraColor.divider.opacity(0.1))
                 )
         }
     }
