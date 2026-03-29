@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		349B9719FA5C4D858018319F /* PipelineCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 753774CBF4B044AABBCA8FE0 /* PipelineCoordinator.swift */; };
+		C0CE575EDA9645D2AF3DC51E /* FileDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD263CC9A0A14975A76043C2 /* FileDetailViewModel.swift */; };
 		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
 		075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */; };
 		0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */; };
@@ -76,9 +78,23 @@
 		G2A3B4C5D6E7F8A9B0C1D2E3 /* GenerationFlowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1A2B3C4D5E6F7A8B9C0D1E2 /* GenerationFlowSheet.swift */; };
 		O2A3B4C5D6E7F8A9B0C1D2E3 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = O1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingView.swift */; };
 		K2A3B4C5D6E7F8A9B0C1D2E3 /* AskAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = K1A2B3C4D5E6F7A8B9C0D1E2 /* AskAIView.swift */; };
+		85311FFC2F0B44DC8E61DD17 /* AudioFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F408FBFCAD74C5782B483CE /* AudioFileTests.swift */; };
+		D743C516E49348C2A7BE9BF2 /* TranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF0EFCE248E146BCB05BA013 /* TranscriptTests.swift */; };
+		08B66A23EAFA43A8B80F4C7C /* TodoItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAD0BC1131B2487FBB76B635 /* TodoItemTests.swift */; };
+		48A539DE0B144BFF8A540709 /* AudioFileRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B1C4C6238A46E094AFDA40 /* AudioFileRepositoryTests.swift */; };
+		3FC3EEA7A95B4359BDFCB316 /* TodoItemRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327DBFD7875A414D924145B7 /* TodoItemRepositoryTests.swift */; };
+		TH1A2B3C4D5E6F7A8B9C0D1E /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = TH2A3B4C5D6E7F8A9B0C1D2E /* TestHelpers.swift */; };
+		4D641C87F70044CA806722F5 /* MeetingNoteRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A16DB06241046448C27DD8C /* MeetingNoteRepository.swift */; };
+		018280237BAA4EA5B28B97E6 /* ProcessingJobRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 313EC84F08EC4D5EA5BCE7F2 /* ProcessingJobRepository.swift */; };
+		8BEEAE993417485B9F3053F7 /* WebhookSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AE7990703FF4512BEA15FD2 /* WebhookSettingsRepository.swift */; };
+		2867592EDCA1448383B51FFC /* PlaudSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C095A65454B37AF4C8BE0 /* PlaudSettingsRepository.swift */; };
+		4EAA13D1020C4DE6933A21D6 /* RepositoryFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB7455E628A44451956BD311 /* RepositoryFactory.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D6C881F13D1741D1A31FCB2A /* FileDetailViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailViewModelTests.swift; sourceTree = "<group>"; };
+		753774CBF4B044AABBCA8FE0 /* PipelineCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineCoordinator.swift; sourceTree = "<group>"; };
+		FD263CC9A0A14975A76043C2 /* FileDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailViewModel.swift; sourceTree = "<group>"; };
 		058B06299797571747E4B64C /* SpeakerDiarizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerDiarizationService.swift; sourceTree = "<group>"; };
 		05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudRecording.swift; sourceTree = "<group>"; };
 		07A0D42867DF06711C803A32 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
@@ -149,6 +165,18 @@
 		G1A2B3C4D5E6F7A8B9C0D1E2 /* GenerationFlowSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationFlowSheet.swift; sourceTree = "<group>"; };
 		O1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		K1A2B3C4D5E6F7A8B9C0D1E2 /* AskAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIView.swift; sourceTree = "<group>"; };
+		9F408FBFCAD74C5782B483CE /* AudioFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileTests.swift; sourceTree = "<group>"; };
+		BF0EFCE248E146BCB05BA013 /* TranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTests.swift; sourceTree = "<group>"; };
+		BAD0BC1131B2487FBB76B635 /* TodoItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItemTests.swift; sourceTree = "<group>"; };
+		79B1C4C6238A46E094AFDA40 /* AudioFileRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileRepositoryTests.swift; sourceTree = "<group>"; };
+		327DBFD7875A414D924145B7 /* TodoItemRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItemRepositoryTests.swift; sourceTree = "<group>"; };
+		CAE04D3335034117BB50882B /* MemoraTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MemoraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		TH2A3B4C5D6E7F8A9B0C1D2E /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
+		7A16DB06241046448C27DD8C /* MeetingNoteRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNoteRepository.swift; sourceTree = "<group>"; };
+		313EC84F08EC4D5EA5BCE7F2 /* ProcessingJobRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJobRepository.swift; sourceTree = "<group>"; };
+		4AE7990703FF4512BEA15FD2 /* WebhookSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSettingsRepository.swift; sourceTree = "<group>"; };
+		2C8C095A65454B37AF4C8BE0 /* PlaudSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettingsRepository.swift; sourceTree = "<group>"; };
+		FB7455E628A44451956BD311 /* RepositoryFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryFactory.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -157,6 +185,7 @@
 			children = (
 				223A403183333114F9B2B160 /* Memora */,
 				F89763A1B6DAA80D26902011 /* Products */,
+				D1920683A2C64919A5AD300F /* MemoraTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -202,6 +231,7 @@
 		326F8DFE600109A52BEC818C /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+					FD263CC9A0A14975A76043C2 /* FileDetailViewModel.swift */,
 				5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */,
 				7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */,
 			);
@@ -211,6 +241,7 @@
 		32A603169E96B6A30D07373D /* Services */ = {
 			isa = PBXGroup;
 			children = (
+					753774CBF4B044AABBCA8FE0 /* PipelineCoordinator.swift */,
 				F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */,
 				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
 				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
@@ -235,7 +266,12 @@
 				R1A2B3C4D5E6F7A8B9C0D1E2 /* AudioFileRepository.swift */,
 				R2A3B4C5D6E7F8A9B0C1D2E3 /* TodoItemRepository.swift */,
 				R3A4B5C6D7E8F9A0B1C2D3E4 /* ProjectRepository.swift */,
-				R4A5B6C7D8E9F0A1B2C3D4E5 /* TranscriptRepository.swift */,
+				R4A5B6C7D8E9F0A1B2C3D4E5 /* TranscriptRepository.swift */,				7A16DB06241046448C27DD8C /* MeetingNoteRepository.swift */,
+				313EC84F08EC4D5EA5BCE7F2 /* ProcessingJobRepository.swift */,
+				4AE7990703FF4512BEA15FD2 /* WebhookSettingsRepository.swift */,
+				2C8C095A65454B37AF4C8BE0 /* PlaudSettingsRepository.swift */,
+				FB7455E628A44451956BD311 /* RepositoryFactory.swift */,
+
 			);
 			path = Repositories;
 			sourceTree = "<group>";
@@ -311,6 +347,7 @@
 			isa = PBXGroup;
 			children = (
 				507EBB154305FB72B7DDAF65 /* Memora.app */,
+				CAE04D3335034117BB50882B /* MemoraTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -340,6 +377,36 @@
 			path = Components;
 			sourceTree = "<group>";
 			};
+		D1920683A2C64919A5AD300F /* MemoraTests */ = {
+			isa = PBXGroup;
+			children = (
+					D6C881F13D1741D1A31FCB2A /* FileDetailViewModelTests.swift */,
+				TH2A3B4C5D6E7F8A9B0C1D2E /* TestHelpers.swift */,
+				FF37E0F5B0B54AA6B25A1716 /* Models */,
+				13BA14A1EFC7402791FC4874 /* Repositories */,
+			);
+			path = MemoraTests;
+			sourceTree = "<group>";
+		};
+		FF37E0F5B0B54AA6B25A1716 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9F408FBFCAD74C5782B483CE /* AudioFileTests.swift */,
+				BF0EFCE248E146BCB05BA013 /* TranscriptTests.swift */,
+				BAD0BC1131B2487FBB76B635 /* TodoItemTests.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		13BA14A1EFC7402791FC4874 /* Repositories */ = {
+			isa = PBXGroup;
+			children = (
+				79B1C4C6238A46E094AFDA40 /* AudioFileRepositoryTests.swift */,
+				327DBFD7875A414D924145B7 /* TodoItemRepositoryTests.swift */,
+			);
+			path = Repositories;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -358,7 +425,41 @@
 			productReference = 507EBB154305FB72B7DDAF65 /* Memora.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D7DB1290B4DD4CB998BFB3B9 /* MemoraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3A4FC27EEBF44F629ECECD08 /* Build configuration list for PBXNativeTarget "MemoraTests" */;
+			buildPhases = (
+				3886E37D45204B43AACD27FC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AAB94D205EF74509A61B54D0 /* PBXTargetDependency */,
+			);
+			name = MemoraTests;
+			productName = MemoraTests;
+			productReference = CAE04D3335034117BB50882B /* MemoraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		7BBC19AC59B649EDB803D30D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0D72A297557F8CE3A66DE6E4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2E6DA4591090D4834F76D9D1;
+			remoteInfo = Memora;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		AAB94D205EF74509A61B54D0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2E6DA4591090D4834F76D9D1 /* Memora */;
+			targetProxy = 7BBC19AC59B649EDB803D30D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		0D72A297557F8CE3A66DE6E4 /* Project object */ = {
@@ -368,6 +469,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					2E6DA4591090D4834F76D9D1 = {
+						DevelopmentTeam = 4R82H2PVGL;
+						ProvisioningStyle = Automatic;
+					};
+					D7DB1290B4DD4CB998BFB3B9 = {
 						DevelopmentTeam = 4R82H2PVGL;
 						ProvisioningStyle = Automatic;
 					};
@@ -389,6 +494,7 @@
 			projectRoot = "";
 			targets = (
 				2E6DA4591090D4834F76D9D1 /* Memora */,
+				D7DB1290B4DD4CB998BFB3B9 /* MemoraTests */,
 			);
 		};
 /* End PBXProject section */
@@ -398,6 +504,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				
+				349B9719FA5C4D858018319F /* PipelineCoordinator.swift in Sources */,
+				C0CE575EDA9645D2AF3DC51E /* FileDetailViewModel.swift in Sources */,
 				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
 				8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */,
 				856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */,
@@ -465,8 +574,27 @@
 				R5A6B7C8D9E0F1A2B3C4D5E6 /* AudioFileRepository.swift in Sources */,
 				R6A7B8C9D0E1F2A3B4C5D6E7 /* TodoItemRepository.swift in Sources */,
 				R7A8B9C0D1E2F3A4B5C6D7E8 /* ProjectRepository.swift in Sources */,
-				R8A9B0C1D2E3F4A5B6C7D8E9 /* TranscriptRepository.swift in Sources */,
+				R8A9B0C1D2E3F4A5B6C7D8E9 /* TranscriptRepository.swift in Sources */,				4D641C87F70044CA806722F5 /* MeetingNoteRepository.swift in Sources */,
+				018280237BAA4EA5B28B97E6 /* ProcessingJobRepository.swift in Sources */,
+				8BEEAE993417485B9F3053F7 /* WebhookSettingsRepository.swift in Sources */,
+				2867592EDCA1448383B51FFC /* PlaudSettingsRepository.swift in Sources */,
+				4EAA13D1020C4DE6933A21D6 /* RepositoryFactory.swift in Sources */,
+
 					G2A3B4C5D6E7F8A9B0C1D2E3 /* GenerationFlowSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3886E37D45204B43AACD27FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B7F275230EA34BE48B001519 /* FileDetailViewModelTests.swift in Sources */,
+				TH1A2B3C4D5E6F7A8B9C0D1E /* TestHelpers.swift in Sources */,
+				85311FFC2F0B44DC8E61DD17 /* AudioFileTests.swift in Sources */,
+				D743C516E49348C2A7BE9BF2 /* TranscriptTests.swift in Sources */,
+				08B66A23EAFA43A8B80F4C7C /* TodoItemTests.swift in Sources */,
+				48A539DE0B144BFF8A540709 /* AudioFileRepositoryTests.swift in Sources */,
+				3FC3EEA7A95B4359BDFCB316 /* TodoItemRepositoryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -648,6 +776,44 @@
 			};
 			name = Debug;
 		};
+		045D2C95D7C545CFB62F70C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.MemoraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.5;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Memora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Memora";
+			};
+			name = Debug;
+		};
+		85311FFC2F0B44DC8E61DD18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4R82H2PVGL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.MemoraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.5;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Memora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Memora";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -665,6 +831,15 @@
 			buildConfigurations = (
 				D73DF3E8DB52B9709678C7B7 /* Debug */,
 				B03E8364D10B13AFE9BDE65B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3A4FC27EEBF44F629ECECD08 /* Build configuration list for PBXNativeTarget "MemoraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				045D2C95D7C545CFB62F70C4 /* Debug */,
+				85311FFC2F0B44DC8E61DD18 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
