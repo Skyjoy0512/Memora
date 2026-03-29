@@ -34,6 +34,7 @@ struct MemoraApp: App {
                     ZStack {
                         ContentView()
                             .modelContainer(container)
+                            .environment(RepositoryFactory(modelContext: container.mainContext))
 
                         if isUsingTemporaryStore {
                             temporaryStoreBanner
