@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ProjectsView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repoFactory
     @Query(sort: \Project.updatedAt, order: .reverse) private var projects: [Project]
     @State private var showCreateProjectView = false
     @State private var selectedProject: Project?
@@ -82,7 +82,9 @@ struct ProjectsView: View {
 
     private func deleteProjects(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(projects[index])
+            if let repo = repoFactory?.projectRepo as? ProjectRepository {
+                try? repo.delete(projects[index])
+            }
         }
     }
 }

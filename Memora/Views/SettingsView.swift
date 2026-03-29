@@ -4,6 +4,7 @@ import SwiftData
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repoFactory
     @EnvironmentObject private var bluetoothService: BluetoothAudioService
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
@@ -123,7 +124,7 @@ struct SettingsView: View {
 
             if currentTranscriptionMode == .local {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("ローカル文字起こしは SpeechAnalyzer を優先し、非対応端末では SFSpeechRecognizer を使用します。")
+                    Text("ローカル文字起こしは SFSpeechRecognizer を使用します。")
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
@@ -132,6 +133,28 @@ struct SettingsView: View {
                         .foregroundStyle(MemoraColor.accentGreen)
                 }
                 .padding(.vertical, MemoraSpacing.xxxs)
+
+                if #available(iOS 26.0, *) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(isOn: Binding(
+                            get: { SpeechAnalyzerFeatureFlag.isEnabled },
+                            set: { SpeechAnalyzerFeatureFlag.isEnabled = $0 }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("iOS 26 SpeechAnalyzer（ベータ）")
+                                Text("有効にすると iOS 26 ネイティブエンジンを使用します。不安定な場合があります。")
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if SpeechAnalyzerFeatureFlag.isEnabled {
+                            Text("⚠️ SpeechAnalyzer はベータ機能です。クラッシュする場合はオフにしてください。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentRed)
+                        }
+                    }
+                }
             }
         }
     }
@@ -513,9 +536,17 @@ struct SettingsView: View {
                         newSettings.email = plaudEmail
                         newSettings.password = plaudPassword
                         newSettings.autoSyncEnabled = plaudAutoSyncEnabled
-                        modelContext.insert(newSettings)
+                        if let factory = repoFactory {
+                            try? factory.plaudSettingsRepo.save(newSettings)
+                        } else {
+                            modelContext.insert(newSettings)
+                        }
+                    } else {
+                        return
                     }
-                    try? modelContext.save()
+                    if repoFactory == nil {
+                        try? modelContext.save()
+                    }
                 }
             ))
 
@@ -536,7 +567,11 @@ struct SettingsView: View {
                                 if let settings = plaudSettings {
                                     settings.autoSyncEnabled = newValue
                                     settings.updatedAt = Date()
-                                    try? modelContext.save()
+                                    if let factory = repoFactory {
+                                        try? factory.plaudSettingsRepo.save(settings)
+                                    } else {
+                                        try? modelContext.save()
+                                    }
                                 }
                             }
                         ))
@@ -739,7 +774,11 @@ struct SettingsView: View {
             } else {
                 settings = PlaudSettings()
                 settings.isEnabled = true
-                modelContext.insert(settings)
+                if let factory = repoFactory {
+                    try? factory.plaudSettingsRepo.save(settings)
+                } else {
+                    modelContext.insert(settings)
+                }
             }
 
             settings.apiServer = server
@@ -751,7 +790,11 @@ struct SettingsView: View {
             settings.tokenExpiresAt = authResponse.calculatedExpiresAt
             settings.updatedAt = Date()
 
-            try? modelContext.save()
+            if let factory = repoFactory {
+                try? factory.plaudSettingsRepo.save(settings)
+            } else {
+                try? modelContext.save()
+            }
 
             isLoggedIn = true
             plaudSyncStatus = "ログインに成功しました"
@@ -769,7 +812,11 @@ struct SettingsView: View {
             settings.refreshToken = ""
             settings.tokenExpiresAt = nil
             settings.updatedAt = Date()
-            try? modelContext.save()
+            if let factory = repoFactory {
+                try? factory.plaudSettingsRepo.save(settings)
+            } else {
+                try? modelContext.save()
+            }
         }
 
         isLoggedIn = false
@@ -799,7 +846,11 @@ struct SettingsView: View {
                 settings.refreshToken = authResponse.refreshToken
                 settings.tokenExpiresAt = authResponse.calculatedExpiresAt
                 settings.updatedAt = Date()
-                try? modelContext.save()
+                if let factory = repoFactory {
+                    try? factory.plaudSettingsRepo.save(settings)
+                } else {
+                    try? modelContext.save()
+                }
             } catch {
                 // リフレッシュ失敗
                 plaudSyncStatus = "トークンのリフレッシュに失敗しました: \(error.localizedDescription)"
@@ -862,7 +913,11 @@ struct SettingsView: View {
                     audioFile.isSummarized = true
                 }
 
-                modelContext.insert(audioFile)
+                if let factory = repoFactory {
+                    try? factory.audioFileRepo.save(audioFile)
+                } else {
+                    modelContext.insert(audioFile)
+                }
 
                 // 文字起こしがあれば Transcript を作成
                 if let transcriptText = recording.transcript, !transcriptText.isEmpty {
@@ -872,19 +927,29 @@ struct SettingsView: View {
                     )
                     transcript.createdAt = recording.createdAt
                     audioFile.isTranscribed = true
-                    modelContext.insert(transcript)
+                    if let factory = repoFactory {
+                        try? factory.transcriptRepo.save(transcript)
+                    } else {
+                        modelContext.insert(transcript)
+                    }
                 }
 
                 importedCount += 1
             }
 
-            try modelContext.save()
+            if repoFactory == nil {
+                try modelContext.save()
+            }
 
             // 最終同期日時を更新
             if let settings = plaudSettings {
                 settings.lastSyncAt = Date()
                 settings.updatedAt = Date()
-                try? modelContext.save()
+                if let factory = repoFactory {
+                    try? factory.plaudSettingsRepo.save(settings)
+                } else {
+                    try? modelContext.save()
+                }
             }
 
             var statusMessage = "\(importedCount) 件の録音をインポートしました"
