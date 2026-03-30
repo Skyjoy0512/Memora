@@ -156,19 +156,31 @@ final class InternalTranscriptionEngine {
         }
 
         let locale = localeForRecognition(language: language)
-        if #available(iOS 26.0, *) {
+        print("[MemoraSTT] transcribeLocally — locale: \(locale.identifier), SpeechAnalyzer flag: \(SpeechAnalyzerFeatureFlag.isEnabled)")
+
+        // SpeechAnalyzer は iOS 26 beta API。実機で EXC_BREAKPOINT が発生する場合があるため
+        // フィーチャーフラグが明示的に ON の場合のみ試行する。
+        #if !targetEnvironment(simulator)
+        if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
+            print("[MemoraSTT] SpeechAnalyzer パスを試行中...")
             do {
-                return try await transcribeWithSpeechAnalyzer(
+                return try await transcribeWithSpeechAnalyzerWithTimeout(
                     audioURL: audioURL,
                     locale: locale,
                     progress: progress,
                     partialResult: partialResult
                 )
             } catch {
-                print("SpeechAnalyzer fallback: \(error.localizedDescription)")
+                print("[MemoraSTT] SpeechAnalyzer fallback: \(error.localizedDescription)")
+            }
+        } else {
+            if #available(iOS 26.0, *) {
+                print("[MemoraSTT] SpeechAnalyzer スキップ — flag OFF またはシミュレータ")
             }
         }
+        #endif
 
+        print("[MemoraSTT] SFSpeechRecognizer パスを使用")
         return try await transcribeWithSpeechRecognizer(
             audioURL: audioURL,
             locale: locale,
@@ -184,6 +196,7 @@ final class InternalTranscriptionEngine {
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
+            print("[MemoraSTT] SFSpeechRecognizer 利用不可 — locale: \(locale.identifier)")
             throw CoreError.transcriptionError(.engineNotAvailable)
         }
 
@@ -194,6 +207,7 @@ final class InternalTranscriptionEngine {
             request.addsPunctuation = true
         }
 
+        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: true")
         progress(0.2)
 
         let recognitionResult = try await withTaskCancellationHandler {
@@ -263,6 +277,39 @@ final class InternalTranscriptionEngine {
         )
     }
 
+    // MARK: - SpeechAnalyzer (iOS 26+, gated by feature flag)
+
+    @available(iOS 26.0, *)
+    private func transcribeWithSpeechAnalyzerWithTimeout(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
+            group.addTask {
+                try await self.transcribeWithSpeechAnalyzer(
+                    audioURL: audioURL,
+                    locale: locale,
+                    progress: progress,
+                    partialResult: partialResult
+                )
+            }
+
+            group.addTask {
+                try await Task.sleep(nanoseconds: 120_000_000_000) // 120秒
+                throw CancellationError()
+            }
+
+            guard let result = try await group.next() else {
+                group.cancelAll()
+                throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer produced no result"))
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+
     @available(iOS 26.0, *)
     private func transcribeWithSpeechAnalyzer(
         audioURL: URL,
@@ -300,6 +347,8 @@ final class InternalTranscriptionEngine {
             throw CoreError.transcriptionError(.transcriptionFailed("API key is missing"))
         }
 
+        print("[MemoraSTT] API パス開始 — provider: \(configuration.provider.rawValue)")
+
         let service = AIService()
         service.setProvider(configuration.provider)
         service.setTranscriptionMode(.api)
@@ -308,6 +357,8 @@ final class InternalTranscriptionEngine {
         progress(0.2)
         let text = try await service.transcribe(audioURL: audioURL)
         progress(0.92)
+
+        print("[MemoraSTT] API パス完了 — text length: \(text.count)")
 
         let duration = await audioFileDuration(for: audioURL)
 
