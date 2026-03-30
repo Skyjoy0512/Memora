@@ -21,6 +21,9 @@ final class PipelineCoordinator {
     private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
 
+    /// 現在実行中のステップ（エラー報告用）
+    private var currentStep: PipelineStep = .loadingAudio
+
     init(
         transcriptionEngine: TranscriptionEngine,
         summarizationEngine: SummarizationEngine,
@@ -48,6 +51,7 @@ final class PipelineCoordinator {
             Task { @MainActor in
                 do {
                     // --- Step 1: Configure Engines ---
+                    currentStep = .loadingAudio
                     continuation.yield(.stepStarted(.loadingAudio))
 
                     try await transcriptionEngine.configure(
@@ -60,6 +64,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.loadingAudio))
 
                     // --- Step 2: Transcription ---
+                    currentStep = .transcribing
                     continuation.yield(.stepStarted(.transcribing))
 
                     let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
@@ -67,6 +72,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.transcribing))
 
                     // --- Step 3: Save Transcript ---
+                    currentStep = .mergingTranscripts
                     continuation.yield(.stepStarted(.mergingTranscripts))
 
                     let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
@@ -88,6 +94,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.mergingTranscripts))
 
                     // --- Step 4: Summary ---
+                    currentStep = .generatingSummary
                     continuation.yield(.stepStarted(.generatingSummary))
 
                     let summaryResult: SummaryResult
@@ -105,6 +112,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.generatingSummary))
 
                     // --- Step 5: Save Summary ---
+                    currentStep = .extractingMetadata
                     continuation.yield(.stepStarted(.extractingMetadata))
 
                     audioFile.isSummarized = true
@@ -134,6 +142,7 @@ final class PipelineCoordinator {
                     }
 
                     // --- Step 7: Finalize ---
+                    currentStep = .finalizing
                     continuation.yield(.stepStarted(.finalizing))
 
                     // Webhook 送信
@@ -147,8 +156,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    // 現在実行中のステップを特定してエラー通知
-                    continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
+                    continuation.yield(.failed(step: currentStep, error: error))
                 }
 
                 continuation.finish()
@@ -228,7 +236,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    continuation.yield(.failed(step: .generatingSummary, error: CoreError.summaryError(.generationFailed(error.localizedDescription))))
+                    continuation.yield(.failed(step: currentStep, error: error))
                 }
 
                 continuation.finish()
