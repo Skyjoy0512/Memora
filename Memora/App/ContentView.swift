@@ -6,6 +6,7 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var bluetoothService = BluetoothAudioService()
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repositoryFactory
     @State private var selectedTab: MainTab = .files
     @State private var isExpanded: Bool = false
     @State private var showRecording = false
@@ -13,40 +14,44 @@ struct ContentView: View {
 
     var body: some View {
         mainTabView
-            .overlay {
-                // 展開中の背景タップで閉じる
-                if isExpanded {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            withAnimation(.bouncy(duration: 0.5, extraBounce: 0.05)) {
-                                isExpanded = false
-                            }
-                        }
-                        .ignoresSafeArea()
-                }
-            }
             .overlay(alignment: .bottom) {
-                HStack(alignment: .bottom, spacing: 12) {
-                    MorphingTabBar(activeTab: $selectedTab, isExpanded: $isExpanded) {
-                        actionGrid
+                ZStack(alignment: .bottom) {
+                    // 展開中の背景タップで閉じる（FABの下に配置）
+                    if isExpanded {
+                        Color.black.opacity(0.001)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    isExpanded = false
+                                }
+                            }
+                            .ignoresSafeArea()
+                            .transition(.opacity)
                     }
 
-                    Button {
-                        withAnimation(.bouncy(duration: 0.5, extraBounce: 0.05)) {
-                            isExpanded.toggle()
+                    // タブバー + FAB
+                    HStack(alignment: .bottom, spacing: 12) {
+                        MorphingTabBar(activeTab: $selectedTab, isExpanded: $isExpanded) {
+                            actionGrid
                         }
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 19, weight: .medium))
-                            .rotationEffect(.init(degrees: isExpanded ? 45 : 0))
-                            .frame(width: 52, height: 52)
-                            .foregroundStyle(Color.primary)
+
+                        Button {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isExpanded.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 19, weight: .medium))
+                                .rotationEffect(.init(degrees: isExpanded ? 45 : 0))
+                                .frame(width: 52, height: 52)
+                                .contentShape(Circle())
+                                .foregroundStyle(Color.primary)
+                        }
+                        .buttonStyle(FABButtonStyle(isExpanded: isExpanded))
                     }
-                    .buttonStyle(GlassButtonStyle(shape: .circle))
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 25)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 25)
             }
             .ignoresSafeArea(.all, edges: .bottom)
             .environmentObject(bluetoothService)
@@ -103,11 +108,15 @@ struct ContentView: View {
             let asset = AVAsset(url: destinationURL)
             let duration = CMTimeGetSeconds(asset.duration)
 
-            // AudioFile を SwiftData に保存
+            // AudioFile を保存
             let audioFile = AudioFile(title: fileName, audioURL: destinationURL.path)
             audioFile.duration = duration
-            modelContext.insert(audioFile)
-            try? modelContext.save()
+            if let factory = repositoryFactory {
+                try? factory.audioFileRepo.save(audioFile)
+            } else {
+                modelContext.insert(audioFile)
+                try? modelContext.save()
+            }
 
             // Files タブに切り替え
             selectedTab = .files
@@ -206,6 +215,37 @@ private struct ActionGridButton: View {
     }
 }
 
+// MARK: - FAB Button Style
+
+/// 押下フィードバック付きのFAB専用ボタンのスタイル
+/// - 押下時に0.88倍に縮小してタッチフィードバックを提供
+/// - Glass エフェクト(iOS 26+) / UltraThinMaterial で背景を描画
+private struct FABButtonStyle: ButtonStyle {
+    var isExpanded: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            .background {
+                fabBackground
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+            }
+    }
+
+    @ViewBuilder
+    private var fabBackground: some View {
+        if #available(iOS 26.0, *) {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            Circle()
+                .fill(.ultraThinMaterial)
+        }
+    }
+}
+
 // MARK: - SpeechAPIInfoView
 
 struct SpeechAPIInfoView: View {
@@ -220,18 +260,30 @@ struct SpeechAPIInfoView: View {
             if #available(iOS 26.0, *) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(MemoraColor.accentGreen)
+                        Image(systemName: SpeechAnalyzerFeatureFlag.isEnabled ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(SpeechAnalyzerFeatureFlag.isEnabled ? MemoraColor.accentGreen : MemoraColor.accentRed)
                         Text("iOS 26 対応デバイス")
                             .font(MemoraTypography.body)
                     }
                     .padding()
+
+                    if SpeechAnalyzerFeatureFlag.isEnabled {
+                        Text("SpeechAnalyzer（ベータ）が有効です")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                            .padding(.horizontal)
+                    } else {
+                        Text("SpeechAnalyzer は現在無効です（設定から有効化可能）")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.green.opacity(0.1))
                 )
-                Text("iOS 26 SpeechAnalyzer API を使用した強力な文字起こしが可能です。")
+                Text("iOS 26 SpeechAnalyzer API はベータ版です。設定から有効にできます。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
