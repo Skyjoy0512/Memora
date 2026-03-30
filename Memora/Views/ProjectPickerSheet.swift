@@ -22,20 +22,20 @@ struct ProjectPickerSheet: View {
                         HStack {
                             Spacer()
 
-                            VStack(spacing: 8) {
+                            VStack(spacing: MemoraSpacing.xs) {
                                 Image(systemName: "folder.badge.plus")
                                     .font(.largeTitle)
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(MemoraColor.textSecondary)
 
                                 Text("新しいプロジェクトを作成")
-                                    .font(.subheadline)
+                                    .font(MemoraTypography.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
 
                         Spacer()
                     }
-                    .padding(40)
+                    .padding(MemoraSpacing.xxxl)
                 } else {
                     // プロジェクト一覧
                     Section {
@@ -50,9 +50,9 @@ struct ProjectPickerSheet: View {
                             selectedProject = project
                             dismiss()
                         }) {
-                            HStack(spacing: 12) {
+                            HStack(spacing: MemoraSpacing.sm) {
                                 Image(systemName: "folder")
-                                    .foregroundStyle(.gray)
+                                    .foregroundStyle(MemoraColor.textSecondary)
                                     .frame(width: 30)
 
                                 Text(project.title)
@@ -62,7 +62,7 @@ struct ProjectPickerSheet: View {
 
                                 if project.id == selectedProject?.id {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(.gray)
+                                        .foregroundStyle(MemoraColor.textSecondary)
                                 }
                             }
                             .contentShape(Rectangle())

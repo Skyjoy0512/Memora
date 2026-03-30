@@ -4,6 +4,7 @@ import SwiftData
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repoFactory
     @StateObject private var audioRecorder = AudioRecorder()
     @State private var recordingTime: TimeInterval = 0
     @State private var timer: Timer?
@@ -31,10 +32,10 @@ struct RecordingView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 13)
                     .padding(.vertical, 8)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+                    .background(MemoraColor.divider.opacity(0.1))
+                    .cornerRadius(MemoraRadius.sm)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -43,17 +44,17 @@ struct RecordingView: View {
 
             Divider()
 
-            VStack(spacing: 30) {
+            VStack(spacing: 21) {
                 Spacer()
 
                 // エラーメッセージ表示
                 if let error = errorMessage {
                     Text(error)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(MemoraColor.accentRed)
                         .padding()
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(8)
+                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
                         .padding(.horizontal)
                 }
 
@@ -63,10 +64,10 @@ struct RecordingView: View {
                     .foregroundStyle(.primary)
 
                 // 波形表示（プレースホルダー）
-                HStack(spacing: 2) {
+                HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
                         Rectangle()
-                            .fill(audioRecorder.isRecording ? Color.gray : Color.gray.opacity(0.3))
+                            .fill(audioRecorder.isRecording ? MemoraColor.divider : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
                                 .easeInOut(duration: 0.2)
@@ -84,8 +85,8 @@ struct RecordingView: View {
                 Button(action: toggleRecording) {
                     ZStack {
                         Circle()
-                            .fill(Color.gray)
-                            .frame(width: 80, height: 80)
+                            .fill(MemoraColor.divider)
+                            .frame(width: 70, height: 70)
 
                         if audioRecorder.isRecording {
                             Rectangle()
@@ -99,7 +100,7 @@ struct RecordingView: View {
                         }
                     }
                 }
-                .padding(.bottom, 50)
+                .padding(.bottom, MemoraSpacing.xxxl)
             }
         }
         .navigationTitle("録音")
@@ -137,7 +138,12 @@ struct RecordingView: View {
                 )
                 audioFile.duration = recordingTime
 
-                modelContext.insert(audioFile)
+                if let factory = repoFactory {
+                    try? factory.audioFileRepo.save(audioFile)
+                } else {
+                    modelContext.insert(audioFile)
+                    try? modelContext.save()
+                }
 
                 dismiss()
             } catch {

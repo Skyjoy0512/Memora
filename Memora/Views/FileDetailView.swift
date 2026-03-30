@@ -4,25 +4,14 @@ import SwiftData
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repoFactory
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
     @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
     @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
     @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
-    @StateObject private var audioPlayer = AudioPlayer()
-    @StateObject private var transcriptionEngine = TranscriptionEngine()
-    @StateObject private var summarizationEngine = SummarizationEngine()
-    @State private var audioURL: URL?
-    @State private var isPlaying = false
-    @State private var playbackPosition: TimeInterval = 0
-    @State private var audioDuration: TimeInterval = 0
-    @State private var showDeleteAlert = false
-    @State private var showTranscriptView = false
-    @State private var showSummaryView = false
-    @State private var showShareSheet = false
-    @State private var transcriptResult: TranscriptResult?
-    @State private var summaryResult: SummaryResult?
+    @State private var viewModel: FileDetailViewModel?
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -34,27 +23,80 @@ struct FileDetailView: View {
 
     var currentAPIKey: String {
         switch currentProvider {
-        case .openai:
-            return apiKeyOpenAI
-        case .gemini:
-            return apiKeyGemini
-        case .deepseek:
-            return apiKeyDeepSeek
+        case .openai: return apiKeyOpenAI
+        case .gemini: return apiKeyGemini
+        case .deepseek: return apiKeyDeepSeek
         }
     }
 
     var body: some View {
+        Group {
+            if let vm = viewModel {
+                mainContent(vm: vm)
+            } else {
+                ProgressView()
+            }
+        }
+        .navigationTitle("詳細")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("閉じる") {
+                    viewModel?.stopPlayback()
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { viewModel?.showShareSheet = true }) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(viewModel?.audioURL == nil && viewModel?.transcriptResult == nil)
+            }
+            ToolbarItem(placement: .destructiveAction) {
+                Button(role: .destructive) {
+                    viewModel?.showDeleteAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+            }
+        }
+        .onAppear {
+            guard viewModel == nil else { return }
+            let vm = FileDetailViewModel(
+                audioFile: audioFile,
+                repoFactory: repoFactory,
+                modelContext: modelContext,
+                provider: currentProvider,
+                transcriptionMode: currentTranscriptionMode,
+                apiKey: currentAPIKey
+            )
+            vm.setupAudioPlayer()
+            vm.loadSavedData()
+            viewModel = vm
+        }
+        .task {
+            await viewModel?.setupEngines()
+        }
+        .onDisappear {
+            viewModel?.cleanup()
+        }
+    }
+
+    // MARK: - Main Content
+
+    @ViewBuilder
+    private func mainContent(vm: FileDetailViewModel) -> some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: MemoraSpacing.xxl) {
                 Spacer()
-                    .frame(height: 20)
+                    .frame(height: MemoraSpacing.xxl)
 
                 // 音声波形イメージ
                 Image(systemName: "waveform")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 120, height: 120)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
                 // タイトル
                 Text(audioFile.title)
@@ -64,9 +106,9 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // メタデータ
-                HStack(spacing: 20) {
-                    Label(formatDate(audioFile.createdAt), systemImage: "calendar")
-                    Label(formatDuration(audioFile.duration), systemImage: "clock")
+                HStack(spacing: MemoraSpacing.xxl) {
+                    Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
+                    Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -75,355 +117,266 @@ struct FileDetailView: View {
                     .padding(.horizontal)
 
                 // プレイヤーコントロール
-                VStack(spacing: 20) {
-                    // プログレスバー
-                    VStack(spacing: 8) {
-                        Slider(
-                            value: $playbackPosition,
-                            in: 0...max(audioDuration, 1),
-                            onEditingChanged: { editing in
-                                if !editing && audioDuration > 0 {
-                                    audioPlayer.seek(to: playbackPosition)
-                                }
-                            }
-                        )
-                        .accentColor(.gray)
-
-                        HStack {
-                            Text(formatTime(playbackPosition))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Spacer()
-
-                            Text(formatTime(audioDuration))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // 再生ボタン
-                    Button(action: togglePlayback) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.gray)
-                                .frame(width: 70, height: 70)
-
-                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-                .padding(.vertical, 20)
+                playerControls(vm: vm)
 
                 Divider()
                     .padding(.horizontal)
 
                 // アクションボタン
-                VStack(spacing: 12) {
-                    if transcriptionEngine.isTranscribing {
-                        // 文字起こし中
-                        VStack(spacing: 12) {
-                            ProgressView(value: transcriptionEngine.progress)
-                                .tint(.gray)
-                            Text("文字起こし中... \(Int(transcriptionEngine.progress * 100))%")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                    } else if let result = transcriptResult {
-                        // 文字起こし完了 - 結果表示ボタン
-                        Button(action: { showTranscriptView = true }) {
-                            Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.primary)
-                    } else if audioFile.isTranscribed {
-                        // 既に文字起こし済み
-                        Button(action: { showTranscriptView = true }) {
-                            Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.primary)
-                    } else {
-                        // 文字起こし開始ボタン
-                        Button(action: startTranscription) {
-                            Label("文字起こし", systemImage: "text.alignleft")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.primary)
-                    }
-
-                    if summarizationEngine.isSummarizing {
-                        // 要約中
-                        VStack(spacing: 12) {
-                            ProgressView(value: summarizationEngine.progress)
-                                .tint(.gray)
-                            Text("要約中... \(Int(summarizationEngine.progress * 100))%")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                    } else if let result = summaryResult {
-                        // 要約完了 - 結果表示ボタン
-                        Button(action: { showSummaryView = true }) {
-                            Label("要約結果を表示", systemImage: "text.quote")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.primary)
-                    } else if transcriptResult != nil || audioFile.isTranscribed {
-                        // 要約開始ボタン
-                        Button(action: startSummarization) {
-                            Label("要約", systemImage: "text.quote")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.primary)
-                    } else {
-                        // 文字起こし前は要約不可
-                        Button(action: {}) {
-                            Label("要約", systemImage: "text.quote")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.gray.opacity(0.05))
-                                .cornerRadius(12)
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal)
+                actionButtons(vm: vm)
 
                 Spacer()
             }
             .padding()
         }
-        .navigationTitle("詳細")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("閉じる") {
-                    if audioPlayer.isPlaying {
-                        audioPlayer.stop()
-                    }
-                    dismiss()
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { showShareSheet = true }) {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .disabled(audioURL == nil && transcriptResult == nil)
-            }
-            ToolbarItem(placement: .destructiveAction) {
-                Button(role: .destructive) {
-                    showDeleteAlert = true
-                } label: {
-                    Image(systemName: "trash")
-                }
-            }
-        }
-        .onAppear {
-            setupAudioPlayer()
-        }
-        .task {
-            await setupEngines()
-        }
-        .onDisappear {
-            audioPlayer.stop()
-        }
-        .navigationDestination(isPresented: $showTranscriptView) {
-            if let result = transcriptResult {
+        .navigationDestination(isPresented: Binding(
+            get: { vm.showTranscriptView },
+            set: { vm.showTranscriptView = $0 }
+        )) {
+            if let result = vm.transcriptResult {
                 TranscriptView(result: result)
             } else {
                 Text("文字起こしデータがありません")
             }
         }
-        .navigationDestination(isPresented: $showSummaryView) {
-            if let result = summaryResult {
+        .navigationDestination(isPresented: Binding(
+            get: { vm.showSummaryView },
+            set: { vm.showSummaryView = $0 }
+        )) {
+            if let result = vm.summaryResult {
                 SummaryView(result: result)
             } else {
                 Text("要約データがありません")
             }
         }
-        .sheet(isPresented: $showShareSheet) {
+        .sheet(isPresented: Binding(
+            get: { vm.showGenerationFlow },
+            set: { vm.showGenerationFlow = $0 }
+        )) {
+            GenerationFlowSheet(isPresented: Binding(
+                get: { vm.showGenerationFlow },
+                set: { vm.showGenerationFlow = $0 }
+            )) { config in
+                vm.startSummarization(with: config)
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { vm.showShareSheet },
+            set: { vm.showShareSheet = $0 }
+        )) {
             ShareSheet(
-                shareText: transcriptResult?.text,
-                shareURL: audioURL
+                shareText: vm.transcriptResult?.text,
+                shareURL: vm.audioURL,
+                audioFile: audioFile
             )
         }
-        .alert("ファイルを削除", isPresented: $showDeleteAlert) {
+        .alert("ファイルを削除", isPresented: Binding(
+            get: { vm.showDeleteAlert },
+            set: { vm.showDeleteAlert = $0 }
+        )) {
             Button("キャンセル", role: .cancel) {}
             Button("削除", role: .destructive) {
-                modelContext.delete(audioFile)
+                vm.deleteAudioFile()
                 dismiss()
             }
         } message: {
             Text("この録音ファイルを削除しますか？")
         }
+        .alert("エラー", isPresented: Binding(
+            get: { vm.showErrorAlert },
+            set: { vm.showErrorAlert = $0 }
+        )) {
+            Button("OK", role: .cancel) {
+                vm.errorMessage = nil
+            }
+        } message: {
+            if let message = vm.errorMessage {
+                Text(message)
+            }
+        }
+        .alert("完了", isPresented: Binding(
+            get: { vm.showSuccessAlert },
+            set: { vm.showSuccessAlert = $0 }
+        )) {
+            Button("OK", role: .cancel) {
+                vm.successMessage = nil
+            }
+        } message: {
+            if let message = vm.successMessage {
+                Text(message)
+            }
+        }
     }
 
-    private func setupAudioPlayer() {
-        let urlString = audioFile.audioURL
+    // MARK: - Player Controls
 
-        guard !urlString.isEmpty else {
-            print("音声ファイルのURLが空です")
-            return
-        }
-
-        // URL がファイルパス形式の場合、file:// を追加
-        if urlString.hasPrefix("/") {
-            audioURL = URL(fileURLWithPath: urlString)
-        } else if urlString.hasPrefix("file://") {
-            audioURL = URL(string: urlString)
-        } else {
-            audioURL = URL(fileURLWithPath: urlString)
-        }
-
-        audioDuration = audioFile.duration
-        playbackPosition = 0
-    }
-
-    private func setupEngines() async {
-        if !currentAPIKey.isEmpty || currentTranscriptionMode == .local {
-            do {
-                try await transcriptionEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider,
-                    transcriptionMode: currentTranscriptionMode
+    @ViewBuilder
+    private func playerControls(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.xxl) {
+            // プログレスバー
+            VStack(spacing: 5) {
+                Slider(
+                    value: Binding(
+                        get: { vm.playbackPosition },
+                        set: { newPosition in
+                            vm.playbackPosition = newPosition
+                        }
+                    ),
+                    in: 0...max(vm.audioDuration, 1),
+                    onEditingChanged: { editing in
+                        if !editing && vm.audioDuration > 0 {
+                            vm.seek(to: vm.playbackPosition)
+                        }
+                    }
                 )
-                try await summarizationEngine.configure(apiKey: currentAPIKey, provider: currentProvider)
-            } catch {
-                print("エンジン設定エラー: \(error)")
-            }
-        }
-    }
+                .accentColor(MemoraColor.textSecondary)
 
-    private func togglePlayback() {
-        guard let url = audioURL else {
-            print("音声URLがありません")
-            return
-        }
+                HStack {
+                    Text(vm.formatTime(vm.playbackPosition))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-        if audioPlayer.isPlaying {
-            audioPlayer.pause()
-            isPlaying = false
-        } else {
-            do {
-                try audioPlayer.play(url: url)
-                isPlaying = true
-                audioDuration = audioPlayer.duration
-                startPlaybackTimer()
-            } catch {
-                print("再生エラー: \(error)")
-            }
-        }
-    }
+                    Spacer()
 
-    private func startTranscription() {
-        guard let url = audioURL else {
-            print("音声URLがありません")
-            return
-        }
-
-        Task {
-            do {
-                let result = try await transcriptionEngine.transcribe(audioURL: url)
-                await MainActor.run {
-                    transcriptResult = result
-                    audioFile.isTranscribed = true
-
-                    // Transcript を保存
-                    let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
-                    modelContext.insert(transcript)
+                    Text(vm.formatTime(vm.audioDuration))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-            } catch {
-                print("文字起こしエラー: \(error)")
+            }
+            .padding(.horizontal)
+
+            // 再生ボタン
+            Button(action: { vm.togglePlayback() }) {
+                ZStack {
+                    Circle()
+                        .fill(MemoraColor.divider)
+                        .frame(width: 70, height: 70)
+
+                    Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white)
+                }
             }
         }
+        .padding(.vertical, MemoraSpacing.xxl)
     }
 
-    private func startSummarization() {
-        let transcriptText: String
-        if let result = transcriptResult {
-            transcriptText = result.text
-        } else {
-            // SwiftData から既存の文字起こしを取得
-            let descriptor = FetchDescriptor<Transcript>()
-            let transcripts = try? modelContext.fetch(descriptor)
-            if let transcript = transcripts?.first(where: { $0.audioFileID == audioFile.id }) {
-                transcriptText = transcript.text
+    // MARK: - Action Buttons
+
+    @ViewBuilder
+    private func actionButtons(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.lg) {
+            // 文字起こし
+            if vm.isTranscribing {
+                VStack(spacing: MemoraSpacing.lg) {
+                    ProgressView(value: vm.transcriptionProgress)
+                        .tint(MemoraColor.textSecondary)
+                    Text("文字起こし中... \(Int(vm.transcriptionProgress * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(MemoraColor.divider.opacity(0.1))
+                .cornerRadius(MemoraRadius.md)
+            } else if vm.transcriptResult != nil {
+                Button(action: { vm.showTranscriptView = true }) {
+                    Label("文字起こし結果を表示", systemImage: "text.alignleft")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
+            } else if audioFile.isTranscribed {
+                Button(action: { vm.showTranscriptView = true }) {
+                    Label("文字起こし結果を表示", systemImage: "text.alignleft")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
             } else {
-                transcriptText = ""
-            }
-        }
-
-        guard !transcriptText.isEmpty else {
-            print("文字起こしデータがありません")
-            return
-        }
-
-        Task {
-            do {
-                let result = try await summarizationEngine.summarize(transcript: transcriptText)
-                await MainActor.run {
-                    summaryResult = result
+                Button(action: { vm.startTranscription() }) {
+                    Label("文字起こし", systemImage: "text.alignleft")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
                 }
-            } catch {
-                print("要約エラー: \(error)")
+                .foregroundStyle(.primary)
+            }
+
+            // 要約
+            if vm.isSummarizing {
+                VStack(spacing: MemoraSpacing.lg) {
+                    ProgressView(value: vm.summarizationProgress)
+                        .tint(MemoraColor.textSecondary)
+                    Text("要約中... \(Int(vm.summarizationProgress * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(MemoraColor.divider.opacity(0.1))
+                .cornerRadius(MemoraRadius.md)
+            } else if vm.summaryResult != nil {
+                Button(action: { vm.showSummaryView = true }) {
+                    Label("要約結果を表示", systemImage: "text.quote")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
+            } else if audioFile.isSummarized {
+                Button(action: { vm.showSummaryView = true }) {
+                    Label("要約結果を表示", systemImage: "text.quote")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
+            } else if vm.transcriptResult != nil || audioFile.isTranscribed {
+                Button(action: { vm.showGenerationFlow = true }) {
+                    Label("生成", systemImage: "text.quote")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
+            } else {
+                Button(action: {}) {
+                    Label("要約", systemImage: "text.quote")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.05))
+                        .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.secondary)
+            }
+
+            // スピーカー登録
+            if vm.audioURL != nil {
+                Button(action: { vm.registerPrimarySpeakerSample() }) {
+                    VStack(spacing: 6) {
+                        Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
+                            .frame(maxWidth: .infinity)
+                        Text("1人だけが話している録音を使うと精度が安定します")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .background(MemoraColor.divider.opacity(0.08))
+                    .cornerRadius(MemoraRadius.md)
+                }
+                .foregroundStyle(.primary)
             }
         }
-    }
-
-    private func startPlaybackTimer() {
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            playbackPosition = audioPlayer.currentTime
-            isPlaying = audioPlayer.isPlaying
-
-            if !audioPlayer.isPlaying {
-                timer.invalidate()
-                playbackPosition = 0
-            }
-        }
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-        return formatter.string(from: date)
-    }
-
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-
-    private func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        .padding(.horizontal)
     }
 }
 

@@ -1,6 +1,8 @@
 import Foundation
 import Speech
 
+// Core transcription/API boundary. Keep backend selection changes intentional and isolated.
+
 // MARK: - Local Transcription Protocol
 
 protocol LocalTranscriptionService {
@@ -51,11 +53,12 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
         // SpeechTranscriber を作成
         let transcriptionPreset = SpeechTranscriber.Preset.transcription
-        transcriber = SpeechTranscriber(locale: useLocale, preset: transcriptionPreset)
+        let createdTranscriber = SpeechTranscriber(locale: useLocale, preset: transcriptionPreset)
+        transcriber = createdTranscriber
         print("使用ロケール: \(useLocale)")
 
         // 対応オーディオフォーマットを確認
-        let compatibleFormats = await transcriber!.availableCompatibleAudioFormats
+        let compatibleFormats = await createdTranscriber.availableCompatibleAudioFormats
         print("対応オーディオフォーマット: \(compatibleFormats)")
 
         // SpeechAnalyzer を作成
@@ -63,7 +66,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             priority: .userInitiated,
             modelRetention: .whileInUse
         )
-        analyzer = SpeechAnalyzer(modules: [transcriber!], options: options)
+        analyzer = SpeechAnalyzer(modules: [createdTranscriber], options: options)
     }
 
     deinit {
@@ -417,7 +420,9 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
         switch self {
         case .local:
             if #available(iOS 26.0, *) {
-                return "iOS 26ネイティブ（SpeechAnalyzer）"
+                return SpeechAnalyzerFeatureFlag.isEnabled
+                    ? "iOS 26ネイティブ（SpeechAnalyzer・ベータ）"
+                    : "ローカルモデル（SpeechRecognizer）"
             } else if #available(iOS 10.0, *) {
                 return "ローカルモデル（SpeechRecognizer）"
             } else {
@@ -470,7 +475,7 @@ final class AIService: AIServiceProtocol, ObservableObject {
 
         // ローカル文字起こしの初期化
         if transcriptionMode == .local {
-            if #available(iOS 26.0, *) {
+            if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
                 localTranscriptionService = SpeechAnalyzerService26()
             } else if #available(iOS 10.0, *) {
                 localTranscriptionService = SpeechAnalyzerService()

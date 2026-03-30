@@ -24,6 +24,10 @@
 	<string>録音機能を使用するためにマイクへのアクセスを許可してください</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>音声をテキストに変換するために音声認識へのアクセスを許可してください</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>ウェアラブルデバイスとの接続と音声録音のために Bluetooth を許可してください</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>ウェアラブルデバイスとの接続と音声録音のために Bluetooth を許可してください</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

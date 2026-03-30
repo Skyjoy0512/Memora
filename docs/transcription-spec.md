@@ -2,7 +2,8 @@
 
 ## 概要
 
-Memora アプリの文字起こし機能は、ローカル（iOS ネイティブ）およびクラウド API（OpenAI、Gemini、DeepSeek）の両方に対応しています。
+Memora アプリの文字起こし機能は、ローカル（iOS ネイティブ）を主軸にしつつ、必要に応じてクラウド API（OpenAI、Gemini、DeepSeek）を使い分けます。
+ローカル文字起こしの基本方針は、初回起動 UX と発熱、モデル配布サイズを優先し、`SpeechAnalyzer` と `SFSpeechRecognizer` で構成します。
 
 ## 対応環境
 
@@ -15,7 +16,7 @@ Memora アプリの文字起こし機能は、ローカル（iOS ネイティブ
 
 | モード | 説明 |
 |--------|--------|
-| ローカル | iOS ネイティブの Speech フレームワークを使用した無料の文字起こし |
+| ローカル | `SpeechAnalyzer` を優先し、非対応端末では `SFSpeechRecognizer` を使用する無料の文字起こし |
 | API | OpenAI Whisper、Gemini 1.5 Flash、DeepSeek（要約のみ）を使用したクラウド文字起こし |
 
 ### 2. 対応言語
@@ -53,20 +54,29 @@ Memora アプリの文字起こし機能は、ローカル（iOS ネイティブ
 
 ## iOS バージョン対応
 
-### iOS 10 - iOS 25（SpeechRecognizer）
+### iOS 17 - iOS 25（SFSpeechRecognizer）
 
 - SFSpeechRecognizer を使用
 - オンデバイス認識別（`requiresOnDeviceRecognition = true`）
 - 完全な結果のみ報告（`shouldReportPartialResults = false`）
+- `SpeechAnalyzer` 非対応端末の標準バックエンドとする
 
 ### iOS 26（SpeechAnalyzer）
 
-- SpeechAnalyzer を使用（iOS 26 SDK がリリースされた場合）
-- TranscriptionRequest API を使用
-- より高度な言語コンテキスト（`requiresLanguageContext = true`）
-- 最終化対応（`supportsFinalization = true`）
+- SpeechAnalyzer を最優先で使用
+- 文字起こしのメインバックエンドとする
+- 失敗時のみ `SFSpeechRecognizer` にフォールバックする
 
-**注**: iOS 26 はまだ正式リリースされていません。リリース時に正式 API を実装に置換える必要があります。
+### オンデバイス Whisper の扱い
+
+- `WhisperLargeTurbo` などのオンデバイス Whisper は現時点では導入しない
+- 理由:
+  - 初回起動や初回利用時の UX 悪化リスクが高い
+  - モデル配布サイズとダウンロード戦略が必要
+  - モデルウォームアップ、メモリ使用量、発熱のコストが大きい
+- 再検討条件:
+  - `SpeechAnalyzer` と `SFSpeechRecognizer` で速度または精度が明確に不足する
+  - 話者分離を含む全体 UX を損なわずに導入できる見通しが立つ
 
 ## UI フロー
 
@@ -89,6 +99,23 @@ Memora アプリの文字起こし機能は、ローカル（iOS ネイティブ
 4. 要約完了後、要約・重要ポイント・アクションアイテムを表示
 
 ## アーキテクチャ
+
+### ローカル文字起こしの選択順
+
+1. `SpeechAnalyzer`
+2. `SFSpeechRecognizer`
+3. API モード時のみクラウド STT
+
+### 話者分離の基本方針
+
+- 文字起こし本体と話者分離は別レイヤとして扱う
+- STT の速度を優先し、話者分離は録音後の後処理として改善していく
+- Omi 参照の拡張順は以下:
+  1. 話者分離の安定化
+  2. 話者サンプル抽出
+  3. 話者埋め込みマッチング
+  4. 自分の声登録
+  5. 自分の声の自動ラベル付けまたは除外
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -156,14 +183,16 @@ enum TranscriptionMode: String {
 
 ### iOS 26 SpeechAnalyzer API
 
-- iOS 26 が正式リリースされた場合、SpeechAnalyzerService を正式 API に置換え
-- TranscriptionRequest、SpeechAnalyzer クラスの実際 API を使用
-- 文字起こしの精度と速度の評価
+- SpeechAnalyzer の安定性評価
+- SpeechAnalyzer 失敗時フォールバックの品質改善
+- 文字起こし速度と発熱の実機評価
 
 ### マルチモーダル対応
 
 - 音声ファイルのマルチ選択と一括文字起こし
-- 話者分離の検討
+- 話者分離の精度改善
+- 自分の声登録機能の設計
+- 話者プロフィール保存形式の設計
 
 ### オフライン対応強化
 

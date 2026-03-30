@@ -3,8 +3,12 @@ import SwiftData
 
 struct CreateProjectView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.repositoryFactory) private var repoFactory
     @State private var title = ""
+
+    private var projectRepo: ProjectRepositoryProtocol? {
+        repoFactory?.projectRepo
+    }
 
     var body: some View {
         NavigationStack {
@@ -33,8 +37,9 @@ struct CreateProjectView: View {
     }
 
     private func createProject() {
+        guard let repo = repoFactory?.projectRepo as? ProjectRepository else { return }
         let project = Project(title: title)
-        modelContext.insert(project)
+        try? repo.save(project)
         dismiss()
     }
 }

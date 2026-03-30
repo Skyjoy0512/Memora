@@ -21,39 +21,39 @@ struct ProjectDetailView: View {
             VStack(spacing: 0) {
                 if projectFiles.isEmpty {
                     // 空の状態
-                    VStack(spacing: 20) {
+                    VStack(spacing: MemoraSpacing.lg) {
                         Spacer()
 
                         Image(systemName: "folder")
                             .resizable()
                             .frame(width: 60, height: 60)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(MemoraColor.textSecondary)
 
                         Text(project.title)
                             .font(.title)
                             .fontWeight(.bold)
 
                         Text("まだファイルがありません")
-                            .font(.headline)
+                            .font(MemoraTypography.headline)
                             .foregroundStyle(.secondary)
 
                         Spacer()
 
                         Button(action: { showRecordingView = true }) {
                             Label("録音を開始", systemImage: "mic.circle.fill")
-                                .font(.headline)
+                                .font(MemoraTypography.headline)
                                 .foregroundStyle(.white)
                                 .padding()
                                 .frame(maxWidth: .infinity)
-                                .background(Color.gray)
-                                .cornerRadius(12)
+                                .background(MemoraColor.divider)
+                                .cornerRadius(MemoraRadius.sm)
                         }
                         .padding()
 
                         Text("録音を開始してファイルを追加しましょう")
-                            .font(.caption)
+                            .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, MemoraSpacing.xxxl)
                     }
                 } else {
                     // ファイル一覧

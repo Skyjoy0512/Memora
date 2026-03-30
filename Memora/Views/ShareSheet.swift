@@ -1,24 +1,38 @@
 import SwiftUI
+import SwiftData
 
 struct ShareSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     let shareText: String?
     let shareURL: URL?
+    let audioFile: AudioFile
+    @State private var showExportOptions = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: MemoraSpacing.lg) {
                 Text("共有")
-                    .font(.headline)
+                    .font(MemoraTypography.headline)
                     .padding()
+
+                // エクスポートボタン
+                Button(action: { showExportOptions = true }) {
+                    Label("エクスポート", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
+                }
+                .foregroundStyle(.primary)
 
                 if let text = shareText {
                     Button(action: { shareText(text) }) {
                         Label("テキストを共有", systemImage: "doc.text")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .background(MemoraColor.divider.opacity(0.1))
+                            .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)
                 }
@@ -28,8 +42,8 @@ struct ShareSheet: View {
                         Label("ファイルを共有", systemImage: "doc")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                            .background(MemoraColor.divider.opacity(0.1))
+                            .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)
                 }
@@ -45,6 +59,9 @@ struct ShareSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .sheet(isPresented: $showExportOptions) {
+                ExportOptionsSheet(audioFile: audioFile)
             }
         }
     }
