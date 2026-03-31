@@ -122,12 +122,27 @@ struct FileDetailView: View {
                 Divider()
                     .padding(.horizontal)
 
+                // 画像アップロード行
+                uploadImageRow(vm: vm)
+
+                // 添付サムネイル（TODO: attachments 実装後に有効化）
+                // attachmentsRow(vm: vm)
+
                 // アクションボタン
                 actionButtons(vm: vm)
 
+                // ---- 生成結果セクション ----
+                if let result = vm.summaryResult {
+                    generatedResultSections(vm: vm, result: result)
+                }
+
                 Spacer()
+                    .frame(height: 80) // Ask AI 入力欄のスペース
             }
             .padding()
+        }
+        .safeAreaInset(edge: .bottom) {
+            askAIInputBar(vm: vm)
         }
         .navigationDestination(isPresented: Binding(
             get: { vm.showTranscriptView },
@@ -446,6 +461,160 @@ struct FileDetailView: View {
             return MemoraColor.accentBlue
         }
         return .secondary.opacity(0.4)
+    }
+
+    // MARK: - Upload Image Row
+
+    @ViewBuilder
+    private func uploadImageRow(vm: FileDetailViewModel) -> some View {
+        Button(action: { /* TODO: PhotosPicker */ }) {
+            HStack {
+                Image(systemName: "photo.badge.plus")
+                Text("画像を追加")
+            }
+            .font(MemoraTypography.subheadline)
+            .foregroundStyle(MemoraColor.accentBlue)
+            .frame(maxWidth: .infinity, minHeight: 36)
+            .background(MemoraColor.divider.opacity(0.05))
+            .cornerRadius(MemoraRadius.sm)
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Attachments Row
+
+    @ViewBuilder
+    private func attachmentsRow(vm: FileDetailViewModel) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: MemoraSpacing.sm) {
+                // TODO: attachments 実装後に有効化
+                // ForEach(vm.attachments) { attachment in ... }
+                RoundedRectangle(cornerRadius: MemoraRadius.sm)
+                    .fill(MemoraColor.divider.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                    .overlay {
+                        Image(systemName: "photo")
+                            .foregroundStyle(.secondary)
+                    }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Generated Result Sections
+
+    @ViewBuilder
+    private func generatedResultSections(vm: FileDetailViewModel, result: SummaryResult) -> some View {
+        VStack(spacing: MemoraSpacing.xxl) {
+            // Summary
+            sectionHeader("Summary", icon: "doc.text") {
+                Text(result.summary)
+                    .font(MemoraTypography.body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(6)
+            }
+
+            // Decisions
+            if let decisions = result.decisions, !decisions.isEmpty {
+                sectionHeader("Decisions", icon: "checkmark.seal") {
+                    ForEach(decisions.indices, id: \.self) { index in
+                        HStack(alignment: .top, spacing: MemoraSpacing.sm) {
+                            Text("\(index + 1).")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentBlue)
+                                .frame(width: 20, alignment: .trailing)
+                            Text(decisions[index])
+                                .font(MemoraTypography.body)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+
+            // Action Items
+            if !result.actionItems.isEmpty {
+                sectionHeader("Action Items", icon: "checklist") {
+                    ForEach(result.actionItems.indices, id: \.self) { index in
+                        HStack(alignment: .top, spacing: MemoraSpacing.sm) {
+                            Image(systemName: "circle")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.textSecondary)
+                            Text(result.actionItems[index])
+                                .font(MemoraTypography.body)
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            }
+
+            // Transcript Preview
+            if let transcript = vm.transcriptResult {
+                sectionHeader("Transcript", icon: "text.alignleft") {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+                        Text(transcript.text)
+                            .font(MemoraTypography.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+
+                        Button(action: { vm.showTranscriptView = true }) {
+                            Text("全文を表示")
+                                .font(MemoraTypography.subheadline)
+                                .foregroundStyle(MemoraColor.accentBlue)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private func sectionHeader<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            Label(title, systemImage: icon)
+                .font(MemoraTypography.headline)
+                .foregroundStyle(MemoraColor.textPrimary)
+
+            content()
+        }
+        .padding(MemoraSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MemoraColor.divider.opacity(0.05))
+        .cornerRadius(MemoraRadius.md)
+    }
+
+    // MARK: - Ask AI Input Bar
+
+    @ViewBuilder
+    private func askAIInputBar(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: MemoraSpacing.sm) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(MemoraColor.accentBlue)
+
+                TextField("Ask AI...", text: $askAIQuery)
+                    .textFieldStyle(.plain)
+                    .font(MemoraTypography.subheadline)
+
+                if !askAIQuery.isEmpty {
+                    Button(action: { submitAskAI(vm: vm) }) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(MemoraColor.accentBlue)
+                    }
+                }
+            }
+            .padding(.horizontal, MemoraSpacing.lg)
+            .padding(.vertical, MemoraSpacing.sm)
+            .background(.bar)
+        }
+    }
+
+    @State private var askAIQuery = ""
+
+    private func submitAskAI(vm: FileDetailViewModel) {
+        // TODO: Navigate to AskAI chat view with context
+        askAIQuery = ""
     }
 
     // MARK: - Loading Skeleton
