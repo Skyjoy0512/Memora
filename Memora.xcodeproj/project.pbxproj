@@ -70,6 +70,7 @@
 		BB0B6509F4D9BF05FB8C39C0 /* SkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77AA1A0B9035D2D276212DD1 /* SkeletonView.swift */; };
 		BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21EE7F002FD01C0D547BA99 /* Transcript.swift */; };
 		BC0FDCA50E72E5498C11BC4A /* WebhookService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111DA217ED25AE7B6816929C /* WebhookService.swift */; };
+		BDCB7051154D83001FDFE77E /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741C3A491C0FF36C45392569 /* ImportView.swift */; };
 		C2A359EBDA11B49EDAF60492 /* SpeakerDiarizationProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */; };
 		C8E93A23D474F6D2D348FA97 /* TranscriptRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B422516EC17A30AC6C7D86BB /* TranscriptRepository.swift */; };
 		CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */; };
@@ -124,6 +125,7 @@
 		64870BA5159BC812B9F9D4D8 /* PillButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillButton.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		700A6211D2AFD1801C9B1EB5 /* ToDoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoView.swift; sourceTree = "<group>"; };
+		741C3A491C0FF36C45392569 /* ImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportView.swift; sourceTree = "<group>"; };
 		77AA1A0B9035D2D276212DD1 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
 		78A39563D755711D640B86DA /* PlaudService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudService.swift; sourceTree = "<group>"; };
 		7AE8BEB8888D4078C49777BC /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
@@ -207,6 +209,7 @@
 				5101FD06BD2A409056F3CF8E /* FilterSheet.swift */,
 				391D18337003343A19FF438F /* GenerationFlowSheet.swift */,
 				AFAE9CD0723E38AB21228D1E /* HomeView.swift */,
+				741C3A491C0FF36C45392569 /* ImportView.swift */,
 				F1AC57E13F6533FE2F26F55F /* OnboardingView.swift */,
 				DA571A46847D132339E20442 /* ProjectDetailView.swift */,
 				DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */,
@@ -467,6 +470,7 @@
 				7D25FCE82F72A98E51C64618 /* GenerationFlowSheet.swift in Sources */,
 				705B3D375C7EA10AA0C86D64 /* HomeView.swift in Sources */,
 				58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */,
+				BDCB7051154D83001FDFE77E /* ImportView.swift in Sources */,
 				EA83623DA91433FB4F3BDE76 /* LLMProvider.swift in Sources */,
 				1AA65519782EDF211F4CE42C /* LLMResponseParser.swift in Sources */,
 				5804A1516805BD7EA664BFAC /* LiquidGlassModifier.swift in Sources */,

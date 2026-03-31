@@ -5,6 +5,7 @@ struct HomeView: View {
     @State private var audioFiles: [AudioFile] = []
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @State private var showImportPicker = false
     @Binding var showRecordingFromFAB: Bool
 
     // 検索・フィルタリング用
@@ -188,6 +189,25 @@ struct HomeView: View {
             .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showImportPicker = true
+                    } label: {
+                        Image(systemName: "doc.badge.plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showImportPicker) {
+                ImportView(isPresented: $showImportPicker) { url in
+                    if let factory = repoFactory {
+                        let service = ImportService()
+                        if let _ = service.importFile(from: url, repoFactory: factory) {
+                            audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                        }
+                    }
+                }
+            }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView()
             }
