@@ -393,7 +393,8 @@ final class FileDetailViewModel {
     private func startPlaybackTimer() {
         playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 self.playbackPosition = self.audioPlayer.currentTime
                 self.isPlaying = self.audioPlayer.isPlaying
 
@@ -409,7 +410,8 @@ final class FileDetailViewModel {
     private func startTranscriptionProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 self.transcriptionProgress = self.transcriptionEngine.progress
             }
         }
@@ -418,7 +420,8 @@ final class FileDetailViewModel {
     private func startSummarizationProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 self.summarizationProgress = self.summarizationEngine.progress
             }
         }
