@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 import Speech
 
 // UI 互換用の内部ラッパー。STT 境界の DTO は Core 契約の
@@ -103,10 +102,72 @@ enum STTErrorMapper {
     }
 }
 
-// MARK: - Feature Flags
+enum LocalSTTBackend: String, Sendable {
+    case speechAnalyzer = "SpeechAnalyzer"
+    case speechRecognizer = "SFSpeechRecognizer"
+    case api = "API"
+}
 
-/// iOS 26 SpeechAnalyzer ベータ機能のフィーチャーフラグ。
-/// デフォルト OFF（実機での EXC_BREAKPOINT クラッシュを回避）。
-struct SpeechAnalyzerFeatureFlag {
-    @AppStorage("speechAnalyzerEnabled") static var isEnabled: Bool = false
+enum SpeechAnalyzerFallbackReason: String, Sendable, Equatable {
+    case osTooOld
+    case localeUnavailable
+    case assetUnavailable
+    case prepareFailed
+    case runtimeFailure
+}
+
+enum SpeechAnalyzerSupportStatus: Sendable, Equatable {
+    case available
+    case localeUnavailable
+    case assetUnavailable
+}
+
+enum LocalSTTBackendSelection: Sendable, Equatable {
+    case speechAnalyzer
+    case speechRecognizer(reason: SpeechAnalyzerFallbackReason)
+}
+
+enum LocalSTTBackendResolver {
+    static func resolve(
+        osSupportsSpeechAnalyzer: Bool,
+        supportStatus: SpeechAnalyzerSupportStatus?
+    ) -> LocalSTTBackendSelection {
+        guard osSupportsSpeechAnalyzer else {
+            return .speechRecognizer(reason: .osTooOld)
+        }
+
+        switch supportStatus {
+        case .available:
+            return .speechAnalyzer
+        case .localeUnavailable:
+            return .speechRecognizer(reason: .localeUnavailable)
+        case .assetUnavailable:
+            return .speechRecognizer(reason: .assetUnavailable)
+        case nil:
+            return .speechRecognizer(reason: .runtimeFailure)
+        }
+    }
+}
+
+enum STTChunkingPolicy {
+    static func shouldPreChunk(transcriptionMode: TranscriptionMode) -> Bool {
+        transcriptionMode == .api
+    }
+}
+
+extension SpeechAnalyzerFallbackReason {
+    var logDescription: String {
+        switch self {
+        case .osTooOld:
+            return "osTooOld"
+        case .localeUnavailable:
+            return "localeUnavailable"
+        case .assetUnavailable:
+            return "assetUnavailable"
+        case .prepareFailed:
+            return "prepareFailed"
+        case .runtimeFailure:
+            return "runtimeFailure"
+        }
+    }
 }

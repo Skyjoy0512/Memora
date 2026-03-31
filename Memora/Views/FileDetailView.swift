@@ -3,7 +3,6 @@ import SwiftData
 
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
@@ -34,7 +33,7 @@ struct FileDetailView: View {
             if let vm = viewModel {
                 mainContent(vm: vm)
             } else {
-                ProgressView()
+                loadingSkeleton
             }
         }
         .navigationTitle("詳細")
@@ -64,8 +63,7 @@ struct FileDetailView: View {
             guard viewModel == nil else { return }
             let vm = FileDetailViewModel(
                 audioFile: audioFile,
-                repoFactory: repoFactory,
-                modelContext: modelContext,
+                repoFactory: repoFactory!,
                 provider: currentProvider,
                 transcriptionMode: currentTranscriptionMode,
                 apiKey: currentAPIKey
@@ -182,30 +180,36 @@ struct FileDetailView: View {
         } message: {
             Text("この録音ファイルを削除しますか？")
         }
-        .alert("エラー", isPresented: Binding(
-            get: { vm.showErrorAlert },
-            set: { vm.showErrorAlert = $0 }
-        )) {
-            Button("OK", role: .cancel) {
-                vm.errorMessage = nil
+        .overlay(alignment: .top) {
+            if vm.showErrorAlert, let message = vm.errorMessage {
+                ToastOverlay(
+                    icon: "exclamationmark.triangle.fill",
+                    message: message,
+                    style: .error,
+                    onDismiss: {
+                        vm.errorMessage = nil
+                        vm.showErrorAlert = false
+                    }
+                )
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
-        } message: {
-            if let message = vm.errorMessage {
-                Text(message)
+            if vm.showSuccessAlert, let message = vm.successMessage {
+                ToastOverlay(
+                    icon: "checkmark.circle.fill",
+                    message: message,
+                    style: .success,
+                    onDismiss: {
+                        vm.successMessage = nil
+                        vm.showSuccessAlert = false
+                    }
+                )
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .alert("完了", isPresented: Binding(
-            get: { vm.showSuccessAlert },
-            set: { vm.showSuccessAlert = $0 }
-        )) {
-            Button("OK", role: .cancel) {
-                vm.successMessage = nil
-            }
-        } message: {
-            if let message = vm.successMessage {
-                Text(message)
-            }
-        }
+        .animation(.easeInOut(duration: 0.3), value: vm.showErrorAlert)
+        .animation(.easeInOut(duration: 0.3), value: vm.showSuccessAlert)
     }
 
     // MARK: - Player Controls
@@ -377,6 +381,59 @@ struct FileDetailView: View {
             }
         }
         .padding(.horizontal)
+    }
+    // MARK: - Loading Skeleton
+
+    @ViewBuilder
+    private var loadingSkeleton: some View {
+        ScrollView {
+            VStack(spacing: MemoraSpacing.xxl) {
+                Spacer()
+                    .frame(height: MemoraSpacing.xxl)
+
+                // 波形イメージ
+                SkeletonView(height: 120, cornerRadius: MemoraRadius.md)
+                    .frame(width: 120)
+                    .padding(.horizontal)
+
+                // タイトル
+                SkeletonView(height: 24, cornerRadius: MemoraRadius.sm)
+                    .padding(.horizontal, 60)
+
+                // メタデータ
+                HStack(spacing: MemoraSpacing.xxl) {
+                    SkeletonView(height: 16, cornerRadius: MemoraRadius.sm)
+                        .frame(width: 100)
+                    SkeletonView(height: 16, cornerRadius: MemoraRadius.sm)
+                        .frame(width: 80)
+                }
+
+                Divider()
+                    .padding(.horizontal)
+
+                // プレイヤー
+                VStack(spacing: MemoraSpacing.lg) {
+                    SkeletonView(height: 6, cornerRadius: 3)
+                        .padding(.horizontal)
+                    SkeletonView(height: 70, cornerRadius: 35)
+                        .frame(width: 70)
+                }
+                .padding(.vertical, MemoraSpacing.xxl)
+
+                Divider()
+                    .padding(.horizontal)
+
+                // アクションボタン
+                VStack(spacing: MemoraSpacing.lg) {
+                    SkeletonView(height: 44, cornerRadius: MemoraRadius.md)
+                    SkeletonView(height: 44, cornerRadius: MemoraRadius.md)
+                }
+                .padding(.horizontal)
+
+                Spacer()
+            }
+            .padding()
+        }
     }
 }
 

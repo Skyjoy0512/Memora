@@ -120,10 +120,10 @@ struct FileDetailViewModelTests {
 
     private func makeViewModel(audioURLPath: String = "/tmp/test.m4a") -> FileDetailViewModel {
         let audioFile = AudioFile(title: "テスト", audioURL: audioURLPath)
+        let repoFactory = RepositoryFactory(modelContext: mockModelContext)
         return FileDetailViewModel(
             audioFile: audioFile,
-            repoFactory: nil,
-            modelContext: mockModelContext,
+            repoFactory: repoFactory,
             provider: .openai,
             transcriptionMode: .local,
             apiKey: "test-key"
@@ -132,7 +132,17 @@ struct FileDetailViewModelTests {
 
     private var mockModelContext: ModelContext {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: AudioFile.self, configurations: config)
+        let container = try! ModelContainer(
+            for: AudioFile.self,
+            Transcript.self,
+            TodoItem.self,
+            Project.self,
+            MeetingNote.self,
+            ProcessingJob.self,
+            WebhookSettings.self,
+            PlaudSettings.self,
+            configurations: config
+        )
         return container.mainContext
     }
 }
