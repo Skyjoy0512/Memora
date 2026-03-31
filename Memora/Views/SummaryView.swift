@@ -76,7 +76,7 @@ struct SummaryView: View {
         }
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
+        .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
         .cornerRadius(MemoraRadius.md)
     }
 
@@ -103,7 +103,7 @@ struct SummaryView: View {
         }
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
+        .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
         .cornerRadius(MemoraRadius.md)
     }
 
@@ -129,7 +129,7 @@ struct SummaryView: View {
         }
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
+        .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
         .cornerRadius(MemoraRadius.md)
     }
 
@@ -155,7 +155,7 @@ struct SummaryView: View {
         }
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
+        .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
         .cornerRadius(MemoraRadius.md)
     }
 

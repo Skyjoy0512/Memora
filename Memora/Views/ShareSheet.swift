@@ -21,7 +21,7 @@ struct ShareSheet: View {
                     Label("エクスポート", systemImage: "square.and.arrow.down")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                 }
                 .foregroundStyle(.primary)
@@ -31,7 +31,7 @@ struct ShareSheet: View {
                         Label("テキストを共有", systemImage: "doc.text")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(MemoraColor.divider.opacity(0.1))
+                            .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                             .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)
@@ -42,7 +42,7 @@ struct ShareSheet: View {
                         Label("ファイルを共有", systemImage: "doc")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(MemoraColor.divider.opacity(0.1))
+                            .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                             .cornerRadius(MemoraRadius.sm)
                     }
                     .foregroundStyle(.primary)

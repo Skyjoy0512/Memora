@@ -70,7 +70,7 @@ struct MorphingTabBar<Tab: MorphingTabProtocol, ExpandedContent: View>: View {
                         return UIImage(systemName: image, withConfiguration: config)
                     }
                     .frame(height: 48)
-                    .padding(.horizontal, 2)
+                    .padding(.horizontal, MemoraSpacing.xxxs)
                     .offset(y: -0.7)
                 }
             }

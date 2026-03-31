@@ -71,7 +71,7 @@ struct GenerationFlowSheet: View {
     private var stepIndicator: some View {
         HStack(spacing: MemoraSpacing.xxxs) {
             ForEach(0..<3, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 2)
+                RoundedRectangle(cornerRadius: MemoraRadius.xxs)
                     .fill(i <= step ? MemoraColor.accentBlue : MemoraColor.divider)
                     .frame(height: 3)
             }
@@ -126,7 +126,7 @@ struct GenerationFlowSheet: View {
             .padding(MemoraSpacing.md)
             .background(
                 RoundedRectangle(cornerRadius: MemoraRadius.md)
-                    .fill(config.template == template ? MemoraColor.accentBlue.opacity(0.08) : MemoraColor.divider.opacity(0.05))
+                    .fill(config.template == template ? MemoraColor.accentBlue.opacity(MemoraOpacity.light) : MemoraColor.divider.opacity(MemoraOpacity.subtle))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: MemoraRadius.md)

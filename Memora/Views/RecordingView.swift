@@ -32,9 +32,9 @@ struct RecordingView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 8)
-                    .background(MemoraColor.divider.opacity(0.1))
+                    .padding(.horizontal, MemoraRadius.md)
+                    .padding(.vertical, MemoraSpacing.xs)
+                    .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                     .cornerRadius(MemoraRadius.sm)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,7 +53,7 @@ struct RecordingView: View {
                         .font(.caption)
                         .foregroundStyle(MemoraColor.accentRed)
                         .padding()
-                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .background(MemoraColor.accentRed.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                         .padding(.horizontal)
                 }
@@ -67,7 +67,7 @@ struct RecordingView: View {
                 HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
                         Rectangle()
-                            .fill(audioRecorder.isRecording ? MemoraColor.divider : MemoraColor.divider.opacity(0.3))
+                            .fill(audioRecorder.isRecording ? MemoraColor.divider : MemoraColor.divider.opacity(MemoraOpacity.high))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
                                 .easeInOut(duration: 0.2)
@@ -92,7 +92,7 @@ struct RecordingView: View {
                             Rectangle()
                                 .fill(.white)
                                 .frame(width: 30, height: 30)
-                                .cornerRadius(4)
+                                .cornerRadius(MemoraRadius.xs)
                         } else {
                             Circle()
                                 .fill(.white)

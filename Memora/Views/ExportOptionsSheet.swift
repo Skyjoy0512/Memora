@@ -63,7 +63,7 @@ struct ExportOptionsSheet: View {
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.accentRed)
                         .padding()
-                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .background(MemoraColor.accentRed.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                 }
 

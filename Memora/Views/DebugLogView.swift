@@ -92,7 +92,7 @@ struct DebugLogView: View {
                 }
             }
             .padding(MemoraSpacing.xs)
-            .background(MemoraColor.divider.opacity(0.1))
+            .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
             .cornerRadius(MemoraRadius.sm)
 
             // レベルフィルター
@@ -180,7 +180,7 @@ struct LogEntryView: View {
         .padding(MemoraSpacing.xs)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(MemoraColor.divider.opacity(0.05))
+                .fill(MemoraColor.divider.opacity(MemoraOpacity.subtle))
         )
     }
 
@@ -232,7 +232,7 @@ struct FilterChip: View {
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: MemoraRadius.md)
-                        .fill(isSelected ? MemoraColor.accentBlue : MemoraColor.divider.opacity(0.1))
+                        .fill(isSelected ? MemoraColor.accentBlue : MemoraColor.divider.opacity(MemoraOpacity.medium))
                 )
         }
     }
