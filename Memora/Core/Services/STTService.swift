@@ -218,27 +218,44 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         handle: STTTaskHandle,
         configuration: STTExecutionConfiguration
     ) async throws -> TranscriptionResult {
-        let chunker = chunkerFactory()
+        let shouldPreChunk = STTChunkingPolicy.shouldPreChunk(transcriptionMode: configuration.transcriptionMode)
+        let chunker = shouldPreChunk ? chunkerFactory() : nil
         var preparedChunks: [AudioChunk] = []
 
         do {
             handle.yield(.transcriptionStarted(taskId: handle.taskId))
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
 
-            preparedChunks = try await chunker.analyzeAndChunk(fileURL: handle.audioURL) { completed, total in
-                let progress = total > 0 ? Double(completed) / Double(total) : 1
-                handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: min(0.12, 0.12 * progress)))
-                handle.yield(
-                    .audioChunkProgress(
-                        chunkIndex: max(0, completed - 1),
-                        progress: progress
+            if let chunker {
+                preparedChunks = try await chunker.analyzeAndChunk(fileURL: handle.audioURL) { completed, total in
+                    let progress = total > 0 ? Double(completed) / Double(total) : 1
+                    handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: min(0.12, 0.12 * progress)))
+                    handle.yield(
+                        .audioChunkProgress(
+                            chunkIndex: max(0, completed - 1),
+                            progress: progress
+                        )
                     )
-                )
+                }
+            } else {
+                preparedChunks = [
+                    AudioChunk(
+                        index: 0,
+                        startSec: 0,
+                        endSec: 0,
+                        url: handle.audioURL,
+                        isTemporary: false
+                    )
+                ]
+                handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.12))
+                handle.yield(.audioChunkProgress(chunkIndex: 0, progress: 1.0))
             }
 
             defer {
-                Task {
-                    await chunker.cleanup(chunks: preparedChunks)
+                if let chunker {
+                    Task {
+                        await chunker.cleanup(chunks: preparedChunks)
+                    }
                 }
             }
 

@@ -37,12 +37,23 @@ struct SummaryView: View {
         .navigationTitle("要約")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     copyAll()
                     showCopiedToast = true
                 } label: {
                     Image(systemName: "doc.on.doc")
+                }
+
+                Menu {
+                    Button(action: { exportAsMarkdown() }) {
+                        Label("Markdown でコピー", systemImage: "doc.text")
+                    }
+                    Button(action: { exportAsPlainText() }) {
+                        Label("テキストでコピー", systemImage: "doc.plaintext")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
                 }
             }
         }
@@ -188,6 +199,70 @@ struct SummaryView: View {
         }
 
         UIPasteboard.general.string = text
+    }
+
+    private func exportAsMarkdown() {
+        var md = "# 会議要約\n\n"
+        md += result.summary
+        md += "\n\n"
+
+        if !result.keyPoints.isEmpty {
+            md += "## 重要ポイント\n\n"
+            for (i, point) in result.keyPoints.enumerated() {
+                md += "\(i + 1). \(point)\n"
+            }
+            md += "\n"
+        }
+
+        if let decisions = result.decisions, !decisions.isEmpty {
+            md += "## 決定事項\n\n"
+            for decision in decisions {
+                md += "- \(decision)\n"
+            }
+            md += "\n"
+        }
+
+        if !result.actionItems.isEmpty {
+            md += "## アクションアイテム\n\n"
+            for item in result.actionItems {
+                md += "- [ ] \(item)\n"
+            }
+        }
+
+        UIPasteboard.general.string = md
+        showCopiedToast = true
+    }
+
+    private func exportAsPlainText() {
+        var text = "【会議要約】\n"
+        text += result.summary
+        text += "\n\n"
+
+        if !result.keyPoints.isEmpty {
+            text += "【重要ポイント】\n"
+            for (i, point) in result.keyPoints.enumerated() {
+                text += "\(i + 1). \(point)\n"
+            }
+            text += "\n"
+        }
+
+        if let decisions = result.decisions, !decisions.isEmpty {
+            text += "【決定事項】\n"
+            for decision in decisions {
+                text += "・\(decision)\n"
+            }
+            text += "\n"
+        }
+
+        if !result.actionItems.isEmpty {
+            text += "【アクションアイテム】\n"
+            for item in result.actionItems {
+                text += "□ \(item)\n"
+            }
+        }
+
+        UIPasteboard.general.string = text
+        showCopiedToast = true
     }
 }
 
