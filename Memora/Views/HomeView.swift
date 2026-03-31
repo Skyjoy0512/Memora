@@ -1,10 +1,8 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
-    @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
+    @State private var audioFiles: [AudioFile] = []
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @Binding var showRecordingFromFAB: Bool
@@ -208,19 +206,21 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .task {
+                if let factory = repoFactory {
+                    audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                }
+            }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
             let file = filteredFiles[index]
-            if let factory = repoFactory {
-                try? factory.audioFileRepo.delete(file)
-            } else {
-                modelContext.delete(file)
-                try? modelContext.save()
-            }
+            try? repoFactory?.audioFileRepo.delete(file)
         }
+        // Refresh list
+        audioFiles = (try? repoFactory?.audioFileRepo.fetchAll()) ?? []
     }
 
     private var recordingHint: String {
@@ -283,5 +283,4 @@ struct AudioFileRow: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: AudioFile.self, inMemory: true)
 }

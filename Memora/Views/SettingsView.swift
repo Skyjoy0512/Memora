@@ -1,9 +1,7 @@
 import SwiftUI
-import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
     @EnvironmentObject private var bluetoothService: BluetoothAudioService
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
@@ -15,7 +13,7 @@ struct SettingsView: View {
     @State private var isBluetoothEnabled = false
 
     // Plaud 設定
-    @Query private var plaudSettingsList: [PlaudSettings]
+    @State private var plaudSettingsList: [PlaudSettings] = []
     @State private var plaudEmail: String = ""
     @State private var plaudPassword: String = ""
     @State private var plaudApiServer: String = "api.plaud.ai"
@@ -56,7 +54,8 @@ struct SettingsView: View {
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .onAppear {
+        .task {
+            plaudSettingsList = (try? repoFactory?.plaudSettingsRepo.fetch()).flatMap { [$0] } ?? []
             loadPlaudSettings()
             isBluetoothEnabled = bluetoothService.isConnected
         }
@@ -536,16 +535,12 @@ struct SettingsView: View {
                         newSettings.email = plaudEmail
                         newSettings.password = plaudPassword
                         newSettings.autoSyncEnabled = plaudAutoSyncEnabled
-                        if let factory = repoFactory {
-                            try? factory.plaudSettingsRepo.save(newSettings)
-                        } else {
-                            modelContext.insert(newSettings)
+                        try? repoFactory?.plaudSettingsRepo.save(newSettings)
+                        if let saved = try? repoFactory?.plaudSettingsRepo.fetch() {
+                            plaudSettingsList = [saved]
                         }
                     } else {
                         return
-                    }
-                    if repoFactory == nil {
-                        try? modelContext.save()
                     }
                 }
             ))
@@ -567,11 +562,7 @@ struct SettingsView: View {
                                 if let settings = plaudSettings {
                                     settings.autoSyncEnabled = newValue
                                     settings.updatedAt = Date()
-                                    if let factory = repoFactory {
-                                        try? factory.plaudSettingsRepo.save(settings)
-                                    } else {
-                                        try? modelContext.save()
-                                    }
+                                    try? repoFactory?.plaudSettingsRepo.save(settings)
                                 }
                             }
                         ))
@@ -774,11 +765,8 @@ struct SettingsView: View {
             } else {
                 settings = PlaudSettings()
                 settings.isEnabled = true
-                if let factory = repoFactory {
-                    try? factory.plaudSettingsRepo.save(settings)
-                } else {
-                    modelContext.insert(settings)
-                }
+                try? repoFactory?.plaudSettingsRepo.save(settings)
+                plaudSettingsList = [settings]
             }
 
             settings.apiServer = server
@@ -790,11 +778,7 @@ struct SettingsView: View {
             settings.tokenExpiresAt = authResponse.calculatedExpiresAt
             settings.updatedAt = Date()
 
-            if let factory = repoFactory {
-                try? factory.plaudSettingsRepo.save(settings)
-            } else {
-                try? modelContext.save()
-            }
+            try? repoFactory?.plaudSettingsRepo.save(settings)
 
             isLoggedIn = true
             plaudSyncStatus = "ログインに成功しました"
@@ -812,11 +796,7 @@ struct SettingsView: View {
             settings.refreshToken = ""
             settings.tokenExpiresAt = nil
             settings.updatedAt = Date()
-            if let factory = repoFactory {
-                try? factory.plaudSettingsRepo.save(settings)
-            } else {
-                try? modelContext.save()
-            }
+            try? repoFactory?.plaudSettingsRepo.save(settings)
         }
 
         isLoggedIn = false
@@ -846,11 +826,7 @@ struct SettingsView: View {
                 settings.refreshToken = authResponse.refreshToken
                 settings.tokenExpiresAt = authResponse.calculatedExpiresAt
                 settings.updatedAt = Date()
-                if let factory = repoFactory {
-                    try? factory.plaudSettingsRepo.save(settings)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory?.plaudSettingsRepo.save(settings)
             } catch {
                 // リフレッシュ失敗
                 plaudSyncStatus = "トークンのリフレッシュに失敗しました: \(error.localizedDescription)"
@@ -871,18 +847,11 @@ struct SettingsView: View {
             var skippedCount = 0
 
             for recording in recordings {
-                // 既にインポート済みか確認（タイトルと作成日時で判定）
+                // 既にインポート済みか確認（タイトルで判定）
                 let alreadyExists: Bool
                 do {
-                    let existing = try modelContext.fetch(
-                        FetchDescriptor<AudioFile>(
-                            predicate: #Predicate { audioFile in
-                                audioFile.title == recording.title &&
-                                audioFile.createdAt == recording.createdAt
-                            }
-                        )
-                    ).first
-                    alreadyExists = existing != nil
+                    let matches = try repoFactory?.audioFileRepo.search(query: recording.title) ?? []
+                    alreadyExists = matches.contains { $0.createdAt == recording.createdAt }
                 } catch {
                     alreadyExists = false
                 }
@@ -913,11 +882,7 @@ struct SettingsView: View {
                     audioFile.isSummarized = true
                 }
 
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    modelContext.insert(audioFile)
-                }
+                try? repoFactory?.audioFileRepo.save(audioFile)
 
                 // 文字起こしがあれば Transcript を作成
                 if let transcriptText = recording.transcript, !transcriptText.isEmpty {
@@ -927,29 +892,17 @@ struct SettingsView: View {
                     )
                     transcript.createdAt = recording.createdAt
                     audioFile.isTranscribed = true
-                    if let factory = repoFactory {
-                        try? factory.transcriptRepo.save(transcript)
-                    } else {
-                        modelContext.insert(transcript)
-                    }
+                    try? repoFactory?.transcriptRepo.save(transcript)
                 }
 
                 importedCount += 1
-            }
-
-            if repoFactory == nil {
-                try modelContext.save()
             }
 
             // 最終同期日時を更新
             if let settings = plaudSettings {
                 settings.lastSyncAt = Date()
                 settings.updatedAt = Date()
-                if let factory = repoFactory {
-                    try? factory.plaudSettingsRepo.save(settings)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory?.plaudSettingsRepo.save(settings)
             }
 
             var statusMessage = "\(importedCount) 件の録音をインポートしました"
