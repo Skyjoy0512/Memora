@@ -15,6 +15,12 @@ struct HomeView: View {
     @State private var filterSummarized: Bool? = nil // nil=すべて, true=済み, false=未済み
     @State private var filterLifeLog: Bool? = nil // nil=すべて, true=ライフログのみ
     @State private var selectedTag: String? = nil // タグフィルタ
+    // 名前変更
+    @State private var showRenameAlert = false
+    @State private var renameFileId: AudioFile?
+    @State private var renamedTitle = ""
+    @State private var showDeleteAlert = false
+    @State private var deleteFileId: AudioFile?
     @State private var sortOption: SortOption = .dateDesc
     @State private var viewMode: ViewMode = .list // 表示モード
 
@@ -172,11 +178,17 @@ struct HomeView: View {
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         showImportPicker = true
                     } label: {
                         Image(systemName: "doc.badge.plus")
+                    }
+
+                    Button {
+                        selectedAudioFile = nil
+                    } label: {
+                        Image(systemName: "sparkles")
                     }
                 }
             }
@@ -232,10 +244,11 @@ struct HomeView: View {
 
 struct AudioFileRow: View {
     let audioFile: AudioFile
+    var onRename: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: MemoraSpacing.lg) {
-            // アイコン
             Image(systemName: "waveform")
                 .font(MemoraTypography.title2)
                 .foregroundStyle(MemoraColor.textSecondary)
@@ -245,29 +258,52 @@ struct AudioFileRow: View {
                 Text(audioFile.title)
                     .font(MemoraTypography.headline)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 HStack(spacing: 5) {
                     Text(formatDate(audioFile.createdAt))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-
-                    Text("•")
-                        .foregroundStyle(.secondary)
-
+                    Text("·")
                     Text(formatDuration(audioFile.duration))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
+                }
+                .font(MemoraTypography.caption1)
+                .foregroundStyle(.secondary)
+
+                if let summary = audioFile.summary, !summary.isEmpty {
+                    Text(summary)
+                        .font(MemoraTypography.footnote)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
 
             Spacer()
 
-            if audioFile.isTranscribed {
+            if audioFile.isSummarized {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(MemoraColor.accentBlue)
+            } else if audioFile.isTranscribed {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(MemoraColor.accentGreen)
             }
         }
         .padding(.vertical, MemoraSpacing.xs)
+        .contextMenu {
+            Button { onRename?() } label: {
+                Label("名前を変更", systemImage: "pencil")
+            }
+            Button { } label: {
+                Label("Projectに追加", systemImage: "folder.badge.plus")
+            }
+            ShareLink(item: audioFile.title) {
+                Label("共有", systemImage: "square.and.arrow.up")
+            }
+            Divider()
+            Button(role: .destructive) { onDelete?() } label: {
+                Label("削除", systemImage: "trash")
+            }
+        }
     }
 
     private func formatDate(_ date: Date) -> String {
