@@ -21,20 +21,6 @@
                ReferencedContainer = "container:Memora.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D7DB1290B4DD4CB998BFB3B9"
-               BuildableName = "MemoraTests.xctest"
-               BlueprintName = "MemoraTests"
-               ReferencedContainer = "container:Memora.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -53,16 +39,6 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "D7DB1290B4DD4CB998BFB3B9"
-               BuildableName = "MemoraTests.xctest"
-               BlueprintName = "MemoraTests"
-               ReferencedContainer = "container:Memora.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

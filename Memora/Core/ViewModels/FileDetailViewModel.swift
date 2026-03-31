@@ -1,6 +1,6 @@
 import Foundation
-import SwiftData
 import Observation
+import SwiftData
 
 @Observable
 @MainActor
@@ -30,6 +30,12 @@ final class FileDetailViewModel {
     var successMessage: String?
     var showSuccessAlert = false
 
+    // MARK: - Pipeline State
+    var pipelineRunning = false
+    var currentPipelineStep: PipelineStep = .none
+    var completedPipelineSteps: Set<PipelineStep> = []
+    var pipelineFailed = false
+
     // MARK: - Navigation
     var showTranscriptView = false
     var showSummaryView = false
@@ -39,7 +45,7 @@ final class FileDetailViewModel {
 
     // MARK: - Dependencies
     let audioFile: AudioFile
-    private let repoFactory: RepositoryFactory?
+    private let repoFactory: RepositoryFactory
     private let modelContext: ModelContext
     private let transcriptionEngine = TranscriptionEngine()
     private let summarizationEngine = SummarizationEngine()
@@ -58,7 +64,7 @@ final class FileDetailViewModel {
 
     init(
         audioFile: AudioFile,
-        repoFactory: RepositoryFactory?,
+        repoFactory: RepositoryFactory,
         modelContext: ModelContext,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
@@ -182,12 +188,7 @@ final class FileDetailViewModel {
 
                 // Transcript を保存
                 let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
-                if let factory = repoFactory {
-                    try? factory.transcriptRepo.save(transcript)
-                } else {
-                    modelContext.insert(transcript)
-                    try? modelContext.save()
-                }
+                try? repoFactory.transcriptRepo.save(transcript)
 
                 // スピーカーセグメントを保存
                 for segment in result.segments {
@@ -198,15 +199,11 @@ final class FileDetailViewModel {
                         text: segment.text
                     )
                 }
-                try? modelContext.save()
+                try? repoFactory.transcriptRepo.save(transcript)
 
                 // audioFile のフラグを更新
                 audioFile.isTranscribed = true
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory.audioFileRepo.save(audioFile)
 
                 transcriptResult = result
 
@@ -243,17 +240,7 @@ final class FileDetailViewModel {
             transcriptText = result.text
             segments = result.segments
         } else {
-            // Repository → modelContext フォールバックで取得
-            let transcript: Transcript?
-            if let factory = repoFactory {
-                transcript = try? factory.transcriptRepo.fetch(audioFileId: audioFile.id)
-            } else {
-                let targetID = audioFile.id
-                let descriptor = FetchDescriptor<Transcript>(
-                    predicate: #Predicate { $0.audioFileID == targetID }
-                )
-                transcript = try? modelContext.fetch(descriptor).first
-            }
+            let transcript = try? repoFactory.transcriptRepo.fetch(audioFileId: audioFile.id)
             transcriptText = transcript?.text ?? ""
         }
 
@@ -293,11 +280,7 @@ final class FileDetailViewModel {
                 audioFile.summary = result.summary
                 audioFile.keyPoints = result.keyPointsText
                 audioFile.actionItems = result.actionItemsText
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory.audioFileRepo.save(audioFile)
 
                 // アクションアイテムからTodoItem自動生成
                 if config.autoCreateTodos {
@@ -305,7 +288,7 @@ final class FileDetailViewModel {
                         from: result,
                         sourceFileId: audioFile.id,
                         sourceFileTitle: audioFile.title,
-                        modelContext: modelContext
+                        todoRepo: repoFactory.todoItemRepo
                     )
                 }
 
@@ -325,6 +308,81 @@ final class FileDetailViewModel {
                 isSummarizing = false
                 errorMessage = "要約エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            }
+        }
+    }
+
+    // MARK: - Pipeline (via PipelineCoordinator)
+
+    func startPipeline(config: GenerationConfig = GenerationConfig()) {
+        guard !currentAPIKey.isEmpty else {
+            errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
+            showErrorAlert = true
+            return
+        }
+
+        guard let url = audioURL else {
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
+            return
+        }
+
+        pipelineRunning = true
+        pipelineFailed = false
+        currentPipelineStep = .loadingAudio
+        completedPipelineSteps.removeAll()
+
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: transcriptionEngine,
+            summarizationEngine: summarizationEngine,
+            repoFactory: repoFactory,
+            modelContext: modelContext
+        )
+
+        let stream: AsyncStream<PipelineEvent>
+        if audioFile.isTranscribed, let transcript = transcriptResult {
+            stream = coordinator.runSummaryPipeline(
+                audioFile: audioFile,
+                transcriptText: transcript.text,
+                segments: transcript.segments,
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                config: config
+            )
+        } else {
+            stream = coordinator.runFullPipeline(
+                audioURL: url,
+                audioFile: audioFile,
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                transcriptionMode: currentTranscriptionMode,
+                config: config
+            )
+        }
+
+        Task {
+            for await event in stream {
+                switch event {
+                case .stepStarted(let step):
+                    currentPipelineStep = step
+                case .stepCompleted(let step):
+                    completedPipelineSteps.insert(step)
+                case .completed:
+                    pipelineRunning = false
+                    currentPipelineStep = .finalizing
+                    completedPipelineSteps.insert(.finalizing)
+                    loadSavedData()
+                    successMessage = "生成完了"
+                    showSuccessAlert = true
+                case .failed(let step, _):
+                    pipelineRunning = false
+                    pipelineFailed = true
+                    currentPipelineStep = step
+                    errorMessage = "パイプラインエラー: \(step.rawValue)"
+                    showErrorAlert = true
+                case .chunkProgress:
+                    break
+                }
             }
         }
     }
@@ -353,12 +411,7 @@ final class FileDetailViewModel {
     // MARK: - Delete
 
     func deleteAudioFile() {
-        if let factory = repoFactory {
-            try? factory.audioFileRepo.delete(audioFile)
-        } else {
-            modelContext.delete(audioFile)
-            try? modelContext.save()
-        }
+        try? repoFactory.audioFileRepo.delete(audioFile)
     }
 
     // MARK: - Format Helpers
@@ -432,13 +485,7 @@ final class FileDetailViewModel {
     private func loadSavedTranscript() {
         guard audioFile.isTranscribed else { return }
 
-        let targetID = audioFile.id
-        var descriptor = FetchDescriptor<Transcript>(
-            predicate: #Predicate { $0.audioFileID == targetID }
-        )
-        descriptor.fetchLimit = 1
-
-        guard let transcript = try? modelContext.fetch(descriptor).first else { return }
+        guard let transcript = try? repoFactory.transcriptRepo.fetch(audioFileId: audioFile.id) else { return }
 
         var segments: [SpeakerSegment] = []
         for i in 0..<transcript.speakerLabels.count {
@@ -476,16 +523,7 @@ final class FileDetailViewModel {
     }
 
     private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
-        // WebhookSettings を Repository → modelContext フォールバックで取得
-        let settings: WebhookSettings?
-        if let factory = repoFactory {
-            settings = try? factory.webhookSettingsRepo.fetch()
-        } else {
-            let descriptor = FetchDescriptor<WebhookSettings>()
-            settings = try? modelContext.fetch(descriptor).first
-        }
-
-        guard let settings else { return }
+        guard let settings = try? repoFactory.webhookSettingsRepo.fetch() else { return }
 
         do {
             try await webhookService.sendWebhook(
