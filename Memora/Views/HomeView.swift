@@ -85,29 +85,11 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 if audioFiles.isEmpty {
-                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
-                    VStack(spacing: MemoraSpacing.xxl) {
-                        Spacer()
-
-                        Image(systemName: "waveform")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundStyle(MemoraColor.textSecondary)
-
-                        Text("Memora")
-                            .font(MemoraTypography.largeTitle)
-
-                        Text("録音ファイル一覧")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(recordingHint)
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 8)
-
-                        Spacer()
-                    }
+                    EmptyStateView(
+                        icon: "waveform",
+                        title: "Memora",
+                        description: recordingHint
+                    )
                     .padding(.bottom, 110)
                 } else {
                     // ファイル一覧
