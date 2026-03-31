@@ -156,7 +156,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    continuation.yield(.failed(step: currentStep, error: error))
+                    continuation.yield(.failed(step: currentStep, error: .pipelineError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
@@ -236,7 +236,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    continuation.yield(.failed(step: currentStep, error: error))
+                    continuation.yield(.failed(step: currentStep, error: .pipelineError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
