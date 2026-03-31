@@ -161,6 +161,7 @@ final class InternalTranscriptionEngine {
         // SpeechAnalyzer は iOS 26 beta API。実機で EXC_BREAKPOINT が発生する場合があるため
         // フィーチャーフラグが明示的に ON の場合のみ試行する。
         #if !targetEnvironment(simulator)
+        #if swift(>=6.2)
         if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
             print("[MemoraSTT] SpeechAnalyzer パスを試行中...")
             do {
@@ -178,6 +179,7 @@ final class InternalTranscriptionEngine {
                 print("[MemoraSTT] SpeechAnalyzer スキップ — flag OFF またはシミュレータ")
             }
         }
+        #endif
         #endif
 
         print("[MemoraSTT] SFSpeechRecognizer パスを使用")
@@ -279,6 +281,7 @@ final class InternalTranscriptionEngine {
 
     // MARK: - SpeechAnalyzer (iOS 26+, gated by feature flag)
 
+    #if swift(>=6.2)
     @available(iOS 26.0, *)
     private func transcribeWithSpeechAnalyzerWithTimeout(
         audioURL: URL,
@@ -309,7 +312,9 @@ final class InternalTranscriptionEngine {
             return result
         }
     }
+    #endif
 
+    #if swift(>=6.2)
     @available(iOS 26.0, *)
     private func transcribeWithSpeechAnalyzer(
         audioURL: URL,
@@ -337,6 +342,7 @@ final class InternalTranscriptionEngine {
             segments: segmentsWithSpeakers
         )
     }
+    #endif
 
     private func transcribeRemotely(
         audioURL: URL,
