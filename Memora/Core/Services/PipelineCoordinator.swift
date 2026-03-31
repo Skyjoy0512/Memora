@@ -128,12 +128,14 @@ final class PipelineCoordinator {
                     if config.autoCreateTodos {
                         continuation.yield(.stepStarted(.extractingTodos))
 
-                        summarizationEngine.createTodoItems(
-                            from: summaryResult,
-                            sourceFileId: audioFile.id,
-                            sourceFileTitle: audioFile.title,
-                            modelContext: modelContext
-                        )
+                        if let factory = repoFactory {
+                            summarizationEngine.createTodoItems(
+                                from: summaryResult,
+                                sourceFileId: audioFile.id,
+                                sourceFileTitle: audioFile.title,
+                                todoRepo: factory.todoItemRepo
+                            )
+                        }
                         createdTodoCount = summaryResult.actionItems.filter {
                             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         }.count
@@ -213,12 +215,14 @@ final class PipelineCoordinator {
                     if config.autoCreateTodos {
                         continuation.yield(.stepStarted(.extractingTodos))
 
-                        summarizationEngine.createTodoItems(
-                            from: summaryResult,
-                            sourceFileId: audioFile.id,
-                            sourceFileTitle: audioFile.title,
-                            modelContext: modelContext
-                        )
+                        if let factory = repoFactory {
+                            summarizationEngine.createTodoItems(
+                                from: summaryResult,
+                                sourceFileId: audioFile.id,
+                                sourceFileTitle: audioFile.title,
+                                todoRepo: factory.todoItemRepo
+                            )
+                        }
 
                         continuation.yield(.stepCompleted(.extractingTodos))
                     }
