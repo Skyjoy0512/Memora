@@ -1,12 +1,11 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
-    @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
+    @State private var audioFiles: [AudioFile] = []
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @State private var showImportPicker = false
     @Binding var showRecordingFromFAB: Bool
 
     // 検索・フィルタリング用
@@ -190,6 +189,25 @@ struct HomeView: View {
             .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showImportPicker = true
+                    } label: {
+                        Image(systemName: "doc.badge.plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showImportPicker) {
+                ImportView(isPresented: $showImportPicker) { url in
+                    if let factory = repoFactory {
+                        let service = ImportService()
+                        if let _ = service.importFile(from: url, repoFactory: factory) {
+                            audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                        }
+                    }
+                }
+            }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView()
             }
@@ -208,19 +226,21 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .task {
+                if let factory = repoFactory {
+                    audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                }
+            }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
             let file = filteredFiles[index]
-            if let factory = repoFactory {
-                try? factory.audioFileRepo.delete(file)
-            } else {
-                modelContext.delete(file)
-                try? modelContext.save()
-            }
+            try? repoFactory?.audioFileRepo.delete(file)
         }
+        // Refresh list
+        audioFiles = (try? repoFactory?.audioFileRepo.fetchAll()) ?? []
     }
 
     private var recordingHint: String {
@@ -283,5 +303,4 @@ struct AudioFileRow: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: AudioFile.self, inMemory: true)
 }
