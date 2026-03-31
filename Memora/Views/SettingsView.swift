@@ -123,37 +123,25 @@ struct SettingsView: View {
 
             if currentTranscriptionMode == .local {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("ローカル文字起こしは SFSpeechRecognizer を使用します。")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
+                    if #available(iOS 26.0, *) {
+                        Text("iOS 26 以降では SpeechAnalyzer を優先して使用します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
 
-                    Text("インターネット接続不要・無料で利用できます。")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentGreen)
-                }
-                .padding(.vertical, MemoraSpacing.xxxs)
+                        Text("非対応端末・利用不可時は互換エンジンへ自動切替します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    } else {
+                        Text("ローカル文字起こしは SFSpeechRecognizer を使用します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
 
-                if #available(iOS 26.0, *) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Toggle(isOn: Binding(
-                            get: { SpeechAnalyzerFeatureFlag.isEnabled },
-                            set: { SpeechAnalyzerFeatureFlag.isEnabled = $0 }
-                        )) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("iOS 26 SpeechAnalyzer（ベータ）")
-                                Text("有効にすると iOS 26 ネイティブエンジンを使用します。不安定な場合があります。")
-                                    .font(MemoraTypography.caption1)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if SpeechAnalyzerFeatureFlag.isEnabled {
-                            Text("⚠️ SpeechAnalyzer はベータ機能です。クラッシュする場合はオフにしてください。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.accentRed)
-                        }
+                        Text("インターネット接続不要・無料で利用できます。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
                     }
                 }
+                .padding(.vertical, MemoraSpacing.xxxs)
             }
         }
     }

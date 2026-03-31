@@ -30,24 +30,6 @@ struct LLMResponse: Sendable {
     let decisions: [String]
 }
 
-struct ChatMessage: Sendable, Identifiable {
-    let id: UUID
-    let role: Role
-    let content: String
-
-    enum Role: String, Sendable {
-        case system
-        case user
-        case assistant
-    }
-
-    init(role: Role, content: String) {
-        self.id = UUID()
-        self.role = role
-        self.content = content
-    }
-}
-
 // MARK: - LLM Router
 
 /// ユーザー設定に基づいて適切な LLMProvider を選択・管理する。
@@ -148,7 +130,7 @@ final class LLMRouter: ObservableObject {
                 let speaker = seg.speakerLabel.isEmpty ? "不明" : seg.speakerLabel
                 let text = seg.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 return text.isEmpty ? "" : "[\(speaker)] \(text)"
-            }.filter { !$0 }.joined(separator: "\n")
+            }.filter { !$0.isEmpty }.joined(separator: "\n")
         }
 
         return """

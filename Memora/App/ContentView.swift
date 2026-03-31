@@ -270,30 +270,28 @@ struct SpeechAPIInfoView: View {
             if #available(iOS 26.0, *) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Image(systemName: SpeechAnalyzerFeatureFlag.isEnabled ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundStyle(SpeechAnalyzerFeatureFlag.isEnabled ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentGreen)
                         Text("iOS 26 対応デバイス")
                             .font(MemoraTypography.body)
                     }
                     .padding()
 
-                    if SpeechAnalyzerFeatureFlag.isEnabled {
-                        Text("SpeechAnalyzer（ベータ）が有効です")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(MemoraColor.accentGreen)
-                            .padding(.horizontal)
-                    } else {
-                        Text("SpeechAnalyzer は現在無効です（設定から有効化可能）")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-                    }
+                    Text("SpeechAnalyzer を優先使用します")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentGreen)
+                        .padding(.horizontal)
+
+                    Text("利用不可時は自動で互換エンジンへ切り替えます")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.green.opacity(0.1))
                 )
-                Text("iOS 26 SpeechAnalyzer API はベータ版です。設定から有効にできます。")
+                Text("iOS 26 では SpeechAnalyzer を既定で使用し、必要時のみ自動フォールバックします。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)

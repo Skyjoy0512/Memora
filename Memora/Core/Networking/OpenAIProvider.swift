@@ -74,10 +74,35 @@ final class OpenAIProvider: LLMProviderProtocol, @unchecked Sendable {
             throw AIError.apiError(http.statusCode, msg)
         }
 
-        let result = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
-        guard let content = result.choices.first?.message.content else {
+        // Inline decode to avoid type conflicts with AIService.swift
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let choices = json["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
             throw AIError.decodingError
         }
         return content
+    }
+
+    private func parseSummaryResponse(_ rawText: String) -> LLMResponse {
+        var cleaned = rawText
+        if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard let data = cleaned.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let summary = json["summary"] as? String,
+              let keyPoints = json["keyPoints"] as? [String],
+              let actionItems = json["actionItems"] as? [String] else {
+            return LLMResponse(rawText: rawText, summary: rawText, keyPoints: [], actionItems: [], decisions: [])
+        }
+
+        let decisions = json["decisions"] as? [String] ?? []
+        return LLMResponse(rawText: rawText, summary: summary, keyPoints: keyPoints, actionItems: actionItems, decisions: decisions)
     }
 }

@@ -5,7 +5,6 @@ import Foundation
 /// LLM レスポンスの JSON パーサー。全 Provider で共有。
 enum LLMResponseParser {
     static func parse(_ rawText: String) throws -> LLMResponse {
-        // マークダウンコードブロックを除去
         var cleaned = rawText
         if cleaned.hasPrefix("```") {
             cleaned = cleaned
@@ -39,8 +38,7 @@ enum LLMResponseParser {
 
 // MARK: - Shared Response Models
 
-/// OpenAI / DeepSeek 互換の Chat Completion レスポンス
-struct ChatCompletionResponse: Codable {
+struct LLMChatCompletionResponse: Codable {
     let choices: [Choice]
 
     struct Choice: Codable {
@@ -52,8 +50,7 @@ struct ChatCompletionResponse: Codable {
     }
 }
 
-/// Gemini GenerateContent レスポンス
-struct GeminiResponse: Codable {
+struct LLMGeminiResponse: Codable {
     let candidates: [Candidate]
 
     struct Candidate: Codable {
@@ -73,12 +70,10 @@ struct GeminiResponse: Codable {
 
 extension LLMProviderProtocol {
     func parseSummaryResponse(_ rawText: String) -> LLMResponse {
-        // Try structured parse first
         if let result = try? LLMResponseParser.parse(rawText) {
             return result
         }
 
-        // Fallback: return raw text as summary
         return LLMResponse(
             rawText: rawText,
             summary: rawText,

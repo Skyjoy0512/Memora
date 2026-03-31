@@ -24,8 +24,7 @@ final class GeminiProvider: LLMProviderProtocol, @unchecked Sendable {
 
         let rawText = try await sendGenerate(
             model: model ?? defaultModel,
-            systemPrompt: systemPrompt,
-            userPrompt: prompt
+            prompt: "\(systemPrompt)\n\n\(prompt)"
         )
 
         return parseSummaryResponse(rawText)
@@ -41,9 +40,7 @@ final class GeminiProvider: LLMProviderProtocol, @unchecked Sendable {
 
         let body: [String: Any] = [
             "contents": [["parts": parts]],
-            "generationConfig": [
-                "temperature": 0.7
-            ]
+            "generationConfig": ["temperature": 0.7]
         ]
 
         return try await sendRequest(model: model ?? defaultModel, body: body)
@@ -51,20 +48,11 @@ final class GeminiProvider: LLMProviderProtocol, @unchecked Sendable {
 
     // MARK: - Private
 
-    private func sendGenerate(
-        model: String,
-        systemPrompt: String,
-        userPrompt: String
-    ) async throws -> String {
+    private func sendGenerate(model: String, prompt: String) async throws -> String {
         let body: [String: Any] = [
-            "contents": [
-                ["parts": [["text": "\(systemPrompt)\n\n\(userPrompt)"]]]
-            ],
-            "generationConfig": [
-                "temperature": 0.3
-            ]
+            "contents": [["parts": [["text": prompt]]]],
+            "generationConfig": ["temperature": 0.3]
         ]
-
         return try await sendRequest(model: model, body: body)
     }
 
@@ -82,10 +70,35 @@ final class GeminiProvider: LLMProviderProtocol, @unchecked Sendable {
             throw AIError.apiError(http.statusCode, msg)
         }
 
-        let result = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        guard let content = result.candidates.first?.content.parts.first?.text else {
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let candidates = json["candidates"] as? [[String: Any]],
+              let firstCandidate = candidates.first,
+              let content = firstCandidate["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]],
+              let text = parts.first?["text"] as? String else {
             throw AIError.decodingError
         }
-        return content
+        return text
+    }
+
+    private func parseSummaryResponse(_ rawText: String) -> LLMResponse {
+        var cleaned = rawText
+        if cleaned.hasPrefix("```") {
+            cleaned = cleaned
+                .replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        guard let data = cleaned.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let summary = json["summary"] as? String,
+              let keyPoints = json["keyPoints"] as? [String],
+              let actionItems = json["actionItems"] as? [String] else {
+            return LLMResponse(rawText: rawText, summary: rawText, keyPoints: [], actionItems: [], decisions: [])
+        }
+
+        let decisions = json["decisions"] as? [String] ?? []
+        return LLMResponse(rawText: rawText, summary: summary, keyPoints: keyPoints, actionItems: actionItems, decisions: decisions)
     }
 }
