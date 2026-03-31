@@ -1,12 +1,11 @@
 import SwiftUI
-import SwiftData
 
 struct HomeView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
-    @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
+    @State private var audioFiles: [AudioFile] = []
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @State private var showImportPicker = false
     @Binding var showRecordingFromFAB: Bool
 
     // 検索・フィルタリング用
@@ -16,6 +15,12 @@ struct HomeView: View {
     @State private var filterSummarized: Bool? = nil // nil=すべて, true=済み, false=未済み
     @State private var filterLifeLog: Bool? = nil // nil=すべて, true=ライフログのみ
     @State private var selectedTag: String? = nil // タグフィルタ
+    // 名前変更
+    @State private var showRenameAlert = false
+    @State private var renameFileId: AudioFile?
+    @State private var renamedTitle = ""
+    @State private var showDeleteAlert = false
+    @State private var deleteFileId: AudioFile?
     @State private var sortOption: SortOption = .dateDesc
     @State private var viewMode: ViewMode = .list // 表示モード
 
@@ -86,29 +91,11 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 if audioFiles.isEmpty {
-                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
-                    VStack(spacing: MemoraSpacing.xxl) {
-                        Spacer()
-
-                        Image(systemName: "waveform")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundStyle(MemoraColor.textSecondary)
-
-                        Text("Memora")
-                            .font(MemoraTypography.largeTitle)
-
-                        Text("録音ファイル一覧")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(recordingHint)
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 8)
-
-                        Spacer()
-                    }
+                    EmptyStateView(
+                        icon: "waveform",
+                        title: "Memora",
+                        description: recordingHint
+                    )
                     .padding(.bottom, 110)
                 } else {
                     // ファイル一覧
@@ -190,6 +177,31 @@ struct HomeView: View {
             .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        showImportPicker = true
+                    } label: {
+                        Image(systemName: "doc.badge.plus")
+                    }
+
+                    Button {
+                        selectedAudioFile = nil
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                }
+            }
+            .sheet(isPresented: $showImportPicker) {
+                ImportView(isPresented: $showImportPicker) { url in
+                    if let factory = repoFactory {
+                        let service = ImportService()
+                        if let _ = service.importFile(from: url, repoFactory: factory) {
+                            audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                        }
+                    }
+                }
+            }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView()
             }
@@ -208,19 +220,21 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .task {
+                if let factory = repoFactory {
+                    audioFiles = (try? factory.audioFileRepo.fetchAll()) ?? []
+                }
+            }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
             let file = filteredFiles[index]
-            if let factory = repoFactory {
-                try? factory.audioFileRepo.delete(file)
-            } else {
-                modelContext.delete(file)
-                try? modelContext.save()
-            }
+            try? repoFactory?.audioFileRepo.delete(file)
         }
+        // Refresh list
+        audioFiles = (try? repoFactory?.audioFileRepo.fetchAll()) ?? []
     }
 
     private var recordingHint: String {
@@ -230,10 +244,11 @@ struct HomeView: View {
 
 struct AudioFileRow: View {
     let audioFile: AudioFile
+    var onRename: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: MemoraSpacing.lg) {
-            // アイコン
             Image(systemName: "waveform")
                 .font(MemoraTypography.title2)
                 .foregroundStyle(MemoraColor.textSecondary)
@@ -243,29 +258,52 @@ struct AudioFileRow: View {
                 Text(audioFile.title)
                     .font(MemoraTypography.headline)
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 HStack(spacing: 5) {
                     Text(formatDate(audioFile.createdAt))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-
-                    Text("•")
-                        .foregroundStyle(.secondary)
-
+                    Text("·")
                     Text(formatDuration(audioFile.duration))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
+                }
+                .font(MemoraTypography.caption1)
+                .foregroundStyle(.secondary)
+
+                if let summary = audioFile.summary, !summary.isEmpty {
+                    Text(summary)
+                        .font(MemoraTypography.footnote)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
 
             Spacer()
 
-            if audioFile.isTranscribed {
+            if audioFile.isSummarized {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(MemoraColor.accentBlue)
+            } else if audioFile.isTranscribed {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(MemoraColor.accentGreen)
             }
         }
         .padding(.vertical, MemoraSpacing.xs)
+        .contextMenu {
+            Button { onRename?() } label: {
+                Label("名前を変更", systemImage: "pencil")
+            }
+            Button { } label: {
+                Label("Projectに追加", systemImage: "folder.badge.plus")
+            }
+            ShareLink(item: audioFile.title) {
+                Label("共有", systemImage: "square.and.arrow.up")
+            }
+            Divider()
+            Button(role: .destructive) { onDelete?() } label: {
+                Label("削除", systemImage: "trash")
+            }
+        }
     }
 
     private func formatDate(_ date: Date) -> String {
@@ -283,5 +321,4 @@ struct AudioFileRow: View {
 
 #Preview {
     HomeView()
-        .modelContainer(for: AudioFile.self, inMemory: true)
 }

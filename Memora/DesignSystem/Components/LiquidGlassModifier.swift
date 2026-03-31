@@ -6,6 +6,20 @@ struct LiquidGlassModifier: ViewModifier {
     var shadowRadius: CGFloat = 12
 
     func body(content: Content) -> some View {
+        #if swift(>=6.2)
+        if #available(iOS 26.0, *) {
+            content
+                .background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius, style: .continuous))
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius, style: .continuous))
+        } else {
+            fallbackBody(content: content)
+        }
+        #else
+        fallbackBody(content: content)
+        #endif
+    }
+
+    private func fallbackBody(content: Content) -> some View {
         content
             .background(
                 .ultraThinMaterial,
