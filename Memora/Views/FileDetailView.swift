@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
