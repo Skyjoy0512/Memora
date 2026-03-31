@@ -277,14 +277,14 @@ struct FileDetailView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(MemoraColor.divider.opacity(0.1))
+                .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                 .cornerRadius(MemoraRadius.md)
             } else if vm.transcriptResult != nil {
                 Button(action: { vm.showTranscriptView = true }) {
                     Label("文字起こし結果を表示", systemImage: "text.alignleft")
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -293,7 +293,7 @@ struct FileDetailView: View {
                     Label("文字起こし結果を表示", systemImage: "text.alignleft")
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -302,7 +302,7 @@ struct FileDetailView: View {
                     Label("文字起こし", systemImage: "text.alignleft")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -319,14 +319,14 @@ struct FileDetailView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(MemoraColor.divider.opacity(0.1))
+                .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                 .cornerRadius(MemoraRadius.md)
             } else if vm.summaryResult != nil {
                 Button(action: { vm.showSummaryView = true }) {
                     Label("要約結果を表示", systemImage: "text.quote")
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -335,7 +335,7 @@ struct FileDetailView: View {
                     Label("要約結果を表示", systemImage: "text.quote")
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -344,7 +344,7 @@ struct FileDetailView: View {
                     Label("生成", systemImage: "text.quote")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)
@@ -353,7 +353,7 @@ struct FileDetailView: View {
                     Label("要約", systemImage: "text.quote")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(MemoraColor.divider.opacity(0.05))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.secondary)
@@ -370,7 +370,7 @@ struct FileDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding()
-                    .background(MemoraColor.divider.opacity(0.08))
+                    .background(MemoraColor.divider.opacity(MemoraOpacity.light))
                     .cornerRadius(MemoraRadius.md)
                 }
                 .foregroundStyle(.primary)

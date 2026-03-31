@@ -32,7 +32,7 @@ struct RealtimeTranscriptionView: View {
 
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .resizable()
-                        .frame(width: 80, height: 80)
+                        .frame(width: MemoraFrame.avatar, height: MemoraFrame.avatar)
                         .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("Omiデバイスに接続していません")

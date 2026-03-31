@@ -50,4 +50,21 @@ enum MemoraColor {
     // Shadows
     static let shadowLight  = Color.black.opacity(0.04)
     static let shadowMedium = Color.black.opacity(0.08)
+
+    // Status
+    static let error   = Color(hex: "FF3B30")
+    static let success = Color(hex: "34C759")
+    static let warning = Color(hex: "FF9500")
+}
+
+// MARK: - Opacity Tokens
+enum MemoraOpacity {
+    static let low: Double    = 0.03
+    static let subtle: Double = 0.05
+    static let light: Double  = 0.08
+    static let medium: Double = 0.1
+    static let regular: Double = 0.15
+    static let high: Double   = 0.3
+    static let semi: Double   = 0.5
+    static let heavy: Double  = 0.6
 }

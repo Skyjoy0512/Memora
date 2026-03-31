@@ -22,7 +22,7 @@ struct FilterSheet: View {
                     }
                 }
                 .padding()
-                .background(MemoraColor.divider.opacity(0.05))
+                .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                 .cornerRadius(MemoraRadius.md)
 
                 // 要約ステータス
@@ -37,7 +37,7 @@ struct FilterSheet: View {
                     }
                 }
                 .padding()
-                .background(MemoraColor.divider.opacity(0.05))
+                .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                 .cornerRadius(MemoraRadius.md)
 
                 Spacer()
@@ -83,7 +83,7 @@ struct FilterSheet: View {
                 .foregroundStyle(selected ?? false ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(selected ?? false ? MemoraColor.divider : MemoraColor.divider.opacity(0.1))
+                .background(selected ?? false ? MemoraColor.divider : MemoraColor.divider.opacity(MemoraOpacity.medium))
                 .cornerRadius(MemoraRadius.sm)
         }
     }

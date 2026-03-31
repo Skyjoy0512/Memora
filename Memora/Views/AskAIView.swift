@@ -81,7 +81,7 @@ struct AskAIView: View {
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.top, MemoraSpacing.md)
-        .background(MemoraColor.divider.opacity(0.03))
+        .background(MemoraColor.divider.opacity(MemoraOpacity.low))
     }
 
     private var chatScrollView: some View {
@@ -120,7 +120,7 @@ struct AskAIView: View {
                     }
                     .padding(MemoraSpacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MemoraColor.divider.opacity(0.05))
+                    .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                     .cornerRadius(MemoraRadius.md)
                 }
             }
@@ -250,7 +250,7 @@ private struct MessageBubbleView: View {
                     .lineSpacing(4)
             }
             .padding(MemoraSpacing.md)
-            .background(isUser ? MemoraColor.accentPrimary : MemoraColor.divider.opacity(0.05))
+            .background(isUser ? MemoraColor.accentPrimary : MemoraColor.divider.opacity(MemoraOpacity.subtle))
             .cornerRadius(MemoraRadius.md)
             .frame(maxWidth: isUser ? 280 : .infinity, alignment: isUser ? .trailing : .leading)
             .id(message.id.uuidString)

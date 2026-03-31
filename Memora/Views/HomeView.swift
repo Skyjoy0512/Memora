@@ -109,7 +109,7 @@ struct HomeView: View {
 
                         Spacer()
                     }
-                    .padding(.bottom, 110)
+                    .padding(.bottom, MemoraHeight.tabBar)
                 } else {
                     // ファイル一覧
                     VStack(spacing: 0) {

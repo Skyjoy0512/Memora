@@ -70,7 +70,7 @@ struct MorphingTabBar<Tab: MorphingTabProtocol, ExpandedContent: View>: View {
                         return UIImage(systemName: image, withConfiguration: config)
                     }
                     .frame(height: 48)
-                    .padding(.horizontal, 2)
+                    .padding(.horizontal, MemoraSpacing.xxxs)
                     .offset(y: -0.7)
                 }
             }
@@ -156,6 +156,7 @@ struct ExpandableGlassEffect<Content: View, Label: View>: View, Animatable {
 
     var body: some View {
         Group {
+            #if swift(>=6.2)
             if #available(iOS 26.0, *) {
                 GlassEffectContainer {
                     morphingContent
@@ -169,6 +170,12 @@ struct ExpandableGlassEffect<Content: View, Label: View>: View, Animatable {
                     .clipShape(.rect(cornerRadius: cornerRadius))
                     .background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
             }
+            #else
+            morphingContent
+                .compositingGroup()
+                .clipShape(.rect(cornerRadius: cornerRadius))
+                .background(.ultraThinMaterial, in: .rect(cornerRadius: cornerRadius))
+            #endif
         }
         .scaleEffect(
             x: 1 - (blurProgress * 0.5),
@@ -256,6 +263,7 @@ struct ExpandableGlassEffect<Content: View, Label: View>: View, Animatable {
 struct GlassButtonStyle<S: Shape>: ButtonStyle {
     var shape: S
     func makeBody(configuration: Configuration) -> some View {
+        #if swift(>=6.2)
         if #available(iOS 26.0, *) {
             configuration.label
                 .glassEffect(.regular.interactive(), in: shape)
@@ -263,5 +271,9 @@ struct GlassButtonStyle<S: Shape>: ButtonStyle {
             configuration.label
                 .background(.ultraThinMaterial, in: shape)
         }
+        #else
+        configuration.label
+            .background(.ultraThinMaterial, in: shape)
+        #endif
     }
 }

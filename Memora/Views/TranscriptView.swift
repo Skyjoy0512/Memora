@@ -19,7 +19,7 @@ struct TranscriptView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(MemoraColor.divider.opacity(0.05))
+                .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                 .cornerRadius(MemoraRadius.md)
 
                 // 話者セグメント
@@ -34,7 +34,7 @@ struct TranscriptView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MemoraColor.divider.opacity(0.05))
+                    .background(MemoraColor.divider.opacity(MemoraOpacity.subtle))
                     .cornerRadius(MemoraRadius.md)
                 }
 

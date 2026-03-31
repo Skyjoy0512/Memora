@@ -105,7 +105,7 @@ struct DeviceConnectionView: View {
                             }
                             .padding()
                         }
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                     }
                     .padding(.horizontal)

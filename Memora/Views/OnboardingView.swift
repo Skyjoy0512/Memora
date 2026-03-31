@@ -53,7 +53,7 @@ struct OnboardingView: View {
                     .font(MemoraTypography.body)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
+                    .frame(height: MemoraHeight.button)
                     .background(MemoraColor.accentPrimary)
                     .clipShape(Capsule())
             }
@@ -73,8 +73,8 @@ struct OnboardingView: View {
             // Icon
             ZStack {
                 Circle()
-                    .fill(MemoraColor.accentBlue.opacity(0.1))
-                    .frame(width: 160, height: 160)
+                    .fill(MemoraColor.accentBlue.opacity(MemoraOpacity.medium))
+                    .frame(width: MemoraFrame.hero, height: MemoraFrame.hero)
 
                 Image(systemName: pageInfo(page).icon)
                     .font(.system(size: 60))

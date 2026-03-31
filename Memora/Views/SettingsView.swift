@@ -298,7 +298,7 @@ struct SettingsView: View {
                         Text("切断")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, MemoraSpacing.xs)
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.accentRed)
                             .cornerRadius(MemoraRadius.sm)
@@ -339,9 +339,9 @@ struct SettingsView: View {
                                 Image(systemName: "chevron.right")
                                     .foregroundStyle(.secondary)
                             }
-                            .padding(8)
+                            .padding(MemoraSpacing.xs)
                         }
-                        .background(MemoraColor.divider.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                     }
                 }
@@ -360,7 +360,7 @@ struct SettingsView: View {
                         Label("再スキャン", systemImage: "arrow.clockwise")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, MemoraSpacing.xs)
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.divider)
                             .cornerRadius(MemoraRadius.sm)
@@ -394,9 +394,9 @@ struct SettingsView: View {
                                 .fontDesign(.monospaced)
                                 .fontWeight(.bold)
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, MemoraSpacing.xs)
                         .frame(maxWidth: .infinity)
-                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .background(MemoraColor.accentRed.opacity(MemoraOpacity.medium))
                         .cornerRadius(MemoraRadius.sm)
                     }
 
@@ -412,7 +412,7 @@ struct SettingsView: View {
                                 }
                                 .font(MemoraTypography.subheadline)
                                 .foregroundStyle(.white)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, MemoraSpacing.sm)
                                 .frame(maxWidth: .infinity)
                                 .background(MemoraColor.accentRed)
                                 .cornerRadius(MemoraRadius.sm)
@@ -427,7 +427,7 @@ struct SettingsView: View {
                                 }
                                 .font(MemoraTypography.subheadline)
                                 .foregroundStyle(.white)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, MemoraSpacing.sm)
                                 .frame(maxWidth: .infinity)
                                 .background(MemoraColor.accentRed)
                                 .cornerRadius(MemoraRadius.sm)
@@ -443,7 +443,7 @@ struct SettingsView: View {
                             }
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, MemoraSpacing.sm)
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.divider)
                             .cornerRadius(MemoraRadius.sm)
@@ -465,7 +465,7 @@ struct SettingsView: View {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, MemoraSpacing.xs)
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.divider)
                             .cornerRadius(MemoraRadius.sm)
