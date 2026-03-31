@@ -4,6 +4,7 @@ import SwiftData
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.repositoryFactory) private var repoFactory
+    @Environment(\.modelContext) private var modelContext
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
@@ -64,6 +65,7 @@ struct FileDetailView: View {
             let vm = FileDetailViewModel(
                 audioFile: audioFile,
                 repoFactory: repoFactory!,
+                modelContext: modelContext,
                 provider: currentProvider,
                 transcriptionMode: currentTranscriptionMode,
                 apiKey: currentAPIKey
@@ -155,7 +157,7 @@ struct FileDetailView: View {
                 get: { vm.showGenerationFlow },
                 set: { vm.showGenerationFlow = $0 }
             )) { config in
-                vm.startSummarization(with: config)
+                vm.startPipeline(config: config)
             }
         }
         .sheet(isPresented: Binding(
@@ -270,7 +272,11 @@ struct FileDetailView: View {
     @ViewBuilder
     private func actionButtons(vm: FileDetailViewModel) -> some View {
         VStack(spacing: MemoraSpacing.lg) {
-            // 文字起こし
+            // パイプライン実行中
+            if vm.pipelineRunning {
+                pipelineProgressView(vm: vm)
+            } else {
+                // 文字起こし
             if vm.isTranscribing {
                 VStack(spacing: MemoraSpacing.lg) {
                     ProgressView(value: vm.transcriptionProgress)
@@ -362,6 +368,7 @@ struct FileDetailView: View {
                 }
                 .foregroundStyle(.secondary)
             }
+            } // else (not pipelineRunning)
 
             // スピーカー登録
             if vm.audioURL != nil {
@@ -382,6 +389,65 @@ struct FileDetailView: View {
         }
         .padding(.horizontal)
     }
+    // MARK: - Pipeline Progress
+
+    private let pipelineSteps: [(PipelineStep, String, String)] = [
+        (.loadingAudio, "オーディオ読み込み", "waveform"),
+        (.transcribing, "文字起こし", "text.alignleft"),
+        (.mergingTranscripts, "文字起こし統合", "doc.text.magnifyingglass"),
+        (.generatingSummary, "要約生成", "text.quote"),
+        (.extractingMetadata, "メタデータ抽出", "tag"),
+        (.extractingTodos, "ToDo抽出", "checklist"),
+        (.finalizing, "完了処理", "checkmark.circle")
+    ]
+
+    @ViewBuilder
+    private func pipelineProgressView(vm: FileDetailViewModel) -> some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+            Text("パイプライン処理中")
+                .font(MemoraTypography.headline)
+                .foregroundStyle(.primary)
+
+            ForEach(pipelineSteps, id: \.0) { step, label, icon in
+                HStack(spacing: MemoraSpacing.md) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14))
+                        .foregroundStyle(stepColor(for: step, vm: vm))
+                        .frame(width: 20)
+
+                    Text(label)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(step == vm.currentPipelineStep ? .primary : .secondary)
+
+                    Spacer()
+
+                    if vm.completedPipelineSteps.contains(step) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    } else if step == vm.currentPipelineStep && !vm.completedPipelineSteps.contains(step) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
+                }
+                .padding(.vertical, MemoraSpacing.xxxs)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(MemoraColor.divider.opacity(0.1))
+        .cornerRadius(MemoraRadius.md)
+    }
+
+    private func stepColor(for step: PipelineStep, vm: FileDetailViewModel) -> Color {
+        if vm.completedPipelineSteps.contains(step) {
+            return MemoraColor.accentGreen
+        } else if step == vm.currentPipelineStep {
+            return MemoraColor.accentBlue
+        }
+        return .secondary.opacity(0.4)
+    }
+
     // MARK: - Loading Skeleton
 
     @ViewBuilder

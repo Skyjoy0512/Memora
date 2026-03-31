@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftData
 
 @Observable
 @MainActor
@@ -29,6 +30,12 @@ final class FileDetailViewModel {
     var successMessage: String?
     var showSuccessAlert = false
 
+    // MARK: - Pipeline State
+    var pipelineRunning = false
+    var currentPipelineStep: PipelineStep = .none
+    var completedPipelineSteps: Set<PipelineStep> = []
+    var pipelineFailed = false
+
     // MARK: - Navigation
     var showTranscriptView = false
     var showSummaryView = false
@@ -39,6 +46,7 @@ final class FileDetailViewModel {
     // MARK: - Dependencies
     let audioFile: AudioFile
     private let repoFactory: RepositoryFactory
+    private let modelContext: ModelContext
     private let transcriptionEngine = TranscriptionEngine()
     private let summarizationEngine = SummarizationEngine()
     private let audioPlayer = AudioPlayer()
@@ -57,12 +65,14 @@ final class FileDetailViewModel {
     init(
         audioFile: AudioFile,
         repoFactory: RepositoryFactory,
+        modelContext: ModelContext,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
         apiKey: String
     ) {
         self.audioFile = audioFile
         self.repoFactory = repoFactory
+        self.modelContext = modelContext
         self.currentProvider = provider
         self.currentTranscriptionMode = transcriptionMode
         self.currentAPIKey = apiKey
@@ -298,6 +308,81 @@ final class FileDetailViewModel {
                 isSummarizing = false
                 errorMessage = "要約エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            }
+        }
+    }
+
+    // MARK: - Pipeline (via PipelineCoordinator)
+
+    func startPipeline(config: GenerationConfig = GenerationConfig()) {
+        guard !currentAPIKey.isEmpty else {
+            errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
+            showErrorAlert = true
+            return
+        }
+
+        guard let url = audioURL else {
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
+            return
+        }
+
+        pipelineRunning = true
+        pipelineFailed = false
+        currentPipelineStep = .loadingAudio
+        completedPipelineSteps.removeAll()
+
+        let coordinator = PipelineCoordinator(
+            transcriptionEngine: transcriptionEngine,
+            summarizationEngine: summarizationEngine,
+            repoFactory: repoFactory,
+            modelContext: modelContext
+        )
+
+        let stream: AsyncStream<PipelineEvent>
+        if audioFile.isTranscribed, let transcript = transcriptResult {
+            stream = coordinator.runSummaryPipeline(
+                audioFile: audioFile,
+                transcriptText: transcript.text,
+                segments: transcript.segments,
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                config: config
+            )
+        } else {
+            stream = coordinator.runFullPipeline(
+                audioURL: url,
+                audioFile: audioFile,
+                apiKey: currentAPIKey,
+                provider: currentProvider,
+                transcriptionMode: currentTranscriptionMode,
+                config: config
+            )
+        }
+
+        Task {
+            for await event in stream {
+                switch event {
+                case .stepStarted(let step):
+                    currentPipelineStep = step
+                case .stepCompleted(let step):
+                    completedPipelineSteps.insert(step)
+                case .completed:
+                    pipelineRunning = false
+                    currentPipelineStep = .finalizing
+                    completedPipelineSteps.insert(.finalizing)
+                    loadSavedData()
+                    successMessage = "生成完了"
+                    showSuccessAlert = true
+                case .failed(let step, _):
+                    pipelineRunning = false
+                    pipelineFailed = true
+                    currentPipelineStep = step
+                    errorMessage = "パイプラインエラー: \(step.rawValue)"
+                    showErrorAlert = true
+                case .chunkProgress:
+                    break
+                }
             }
         }
     }
