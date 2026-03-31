@@ -440,8 +440,6 @@ final class FileDetailViewModel {
     private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
         guard let settings = try? repoFactory.webhookSettingsRepo.fetch() else { return }
 
-        guard let settings else { return }
-
         do {
             try await webhookService.sendWebhook(
                 eventType: event,
