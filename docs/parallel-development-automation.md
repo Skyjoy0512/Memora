@@ -10,8 +10,10 @@
   - 初期ラベル（`status:*`, `lane:*`, `agent:*`, `type:*`）を作成/更新
 - `.github/workflows/ci.yml`
   - `main`（互換で `master` も対象）への push / PR で iOSビルドを実行
+  - `build_sim` ジョブ: iOS Simulator 向けビルド（xcodebuild 経由）
 - `.github/workflows/pr-labeler.yml`
   - PR差分のパスから `lane:*` ラベルを自動付与
+  - ラベルルールは `.github/workflows/labeler.yml` に定義
 - `.github/workflows/auto-pr-from-push.yml`
   - デフォルトブランチ（`main`）以外に push したら、未作成なら Draft PR を自動作成
 - `.github/workflows/auto-enable-automerge.yml`

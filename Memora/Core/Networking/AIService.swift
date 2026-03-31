@@ -14,7 +14,8 @@ protocol LocalTranscriptionService {
 
 // MARK: - Local Transcription Services
 
-// iOS 26.0+ SpeechAnalyzer API 実装
+// iOS 26.0+ SpeechAnalyzer API 実装（Xcode 26 / Swift 6.2+ でのみコンパイル）
+#if swift(>=6.2)
 @available(iOS 26.0, *)
 final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject {
     @Published var isTranscribing = false
@@ -211,6 +212,7 @@ struct AudioFileAsyncSequence: AsyncSequence {
         }.makeAsyncIterator()
     }
 }
+#endif
 
 // iOS 10-25 用 SpeechRecognizer 実装
 @available(iOS 10.0, *)
@@ -419,6 +421,7 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .local:
+            #if swift(>=6.2)
             if #available(iOS 26.0, *) {
                 return SpeechAnalyzerFeatureFlag.isEnabled
                     ? "iOS 26ネイティブ（SpeechAnalyzer・ベータ）"
@@ -428,6 +431,13 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
             } else {
                 return "非対応"
             }
+            #else
+            if #available(iOS 10.0, *) {
+                return "ローカルモデル（SpeechRecognizer）"
+            } else {
+                return "非対応"
+            }
+            #endif
         case .api:
             return "クラウドAPI（選択したプロバイダー）"
         }
@@ -475,11 +485,17 @@ final class AIService: AIServiceProtocol, ObservableObject {
 
         // ローカル文字起こしの初期化
         if transcriptionMode == .local {
+            #if swift(>=6.2)
             if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
                 localTranscriptionService = SpeechAnalyzerService26()
             } else if #available(iOS 10.0, *) {
                 localTranscriptionService = SpeechAnalyzerService()
             }
+            #else
+            if #available(iOS 10.0, *) {
+                localTranscriptionService = SpeechAnalyzerService()
+            }
+            #endif
         }
     }
 
