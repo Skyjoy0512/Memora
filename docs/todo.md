@@ -1,4 +1,4 @@
-# Memora - 開発タスク（2026-03-28 更新）
+# Memora - 開発タスク（2026-03-31 更新）
 
 > **仕様書**: `Memora仕様書.txt`（2790行 / TASK-001〜037）
 > **現状**: TCA を廃止し SwiftUI + SwiftData + MVVM に移行済み。仕様書の TASK 分割は TCA 前提だが、機能要件は同じ。
@@ -14,15 +14,15 @@
 | **Onboarding** | 4ページのページング | ❌ なし | 未着手 |
 | **Auth** | Sign in with Apple + Google | ❌ なし | 未着手 |
 | **Paywall** | StoreKit 2 月額/年額 | ❌ なし | 未着手 |
-| **Repository 層** | 全エンティティの Repository パターン | ❌ なし | View が直接 @Query で取得 |
+| **Repository 層** | 全エンティティの Repository パターン | ⚠️ 一部（9リポジトリ追加済み、View統合未完了） | View の @Query → Repository 置換が未完了 |
 | **LLMRouter** | 複数 Provider（Local, OpenAI, Claude, Gemini, DeepSeek） | ❌ なし（AIService プレースホルダのみ） | 未着手 |
-| **PipelineCoordinator** | 文字起こし→要約→決定抽出→ToDo抽出 | ❌ なし | 未着手 |
+| **PipelineCoordinator** | 文字起こし→要約→決定抽出→ToDo抽出 | ⚠️ 一部（基礎実装あり、チャンクリトライ未実装） | ステップ完了、リトライ・UI連携未実装 |
 | **GenerationFlowSheet** | 方式→テンプレート→モデル選択 | ❌ なし | 未着手 |
 | **Ask AI** | チャット UI + スコープ別コンテキスト | ❌ なし | 未着手 |
 | **Import** | ドキュメントピッカー | ❌ なし | 未着手 |
 | **AdService** | バナー + インタースティシャル | ❌ なし | 未着手 |
 | **APIKeyStore** | Keychain 管理 | ❌ なし | 未着手 |
-| **テスト** | Unit + Snapshot | ❌ なし | 未着手 |
+| **テスト** | Unit + Snapshot | ⚠️ 一部（Model/Repository/ViewModel テストあり） | Snapshot テスト・カバレッジ拡大が必要 |
 
 ---
 
@@ -44,20 +44,27 @@
 - Omi/Plaud デバイス連携基礎
 - CBUUID 修正によるクラッシュ解決
 - スタートアップリカバリ強化
+- Repository 層基礎（PR #21, 2026-03-29）
+- PipelineCoordinator 基礎（PR #22, 2026-03-29）
+- FileDetailViewModel 抽出（PR #23, 2026-03-29）
+- Settings Plaud/Bluetooth UI（PR #24, 2026-03-29）
+- Xcode プロジェクト設定更新（PR #25, 2026-03-29）
+- ユニットテスト基盤（PR #26, 2026-03-29）
 
 ---
 
 ## WIP
 
-### feat/10-summary-persistence（現在のブランチ）
-- [ ] 未コミット変更の整理（ContentView, HomeView, BottomFloatingBar, ToDoView）
+### feat/phase1-core-stabilization（PR #27 OPEN）
+- [x] PipelineCoordinator の currentStep 追加（エラー報告改善）
 
-### Draft PR（要整理）
-- PR #17: STT進捗表示（feat/9-stt-progress）
-- PR #18: STT進捗表示 v2（feat/9-stt-progress-v2）
-- PR #20: Summary persistence（feat/10-summary-persistence）
-- PR #15: Task automation workflows（feat/11-task-automation）
-- PR #2: CI smoke test
+### Open PR
+- PR #27: PipelineCoordinator エラー報告改善（feat/phase1-core-stabilization）
+- PR #15: Task automation workflows（feat/11-task-automation）— CI ワークフロー整備
+
+### Closed PR（参考）
+- PR #17/#18: STT進捗表示（CLOSED）
+- PR #20: Summary persistence（MERGED）
 
 ---
 
@@ -78,14 +85,17 @@
 - [ ] PillButton — pill 形状のボタン
 - [ ] LiveRecordingBanner — 赤ドット点滅 + 経過時間 + 波形
 
-### TASK-005: Repository 層
-- [ ] AudioFileRepository（protocol + SwiftData 実装）
-- [ ] TranscriptRepository
-- [ ] MeetingNoteRepository
-- [ ] ProjectRepository
-- [ ] TodoRepository
+### TASK-005: Repository 層（PR #21 で基礎実装済み）
+- [x] AudioFileRepository（protocol + SwiftData 実装）
+- [x] TranscriptRepository
+- [x] MeetingNoteRepository
+- [x] ProjectRepository
+- [x] TodoItemRepository
+- [x] PlaudSettingsRepository
+- [x] ProcessingJobRepository
+- [x] WebhookSettingsRepository
+- [x] RepositoryFactory（DI コンテナ）
 - [ ] AttachmentRepository
-- [ ] JobRepository
 - [ ] 各 View の @Query を Repository 経由に変更
 
 ---
@@ -131,8 +141,9 @@
 - [ ] LocalLLMProvider（Apple Foundation Models）
 - [ ] SummarizationEngine 本実装
 
-### TASK-019: PipelineCoordinator
-- [ ] 文字起こし → 要約 → 決定抽出 → ToDo抽出のパイプライン
+### TASK-019: PipelineCoordinator（PR #22 で基礎実装済み）
+- [x] 文字起こし → 要約 → 決定抽出 → ToDo抽出のパイプライン基礎
+- [x] currentStep 追加による正確なエラー報告（PR #27）
 - [ ] ProcessingJob / ProcessingChunk の状態管理
 - [ ] チャンク単位のリトライ（指数バックオフ）
 
