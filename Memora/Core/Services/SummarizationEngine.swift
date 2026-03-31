@@ -134,9 +134,9 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
 
     // MARK: - Action Item → TodoItem Conversion
 
-    /// Convert action items from a summary result into TodoItem objects and insert into model context
+    /// Convert action items from a summary result into TodoItem objects via repository
     @MainActor
-    func createTodoItems(from result: SummaryResult, sourceFileId: UUID, sourceFileTitle: String, modelContext: ModelContext) {
+    func createTodoItems(from result: SummaryResult, sourceFileId: UUID, sourceFileTitle: String, todoRepo: TodoItemRepositoryProtocol) {
         for actionText in result.actionItems {
             // Skip empty items
             let trimmed = actionText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,10 +165,8 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
                 priority: "medium",
                 projectID: nil
             )
-            modelContext.insert(todo)
+            try? todoRepo.save(todo)
         }
-
-        try? modelContext.save()
     }
 
     // MARK: - Private Helpers
