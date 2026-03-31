@@ -147,8 +147,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    // 現在実行中のステップを特定してエラー通知
-                    continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
+                    continuation.yield(.failed(step: currentStep, error: .pipelineError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
@@ -228,7 +227,7 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
 
                 } catch {
-                    continuation.yield(.failed(step: .generatingSummary, error: CoreError.summaryError(.generationFailed(error.localizedDescription))))
+                    continuation.yield(.failed(step: currentStep, error: .pipelineError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
