@@ -1,4 +1,5 @@
 import Foundation
+@preconcurrency import AVFoundation
 import Speech
 
 // Core transcription/API boundary. Keep backend selection changes intentional and isolated.
@@ -17,142 +18,270 @@ protocol LocalTranscriptionService {
 // iOS 26.0+ SpeechAnalyzer API 実装（Xcode 26 / Swift 6.2+ でのみコンパイル）
 #if swift(>=6.2)
 @available(iOS 26.0, *)
+struct SpeechAnalyzerTimeIndexedSegment: Sendable, Equatable {
+    let id: String
+    let startSec: Double
+    let endSec: Double
+    let text: String
+}
+
+@available(iOS 26.0, *)
+struct SpeechAnalyzerTranscriptionOutput: Sendable, Equatable {
+    let fullText: String
+    let segments: [SpeechAnalyzerTimeIndexedSegment]
+}
+
+@available(iOS 26.0, *)
+enum SpeechAnalyzerError: LocalizedError {
+    case localeUnavailable
+    case assetUnavailable
+    case prepareFailed(String)
+    case runtimeFailure(String)
+
+    var fallbackReason: SpeechAnalyzerFallbackReason {
+        switch self {
+        case .localeUnavailable:
+            return .localeUnavailable
+        case .assetUnavailable:
+            return .assetUnavailable
+        case .prepareFailed:
+            return .prepareFailed
+        case .runtimeFailure:
+            return .runtimeFailure
+        }
+    }
+
+    var errorDescription: String? {
+        switch self {
+        case .localeUnavailable:
+            return "SpeechAnalyzer がこのロケールに対応していません"
+        case .assetUnavailable:
+            return "SpeechAnalyzer の必要な音声アセットが未導入です"
+        case .prepareFailed(let message):
+            return "SpeechAnalyzer の準備に失敗しました: \(message)"
+        case .runtimeFailure(let message):
+            return "SpeechAnalyzer の実行に失敗しました: \(message)"
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private struct PreparedSpeechAnalyzerContext {
+    let locale: Locale
+    let analyzer: SpeechAnalyzer
+    let transcriber: SpeechTranscriber
+    let analyzerFormat: AVAudioFormat
+}
+
+@available(iOS 26.0, *)
 final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
 
-    private var analyzer: SpeechAnalyzer?
-    private var transcriber: SpeechTranscriber?
-    private var formatConverter: AVAudioConverter?
-    private let jaLocale = Locale(identifier: "ja_JP")
-
-    private func setup() async throws {
-        // インストール済みのロケールを確認
-        let installedLocales = await SpeechTranscriber.installedLocales
-        print("インストール済みロケール: \(installedLocales)")
-
-        // 日本語ロケールがインストールされているか確認
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale) else {
-            print("日本語ロケールが利用可能ではありません")
-            throw LocalTranscriptionError.localeNotSupported
+    static func supportStatus(for locale: Locale) async -> SpeechAnalyzerSupportStatus {
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
+            return .localeUnavailable
         }
 
-        // 日本語がインストールされているか確認
-        var useLocale: Locale = supportedLocale
-        if !installedLocales.contains(where: { $0.identifier == supportedLocale.identifier }) {
-            print("日本語ロケールがインストールされていません。英語を試します...")
-
-            let enLocale = Locale(identifier: "en_US")
-            if let enSupported = await SpeechTranscriber.supportedLocale(equivalentTo: enLocale),
-               installedLocales.contains(where: { $0.identifier == enSupported.identifier }) {
-                useLocale = enSupported
-            } else {
-                print("英語もインストールされていません。インストール済みロケール: \(installedLocales)")
-                throw LocalTranscriptionError.localeNotSupported
-            }
-        }
-
-        // SpeechTranscriber を作成
-        let transcriptionPreset = SpeechTranscriber.Preset.transcription
-        let createdTranscriber = SpeechTranscriber(locale: useLocale, preset: transcriptionPreset)
-        transcriber = createdTranscriber
-        print("使用ロケール: \(useLocale)")
-
-        // 対応オーディオフォーマットを確認
-        let compatibleFormats = await createdTranscriber.availableCompatibleAudioFormats
-        print("対応オーディオフォーマット: \(compatibleFormats)")
-
-        // SpeechAnalyzer を作成
-        let options = SpeechAnalyzer.Options(
-            priority: .userInitiated,
-            modelRetention: .whileInUse
+        let transcriber = SpeechTranscriber(
+            locale: supportedLocale,
+            preset: .timeIndexedProgressiveTranscription
         )
-        analyzer = SpeechAnalyzer(modules: [createdTranscriber], options: options)
-    }
-
-    deinit {
-        formatConverter = nil
+        let assetStatus = await AssetInventory.status(forModules: [transcriber])
+        return assetStatus == .installed ? .available : .assetUnavailable
     }
 
     func transcribe(audioURL: URL) async throws -> String {
+        let output = try await transcribe(
+            audioURL: audioURL,
+            locale: Locale(identifier: "ja_JP")
+        )
+        return output.fullText
+    }
+
+    func transcribe(
+        audioURL: URL,
+        locale: Locale,
+        progress progressHandler: @escaping @Sendable (Double) -> Void = { _ in },
+        partialResult: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws -> SpeechAnalyzerTranscriptionOutput {
         isTranscribing = true
         progress = 0.0
 
         do {
-            try await setup()
-            guard let analyzer = analyzer else {
-                throw LocalTranscriptionError.notSupported
+            let context = try await prepareContext(locale: locale, audioURL: audioURL)
+            let audioFile = try AVAudioFile(forReading: audioURL)
+
+            do {
+                try await context.analyzer.prepareToAnalyze(in: context.analyzerFormat)
+            } catch {
+                throw SpeechAnalyzerError.prepareFailed(error.localizedDescription)
+            }
+            updateProgress(0.12, progressHandler: progressHandler)
+
+            let resultsTask = Task {
+                try await self.collectResults(
+                    from: context.transcriber,
+                    partialResult: partialResult
+                )
             }
 
-            // 音声ファイルをロード
-            let audioFile = try AVAudioFile(forReading: audioURL)
-            let format = audioFile.processingFormat
-
-            // 準備
-            try await analyzer.prepareToAnalyze(in: format)
-
-            progress = 0.3
-
-            // TaskGroup を使用して並列実行
-            return try await withThrowingTaskGroup(of: (analysisDone: Bool, transcript: String).self) { group in
-                // 結果収集タスク
-                group.addTask { [weak self] in
-                    guard let self = self else { throw LocalTranscriptionError.notSupported }
-                    guard let transcriber = self.transcriber else { throw LocalTranscriptionError.notSupported }
-                    var parts: [String] = []
-                    for try await result in transcriber.results {
-                        let text = result.text.description
-                        if !text.isEmpty {
-                            parts.append(text)
-                        }
-                    }
-                    return (false, parts.joined(separator: "\n"))
+            let audioSequence = AudioFileAsyncSequence(
+                audioFile: audioFile,
+                targetFormat: context.analyzerFormat,
+                onProgress: { sequenceProgress in
+                    let normalizedProgress = 0.12 + (0.78 * sequenceProgress)
+                    self.updateProgress(normalizedProgress, progressHandler: progressHandler)
                 }
+            )
 
-                // 分析実行タスク
-                group.addTask {
-                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile)
-                    try await analyzer.start(inputSequence: audioSequence)
-                    try await analyzer.finalizeAndFinishThroughEndOfInput()
-                    return (true, "")
+            do {
+                try await context.analyzer.start(inputSequence: audioSequence)
+                try await context.analyzer.finalizeAndFinishThroughEndOfInput()
+            } catch {
+                resultsTask.cancel()
+                throw SpeechAnalyzerError.runtimeFailure(error.localizedDescription)
+            }
+
+            let output = try await resultsTask.value
+            updateProgress(1.0, progressHandler: progressHandler)
+            isTranscribing = false
+            return output
+        } catch let error as SpeechAnalyzerError {
+            isTranscribing = false
+            throw error
+        } catch {
+            isTranscribing = false
+            throw SpeechAnalyzerError.runtimeFailure(error.localizedDescription)
+        }
+    }
+
+    private func prepareContext(
+        locale: Locale,
+        audioURL: URL
+    ) async throws -> PreparedSpeechAnalyzerContext {
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
+            throw SpeechAnalyzerError.localeUnavailable
+        }
+
+        let transcriber = SpeechTranscriber(
+            locale: supportedLocale,
+            preset: .timeIndexedProgressiveTranscription
+        )
+
+        let assetStatus = await AssetInventory.status(forModules: [transcriber])
+        guard assetStatus == .installed else {
+            throw SpeechAnalyzerError.assetUnavailable
+        }
+
+        let audioFile = try AVAudioFile(forReading: audioURL)
+        let sourceFormat = audioFile.processingFormat
+        let compatibleFormats = await transcriber.availableCompatibleAudioFormats
+        let analyzerFormat = bestCompatibleAudioFormat(
+            sourceFormat: sourceFormat,
+            compatibleFormats: compatibleFormats
+        )
+
+        let options = SpeechAnalyzer.Options(
+            priority: .userInitiated,
+            modelRetention: .whileInUse
+        )
+        let analyzer = SpeechAnalyzer(modules: [transcriber], options: options)
+
+        return PreparedSpeechAnalyzerContext(
+            locale: supportedLocale,
+            analyzer: analyzer,
+            transcriber: transcriber,
+            analyzerFormat: analyzerFormat
+        )
+    }
+
+    private func collectResults(
+        from transcriber: SpeechTranscriber,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> SpeechAnalyzerTranscriptionOutput {
+        var finalizedSegments: [SpeechAnalyzerTimeIndexedSegment] = []
+
+        do {
+            for try await result in transcriber.results {
+                let text = normalizedText(result.text)
+                guard !text.isEmpty else { continue }
+
+                if result.isFinal {
+                    let startSec = max(CMTimeGetSeconds(result.range.start), 0)
+                    let endSec = max(CMTimeGetSeconds(CMTimeRangeGetEnd(result.range)), startSec)
+                    finalizedSegments.append(
+                        SpeechAnalyzerTimeIndexedSegment(
+                            id: "speech-analyzer-\(finalizedSegments.count)",
+                            startSec: startSec,
+                            endSec: endSec,
+                            text: text
+                        )
+                    )
+                } else {
+                    partialResult(text)
                 }
-
-                // 分析の完了を待つ
-                var analysisDone = false
-                var transcriptParts: [String] = []
-
-                for try await result in group {
-                    if result.analysisDone {
-                        analysisDone = true
-                        // 分析完了後、さらに少し待って結果を収集
-                        if transcriptParts.isEmpty {
-                            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒待機
-                        }
-                    } else {
-                        transcriptParts.append(result.transcript)
-                    }
-
-                    // 分析完了かつ結果がある場合は完了
-                    if analysisDone && !transcriptParts.isEmpty {
-                        group.cancelAll()
-                        break
-                    }
-                }
-
-                await MainActor.run {
-                    progress = 1.0
-                    isTranscribing = false
-                }
-
-                let transcript = transcriptParts.joined(separator: "\n")
-                return transcript.isEmpty ? "文字起こしの結果がありません" : transcript
             }
         } catch {
-            await MainActor.run {
-                isTranscribing = false
-            }
-            throw LocalTranscriptionError.transcriptionFailed(error)
+            throw SpeechAnalyzerError.runtimeFailure(error.localizedDescription)
         }
+
+        let orderedSegments = finalizedSegments.sorted { lhs, rhs in
+            if lhs.startSec == rhs.startSec {
+                return lhs.endSec < rhs.endSec
+            }
+            return lhs.startSec < rhs.startSec
+        }
+        let fullText = orderedSegments
+            .map(\.text)
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !fullText.isEmpty else {
+            throw SpeechAnalyzerError.runtimeFailure("SpeechAnalyzer produced no final result")
+        }
+
+        return SpeechAnalyzerTranscriptionOutput(
+            fullText: fullText,
+            segments: orderedSegments
+        )
+    }
+
+    private func bestCompatibleAudioFormat(
+        sourceFormat: AVAudioFormat,
+        compatibleFormats: [AVAudioFormat]
+    ) -> AVAudioFormat {
+        if let exactMatch = compatibleFormats.first(where: { format in
+            isCompatible(sourceFormat: sourceFormat, targetFormat: format)
+        }) {
+            return exactMatch
+        }
+
+        return compatibleFormats.first ?? sourceFormat
+    }
+
+    private func isCompatible(
+        sourceFormat: AVAudioFormat,
+        targetFormat: AVAudioFormat
+    ) -> Bool {
+        sourceFormat.sampleRate == targetFormat.sampleRate &&
+        sourceFormat.channelCount == targetFormat.channelCount &&
+        sourceFormat.commonFormat == targetFormat.commonFormat &&
+        sourceFormat.isInterleaved == targetFormat.isInterleaved
+    }
+
+    private func normalizedText(_ text: AttributedString) -> String {
+        String(text.characters)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func updateProgress(
+        _ value: Double,
+        progressHandler: @escaping @Sendable (Double) -> Void
+    ) {
+        let clamped = min(max(value, 0), 1)
+        progress = clamped
+        progressHandler(clamped)
     }
 }
 
@@ -162,54 +291,117 @@ struct AudioFileAsyncSequence: AsyncSequence {
     typealias Element = AnalyzerInput
 
     let audioFile: AVAudioFile
+    let targetFormat: AVAudioFormat
+    let onProgress: (@Sendable (Double) -> Void)?
 
     func makeAsyncIterator() -> AsyncStream<AnalyzerInput>.Iterator {
-        // オーディオフォーマットを確認
         let sourceFormat = audioFile.processingFormat
-
-        print("ソースフォーマット: \(sourceFormat)")
-        print("  - サンプルレート: \(sourceFormat.sampleRate)")
-        print("  - チャンネル数: \(sourceFormat.channelCount)")
-        print("  - コモンフォーマット: \(sourceFormat.commonFormat)")
 
         return AsyncStream { continuation in
             Task {
                 do {
                     let frameCount: AVAudioFrameCount = 4096
+                    let totalFrames = max(Double(audioFile.length), 1)
+                    let needsConversion = !isCompatible(
+                        sourceFormat: sourceFormat,
+                        targetFormat: targetFormat
+                    )
+                    let converter = needsConversion
+                        ? AVAudioConverter(from: sourceFormat, to: targetFormat)
+                        : nil
+                    var processedFrames: Int64 = 0
 
                     while true {
-                        // バッファを作成
                         guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
                             break
                         }
 
-                        // ファイルから読み込み
-                        do {
-                            try audioFile.read(into: buffer)
-                        } catch {
-                            print("ファイル読み込みエラー: \(error)")
-                            break
-                        }
-
+                        try audioFile.read(into: buffer)
                         let framesRead = buffer.frameLength
 
                         if framesRead == 0 {
-                            print("ファイル読み込み完了")
                             break
                         }
 
-                        // AnalyzerInput を作成（フォーマット変換はスキップ）
-                        let input = AnalyzerInput(buffer: buffer)
+                        processedFrames += Int64(framesRead)
+
+                        let outputBuffer: AVAudioPCMBuffer
+                        if let converter {
+                            outputBuffer = try Self.convert(
+                                buffer: buffer,
+                                to: targetFormat,
+                                using: converter
+                            )
+                        } else {
+                            outputBuffer = buffer
+                        }
+
+                        let input = AnalyzerInput(buffer: outputBuffer)
                         continuation.yield(input)
+                        onProgress?(min(Double(processedFrames) / totalFrames, 1))
                     }
 
                     continuation.finish()
                 } catch {
-                    print("AudioFileAsyncSequence エラー: \(error)")
                     continuation.finish()
                 }
             }
         }.makeAsyncIterator()
+    }
+
+    private func isCompatible(
+        sourceFormat: AVAudioFormat,
+        targetFormat: AVAudioFormat
+    ) -> Bool {
+        sourceFormat.sampleRate == targetFormat.sampleRate &&
+        sourceFormat.channelCount == targetFormat.channelCount &&
+        sourceFormat.commonFormat == targetFormat.commonFormat &&
+        sourceFormat.isInterleaved == targetFormat.isInterleaved
+    }
+
+    private static func convert(
+        buffer: AVAudioPCMBuffer,
+        to targetFormat: AVAudioFormat,
+        using converter: AVAudioConverter
+    ) throws -> AVAudioPCMBuffer {
+        let sampleRateRatio = targetFormat.sampleRate / buffer.format.sampleRate
+        let targetFrameCapacity = max(
+            AVAudioFrameCount((Double(buffer.frameLength) * sampleRateRatio).rounded(.up)) + 32,
+            1
+        )
+
+        guard let convertedBuffer = AVAudioPCMBuffer(
+            pcmFormat: targetFormat,
+            frameCapacity: targetFrameCapacity
+        ) else {
+            throw SpeechAnalyzerError.runtimeFailure("Failed to allocate converted audio buffer")
+        }
+
+        var conversionError: NSError?
+        var consumedInput = false
+        let status = converter.convert(to: convertedBuffer, error: &conversionError) { _, outStatus in
+            if consumedInput {
+                outStatus.pointee = .endOfStream
+                return nil
+            }
+
+            consumedInput = true
+            outStatus.pointee = .haveData
+            return buffer
+        }
+
+        if let conversionError {
+            throw SpeechAnalyzerError.runtimeFailure(conversionError.localizedDescription)
+        }
+
+        switch status {
+        case .haveData, .inputRanDry, .endOfStream:
+            return convertedBuffer
+        case .error:
+            throw SpeechAnalyzerError.runtimeFailure("Audio conversion failed")
+        @unknown default:
+            throw SpeechAnalyzerError.runtimeFailure("Audio conversion returned an unknown status")
+        }
     }
 }
 #endif
@@ -423,9 +615,7 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
         case .local:
             #if swift(>=6.2)
             if #available(iOS 26.0, *) {
-                return SpeechAnalyzerFeatureFlag.isEnabled
-                    ? "iOS 26ネイティブ（SpeechAnalyzer・ベータ）"
-                    : "ローカルモデル（SpeechRecognizer）"
+                return "iOS 26ネイティブ（SpeechAnalyzer 優先 / 自動フォールバック）"
             } else if #available(iOS 10.0, *) {
                 return "ローカルモデル（SpeechRecognizer）"
             } else {
@@ -486,7 +676,7 @@ final class AIService: AIServiceProtocol, ObservableObject {
         // ローカル文字起こしの初期化
         if transcriptionMode == .local {
             #if swift(>=6.2)
-            if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
+            if #available(iOS 26.0, *) {
                 localTranscriptionService = SpeechAnalyzerService26()
             } else if #available(iOS 10.0, *) {
                 localTranscriptionService = SpeechAnalyzerService()

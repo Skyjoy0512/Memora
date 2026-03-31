@@ -24,11 +24,14 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var isTranscribing = false
     @Published var progress = 0.0
 
-    private let sttService: STTServiceProtocol = STTService()
+    private let sttService: STTServiceProtocol
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var apiKey = ""
-    private let diarizationService: SpeakerDiarizationProtocol = SpeakerDiarizationService()
+
+    init(sttService: STTServiceProtocol = STTService()) {
+        self.sttService = sttService
+    }
 
     func configure(
         apiKey: String,
@@ -111,6 +114,7 @@ final class InternalTranscriptionEngine {
     private let stateLock = NSLock()
     private var recognitionTask: SFSpeechRecognitionTask?
     private let diarizationService: SpeakerDiarizationProtocol
+    private let logger = DebugLogger.shared
 
     init(configuration: STTExecutionConfiguration, diarizationService: SpeakerDiarizationProtocol) {
         self.configuration = configuration
@@ -156,39 +160,62 @@ final class InternalTranscriptionEngine {
         }
 
         let locale = localeForRecognition(language: language)
-        print("[MemoraSTT] transcribeLocally — locale: \(locale.identifier), SpeechAnalyzer flag: \(SpeechAnalyzerFeatureFlag.isEnabled)")
+        let audioDuration = await audioFileDuration(for: audioURL)
 
-        // SpeechAnalyzer は iOS 26 beta API。実機で EXC_BREAKPOINT が発生する場合があるため
-        // フィーチャーフラグが明示的に ON の場合のみ試行する。
-        #if !targetEnvironment(simulator)
         #if swift(>=6.2)
-        if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
-            print("[MemoraSTT] SpeechAnalyzer パスを試行中...")
-            do {
-                return try await transcribeWithSpeechAnalyzerWithTimeout(
-                    audioURL: audioURL,
-                    locale: locale,
-                    progress: progress,
-                    partialResult: partialResult
-                )
-            } catch {
-                print("[MemoraSTT] SpeechAnalyzer fallback: \(error.localizedDescription)")
+        if #available(iOS 26.0, *) {
+            let supportStatus = await SpeechAnalyzerService26.supportStatus(for: locale)
+            switch LocalSTTBackendResolver.resolve(
+                osSupportsSpeechAnalyzer: true,
+                supportStatus: supportStatus
+            ) {
+            case .speechAnalyzer:
+                logBackendSelection(.speechAnalyzer, locale: locale, audioDuration: audioDuration)
+                let startTime = Date()
+                do {
+                    let result = try await transcribeWithSpeechAnalyzerWithTimeout(
+                        audioURL: audioURL,
+                        locale: locale,
+                        progress: progress,
+                        partialResult: partialResult
+                    )
+                    logCompletion(
+                        backend: .speechAnalyzer,
+                        startedAt: startTime,
+                        audioDuration: audioDuration
+                    )
+                    return result
+                } catch let error as SpeechAnalyzerError {
+                    logFallback(reason: error.fallbackReason, error: error)
+                } catch {
+                    logFallback(reason: .runtimeFailure, error: error)
+                }
+            case .speechRecognizer(let reason):
+                logFallback(reason: reason, error: nil)
             }
         } else {
-            if #available(iOS 26.0, *) {
-                print("[MemoraSTT] SpeechAnalyzer スキップ — flag OFF またはシミュレータ")
-            }
+            logFallback(reason: .osTooOld, error: nil)
         }
         #endif
+
+        #if !swift(>=6.2)
+        logFallback(reason: .osTooOld, error: nil)
         #endif
 
-        print("[MemoraSTT] SFSpeechRecognizer パスを使用")
-        return try await transcribeWithSpeechRecognizer(
+        logBackendSelection(.speechRecognizer, locale: locale, audioDuration: audioDuration)
+        let startTime = Date()
+        let result = try await transcribeWithSpeechRecognizer(
             audioURL: audioURL,
             locale: locale,
             progress: progress,
             partialResult: partialResult
         )
+        logCompletion(
+            backend: .speechRecognizer,
+            startedAt: startTime,
+            audioDuration: audioDuration
+        )
+        return result
     }
 
     private func transcribeWithSpeechRecognizer(
@@ -279,7 +306,7 @@ final class InternalTranscriptionEngine {
         )
     }
 
-    // MARK: - SpeechAnalyzer (iOS 26+, gated by feature flag)
+    // MARK: - SpeechAnalyzer (iOS 26+)
 
     #if swift(>=6.2)
     @available(iOS 26.0, *)
@@ -300,7 +327,9 @@ final class InternalTranscriptionEngine {
             }
 
             group.addTask {
-                try await Task.sleep(nanoseconds: 120_000_000_000) // 120秒
+                let duration = await self.audioFileDuration(for: audioURL)
+                let timeoutSeconds = min(max(duration * 2, 120), 900)
+                try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
                 throw CancellationError()
             }
 
@@ -324,20 +353,28 @@ final class InternalTranscriptionEngine {
     ) async throws -> TranscriptionResult {
         let service = SpeechAnalyzerService26()
 
-        progress(0.2)
-        let text = try await service.transcribe(audioURL: audioURL)
-        partialResult(text)
-        progress(0.92)
-
-        let duration = await audioFileDuration(for: audioURL)
-        let baseSegments = makeFallbackSegments(from: text, duration: duration)
+        let output = try await service.transcribe(
+            audioURL: audioURL,
+            locale: locale,
+            progress: progress,
+            partialResult: partialResult
+        )
+        let baseSegments = output.segments.enumerated().map { index, segment in
+            TranscriptionSegment(
+                id: segment.id.isEmpty ? "speech-analyzer-\(index)" : segment.id,
+                speakerLabel: "Speaker 1",
+                startSec: segment.startSec,
+                endSec: segment.endSec,
+                text: segment.text
+            )
+        }
         let segmentsWithSpeakers = await diarizationService.detectSpeakers(
             audioURL: audioURL,
             segments: baseSegments
         )
 
         return TranscriptionResult(
-            fullText: text,
+            fullText: output.fullText,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
             segments: segmentsWithSpeakers
         )
@@ -471,5 +508,44 @@ final class InternalTranscriptionEngine {
         recognitionTask?.cancel()
         recognitionTask = nil
         stateLock.unlock()
+    }
+
+    private func logBackendSelection(
+        _ backend: LocalSTTBackend,
+        locale: Locale,
+        audioDuration: TimeInterval
+    ) {
+        logger.addLog(
+            "STT",
+            "selected backend=\(backend.rawValue) locale=\(locale.identifier) audioDuration=\(String(format: "%.2f", audioDuration))s",
+            level: .info
+        )
+    }
+
+    private func logFallback(reason: SpeechAnalyzerFallbackReason, error: Error?) {
+        let suffix: String
+        if let error {
+            suffix = " error=\(error.localizedDescription)"
+        } else {
+            suffix = ""
+        }
+        logger.addLog(
+            "STT",
+            "SpeechAnalyzer fallback reason=\(reason.logDescription)\(suffix)",
+            level: .warning
+        )
+    }
+
+    private func logCompletion(
+        backend: LocalSTTBackend,
+        startedAt: Date,
+        audioDuration: TimeInterval
+    ) {
+        let wallTime = Date().timeIntervalSince(startedAt)
+        logger.addLog(
+            "STT",
+            "completed backend=\(backend.rawValue) audioDuration=\(String(format: "%.2f", audioDuration))s wallTime=\(String(format: "%.2f", wallTime))s",
+            level: .info
+        )
     }
 }
