@@ -204,6 +204,19 @@ struct FileDetailView: View {
                 Text(message)
             }
         }
+        .overlay(alignment: .top) {
+            if let message = vm.toastMessage {
+                ToastOverlay(
+                    icon: vm.toastStyle == .success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                    message: message,
+                    style: vm.toastStyle,
+                    onDismiss: { vm.toastMessage = nil }
+                )
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: vm.toastMessage)
     }
 
     // MARK: - Player Controls
@@ -266,11 +279,12 @@ struct FileDetailView: View {
         VStack(spacing: MemoraSpacing.lg) {
             // 文字起こし
             if vm.isTranscribing {
-                VStack(spacing: MemoraSpacing.lg) {
-                    ProgressView(value: vm.transcriptionProgress)
-                        .tint(MemoraColor.textSecondary)
+                VStack(spacing: MemoraSpacing.sm) {
+                    SkeletonView(height: 20)
+                    SkeletonView(height: 16)
+                        .frame(maxWidth: 200)
                     Text("文字起こし中... \(Int(vm.transcriptionProgress * 100))%")
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
                 .padding()
@@ -308,11 +322,12 @@ struct FileDetailView: View {
 
             // 要約
             if vm.isSummarizing {
-                VStack(spacing: MemoraSpacing.lg) {
-                    ProgressView(value: vm.summarizationProgress)
-                        .tint(MemoraColor.textSecondary)
+                VStack(spacing: MemoraSpacing.sm) {
+                    SkeletonView(height: 20)
+                    SkeletonView(height: 16)
+                        .frame(maxWidth: 200)
                     Text("要約中... \(Int(vm.summarizationProgress * 100))%")
-                        .font(.caption)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
                 .padding()

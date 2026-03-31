@@ -4,9 +4,11 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
+    @Environment(\.recordingViewModel) private var recordingVM
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @State private var isFABExpanded = false
     @Binding var showRecordingFromFAB: Bool
 
     // 検索・フィルタリング用
@@ -86,26 +88,17 @@ struct HomeView: View {
         NavigationStack {
             ZStack {
                 if audioFiles.isEmpty {
-                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
+                    // 空の状態
                     VStack(spacing: MemoraSpacing.xxl) {
                         Spacer()
 
-                        Image(systemName: "waveform")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundStyle(MemoraColor.textSecondary)
-
-                        Text("Memora")
-                            .font(MemoraTypography.largeTitle)
-
-                        Text("録音ファイル一覧")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(recordingHint)
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 8)
+                        EmptyStateView(
+                            icon: "waveform",
+                            title: "Memora",
+                            description: "右下の追加ボタンから録音を開始",
+                            buttonTitle: "録音する",
+                            buttonAction: { showRecordingView = true }
+                        )
 
                         Spacer()
                     }
@@ -187,6 +180,25 @@ struct HomeView: View {
                     }
                 }
             }
+
+            // FAB Menu
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    FABMenu(isExpanded: $isFABExpanded, items: [
+                        FABMenu.FABItem(icon: "mic.fill", label: "録音") {
+                            showRecordingView = true
+                        },
+                        FABMenu.FABItem(icon: "doc.badge.plus", label: "インポート") {
+                            // TODO: ImportView 実装後に追加
+                        }
+                    ])
+                    .padding(.trailing, MemoraSpacing.md)
+                    .padding(.bottom, MemoraSpacing.md)
+                }
+            }
+
             .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
@@ -208,6 +220,18 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .overlay(alignment: .top) {
+                if let vm = recordingVM, vm.isRecording {
+                    LiveRecordingBanner(
+                        duration: vm.recordingTime,
+                        onTap: { showRecordingView = true },
+                        onStop: { vm.stopRecording() }
+                    )
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: recordingVM?.isRecording)
         }
     }
 
@@ -221,10 +245,6 @@ struct HomeView: View {
                 try? modelContext.save()
             }
         }
-    }
-
-    private var recordingHint: String {
-        "右下の追加ボタンから録音を開始"
     }
 }
 

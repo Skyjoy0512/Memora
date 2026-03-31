@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Observation
 
 @Observable
@@ -22,5 +23,18 @@ final class RecordingViewModel {
         isRecording = false
         recordingTime = 0
         recordingTitle = ""
+    }
+}
+
+// MARK: - Environment Key
+
+private struct RecordingViewModelKey: EnvironmentKey {
+    static let defaultValue: RecordingViewModel? = nil
+}
+
+extension EnvironmentValues {
+    var recordingViewModel: RecordingViewModel? {
+        get { self[RecordingViewModelKey.self] }
+        set { self[RecordingViewModelKey.self] = newValue }
     }
 }

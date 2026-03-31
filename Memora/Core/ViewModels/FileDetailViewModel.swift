@@ -29,6 +29,10 @@ final class FileDetailViewModel {
     var successMessage: String?
     var showSuccessAlert = false
 
+    // MARK: - Toast
+    var toastMessage: String?
+    var toastStyle: ToastOverlay.Style = .error
+
     // MARK: - Navigation
     var showTranscriptView = false
     var showSummaryView = false
@@ -96,7 +100,8 @@ final class FileDetailViewModel {
             )
         } catch {
             errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
-            showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
         }
 
         if !currentAPIKey.isEmpty {
@@ -107,7 +112,8 @@ final class FileDetailViewModel {
                 )
             } catch {
                 errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
-                showErrorAlert = true
+                toastMessage = errorMessage
+                toastStyle = .error
             }
         }
     }
@@ -155,6 +161,8 @@ final class FileDetailViewModel {
         guard let url = audioURL else {
             errorMessage = "音声URLがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -210,6 +218,8 @@ final class FileDetailViewModel {
                 isTranscribing = false
                 errorMessage = "文字起こしエラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
@@ -220,6 +230,8 @@ final class FileDetailViewModel {
         guard !currentAPIKey.isEmpty else {
             errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -237,6 +249,8 @@ final class FileDetailViewModel {
         guard !transcriptText.isEmpty else {
             errorMessage = "文字起こしデータがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -293,11 +307,15 @@ final class FileDetailViewModel {
 
                 successMessage = "生成完了"
                 showSuccessAlert = true
+                toastMessage = successMessage
+                toastStyle = .success
             } catch {
                 stopProgressTracking()
                 isSummarizing = false
                 errorMessage = "要約エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
@@ -308,6 +326,8 @@ final class FileDetailViewModel {
         guard let url = audioURL else {
             errorMessage = "音声URLがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -316,9 +336,13 @@ final class FileDetailViewModel {
                 let profile = try speakerProfileStore.registerPrimaryUserProfile(audioURL: url)
                 successMessage = "「\(profile.displayName)」の声サンプルを登録しました。次回の話者分離から優先的にラベル付けします。"
                 showSuccessAlert = true
+                toastMessage = successMessage
+                toastStyle = .success
             } catch {
                 errorMessage = "声サンプル登録エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
