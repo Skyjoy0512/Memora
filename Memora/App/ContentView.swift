@@ -155,6 +155,7 @@ struct ContentView: View {
     // MARK: - Action Grid
     @ViewBuilder
     private var actionGrid: some View {
+        #if swift(>=6.2)
         if #available(iOS 26.0, *) {
             GlassEffectContainer(spacing: 10) {
                 actionGridContent
@@ -164,6 +165,10 @@ struct ContentView: View {
             actionGridContent
                 .padding(10)
         }
+        #else
+        actionGridContent
+            .padding(10)
+        #endif
     }
 
     private var actionGridContent: some View {
@@ -235,6 +240,7 @@ private struct FABButtonStyle: ButtonStyle {
 
     @ViewBuilder
     private var fabBackground: some View {
+        #if swift(>=6.2)
         if #available(iOS 26.0, *) {
             Circle()
                 .fill(.ultraThinMaterial)
@@ -243,6 +249,10 @@ private struct FABButtonStyle: ButtonStyle {
             Circle()
                 .fill(.ultraThinMaterial)
         }
+        #else
+        Circle()
+            .fill(.ultraThinMaterial)
+        #endif
     }
 }
 

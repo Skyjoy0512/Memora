@@ -4,6 +4,7 @@ struct ToastOverlay: View {
     let icon: String
     let message: String
     var style: Style = .error
+    var dismissDuration: TimeInterval = 4.0
     var onDismiss: (() -> Void)? = nil
 
     enum Style {
@@ -34,7 +35,7 @@ struct ToastOverlay: View {
             Spacer()
 
             Button {
-                onDismiss?()
+                dismiss()
             } label: {
                 Image(systemName: "xmark")
                     .font(MemoraTypography.caption1)
@@ -45,5 +46,22 @@ struct ToastOverlay: View {
         .padding(.vertical, MemoraSpacing.sm)
         .liquidGlass(cornerRadius: MemoraRadius.md)
         .padding(.horizontal, MemoraSpacing.md)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .onAppear {
+            scheduleAutoDismiss()
+        }
+    }
+
+    private func dismiss() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            onDismiss?()
+        }
+    }
+
+    private func scheduleAutoDismiss() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(dismissDuration))
+            dismiss()
+        }
     }
 }

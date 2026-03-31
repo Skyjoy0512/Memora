@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import Observation
 
 @Observable
@@ -30,6 +29,10 @@ final class FileDetailViewModel {
     var successMessage: String?
     var showSuccessAlert = false
 
+    // MARK: - Toast
+    var toastMessage: String?
+    var toastStyle: ToastOverlay.Style = .error
+
     // MARK: - Navigation
     var showTranscriptView = false
     var showSummaryView = false
@@ -39,8 +42,7 @@ final class FileDetailViewModel {
 
     // MARK: - Dependencies
     let audioFile: AudioFile
-    private let repoFactory: RepositoryFactory?
-    private let modelContext: ModelContext
+    private let repoFactory: RepositoryFactory
     private let transcriptionEngine = TranscriptionEngine()
     private let summarizationEngine = SummarizationEngine()
     private let audioPlayer = AudioPlayer()
@@ -58,15 +60,13 @@ final class FileDetailViewModel {
 
     init(
         audioFile: AudioFile,
-        repoFactory: RepositoryFactory?,
-        modelContext: ModelContext,
+        repoFactory: RepositoryFactory,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
         apiKey: String
     ) {
         self.audioFile = audioFile
         self.repoFactory = repoFactory
-        self.modelContext = modelContext
         self.currentProvider = provider
         self.currentTranscriptionMode = transcriptionMode
         self.currentAPIKey = apiKey
@@ -100,7 +100,8 @@ final class FileDetailViewModel {
             )
         } catch {
             errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
-            showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
         }
 
         if !currentAPIKey.isEmpty {
@@ -111,7 +112,8 @@ final class FileDetailViewModel {
                 )
             } catch {
                 errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
-                showErrorAlert = true
+                toastMessage = errorMessage
+                toastStyle = .error
             }
         }
     }
@@ -159,6 +161,8 @@ final class FileDetailViewModel {
         guard let url = audioURL else {
             errorMessage = "音声URLがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -182,12 +186,7 @@ final class FileDetailViewModel {
 
                 // Transcript を保存
                 let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
-                if let factory = repoFactory {
-                    try? factory.transcriptRepo.save(transcript)
-                } else {
-                    modelContext.insert(transcript)
-                    try? modelContext.save()
-                }
+                try? repoFactory.transcriptRepo.save(transcript)
 
                 // スピーカーセグメントを保存
                 for segment in result.segments {
@@ -198,15 +197,11 @@ final class FileDetailViewModel {
                         text: segment.text
                     )
                 }
-                try? modelContext.save()
+                try? repoFactory.transcriptRepo.save(transcript)
 
                 // audioFile のフラグを更新
                 audioFile.isTranscribed = true
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory.audioFileRepo.save(audioFile)
 
                 transcriptResult = result
 
@@ -223,6 +218,8 @@ final class FileDetailViewModel {
                 isTranscribing = false
                 errorMessage = "文字起こしエラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
@@ -233,6 +230,8 @@ final class FileDetailViewModel {
         guard !currentAPIKey.isEmpty else {
             errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -243,23 +242,15 @@ final class FileDetailViewModel {
             transcriptText = result.text
             segments = result.segments
         } else {
-            // Repository → modelContext フォールバックで取得
-            let transcript: Transcript?
-            if let factory = repoFactory {
-                transcript = try? factory.transcriptRepo.fetch(audioFileId: audioFile.id)
-            } else {
-                let targetID = audioFile.id
-                let descriptor = FetchDescriptor<Transcript>(
-                    predicate: #Predicate { $0.audioFileID == targetID }
-                )
-                transcript = try? modelContext.fetch(descriptor).first
-            }
+            let transcript = try? repoFactory.transcriptRepo.fetch(audioFileId: audioFile.id)
             transcriptText = transcript?.text ?? ""
         }
 
         guard !transcriptText.isEmpty else {
             errorMessage = "文字起こしデータがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -293,11 +284,7 @@ final class FileDetailViewModel {
                 audioFile.summary = result.summary
                 audioFile.keyPoints = result.keyPointsText
                 audioFile.actionItems = result.actionItemsText
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
+                try? repoFactory.audioFileRepo.save(audioFile)
 
                 // アクションアイテムからTodoItem自動生成
                 if config.autoCreateTodos {
@@ -305,7 +292,7 @@ final class FileDetailViewModel {
                         from: result,
                         sourceFileId: audioFile.id,
                         sourceFileTitle: audioFile.title,
-                        modelContext: modelContext
+                        todoRepo: repoFactory.todoItemRepo
                     )
                 }
 
@@ -320,11 +307,15 @@ final class FileDetailViewModel {
 
                 successMessage = "生成完了"
                 showSuccessAlert = true
+                toastMessage = successMessage
+                toastStyle = .success
             } catch {
                 stopProgressTracking()
                 isSummarizing = false
                 errorMessage = "要約エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
@@ -335,6 +326,8 @@ final class FileDetailViewModel {
         guard let url = audioURL else {
             errorMessage = "音声URLがありません"
             showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             return
         }
 
@@ -343,9 +336,13 @@ final class FileDetailViewModel {
                 let profile = try speakerProfileStore.registerPrimaryUserProfile(audioURL: url)
                 successMessage = "「\(profile.displayName)」の声サンプルを登録しました。次回の話者分離から優先的にラベル付けします。"
                 showSuccessAlert = true
+                toastMessage = successMessage
+                toastStyle = .success
             } catch {
                 errorMessage = "声サンプル登録エラー: \(error.localizedDescription)"
                 showErrorAlert = true
+            toastMessage = errorMessage
+            toastStyle = .error
             }
         }
     }
@@ -353,12 +350,7 @@ final class FileDetailViewModel {
     // MARK: - Delete
 
     func deleteAudioFile() {
-        if let factory = repoFactory {
-            try? factory.audioFileRepo.delete(audioFile)
-        } else {
-            modelContext.delete(audioFile)
-            try? modelContext.save()
-        }
+        try? repoFactory.audioFileRepo.delete(audioFile)
     }
 
     // MARK: - Format Helpers
@@ -432,13 +424,7 @@ final class FileDetailViewModel {
     private func loadSavedTranscript() {
         guard audioFile.isTranscribed else { return }
 
-        let targetID = audioFile.id
-        var descriptor = FetchDescriptor<Transcript>(
-            predicate: #Predicate { $0.audioFileID == targetID }
-        )
-        descriptor.fetchLimit = 1
-
-        guard let transcript = try? modelContext.fetch(descriptor).first else { return }
+        guard let transcript = try? repoFactory.transcriptRepo.fetch(audioFileId: audioFile.id) else { return }
 
         var segments: [SpeakerSegment] = []
         for i in 0..<transcript.speakerLabels.count {
@@ -476,16 +462,7 @@ final class FileDetailViewModel {
     }
 
     private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
-        // WebhookSettings を Repository → modelContext フォールバックで取得
-        let settings: WebhookSettings?
-        if let factory = repoFactory {
-            settings = try? factory.webhookSettingsRepo.fetch()
-        } else {
-            let descriptor = FetchDescriptor<WebhookSettings>()
-            settings = try? modelContext.fetch(descriptor).first
-        }
-
-        guard let settings else { return }
+        guard let settings = try? repoFactory.webhookSettingsRepo.fetch() else { return }
 
         do {
             try await webhookService.sendWebhook(

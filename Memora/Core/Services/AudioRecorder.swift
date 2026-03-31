@@ -32,7 +32,7 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
     private var levelContinuations: [UUID: AsyncStream<Float>.Continuation] = [:]
     private var meteringTimer: Timer?
 
-    nonisolated deinit {
+    deinit {
         meteringTimer?.invalidate()
         meteringTimer = nil
 

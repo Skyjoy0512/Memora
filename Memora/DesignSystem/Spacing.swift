@@ -20,3 +20,9 @@ enum MemoraRadius {
     static let xl: CGFloat  = 21
     static let pill: CGFloat = 25
 }
+
+enum MemoraHeight {
+    static let divider: CGFloat = 1
+    static let button: CGFloat = 50
+    static let tabBar: CGFloat = 110
+}
