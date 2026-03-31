@@ -1,19 +1,10 @@
 import SwiftUI
-import SwiftData
 
 struct ToDoView: View {
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
-    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted },
-           sort: \TodoItem.createdAt,
-           order: .reverse)
-    private var incompleteTodos: [TodoItem]
 
-    @Query(filter: #Predicate<TodoItem> { $0.isCompleted },
-           sort: \TodoItem.completedAt,
-           order: .reverse)
-    private var completedTodos: [TodoItem]
-
+    @State private var incompleteTodos: [TodoItem] = []
+    @State private var completedTodos: [TodoItem] = []
     @State private var showAddSheet = false
     @State private var editingTodo: TodoItem?
 
@@ -44,6 +35,10 @@ struct ToDoView: View {
             }
             .sheet(item: $editingTodo) { todo in
                 TodoEditSheet(mode: .edit(todo))
+            }
+            .task {
+                incompleteTodos = (try? repoFactory?.todoItemRepo.fetchIncomplete()) ?? []
+                completedTodos = (try? repoFactory?.todoItemRepo.fetchCompleted()) ?? []
             }
         }
     }
@@ -126,12 +121,7 @@ struct ToDoView: View {
     private func deleteButton(_ todo: TodoItem) -> some View {
         Button(role: .destructive) {
             withAnimation {
-                if let factory = repoFactory {
-                    try? factory.todoItemRepo.delete(todo)
-                } else {
-                    modelContext.delete(todo)
-                    try? modelContext.save()
-                }
+                try? repoFactory?.todoItemRepo.delete(todo)
             }
         } label: {
             Label("削除", systemImage: "trash")
@@ -246,7 +236,6 @@ struct TodoEditSheet: View {
     }
 
     let mode: Mode
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
     @Environment(\.dismiss) private var dismiss
 
@@ -343,12 +332,7 @@ struct TodoEditSheet: View {
                 priority: priority,
                 dueDate: dueDate
             )
-            if let factory = repoFactory {
-                try? factory.todoItemRepo.save(todo)
-            } else {
-                modelContext.insert(todo)
-                try? modelContext.save()
-            }
+            try? repoFactory?.todoItemRepo.save(todo)
         case .edit(let todo):
             todo.title = trimmedTitle
             todo.notes = notes.isEmpty ? nil : notes
@@ -373,5 +357,4 @@ extension TodoItem: @retroactive Identifiable {}
 
 #Preview {
     ToDoView()
-        .modelContainer(for: TodoItem.self, inMemory: true)
 }

@@ -3,7 +3,6 @@ import SwiftData
 
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
@@ -64,8 +63,7 @@ struct FileDetailView: View {
             guard viewModel == nil else { return }
             let vm = FileDetailViewModel(
                 audioFile: audioFile,
-                repoFactory: repoFactory,
-                modelContext: modelContext,
+                repoFactory: repoFactory!,
                 provider: currentProvider,
                 transcriptionMode: currentTranscriptionMode,
                 apiKey: currentAPIKey

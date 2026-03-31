@@ -43,20 +43,16 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
     @Published var isSummarizing = false
     @Published var progress = 0.0
 
-    private var aiService: AIService?
+    private let router = LLMRouter.shared
 
     func configure(apiKey: String, provider: AIProvider = .openai) async throws {
-        let service = AIService()
-        service.setProvider(provider)
-        try await service.configure(apiKey: apiKey)
-        self.aiService = service
+        await MainActor.run {
+            router.setProvider(provider)
+            router.setAPIKey(apiKey, for: provider)
+        }
     }
 
     func summarize(transcript: String) async throws -> SummaryResult {
-        guard let service = aiService else {
-            throw AIError.notConfigured
-        }
-
         await MainActor.run {
             isSummarizing = true
             progress = 0.0
@@ -65,15 +61,15 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         do {
             await MainActor.run { progress = 0.2 }
 
-            let (summary, keyPoints, actionItems) = try await service.summarize(transcript: transcript)
+            let llmResponse = try await router.summarize(transcript: transcript)
 
             await MainActor.run { progress = 0.8 }
 
-            // Try to extract decisions from summary context
             let result = SummaryResult(
-                summary: summary,
-                keyPoints: keyPoints,
-                actionItems: actionItems
+                summary: llmResponse.summary ?? llmResponse.rawText,
+                keyPoints: llmResponse.keyPoints,
+                actionItems: llmResponse.actionItems,
+                decisions: llmResponse.decisions
             )
 
             await MainActor.run {
@@ -91,10 +87,6 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
     }
 
     func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment]) async throws -> SummaryResult {
-        guard let service = aiService else {
-            throw AIError.notConfigured
-        }
-
         await MainActor.run {
             isSummarizing = true
             progress = 0.0
@@ -103,19 +95,21 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         do {
             await MainActor.run { progress = 0.1 }
 
-            // Build speaker-annotated transcript
-            let annotatedTranscript = buildAnnotatedTranscript(transcript: transcript, segments: segments)
-
             await MainActor.run { progress = 0.2 }
 
-            let (summary, keyPoints, actionItems) = try await service.summarize(transcript: annotatedTranscript)
+            let llmResponse = try await router.summarize(
+                transcript: transcript,
+                includeSpeakers: true,
+                segments: segments
+            )
 
             await MainActor.run { progress = 0.8 }
 
             let result = SummaryResult(
-                summary: summary,
-                keyPoints: keyPoints,
-                actionItems: actionItems
+                summary: llmResponse.summary ?? llmResponse.rawText,
+                keyPoints: llmResponse.keyPoints,
+                actionItems: llmResponse.actionItems,
+                decisions: llmResponse.decisions
             )
 
             await MainActor.run {
@@ -134,9 +128,9 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
 
     // MARK: - Action Item → TodoItem Conversion
 
-    /// Convert action items from a summary result into TodoItem objects and insert into model context
+    /// Convert action items from a summary result into TodoItem objects via repository
     @MainActor
-    func createTodoItems(from result: SummaryResult, sourceFileId: UUID, sourceFileTitle: String, modelContext: ModelContext) {
+    func createTodoItems(from result: SummaryResult, sourceFileId: UUID, sourceFileTitle: String, todoRepo: TodoItemRepositoryProtocol) {
         for actionText in result.actionItems {
             // Skip empty items
             let trimmed = actionText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,10 +159,8 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
                 priority: "medium",
                 projectID: nil
             )
-            modelContext.insert(todo)
+            try? todoRepo.save(todo)
         }
-
-        try? modelContext.save()
     }
 
     // MARK: - Private Helpers
