@@ -174,7 +174,23 @@ final class FileDetailViewModel {
                     transcriptionMode: currentTranscriptionMode
                 )
 
-                let result = try await transcriptionEngine.transcribe(audioURL: url)
+                let result = try await withThrowingTaskGroup(of: TranscriptResult.self) { group in
+                    group.addTask {
+                        try await self.transcriptionEngine.transcribe(audioURL: url)
+                    }
+                    group.addTask {
+                        // タイムアウト監視（音声長 × 3、最低 120秒、最大 600秒）
+                        let timeout = max(120, min(600, self.audioFile.duration * 3))
+                        try await Task.sleep(for: .seconds(timeout))
+                        throw TranscriptionTimeoutError()
+                    }
+
+                    guard let first = try await group.next() else {
+                        throw TranscriptionTimeoutError()
+                    }
+                    group.cancelAll()
+                    return first
+                }
 
                 stopProgressTracking()
                 isTranscribing = false
@@ -499,5 +515,13 @@ final class FileDetailViewModel {
         } catch {
             print("Webhook 送信エラー: \(error.localizedDescription)")
         }
+    }
+}
+
+// MARK: - Transcription Timeout Error
+
+private struct TranscriptionTimeoutError: LocalizedError {
+    var errorDescription: String? {
+        "文字起こしがタイムアウトしました。オンデバイス認識モデルがダウンロードされていない可能性があります。設定からオンデバイスモードをオフにするか、Wi-Fi環境でやり直してください。"
     }
 }
