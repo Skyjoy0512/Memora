@@ -12,56 +12,74 @@ struct ContentView: View {
     @State private var showRecording = false
     @State private var showFileImporter = false
 
+    // フロー管理
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @AppStorage("hasAuthenticated") private var hasAuthenticated = false
+    @AppStorage("hasShownPaywall") private var hasShownPaywall = false
+
     var body: some View {
-        mainTabView
-            .overlay(alignment: .bottom) {
-                ZStack(alignment: .bottom) {
-                    // 展開中の背景タップで閉じる（FABの下に配置）
-                    if isExpanded {
-                        Color.black.opacity(0.001)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    isExpanded = false
+        Group {
+            if !hasCompletedOnboarding {
+                OnboardingView()
+            } else if !hasAuthenticated {
+                AuthView()
+            } else if !hasShownPaywall {
+                PaywallView()
+            } else {
+                mainTabView
+                    .overlay(alignment: .bottom) {
+                        ZStack(alignment: .bottom) {
+                            // 展開中の背景タップで閉じる
+                            if isExpanded {
+                                Color.black.opacity(0.001)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            isExpanded = false
+                                        }
+                                    }
+                                    .ignoresSafeArea()
+                                    .transition(.opacity)
+                            }
+
+                            // タブバー + FAB
+                            HStack(alignment: .bottom, spacing: 12) {
+                                MorphingTabBar(activeTab: $selectedTab, isExpanded: $isExpanded) {
+                                    actionGrid
                                 }
-                            }
-                            .ignoresSafeArea()
-                            .transition(.opacity)
-                    }
 
-                    // タブバー + FAB
-                    HStack(alignment: .bottom, spacing: 12) {
-                        MorphingTabBar(activeTab: $selectedTab, isExpanded: $isExpanded) {
-                            actionGrid
-                        }
-
-                        Button {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                isExpanded.toggle()
+                                Button {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        isExpanded.toggle()
+                                    }
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 19, weight: .medium))
+                                        .rotationEffect(.init(degrees: isExpanded ? 45 : 0))
+                                        .frame(width: 52, height: 52)
+                                        .contentShape(Circle())
+                                        .foregroundStyle(Color.primary)
+                                }
+                                .buttonStyle(FABButtonStyle(isExpanded: isExpanded))
                             }
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 19, weight: .medium))
-                                .rotationEffect(.init(degrees: isExpanded ? 45 : 0))
-                                .frame(width: 52, height: 52)
-                                .contentShape(Circle())
-                                .foregroundStyle(Color.primary)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 25)
                         }
-                        .buttonStyle(FABButtonStyle(isExpanded: isExpanded))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 25)
-                }
+                    .ignoresSafeArea(.all, edges: .bottom)
+                    .environmentObject(bluetoothService)
+                    .fileImporter(
+                        isPresented: $showFileImporter,
+                        allowedContentTypes: audioContentTypes,
+                        allowsMultipleSelection: false
+                    ) { result in
+                        handleImportResult(result)
+                    }
             }
-            .ignoresSafeArea(.all, edges: .bottom)
-            .environmentObject(bluetoothService)
-            .fileImporter(
-                isPresented: $showFileImporter,
-                allowedContentTypes: audioContentTypes,
-                allowsMultipleSelection: false
-            ) { result in
-                handleImportResult(result)
-            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: hasCompletedOnboarding)
+        .animation(.easeInOut(duration: 0.3), value: hasAuthenticated)
+        .animation(.easeInOut(duration: 0.3), value: hasShownPaywall)
     }
 
     // MARK: - Audio Content Types
