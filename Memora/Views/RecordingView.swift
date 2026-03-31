@@ -138,11 +138,17 @@ struct RecordingView: View {
                 )
                 audioFile.duration = recordingTime
 
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    modelContext.insert(audioFile)
-                    try? modelContext.save()
+                do {
+                    if let factory = repoFactory {
+                        try factory.audioFileRepo.save(audioFile)
+                    } else {
+                        modelContext.insert(audioFile)
+                        try modelContext.save()
+                    }
+                } catch {
+                    print("AudioFile保存エラー: \(error)")
+                    errorMessage = "保存エラー: \(error.localizedDescription)"
+                    return
                 }
 
                 dismiss()
