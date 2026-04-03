@@ -6,7 +6,7 @@ import omi_lib
 
 @MainActor
 final class OmiAdapter: ObservableObject {
-    typealias AudioImportHandler = @Sendable (URL, String?) async throws -> AudioFile
+    typealias AudioImportHandler = @Sendable (URL, String?) async throws -> OmiImportedAudio
 
     @Published private(set) var discoveredDevices: [OmiDeviceDescriptor] = []
     @Published private(set) var isScanning = false
@@ -28,6 +28,14 @@ final class OmiAdapter: ObservableObject {
 
     var sdkAvailable: Bool {
         Self.sdkAvailable
+    }
+
+    var connectedDeviceName: String? {
+        connectedDevice?.stableDisplayName
+    }
+
+    var sessionTerminationDescription: String {
+        "「セッション終了」は Memora 側の preview / audio import を停止します。物理接続の終了可否は Omi SDK の公開 API に依存します。"
     }
 
     private var connectedDevice: OmiDeviceDescriptor?
@@ -135,7 +143,7 @@ final class OmiAdapter: ObservableObject {
         previewChunks.removeAll()
         previewTranscript = ""
         connectionState = sdkAvailable ? .disconnected : .unavailable
-        statusMessage = sdkAvailable ? "Omi セッションを終了しました" : nil
+        statusMessage = sdkAvailable ? "Memora 側の Omi セッションを終了しました" : nil
         errorMessage = nil
     }
 
@@ -148,7 +156,7 @@ final class OmiAdapter: ObservableObject {
                 self.isConnected = connected
                 self.connectionState = connected ? .connected : .disconnected
                 self.statusMessage = connected
-                    ? "\(descriptor.stableDisplayName) に接続しました"
+                    ? "\(descriptor.stableDisplayName) の preview セッションを開始しました"
                     : "\(descriptor.stableDisplayName) との接続が切れました"
 
                 guard connected else { return }
@@ -207,13 +215,9 @@ final class OmiAdapter: ObservableObject {
 
         do {
             let title = omiImportTitle(for: descriptor)
-            let audioFile = try await audioImportHandler(fileURL, title)
-            lastImportedAudio = OmiImportedAudio(
-                audioFileID: audioFile.id,
-                title: audioFile.title,
-                importedAt: Date()
-            )
-            statusMessage = "\(audioFile.title) を Memora に取り込みました"
+            let importedAudio = try await audioImportHandler(fileURL, title)
+            lastImportedAudio = importedAudio
+            statusMessage = "\(importedAudio.title) を Memora に取り込みました"
             connectionState = isConnected ? .connected : .disconnected
         } catch {
             errorMessage = "Omi 音声の取り込みに失敗しました: \(error.localizedDescription)"

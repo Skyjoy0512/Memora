@@ -290,6 +290,12 @@ struct SettingsView: View {
                     Text("デバイスに接続されています")
                         .font(MemoraTypography.subheadline)
 
+                    if let deviceName = omiAdapter.connectedDeviceName {
+                        Text(deviceName)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if let statusMessage = omiAdapter.statusMessage {
                         Text(statusMessage)
                             .font(MemoraTypography.caption1)
@@ -309,6 +315,10 @@ struct SettingsView: View {
                             .background(MemoraColor.accentRed)
                             .cornerRadius(MemoraRadius.sm)
                     }
+
+                    Text(omiAdapter.sessionTerminationDescription)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
                 }
             } else if !omiAdapter.discoveredDevices.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -499,6 +509,18 @@ struct SettingsView: View {
     @ViewBuilder
     private var developerFeaturesSection: some View {
         Section("開発者機能") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "doc.badge.plus")
+                        .foregroundStyle(MemoraColor.accentBlue)
+                    Text("Plaud エクスポートインポート")
+                        .font(MemoraTypography.subheadline)
+                }
+                Text("FAB の「Plaud」ボタンから Plaud アプリのエクスポートファイル（JSON/TXT）をインポートできます。")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+            }
+
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
                 set: { newValue in

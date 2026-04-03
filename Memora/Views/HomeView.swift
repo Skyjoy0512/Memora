@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @Binding var showRecordingFromFAB: Bool
+    @Binding var pendingOpenedAudioFileID: UUID?
 
     // 検索・フィルタリング用
     @State private var searchText = ""
@@ -31,8 +32,12 @@ struct HomeView: View {
         case calendar = "カレンダー"
     }
 
-    init(showRecordingFromFAB: Binding<Bool> = .constant(false)) {
+    init(
+        showRecordingFromFAB: Binding<Bool> = .constant(false),
+        pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil)
+    ) {
         self._showRecordingFromFAB = showRecordingFromFAB
+        self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
     }
 
     // フィルタリング・ソート後のファイル一覧
@@ -207,6 +212,12 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .onChange(of: pendingOpenedAudioFileID) { _, _ in
+                openPendingImportedAudioIfNeeded()
+            }
+            .onChange(of: audioFiles.count) { _, _ in
+                openPendingImportedAudioIfNeeded()
+            }
         }
     }
 
@@ -224,6 +235,13 @@ struct HomeView: View {
 
     private var recordingHint: String {
         "右下の追加ボタンから録音を開始"
+    }
+
+    private func openPendingImportedAudioIfNeeded() {
+        guard let pendingOpenedAudioFileID else { return }
+        guard let audioFile = audioFiles.first(where: { $0.id == pendingOpenedAudioFileID }) else { return }
+        selectedAudioFile = audioFile
+        self.pendingOpenedAudioFileID = nil
     }
 }
 
@@ -258,6 +276,16 @@ struct AudioFileRow: View {
             }
 
             Spacer()
+
+            if audioFile.isPlaudImport {
+                Text("Plaud")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(MemoraColor.accentBlue.opacity(0.1))
+                    .cornerRadius(4)
+            }
 
             if audioFile.isTranscribed {
                 Image(systemName: "checkmark.circle.fill")

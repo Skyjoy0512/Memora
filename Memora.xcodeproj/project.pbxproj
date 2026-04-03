@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		017C6FA674405EE20C0B10F1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EDFC7810796167A7286C95 /* SettingsView.swift */; };
+		064758E3B9EAA481C111A22B /* PlaudExportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */; };
 		075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */; };
 		0BC193ECC1BD670242A3A175 /* AskAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 838240CE110D3C7FE538A7AF /* AskAIView.swift */; };
 		0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */; };
@@ -80,6 +81,7 @@
 		DEE37E540922DF3750A14C87 /* SpeakerProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */; };
 		DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */; };
 		E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */; };
+		E410D4D2DB0A17C46B31A024 /* PlaudImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E18D3E00732A71CB8A413E6 /* PlaudImportService.swift */; };
 		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
 		EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */; };
 		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
@@ -130,6 +132,7 @@
 		90C645C1273E6DCB73D45412 /* TodoItemRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItemRepository.swift; sourceTree = "<group>"; };
 		9A28393773CC00F5CE77856E /* RealtimeTranscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriptionView.swift; sourceTree = "<group>"; };
 		9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTSupportTypes.swift; sourceTree = "<group>"; };
+		9E18D3E00732A71CB8A413E6 /* PlaudImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudImportService.swift; sourceTree = "<group>"; };
 		A0BCEC646256497F4FCA2EF2 /* PlaudSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettingsRepository.swift; sourceTree = "<group>"; };
 		A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNote.swift; sourceTree = "<group>"; };
 		A94DFEC599490C7591292000 /* TodoItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItem.swift; sourceTree = "<group>"; };
@@ -145,6 +148,7 @@
 		C7C571C60384295BBBCFB9D9 /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
 		C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
+		CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudExportModels.swift; sourceTree = "<group>"; };
 		D14147F1C9E60307352CD67F /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
 		D4219D772B47C2D53AD2A29A /* ProjectRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRepository.swift; sourceTree = "<group>"; };
 		D4D1F89D958FA1B55DCF5023 /* STTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTService.swift; sourceTree = "<group>"; };
@@ -262,6 +266,7 @@
 				F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */,
 				E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */,
 				C6B0DBF8D79D16F7F8A2784E /* PipelineCoordinator.swift */,
+				9E18D3E00732A71CB8A413E6 /* PlaudImportService.swift */,
 				78A39563D755711D640B86DA /* PlaudService.swift */,
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
 				F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */,
@@ -330,6 +335,7 @@
 			children = (
 				35B8C2466FE7F2C1FE124533 /* AudioFile.swift */,
 				A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */,
+				CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */,
 				05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */,
 				F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */,
 				07A0D42867DF06711C803A32 /* ProcessingJob.swift */,
@@ -487,6 +493,8 @@
 				1BB9769521D61681DEA66A11 /* OnboardingView.swift in Sources */,
 				FE0BA1856E12BEBA227E8E2C /* PillButton.swift in Sources */,
 				DC40C87BAF5C918F56E3E4B5 /* PipelineCoordinator.swift in Sources */,
+				064758E3B9EAA481C111A22B /* PlaudExportModels.swift in Sources */,
+				E410D4D2DB0A17C46B31A024 /* PlaudImportService.swift in Sources */,
 				CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */,
 				30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */,
 				E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */,

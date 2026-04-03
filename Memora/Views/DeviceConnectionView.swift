@@ -17,6 +17,12 @@ struct DeviceConnectionView: View {
                     Text("デバイスに接続されています")
                         .font(MemoraTypography.headline)
 
+                    if let deviceName = omiAdapter.connectedDeviceName {
+                        Text(deviceName)
+                            .font(MemoraTypography.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if let statusMessage = omiAdapter.statusMessage {
                         Text(statusMessage)
                             .font(MemoraTypography.subheadline)
@@ -37,6 +43,12 @@ struct DeviceConnectionView: View {
                             .cornerRadius(MemoraRadius.md)
                     }
                     .padding()
+
+                    Text(omiAdapter.sessionTerminationDescription)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
             } else if let errorMessage = omiAdapter.errorMessage {
                 VStack(spacing: MemoraSpacing.xxl) {

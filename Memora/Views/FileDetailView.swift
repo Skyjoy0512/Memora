@@ -118,6 +118,34 @@ struct FileDetailView: View {
                 Divider()
                     .padding(.horizontal)
 
+                // 参照文字起こし（Plaud）
+                if let refTranscript = audioFile.referenceTranscript, !refTranscript.isEmpty {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                        HStack {
+                            Image(systemName: "doc.text")
+                                .foregroundStyle(MemoraColor.accentBlue)
+                            Text("参照文字起こし（Plaud）")
+                                .font(MemoraTypography.subheadline)
+                                .fontWeight(.semibold)
+                        }
+
+                        ScrollView {
+                            Text(refTranscript)
+                                .font(MemoraTypography.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 180)
+                        .padding(8)
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.sm)
+
+                        Text("Plaud 側で生成された文字起こしです。Memora の文字起こしとは独立しています。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+
                 // アクションボタン
                 actionButtons(vm: vm)
 
