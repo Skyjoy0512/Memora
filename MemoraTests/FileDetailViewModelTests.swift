@@ -122,7 +122,6 @@ struct FileDetailViewModelTests {
         let audioFile = AudioFile(title: "テスト", audioURL: audioURLPath)
         return FileDetailViewModel(
             audioFile: audioFile,
-            repoFactory: nil,
             modelContext: mockModelContext,
             provider: .openai,
             transcriptionMode: .local,

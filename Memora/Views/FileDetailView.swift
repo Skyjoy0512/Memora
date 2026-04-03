@@ -4,7 +4,6 @@ import SwiftData
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"

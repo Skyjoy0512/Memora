@@ -7,13 +7,13 @@ struct ContentView: View {
     @StateObject private var bluetoothService = BluetoothAudioService()
     @StateObject private var omiAdapter = OmiAdapter()
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repositoryFactory
     @State private var selectedTab: MainTab = .files
     @State private var pendingOpenedAudioFileID: UUID?
     @State private var isExpanded: Bool = false
     @State private var showRecording = false
     @State private var showFileImporter = false
     @State private var showPlaudImporter = false
+    @State private var importErrorMessage: String?
 
     var body: some View {
         mainTabView
@@ -73,6 +73,22 @@ struct ContentView: View {
             ) { result in
                 handlePlaudImportResult(result)
             }
+            .alert("インポートエラー", isPresented: Binding(
+                get: { importErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        importErrorMessage = nil
+                    }
+                }
+            )) {
+                Button("OK", role: .cancel) {
+                    importErrorMessage = nil
+                }
+            } message: {
+                if let importErrorMessage {
+                    Text(importErrorMessage)
+                }
+            }
             .onAppear {
                 configureOmiAdapterIfNeeded()
             }
@@ -96,7 +112,7 @@ struct ContentView: View {
             guard let url = urls.first else { return }
             importAudioFile(from: url)
         case .failure(let error):
-            print("インポートエラー: \(error)")
+            presentImportError(prefix: "音声ファイルの選択に失敗しました", error: error)
         }
     }
 
@@ -104,7 +120,6 @@ struct ContentView: View {
         do {
             let audioFile = try AudioFileImportService.importAudio(
                 from: url,
-                repositoryFactory: repositoryFactory,
                 modelContext: modelContext,
                 requiresSecurityScopedAccess: true
             )
@@ -112,24 +127,17 @@ struct ContentView: View {
             pendingOpenedAudioFileID = audioFile.id
             print("インポート完了: \(audioFile.title) (\(String(format: "%.1f", audioFile.duration))秒)")
         } catch {
-            print("インポート処理エラー: \(error)")
+            presentImportError(prefix: "音声ファイルのインポートに失敗しました", error: error)
         }
     }
 
     private func configureOmiAdapterIfNeeded() {
         omiAdapter.configureAudioImportHandler { sourceURL, suggestedTitle in
             try await MainActor.run {
-                let audioFile = try AudioFileImportService.importAudio(
+                try AudioFileImportService.importOmiAudio(
                     from: sourceURL,
                     suggestedTitle: suggestedTitle,
-                    repositoryFactory: repositoryFactory,
-                    modelContext: modelContext,
-                    requiresSecurityScopedAccess: false
-                )
-                return OmiImportedAudio(
-                    audioFileID: audioFile.id,
-                    title: audioFile.title,
-                    importedAt: Date()
+                    modelContext: modelContext
                 )
             }
         }
@@ -142,7 +150,7 @@ struct ContentView: View {
             guard let url = urls.first else { return }
             importPlaudFile(from: url)
         case .failure(let error):
-            print("Plaud インポートエラー: \(error)")
+            presentImportError(prefix: "Plaud ファイルの選択に失敗しました", error: error)
         }
     }
 
@@ -196,8 +204,13 @@ struct ContentView: View {
                 pendingOpenedAudioFileID = audioFile.id
             }
         } catch {
-            print("Plaud ファイル処理エラー: \(error)")
+            presentImportError(prefix: "Plaud ファイルのインポートに失敗しました", error: error)
         }
+    }
+
+    private func presentImportError(prefix: String, error: Error) {
+        importErrorMessage = "\(prefix)\n\(error.localizedDescription)"
+        print("\(prefix): \(error)")
     }
 
     // MARK: - TabView
