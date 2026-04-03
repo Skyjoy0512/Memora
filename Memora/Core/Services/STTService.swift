@@ -1,4 +1,5 @@
 import Foundation
+@preconcurrency import AVFoundation
 import Speech
 
 // Core transcription boundary. Changes require explicit STT approval and regression checks.
@@ -60,9 +61,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     }
 
     func result() async throws -> TranscriptionResult {
-        lock.lock()
-        let task = resultTask
-        lock.unlock()
+        let task = currentTask()
 
         guard let task else {
             throw CoreError.transcriptionError(.transcriptionFailed("Task result is unavailable"))
@@ -71,11 +70,23 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     }
 
     func cancel() async {
+        let task = markCancelledAndGetTask()
+        task?.cancel()
+    }
+
+    private func currentTask() -> Task<TranscriptionResult, Error>? {
+        lock.lock()
+        let task = resultTask
+        lock.unlock()
+        return task
+    }
+
+    private func markCancelledAndGetTask() -> Task<TranscriptionResult, Error>? {
         lock.lock()
         let task = resultTask
         running = false
         lock.unlock()
-        task?.cancel()
+        return task
     }
 }
 
@@ -129,6 +140,336 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
     }
 }
 
+private final class STTBackendExecutor {
+    private let configuration: STTExecutionConfiguration
+    private let stateLock = NSLock()
+    private var recognitionTask: SFSpeechRecognitionTask?
+    private let diarizationService: SpeakerDiarizationProtocol
+
+    init(configuration: STTExecutionConfiguration, diarizationService: SpeakerDiarizationProtocol) {
+        self.configuration = configuration
+        self.diarizationService = diarizationService
+    }
+
+    func transcribe(
+        audioURL: URL,
+        language: String?,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        guard FileManager.default.fileExists(atPath: audioURL.path) else {
+            throw CoreError.transcriptionError(.audioFileInvalid)
+        }
+
+        switch configuration.transcriptionMode {
+        case .local:
+            return try await transcribeLocally(
+                audioURL: audioURL,
+                language: language,
+                progress: progress,
+                partialResult: partialResult
+            )
+        case .api:
+            return try await transcribeRemotely(
+                audioURL: audioURL,
+                language: language,
+                progress: progress
+            )
+        }
+    }
+
+    private func transcribeLocally(
+        audioURL: URL,
+        language: String?,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        let locale = localeForRecognition(language: language)
+        print("[MemoraSTT] transcribeLocally — locale: \(locale.identifier), SpeechAnalyzer flag: \(SpeechAnalyzerFeatureFlag.isEnabled)")
+
+        #if !targetEnvironment(simulator)
+        if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
+            print("[MemoraSTT] SpeechAnalyzer パスを試行中...")
+            do {
+                return try await transcribeWithSpeechAnalyzerWithTimeout(
+                    audioURL: audioURL,
+                    locale: locale,
+                    progress: progress,
+                    partialResult: partialResult
+                )
+            } catch {
+                print("[MemoraSTT] SpeechAnalyzer fallback: \(error.localizedDescription)")
+            }
+        } else {
+            if #available(iOS 26.0, *) {
+                print("[MemoraSTT] SpeechAnalyzer スキップ — flag OFF またはシミュレータ")
+            }
+        }
+        #endif
+
+        print("[MemoraSTT] SFSpeechRecognizer パスを使用")
+        return try await transcribeWithSpeechRecognizer(
+            audioURL: audioURL,
+            locale: locale,
+            progress: progress,
+            partialResult: partialResult
+        )
+    }
+
+    private func transcribeWithSpeechRecognizer(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
+            print("[MemoraSTT] SFSpeechRecognizer 利用不可 — locale: \(locale.identifier)")
+            throw CoreError.transcriptionError(.engineNotAvailable)
+        }
+
+        let request = SFSpeechURLRecognitionRequest(url: audioURL)
+        request.shouldReportPartialResults = false
+        request.requiresOnDeviceRecognition = true
+        if #available(iOS 16.0, *) {
+            request.addsPunctuation = true
+        }
+
+        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: true")
+        progress(0.2)
+
+        let recognitionResult = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation {
+                (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
+                let callbackLock = NSLock()
+                var didResume = false
+
+                let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                    if let result {
+                        partialResult(result.bestTranscription.formattedString)
+                    }
+
+                    if let error {
+                        callbackLock.lock()
+                        let shouldResume = !didResume
+                        didResume = true
+                        callbackLock.unlock()
+
+                        guard shouldResume else { return }
+                        self?.clearRecognitionTask()
+                        continuation.resume(throwing: error)
+                        return
+                    }
+
+                    guard let result, result.isFinal else { return }
+
+                    callbackLock.lock()
+                    let shouldResume = !didResume
+                    didResume = true
+                    callbackLock.unlock()
+
+                    guard shouldResume else { return }
+                    self?.clearRecognitionTask()
+                    continuation.resume(returning: result)
+                }
+
+                self.storeRecognitionTask(task)
+            }
+        } onCancel: {
+            self.cancelRecognitionTask()
+        }
+
+        progress(0.92)
+
+        let baseSegments = recognitionResult.bestTranscription.segments.enumerated().map { index, segment in
+            TranscriptionSegment(
+                id: "segment-\(index)",
+                speakerLabel: "Speaker 1",
+                startSec: segment.timestamp,
+                endSec: segment.timestamp + segment.duration,
+                text: segment.substring
+            )
+        }
+
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
+        return TranscriptionResult(
+            fullText: recognitionResult.bestTranscription.formattedString,
+            language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
+            segments: segmentsWithSpeakers
+        )
+    }
+
+    @available(iOS 26.0, *)
+    private func transcribeWithSpeechAnalyzerWithTimeout(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
+            group.addTask {
+                try await self.transcribeWithSpeechAnalyzer(
+                    audioURL: audioURL,
+                    locale: locale,
+                    progress: progress,
+                    partialResult: partialResult
+                )
+            }
+
+            group.addTask {
+                try await Task.sleep(nanoseconds: 120_000_000_000)
+                throw OnDeviceTranscriptionTimeoutError()
+            }
+
+            guard let result = try await group.next() else {
+                group.cancelAll()
+                throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer produced no result"))
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func transcribeWithSpeechAnalyzer(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void
+    ) async throws -> TranscriptionResult {
+        let service = SpeechAnalyzerService26()
+
+        progress(0.2)
+        let text = try await service.transcribe(audioURL: audioURL)
+        partialResult(text)
+        progress(0.92)
+
+        let duration = await audioFileDuration(for: audioURL)
+        let baseSegments = makeFallbackSegments(from: text, duration: duration)
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
+        return TranscriptionResult(
+            fullText: text,
+            language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
+            segments: segmentsWithSpeakers
+        )
+    }
+
+    private func transcribeRemotely(
+        audioURL: URL,
+        language: String?,
+        progress: @escaping @Sendable (Double) -> Void
+    ) async throws -> TranscriptionResult {
+        guard !configuration.apiKey.isEmpty else {
+            throw CoreError.transcriptionError(.transcriptionFailed("API key is missing"))
+        }
+
+        print("[MemoraSTT] API パス開始 — provider: \(configuration.provider.rawValue)")
+
+        let service = AIService()
+        service.setProvider(configuration.provider)
+        service.setTranscriptionMode(.api)
+        try await service.configure(apiKey: configuration.apiKey)
+
+        progress(0.2)
+        let text = try await service.transcribe(audioURL: audioURL)
+        progress(0.92)
+
+        print("[MemoraSTT] API パス完了 — text length: \(text.count)")
+
+        let duration = await audioFileDuration(for: audioURL)
+        let baseSegments = makeFallbackSegments(from: text, duration: duration)
+        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+            audioURL: audioURL,
+            segments: baseSegments
+        )
+
+        return TranscriptionResult(
+            fullText: text,
+            language: language.map(STTLanguageNormalizer.baseLanguageCode(for:)) ?? "ja",
+            segments: segmentsWithSpeakers
+        )
+    }
+
+    private func makeFallbackSegments(
+        from text: String,
+        duration: TimeInterval
+    ) -> [TranscriptionSegment] {
+        let lines = text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !lines.isEmpty else { return [] }
+
+        let segmentDuration = duration > 0 ? duration / Double(lines.count) : 0
+        return lines.enumerated().map { index, line in
+            let start = Double(index) * segmentDuration
+            let end = duration > 0 ? min(start + segmentDuration, duration) : start
+            return TranscriptionSegment(
+                id: "segment-\(index)",
+                speakerLabel: "Speaker 1",
+                startSec: start,
+                endSec: end,
+                text: line
+            )
+        }
+    }
+
+    private func localeForRecognition(language: String?) -> Locale {
+        guard let language, !language.isEmpty else {
+            return Locale(identifier: "ja_JP")
+        }
+
+        let normalized = language.replacingOccurrences(of: "-", with: "_")
+        if normalized.contains("_") {
+            return Locale(identifier: normalized)
+        }
+
+        switch normalized.lowercased() {
+        case "ja":
+            return Locale(identifier: "ja_JP")
+        case "en":
+            return Locale(identifier: "en_US")
+        default:
+            return Locale(identifier: normalized)
+        }
+    }
+
+    private func audioFileDuration(for url: URL) async -> TimeInterval {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration) else {
+            return 0
+        }
+        return CMTimeGetSeconds(duration)
+    }
+
+    private func storeRecognitionTask(_ task: SFSpeechRecognitionTask?) {
+        stateLock.lock()
+        recognitionTask = task
+        stateLock.unlock()
+    }
+
+    private func clearRecognitionTask() {
+        stateLock.lock()
+        recognitionTask = nil
+        stateLock.unlock()
+    }
+
+    private func cancelRecognitionTask() {
+        stateLock.lock()
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        stateLock.unlock()
+    }
+}
+
 final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let stateLock = NSLock()
     private let configurationLock = NSLock()
@@ -165,22 +506,15 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     func startTranscription(
         audioURL: URL,
         language: String?
-    ) async throws -> (STTTaskHandleProtocol, AsyncStream<STTEvent>) {
+    ) async throws -> (any STTTaskHandleProtocol, AsyncStream<STTEvent>) {
         guard FileManager.default.fileExists(atPath: audioURL.path) else {
             throw CoreError.transcriptionError(.audioFileInvalid)
         }
 
-        try await readiness.prepare()
-
-        let supportedLanguages = await readiness.supportedLanguages
-        if let language,
-           !supportedLanguages.isEmpty,
-           !supportedLanguages.contains(STTLanguageNormalizer.baseLanguageCode(for: language)) {
-            throw CoreError.transcriptionError(.languageNotSupported(language))
-        }
+        let configuration = configurationSnapshot()
+        try await validateStartRequest(language: language, configuration: configuration)
 
         let handle = STTTaskHandle(audioURL: audioURL, language: language)
-        let configuration = configurationSnapshot()
         store(handle: handle)
 
         let task = Task(priority: .userInitiated) { [weak self] () throws -> TranscriptionResult in
@@ -200,7 +534,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         return (handle, handle.events)
     }
 
-    func getActiveTasks() -> [STTTaskHandleProtocol] {
+    func getActiveTasks() -> [any STTTaskHandleProtocol] {
         stateLock.lock()
         let tasks = Array(activeTasks.values)
         stateLock.unlock()
@@ -250,7 +584,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
                 handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
 
-                let engine = InternalTranscriptionEngine(
+                let engine = STTBackendExecutor(
                     configuration: configuration,
                     diarizationService: diarizationService
                 )
@@ -276,7 +610,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
             }
 
-            let mergedResult = merge(results: chunkResults, preferredLanguage: handle.language)
+            let mergedResult = merge(
+                chunks: preparedChunks,
+                results: chunkResults,
+                preferredLanguage: handle.language
+            )
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
             handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
             handle.finish()
@@ -298,6 +636,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     }
 
     private func merge(
+        chunks: [AudioChunk],
         results: [TranscriptionResult],
         preferredLanguage: String?
     ) -> TranscriptionResult {
@@ -306,7 +645,17 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             .joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let mergedSegments = results.flatMap(\.segments)
+        let mergedSegments = zip(chunks, results).flatMap { chunk, result in
+            result.segments.enumerated().map { index, segment in
+                TranscriptionSegment(
+                    id: "\(chunk.index)-\(segment.id)-\(index)",
+                    speakerLabel: segment.speakerLabel,
+                    startSec: segment.startSec + chunk.startSec,
+                    endSec: segment.endSec + chunk.startSec,
+                    text: segment.text
+                )
+            }
+        }
         let language = preferredLanguage.map(STTLanguageNormalizer.baseLanguageCode(for:))
             ?? results.first?.language
             ?? "ja"
@@ -316,6 +665,22 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             language: language,
             segments: mergedSegments
         )
+    }
+
+    private func validateStartRequest(
+        language: String?,
+        configuration: STTExecutionConfiguration
+    ) async throws {
+        guard configuration.transcriptionMode == .local else { return }
+
+        try await readiness.prepare()
+
+        let supportedLanguages = await readiness.supportedLanguages
+        if let language,
+           !supportedLanguages.isEmpty,
+           !supportedLanguages.contains(STTLanguageNormalizer.baseLanguageCode(for: language)) {
+            throw CoreError.transcriptionError(.languageNotSupported(language))
+        }
     }
 
     private func configurationSnapshot() -> STTExecutionConfiguration {

@@ -14,6 +14,8 @@ struct MemoraApp: App {
     @State private var hasStartedInitialLoad = false
     @State private var loadAttemptToken = UUID()
 
+    private static let tempStoreFlagKey = "didUseTemporaryStoreLastSession"
+
     nonisolated private static let schema = Schema([
         AudioFile.self,
         Transcript.self,
@@ -49,6 +51,12 @@ struct MemoraApp: App {
                 if !hasLoggedStart {
                     DebugLogger.shared.markAppStart()
                     hasLoggedStart = true
+
+                    // 前回セッションが一時ストアだった場合、データ消失の可能性を警告
+                    if UserDefaults.standard.bool(forKey: Self.tempStoreFlagKey) {
+                        DebugLogger.shared.addLog("ModelContainer", "前回セッションは一時ストアで起動していました。前回の変更は保持されていません。", level: .warning)
+                        UserDefaults.standard.set(false, forKey: Self.tempStoreFlagKey)
+                    }
                 }
                 guard !hasStartedInitialLoad else { return }
                 hasStartedInitialLoad = true
@@ -223,7 +231,8 @@ struct MemoraApp: App {
                     self.loadingMessage = "データを準備中..."
                 }
                 if useInMemoryStore {
-                    DebugLogger.shared.addLog("ModelContainer", "一時ストアで起動", level: .warning)
+                    DebugLogger.shared.addLog("ModelContainer", "一時ストアで起動 — このセッションの変更は保存されません", level: .warning)
+                    UserDefaults.standard.set(true, forKey: Self.tempStoreFlagKey)
                 } else {
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
@@ -262,7 +271,8 @@ struct MemoraApp: App {
                     self.isLoading = false
                     self.loadingMessage = "データを準備中..."
                 }
-                DebugLogger.shared.addLog("ModelContainer", "一時ストアで自動復旧しました", level: .warning)
+                DebugLogger.shared.addLog("ModelContainer", "一時ストアで自動復旧しました — このセッションの変更は保存されません", level: .warning)
+                UserDefaults.standard.set(true, forKey: Self.tempStoreFlagKey)
                 DebugLogger.shared.markAppReady()
             case .failure(let error):
                 DebugLogger.shared.addLog("ModelContainer", "一時ストアへのフォールバック失敗: \(error.localizedDescription)", level: .error)

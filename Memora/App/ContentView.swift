@@ -5,12 +5,15 @@ import AVFoundation
 
 struct ContentView: View {
     @StateObject private var bluetoothService = BluetoothAudioService()
+    @StateObject private var omiAdapter = OmiAdapter()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repositoryFactory
     @State private var selectedTab: MainTab = .files
+    @State private var pendingOpenedAudioFileID: UUID?
     @State private var isExpanded: Bool = false
     @State private var showRecording = false
     @State private var showFileImporter = false
+    @State private var showPlaudImporter = false
 
     var body: some View {
         mainTabView
@@ -55,12 +58,28 @@ struct ContentView: View {
             }
             .ignoresSafeArea(.all, edges: .bottom)
             .environmentObject(bluetoothService)
+            .environmentObject(omiAdapter)
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: audioContentTypes,
                 allowsMultipleSelection: false
             ) { result in
                 handleImportResult(result)
+            }
+            .fileImporter(
+                isPresented: $showPlaudImporter,
+                allowedContentTypes: [.json, .plainText],
+                allowsMultipleSelection: false
+            ) { result in
+                handlePlaudImportResult(result)
+            }
+            .onAppear {
+                configureOmiAdapterIfNeeded()
+            }
+            .onChange(of: omiAdapter.lastImportedAudio) { _, importedAudio in
+                guard let importedAudio else { return }
+                selectedTab = .files
+                pendingOpenedAudioFileID = importedAudio.audioFileID
             }
     }
 
@@ -82,55 +101,112 @@ struct ContentView: View {
     }
 
     private func importAudioFile(from url: URL) {
-        // セキュリティスコープアクセス
-        guard url.startAccessingSecurityScopedResource() else {
-            print("セキュリティスコープアクセス失敗")
-            return
-        }
-        defer { url.stopAccessingSecurityScopedResource() }
-
         do {
-            // Documents ディレクトリにコピー
-            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let fileName = url.deletingPathExtension().lastPathComponent
-            let ext = url.pathExtension
-            let destinationName = "\(fileName)_\(UUID().uuidString.prefix(8)).\(ext)"
-            let destinationURL = documentsDir.appendingPathComponent(destinationName)
-
-            // 既存ファイルがあれば削除
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
-            }
-
-            try FileManager.default.copyItem(at: url, to: destinationURL)
-
-            // 音声の長さを取得
-            let asset = AVAsset(url: destinationURL)
-            let duration = CMTimeGetSeconds(asset.duration)
-
-            // AudioFile を保存
-            let audioFile = AudioFile(title: fileName, audioURL: destinationURL.path)
-            audioFile.duration = duration
-            if let factory = repositoryFactory {
-                try? factory.audioFileRepo.save(audioFile)
-            } else {
-                modelContext.insert(audioFile)
-                try? modelContext.save()
-            }
-
-            // Files タブに切り替え
+            let audioFile = try AudioFileImportService.importAudio(
+                from: url,
+                repositoryFactory: repositoryFactory,
+                modelContext: modelContext,
+                requiresSecurityScopedAccess: true
+            )
             selectedTab = .files
-
-            print("インポート完了: \(fileName) (\(String(format: "%.1f", duration))秒)")
+            pendingOpenedAudioFileID = audioFile.id
+            print("インポート完了: \(audioFile.title) (\(String(format: "%.1f", audioFile.duration))秒)")
         } catch {
             print("インポート処理エラー: \(error)")
+        }
+    }
+
+    private func configureOmiAdapterIfNeeded() {
+        omiAdapter.configureAudioImportHandler { sourceURL, suggestedTitle in
+            try await MainActor.run {
+                let audioFile = try AudioFileImportService.importAudio(
+                    from: sourceURL,
+                    suggestedTitle: suggestedTitle,
+                    repositoryFactory: repositoryFactory,
+                    modelContext: modelContext,
+                    requiresSecurityScopedAccess: false
+                )
+                return OmiImportedAudio(
+                    audioFileID: audioFile.id,
+                    title: audioFile.title,
+                    importedAt: Date()
+                )
+            }
+        }
+    }
+
+    // MARK: - Plaud Import Handling
+    private func handlePlaudImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            importPlaudFile(from: url)
+        case .failure(let error):
+            print("Plaud インポートエラー: \(error)")
+        }
+    }
+
+    private func importPlaudFile(from url: URL) {
+        let fileName = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension.lowercased()
+
+        do {
+            if ext == "json" {
+                // JSON メタデータのみ → テキスト参照データとしてインポート
+                let didAccess = url.startAccessingSecurityScopedResource()
+                defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+                let data = try Data(contentsOf: url)
+                let export = try JSONDecoder().decode(PlaudExportFile.self, from: data)
+
+                let title = export.title ?? fileName
+                let audioFile: AudioFile
+                if let transcript = export.transcript, !transcript.isEmpty {
+                    audioFile = PlaudImportService.importTextOnly(
+                        title: title,
+                        textContent: transcript,
+                        modelContext: modelContext
+                    )
+                    if let summary = export.summary, !summary.isEmpty {
+                        audioFile.summary = summary
+                        audioFile.isSummarized = true
+                        try modelContext.save()
+                    }
+                } else {
+                    audioFile = PlaudImportService.importTextOnly(
+                        title: title,
+                        textContent: export.summary ?? "",
+                        modelContext: modelContext
+                    )
+                }
+                selectedTab = .files
+                pendingOpenedAudioFileID = audioFile.id
+            } else {
+                // .txt 等のテキストファイル → 参照文字起こしとしてインポート
+                let didAccess = url.startAccessingSecurityScopedResource()
+                defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+                let text = try String(contentsOf: url, encoding: .utf8)
+                let audioFile = PlaudImportService.importTextOnly(
+                    title: fileName,
+                    textContent: text,
+                    modelContext: modelContext
+                )
+                selectedTab = .files
+                pendingOpenedAudioFileID = audioFile.id
+            }
+        } catch {
+            print("Plaud ファイル処理エラー: \(error)")
         }
     }
 
     // MARK: - TabView
     private var mainTabView: some View {
         TabView(selection: $selectedTab) {
-            HomeView(showRecordingFromFAB: $showRecording)
+            HomeView(
+                showRecordingFromFAB: $showRecording,
+                pendingOpenedAudioFileID: $pendingOpenedAudioFileID
+            )
                 .toolbar(.hidden, for: .tabBar)
                 .tabItem { Label("Files", systemImage: "folder.fill") }
                 .tag(MainTab.files)
@@ -186,6 +262,14 @@ struct ContentView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     showFileImporter = true
+                }
+            }
+            ActionGridButton(icon: "doc.badge.plus", title: "Plaud") {
+                withAnimation(.bouncy(duration: 0.5, extraBounce: 0.05)) {
+                    isExpanded = false
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    showPlaudImporter = true
                 }
             }
         }

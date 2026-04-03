@@ -39,12 +39,9 @@ final class FileDetailViewModel {
 
     // MARK: - Dependencies
     let audioFile: AudioFile
-    private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
-    private let transcriptionEngine = TranscriptionEngine()
-    private let summarizationEngine = SummarizationEngine()
+    private let pipelineCoordinator: PipelineCoordinator
     private let audioPlayer = AudioPlayer()
-    private let webhookService = WebhookService()
     private let speakerProfileStore = SpeakerProfileStore.shared
 
     // Settings (passed from View's @AppStorage)
@@ -55,21 +52,25 @@ final class FileDetailViewModel {
     // Timers
     private var playbackTimer: Timer?
     private var progressTimer: Timer?
+    private var pipelineObservationTask: Task<Void, Never>?
 
     init(
         audioFile: AudioFile,
-        repoFactory: RepositoryFactory?,
         modelContext: ModelContext,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
         apiKey: String
     ) {
         self.audioFile = audioFile
-        self.repoFactory = repoFactory
         self.modelContext = modelContext
         self.currentProvider = provider
         self.currentTranscriptionMode = transcriptionMode
         self.currentAPIKey = apiKey
+        self.pipelineCoordinator = PipelineCoordinator(
+            transcriptionEngine: TranscriptionEngine(),
+            summarizationEngine: SummarizationEngine(),
+            modelContext: modelContext
+        )
     }
 
     // MARK: - Setup
@@ -89,31 +90,6 @@ final class FileDetailViewModel {
 
         audioDuration = audioFile.duration
         playbackPosition = 0
-    }
-
-    func setupEngines() async {
-        do {
-            try await transcriptionEngine.configure(
-                apiKey: currentAPIKey,
-                provider: currentProvider,
-                transcriptionMode: currentTranscriptionMode
-            )
-        } catch {
-            errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
-            showErrorAlert = true
-        }
-
-        if !currentAPIKey.isEmpty {
-            do {
-                try await summarizationEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider
-                )
-            } catch {
-                errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
-                showErrorAlert = true
-            }
-        }
     }
 
     func loadSavedData() {
@@ -165,64 +141,20 @@ final class FileDetailViewModel {
         isTranscribing = true
         transcriptionProgress = 0
         startTranscriptionProgressTracking()
+        pipelineObservationTask?.cancel()
+        pipelineObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
 
-        Task {
-            do {
-                try await transcriptionEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider,
-                    transcriptionMode: currentTranscriptionMode
-                )
+            let events = self.pipelineCoordinator.runTranscriptionPipeline(
+                audioURL: url,
+                audioFile: self.audioFile,
+                apiKey: self.currentAPIKey,
+                provider: self.currentProvider,
+                transcriptionMode: self.currentTranscriptionMode
+            )
 
-                let result = try await transcriptionEngine.transcribe(audioURL: url)
-
-                stopProgressTracking()
-                isTranscribing = false
-                transcriptionProgress = 1.0
-
-                // Transcript を保存
-                let transcript = Transcript(audioFileID: audioFile.id, text: result.text)
-                if let factory = repoFactory {
-                    try? factory.transcriptRepo.save(transcript)
-                } else {
-                    modelContext.insert(transcript)
-                    try? modelContext.save()
-                }
-
-                // スピーカーセグメントを保存
-                for segment in result.segments {
-                    transcript.addSpeakerSegment(
-                        speakerLabel: segment.speakerLabel,
-                        startTime: segment.startTime,
-                        endTime: segment.endTime,
-                        text: segment.text
-                    )
-                }
-                try? modelContext.save()
-
-                // audioFile のフラグを更新
-                audioFile.isTranscribed = true
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
-
-                transcriptResult = result
-
-                // Webhook 送信
-                await sendWebhook(event: .transcriptionCompleted, data: [
-                    "audioFileId": audioFile.id.uuidString,
-                    "title": audioFile.title,
-                    "duration": audioFile.duration,
-                    "transcript": result.text,
-                    "segments": result.segments.count
-                ])
-            } catch {
-                stopProgressTracking()
-                isTranscribing = false
-                errorMessage = "文字起こしエラー: \(error.localizedDescription)"
-                showErrorAlert = true
+            for await event in events {
+                self.handleTranscriptionPipelineEvent(event)
             }
         }
     }
@@ -243,17 +175,14 @@ final class FileDetailViewModel {
             transcriptText = result.text
             segments = result.segments
         } else {
-            // Repository → modelContext フォールバックで取得
+            // modelContext から取得
             let transcript: Transcript?
-            if let factory = repoFactory {
-                transcript = try? factory.transcriptRepo.fetch(audioFileId: audioFile.id)
-            } else {
-                let targetID = audioFile.id
-                let descriptor = FetchDescriptor<Transcript>(
-                    predicate: #Predicate { $0.audioFileID == targetID }
-                )
-                transcript = try? modelContext.fetch(descriptor).first
-            }
+            let targetID = audioFile.id
+            var descriptor = FetchDescriptor<Transcript>(
+                predicate: #Predicate { $0.audioFileID == targetID }
+            )
+            descriptor.fetchLimit = 1
+            transcript = try? modelContext.fetch(descriptor).first
             transcriptText = transcript?.text ?? ""
         }
 
@@ -266,65 +195,21 @@ final class FileDetailViewModel {
         isSummarizing = true
         summarizationProgress = 0
         startSummarizationProgressTracking()
+        pipelineObservationTask?.cancel()
+        pipelineObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
 
-        Task {
-            do {
-                try await summarizationEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider
-                )
+            let events = self.pipelineCoordinator.runSummaryPipeline(
+                audioFile: self.audioFile,
+                transcriptText: transcriptText,
+                segments: segments,
+                apiKey: self.currentAPIKey,
+                provider: self.currentProvider,
+                config: config
+            )
 
-                let result: SummaryResult
-                if config.includeSpeakers && !segments.isEmpty {
-                    result = try await summarizationEngine.summarizeWithSpeakers(
-                        transcript: transcriptText,
-                        segments: segments
-                    )
-                } else {
-                    result = try await summarizationEngine.summarize(transcript: transcriptText)
-                }
-
-                stopProgressTracking()
-                isSummarizing = false
-                summarizationProgress = 1.0
-
-                summaryResult = result
-                audioFile.isSummarized = true
-                audioFile.summary = result.summary
-                audioFile.keyPoints = result.keyPointsText
-                audioFile.actionItems = result.actionItemsText
-                if let factory = repoFactory {
-                    try? factory.audioFileRepo.save(audioFile)
-                } else {
-                    try? modelContext.save()
-                }
-
-                // アクションアイテムからTodoItem自動生成
-                if config.autoCreateTodos {
-                    summarizationEngine.createTodoItems(
-                        from: result,
-                        sourceFileId: audioFile.id,
-                        sourceFileTitle: audioFile.title,
-                        modelContext: modelContext
-                    )
-                }
-
-                // Webhook 送信
-                await sendWebhook(event: .summarizationCompleted, data: [
-                    "audioFileId": audioFile.id.uuidString,
-                    "title": audioFile.title,
-                    "summary": result.summary,
-                    "keyPoints": result.keyPoints,
-                    "actionItems": result.actionItems
-                ])
-
-                successMessage = "生成完了"
-                showSuccessAlert = true
-            } catch {
-                stopProgressTracking()
-                isSummarizing = false
-                errorMessage = "要約エラー: \(error.localizedDescription)"
-                showErrorAlert = true
+            for await event in events {
+                self.handleSummarizationPipelineEvent(event)
             }
         }
     }
@@ -353,11 +238,11 @@ final class FileDetailViewModel {
     // MARK: - Delete
 
     func deleteAudioFile() {
-        if let factory = repoFactory {
-            try? factory.audioFileRepo.delete(audioFile)
-        } else {
-            modelContext.delete(audioFile)
-            try? modelContext.save()
+        modelContext.delete(audioFile)
+        do {
+            try modelContext.save()
+        } catch {
+            print("[FileDetailVM] Delete error: \(error)")
         }
     }
 
@@ -384,6 +269,8 @@ final class FileDetailViewModel {
     // MARK: - Cleanup
 
     func cleanup() {
+        pipelineObservationTask?.cancel()
+        pipelineObservationTask = nil
         stopPlayback()
         stopProgressTracking()
     }
@@ -393,7 +280,8 @@ final class FileDetailViewModel {
     private func startPlaybackTimer() {
         playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 self.playbackPosition = self.audioPlayer.currentTime
                 self.isPlaying = self.audioPlayer.isPlaying
 
@@ -409,8 +297,9 @@ final class FileDetailViewModel {
     private func startTranscriptionProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
-                self.transcriptionProgress = self.transcriptionEngine.progress
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.transcriptionProgress = self.pipelineCoordinator.currentTranscriptionProgress
             }
         }
     }
@@ -418,8 +307,9 @@ final class FileDetailViewModel {
     private func startSummarizationProgressTracking() {
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self else { return }
-            MainActor.assumeIsolated {
-                self.summarizationProgress = self.summarizationEngine.progress
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.summarizationProgress = self.pipelineCoordinator.currentSummarizationProgress
             }
         }
     }
@@ -432,13 +322,15 @@ final class FileDetailViewModel {
     private func loadSavedTranscript() {
         guard audioFile.isTranscribed else { return }
 
-        let targetID = audioFile.id
-        var descriptor = FetchDescriptor<Transcript>(
-            predicate: #Predicate { $0.audioFileID == targetID }
-        )
-        descriptor.fetchLimit = 1
+        let transcript: Transcript?
+            let targetID = audioFile.id
+            var descriptor = FetchDescriptor<Transcript>(
+                predicate: #Predicate { $0.audioFileID == targetID }
+            )
+            descriptor.fetchLimit = 1
+            transcript = try? modelContext.fetch(descriptor).first
 
-        guard let transcript = try? modelContext.fetch(descriptor).first else { return }
+        guard let transcript else { return }
 
         var segments: [SpeakerSegment] = []
         for i in 0..<transcript.speakerLabels.count {
@@ -475,26 +367,77 @@ final class FileDetailViewModel {
         )
     }
 
-    private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
-        // WebhookSettings を Repository → modelContext フォールバックで取得
-        let settings: WebhookSettings?
-        if let factory = repoFactory {
-            settings = try? factory.webhookSettingsRepo.fetch()
-        } else {
-            let descriptor = FetchDescriptor<WebhookSettings>()
-            settings = try? modelContext.fetch(descriptor).first
+    private func handleTranscriptionPipelineEvent(_ event: PipelineEvent) {
+        switch event {
+        case .stepCompleted(.transcribing):
+            stopProgressTracking()
+            transcriptionProgress = max(transcriptionProgress, 0.95)
+        case .stepStarted(.mergingTranscripts):
+            transcriptionProgress = max(transcriptionProgress, 0.97)
+        case .stepStarted(.finalizing):
+            transcriptionProgress = max(transcriptionProgress, 0.99)
+        case .completed:
+            stopProgressTracking()
+            isTranscribing = false
+            transcriptionProgress = 1.0
+            loadSavedTranscript()
+            pipelineObservationTask = nil
+        case .failed(_, let error):
+            stopProgressTracking()
+            isTranscribing = false
+            errorMessage = userFacingTranscriptionErrorMessage(for: error)
+            showErrorAlert = true
+            pipelineObservationTask = nil
+        case .stepStarted,
+             .stepCompleted,
+             .chunkProgress:
+            break
+        }
+    }
+
+    private func handleSummarizationPipelineEvent(_ event: PipelineEvent) {
+        switch event {
+        case .stepCompleted(.generatingSummary):
+            stopProgressTracking()
+            summarizationProgress = max(summarizationProgress, 0.9)
+        case .stepStarted(.extractingMetadata):
+            summarizationProgress = max(summarizationProgress, 0.94)
+        case .stepStarted(.extractingTodos):
+            summarizationProgress = max(summarizationProgress, 0.97)
+        case .stepStarted(.finalizing):
+            summarizationProgress = max(summarizationProgress, 0.99)
+        case .completed:
+            stopProgressTracking()
+            isSummarizing = false
+            summarizationProgress = 1.0
+            loadSavedSummary()
+            successMessage = "生成完了"
+            showSuccessAlert = true
+            pipelineObservationTask = nil
+        case .failed(_, let error):
+            stopProgressTracking()
+            isSummarizing = false
+            errorMessage = "要約エラー: \(error.localizedDescription)"
+            showErrorAlert = true
+            pipelineObservationTask = nil
+        case .stepStarted,
+             .stepCompleted,
+             .chunkProgress:
+            break
+        }
+    }
+
+    private func userFacingTranscriptionErrorMessage(for error: Error) -> String {
+        if let timeoutError = error as? OnDeviceTranscriptionTimeoutError {
+            return timeoutError.localizedDescription
         }
 
-        guard let settings else { return }
-
-        do {
-            try await webhookService.sendWebhook(
-                eventType: event,
-                data: data,
-                settings: settings
-            )
-        } catch {
-            print("Webhook 送信エラー: \(error.localizedDescription)")
+        if case let CoreError.transcriptionError(transcriptionError) = error,
+           case let .transcriptionFailed(message) = transcriptionError,
+           message == OnDeviceTranscriptionTimeoutError.message {
+            return message
         }
+
+        return "文字起こしエラー: \(error.localizedDescription)"
     }
 }

@@ -1,6 +1,12 @@
 import Foundation
 import SwiftData
 
+enum SourceType: String, CaseIterable {
+    case recording = "recording"
+    case `import` = "import"
+    case plaud = "plaud"
+}
+
 @Model
 final class AudioFile {
     var id: UUID
@@ -19,6 +25,18 @@ final class AudioFile {
     var isLifeLog: Bool = false
     var lifeLogTags: [String] = []
     var calendarEventId: String?
+    // ソース・参照データ
+    var sourceTypeRaw: String = SourceType.recording.rawValue
+    var referenceTranscript: String?
+
+    var sourceType: SourceType {
+        get { SourceType(rawValue: sourceTypeRaw) ?? .recording }
+        set { sourceTypeRaw = newValue.rawValue }
+    }
+
+    var isPlaudImport: Bool {
+        sourceType == .plaud
+    }
 
     init(title: String, audioURL: String, projectID: UUID? = nil) {
         self.id = UUID()

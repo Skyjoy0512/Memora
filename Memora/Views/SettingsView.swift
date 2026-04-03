@@ -6,13 +6,13 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repoFactory
     @EnvironmentObject private var bluetoothService: BluetoothAudioService
+    @EnvironmentObject private var omiAdapter: OmiAdapter
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
     @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
     @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
     @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @State private var showDeleteAlert = false
-    @State private var isBluetoothEnabled = false
 
     // Plaud 設定
     @Query private var plaudSettingsList: [PlaudSettings]
@@ -58,13 +58,6 @@ struct SettingsView: View {
         }
         .onAppear {
             loadPlaudSettings()
-            isBluetoothEnabled = bluetoothService.isConnected
-        }
-        .onChange(of: bluetoothService.isConnected) { newValue in
-            isBluetoothEnabled = newValue
-        }
-        .onChange(of: bluetoothService.isScanning) { _ in
-            isBluetoothEnabled = bluetoothService.isConnected
         }
         .alert("API キー削除", isPresented: $showDeleteAlert) {
             Button("キャンセル", role: .cancel) {}
@@ -277,8 +270,17 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var deviceConnectionSection: some View {
-        Section("デバイス接続") {
-            if bluetoothService.isConnected {
+        Section("Omi 接続") {
+            if !omiAdapter.sdkAvailable {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Omi Swift SDK が未設定です")
+                        .font(MemoraTypography.subheadline)
+
+                    Text("公式 SDK を package として追加した状態でビルドすると、scan / connect / live preview / audio import が有効になります。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+            } else if omiAdapter.isConnected {
                 VStack(spacing: 13) {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
@@ -288,14 +290,24 @@ struct SettingsView: View {
                     Text("デバイスに接続されています")
                         .font(MemoraTypography.subheadline)
 
-                    if let device = bluetoothService.discoveredDevices.first {
-                        Text(device.name)
+                    if let deviceName = omiAdapter.connectedDeviceName {
+                        Text(deviceName)
                             .font(MemoraTypography.caption1)
                             .foregroundStyle(.secondary)
                     }
 
-                    Button(action: { bluetoothService.disconnect() }) {
-                        Text("切断")
+                    if let statusMessage = omiAdapter.statusMessage {
+                        Text(statusMessage)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("状態: \(omiAdapter.connectionState.description)")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+
+                    Button(action: { omiAdapter.disconnect() }) {
+                        Text("セッション終了")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
                             .padding(.vertical, 8)
@@ -303,33 +315,45 @@ struct SettingsView: View {
                             .background(MemoraColor.accentRed)
                             .cornerRadius(MemoraRadius.sm)
                     }
-                }
-            } else if bluetoothService.isScanning {
-                HStack(spacing: 13) {
-                    ProgressView()
-                        .tint(.gray)
-                    Text("デバイスを検索中...")
-                        .font(MemoraTypography.subheadline)
-                }
-            } else if !bluetoothService.discoveredDevices.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("発見したデバイス")
-                        .font(MemoraTypography.subheadline)
-                        .fontWeight(.semibold)
 
-                    ForEach(bluetoothService.discoveredDevices) { device in
-                        Button(action: { bluetoothService.connect(to: device) }) {
+                    Text(omiAdapter.sessionTerminationDescription)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+            } else if !omiAdapter.discoveredDevices.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("発見したデバイス")
+                            .font(MemoraTypography.subheadline)
+                            .fontWeight(.semibold)
+
+                        Spacer()
+
+                        if omiAdapter.isScanning {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+
+                                Text("検索中")
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    ForEach(omiAdapter.discoveredDevices) { device in
+                        Button(action: { omiAdapter.connect(to: device) }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
                                     .foregroundStyle(MemoraColor.textSecondary)
                                     .frame(width: 32, height: 32)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(device.name)
+                                    Text(device.stableDisplayName)
                                         .font(MemoraTypography.subheadline)
                                         .foregroundStyle(.primary)
 
-                                    Text("RSSI: \(device.rssi) dBm")
+                                    Text(device.subtitle)
                                         .font(MemoraTypography.caption1)
                                         .foregroundStyle(.secondary)
                                 }
@@ -345,6 +369,13 @@ struct SettingsView: View {
                         .cornerRadius(MemoraRadius.sm)
                     }
                 }
+            } else if omiAdapter.isScanning {
+                HStack(spacing: 13) {
+                    ProgressView()
+                        .tint(.gray)
+                    Text("デバイスを検索中...")
+                        .font(MemoraTypography.subheadline)
+                }
             } else {
                 VStack(spacing: 13) {
                     Image(systemName: "antenna.radiowaves.left.and.right")
@@ -356,7 +387,7 @@ struct SettingsView: View {
                         .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { bluetoothService.startScanning() }) {
+                    Button(action: { omiAdapter.startScan() }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
@@ -372,82 +403,37 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var realtimeTranscriptionSection: some View {
-        Section("リアルタイム転写") {
-            if bluetoothService.isConnected {
+        Section("Omi Preview") {
+            if omiAdapter.isConnected {
                 VStack(spacing: 13) {
-                    // デバイス接続ステータス
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(MemoraColor.accentGreen)
-                        Text("デバイスに接続されています")
+                        Text("公式 Omi path で接続中")
                             .font(MemoraTypography.subheadline)
                     }
 
-                    // 録音時間表示
-                    if bluetoothService.isRecording {
-                        VStack(spacing: 4) {
-                            Text("録音中")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.accentRed)
-                            Text(formatRecordingTime(bluetoothService.recordingDuration))
-                                .font(MemoraTypography.title2)
-                                .fontDesign(.monospaced)
-                                .fontWeight(.bold)
+                    Text("live transcript は preview 用です。取り込んだ audio file を Memora 側 STT pipeline で再処理して final transcript を確定します。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+
+                    if !omiAdapter.previewTranscript.isEmpty {
+                        ScrollView {
+                            Text(omiAdapter.previewTranscript)
+                                .font(MemoraTypography.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(.vertical, 8)
+                        .frame(minHeight: 80, maxHeight: 180)
+                        .padding(8)
                         .frame(maxWidth: .infinity)
-                        .background(MemoraColor.accentRed.opacity(0.1))
+                        .background(MemoraColor.divider.opacity(0.1))
                         .cornerRadius(MemoraRadius.sm)
                     }
 
-                    // 録音制御ボタン
-                    HStack(spacing: 13) {
-                        if bluetoothService.isRecording {
-                            Button(action: {
-                                bluetoothService.stopRecording()
-                            }) {
-                                HStack {
-                                    Image(systemName: "stop.circle.fill")
-                                    Text("停止")
-                                }
-                                .font(MemoraTypography.subheadline)
-                                .foregroundStyle(.white)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity)
-                                .background(MemoraColor.accentRed)
-                                .cornerRadius(MemoraRadius.sm)
-                            }
-                        } else {
-                            Button(action: {
-                                bluetoothService.startRecording()
-                            }) {
-                                HStack {
-                                    Image(systemName: "record.circle.fill")
-                                    Text("録音開始")
-                                }
-                                .font(MemoraTypography.subheadline)
-                                .foregroundStyle(.white)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity)
-                                .background(MemoraColor.accentRed)
-                                .cornerRadius(MemoraRadius.sm)
-                            }
-                        }
-
-                        Button(action: {
-                            bluetoothService.disconnect()
-                        }) {
-                            HStack {
-                                Image(systemName: "xmark.circle.fill")
-                                Text("切断")
-                            }
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.white)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.sm)
-                        }
+                    if let importedAudio = omiAdapter.lastImportedAudio {
+                        Text("取り込み済み: \(importedAudio.title)")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
                     }
                 }
             } else {
@@ -461,7 +447,7 @@ struct SettingsView: View {
                         .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { bluetoothService.startScanning() }) {
+                    Button(action: { omiAdapter.startScan() }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.white)
@@ -478,7 +464,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var bleDebugSection: some View {
         if bluetoothService.isConnected {
-            Section("BLE デバッグ（開発者向け）") {
+            Section("汎用 BLE 実験機能（開発者向け）") {
                 VStack(alignment: .leading, spacing: 13) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("発見されたサービス UUID:")
@@ -523,6 +509,18 @@ struct SettingsView: View {
     @ViewBuilder
     private var developerFeaturesSection: some View {
         Section("開発者機能") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "doc.badge.plus")
+                        .foregroundStyle(MemoraColor.accentBlue)
+                    Text("Plaud エクスポートインポート")
+                        .font(MemoraTypography.subheadline)
+                }
+                Text("FAB の「Plaud」ボタンから Plaud アプリのエクスポートファイル（JSON/TXT）をインポートできます。")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+            }
+
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
                 set: { newValue in
@@ -983,5 +981,6 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(OmiAdapter())
         .environmentObject(BluetoothAudioService())
 }

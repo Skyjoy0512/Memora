@@ -7,6 +7,10 @@ options:
   createIntermediateGroups: true
   transitivelyLinksDependencies: true
   defaultConfig: Debug
+packages:
+  OmiSDK:
+    url: https://github.com/BasedHardware/omi
+    revision: 07571705531ccf1d3ce2d41f7b8d166a85287693
 targets:
   Memora:
     type: application
@@ -15,6 +19,9 @@ targets:
     sources:
       - path: Memora
         includes: ["**/*.swift"]
+    dependencies:
+      - package: OmiSDK
+        product: omi-lib
     settings:
       PRODUCT_NAME: Memora
       PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora

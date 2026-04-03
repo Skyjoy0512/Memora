@@ -3,11 +3,11 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @Binding var showRecordingFromFAB: Bool
+    @Binding var pendingOpenedAudioFileID: UUID?
 
     // 検索・フィルタリング用
     @State private var searchText = ""
@@ -32,8 +32,12 @@ struct HomeView: View {
         case calendar = "カレンダー"
     }
 
-    init(showRecordingFromFAB: Binding<Bool> = .constant(false)) {
+    init(
+        showRecordingFromFAB: Binding<Bool> = .constant(false),
+        pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil)
+    ) {
         self._showRecordingFromFAB = showRecordingFromFAB
+        self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
     }
 
     // フィルタリング・ソート後のファイル一覧
@@ -208,23 +212,36 @@ struct HomeView: View {
                     showRecordingFromFAB = false
                 }
             }
+            .onChange(of: pendingOpenedAudioFileID) { _, _ in
+                openPendingImportedAudioIfNeeded()
+            }
+            .onChange(of: audioFiles.count) { _, _ in
+                openPendingImportedAudioIfNeeded()
+            }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
             let file = filteredFiles[index]
-            if let factory = repoFactory {
-                try? factory.audioFileRepo.delete(file)
-            } else {
-                modelContext.delete(file)
-                try? modelContext.save()
+            modelContext.delete(file)
+            do {
+                try modelContext.save()
+            } catch {
+                print("[HomeView] Delete error: \(error)")
             }
         }
     }
 
     private var recordingHint: String {
         "右下の追加ボタンから録音を開始"
+    }
+
+    private func openPendingImportedAudioIfNeeded() {
+        guard let pendingOpenedAudioFileID else { return }
+        guard let audioFile = audioFiles.first(where: { $0.id == pendingOpenedAudioFileID }) else { return }
+        selectedAudioFile = audioFile
+        self.pendingOpenedAudioFileID = nil
     }
 }
 
@@ -259,6 +276,16 @@ struct AudioFileRow: View {
             }
 
             Spacer()
+
+            if audioFile.isPlaudImport {
+                Text("Plaud")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(MemoraColor.accentBlue.opacity(0.1))
+                    .cornerRadius(4)
+            }
 
             if audioFile.isTranscribed {
                 Image(systemName: "checkmark.circle.fill")

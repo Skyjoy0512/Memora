@@ -19,6 +19,12 @@
 2. `SpeechAnalyzer` が使えない条件では `SFSpeechRecognizer`
 3. API モードでは OpenAI Whisper API などのクラウド
 
+## 責務境界
+- `STTService` を STT orchestration の中心とする。
+- `STTService` は task lifecycle、backend selection、chunk execution、event stream、cancellation、chunk merge を持つ。
+- `TranscriptionEngine` は ViewModel から呼びやすい facade とし、設定反映と UI 向け progress bridge に責務を限定する。
+- backend selection の真実は `STTService.swift` にのみ置く。
+
 ## 将来のローカル拡張
 - `WhisperLargeTurbo` はローカル STT の第3候補ではなく、`SpeechAnalyzer` 非対応端末向けの高精度バックエンド候補として扱う。
 - 実装前提:
@@ -35,6 +41,13 @@
   3. 自分の声登録
   4. 話者埋め込みマッチング
   5. 自分の声の自動ラベル付けまたは除外
+
+## Omi 連携境界
+- production の Omi path は official SDK ベースの adapter に閉じ込める。
+- `BluetoothAudioService` は generic BLE の experimental path とし、Omi production path の source of truth にしない。
+- Omi の live transcript は preview 用に限定し、保存済み final transcript の source of truth は Memora の STT pipeline に置く。
+- Omi 由来の audio は通常の `AudioFile` として取り込み、その後の transcription / summary / export は既存 pipeline に流す。
+- Omi 固有機能の追加は adapter 配下で吸収し、STT コアや SwiftData 保存形式へ直接侵食させない。
 
 ## 実装ガードレール
 - STT コアを触る変更は、UI 修正と混ぜない。
