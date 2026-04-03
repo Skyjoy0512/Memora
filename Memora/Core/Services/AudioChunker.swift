@@ -49,6 +49,14 @@ enum AudioChunkerError: LocalizedError {
     }
 }
 
+private final class ExportSessionBox: @unchecked Sendable {
+    let session: AVAssetExportSession
+
+    init(session: AVAssetExportSession) {
+        self.session = session
+    }
+}
+
 final class AudioChunker: AudioChunkerProtocol {
     private let shortThreshold: TimeInterval = 60 * 60
     private let longThreshold: TimeInterval = 60 * 60 * 3
@@ -90,32 +98,38 @@ final class AudioChunker: AudioChunkerProtocol {
         let total = Int(ceil(duration / chunkDuration))
 
         var chunks: [AudioChunk] = []
-        var startSec = 0.0
-        var index = 0
 
-        while startSec < duration {
-            try Task.checkCancellation()
+        do {
+            var startSec = 0.0
+            var index = 0
 
-            let endSec = min(startSec + chunkDuration, duration)
-            let url = try await exportChunk(
-                from: asset,
-                start: startSec,
-                end: endSec,
-                index: index
-            )
-            chunks.append(
-                AudioChunk(
-                    index: index,
-                    startSec: startSec,
-                    endSec: endSec,
-                    url: url,
-                    isTemporary: true
+            while startSec < duration {
+                try Task.checkCancellation()
+
+                let endSec = min(startSec + chunkDuration, duration)
+                let url = try await exportChunk(
+                    from: asset,
+                    start: startSec,
+                    end: endSec,
+                    index: index
                 )
-            )
+                chunks.append(
+                    AudioChunk(
+                        index: index,
+                        startSec: startSec,
+                        endSec: endSec,
+                        url: url,
+                        isTemporary: true
+                    )
+                )
 
-            index += 1
-            startSec = endSec
-            onProgress?(index, total)
+                index += 1
+                startSec = endSec
+                onProgress?(index, total)
+            }
+        } catch {
+            await cleanup(chunks: chunks)
+            throw error
         }
 
         return chunks
@@ -143,6 +157,7 @@ final class AudioChunker: AudioChunkerProtocol {
         ) else {
             throw AudioChunkerError.exportSessionUnavailable
         }
+        let exportSessionBox = ExportSessionBox(session: exportSession)
 
         exportSession.outputURL = exportURL
         exportSession.outputFileType = .m4a
@@ -151,18 +166,27 @@ final class AudioChunker: AudioChunkerProtocol {
             duration: CMTime(seconds: end - start, preferredTimescale: 600)
         )
 
-        try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<Void, Error>) in
-            exportSession.exportAsynchronously {
-                switch exportSession.status {
-                case .completed:
-                    continuation.resume()
-                case .failed, .cancelled:
-                    continuation.resume(throwing: AudioChunkerError.exportFailed(exportSession.error))
-                default:
-                    continuation.resume(throwing: AudioChunkerError.exportFailed(exportSession.error))
+        do {
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation {
+                    (continuation: CheckedContinuation<Void, Error>) in
+                    exportSessionBox.session.exportAsynchronously {
+                        switch exportSessionBox.session.status {
+                        case .completed:
+                            continuation.resume()
+                        case .failed, .cancelled:
+                            continuation.resume(throwing: AudioChunkerError.exportFailed(exportSessionBox.session.error))
+                        default:
+                            continuation.resume(throwing: AudioChunkerError.exportFailed(exportSessionBox.session.error))
+                        }
+                    }
                 }
+            } onCancel: {
+                exportSessionBox.session.cancelExport()
             }
+        } catch {
+            try? FileManager.default.removeItem(at: exportURL)
+            throw error
         }
 
         return exportURL
