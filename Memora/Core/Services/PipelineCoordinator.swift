@@ -21,6 +21,11 @@ final class PipelineCoordinator {
     private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
 
+    // MARK: - Progress (read by FileDetailViewModel for UI polling)
+
+    var currentTranscriptionProgress: Double { transcriptionEngine.progress }
+    var currentSummarizationProgress: Double { summarizationEngine.progress }
+
     init(
         transcriptionEngine: TranscriptionEngine,
         summarizationEngine: SummarizationEngine,
@@ -45,7 +50,7 @@ final class PipelineCoordinator {
         config: GenerationConfig
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
-            Task { @MainActor in
+            let task = Task { @MainActor in
                 do {
                     let transcriptResult = try await executeTranscription(
                         audioURL: audioURL,
@@ -113,12 +118,20 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.finalizing))
                     continuation.yield(.completed)
 
+                } catch is CancellationError {
                 } catch {
                     // 現在実行中のステップを特定してエラー通知
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+                Task { @MainActor in
+                    await self.transcriptionEngine.cancelActiveTranscription()
+                }
             }
         }
     }
@@ -134,7 +147,7 @@ final class PipelineCoordinator {
         transcriptionMode: TranscriptionMode
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
-            Task { @MainActor in
+            let task = Task { @MainActor in
                 do {
                     let transcriptResult = try await executeTranscription(
                         audioURL: audioURL,
@@ -155,11 +168,19 @@ final class PipelineCoordinator {
 
                     continuation.yield(.stepCompleted(.finalizing))
                     continuation.yield(.completed)
+                } catch is CancellationError {
                 } catch {
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+                Task { @MainActor in
+                    await self.transcriptionEngine.cancelActiveTranscription()
+                }
             }
         }
     }
@@ -176,7 +197,7 @@ final class PipelineCoordinator {
         config: GenerationConfig
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
-            Task { @MainActor in
+            let task = Task { @MainActor in
                 do {
                     // Configure
                     try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
@@ -235,11 +256,16 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.finalizing))
                     continuation.yield(.completed)
 
+                } catch is CancellationError {
                 } catch {
                     continuation.yield(.failed(step: .generatingSummary, error: CoreError.summaryError(.generationFailed(error.localizedDescription))))
                 }
 
                 continuation.finish()
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
             }
         }
     }

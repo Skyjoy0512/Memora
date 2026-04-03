@@ -41,12 +41,9 @@ final class FileDetailViewModel {
     let audioFile: AudioFile
     private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
-    private let transcriptionEngine = TranscriptionEngine()
-    private let summarizationEngine = SummarizationEngine()
-    private let audioPlayer = AudioPlayer()
-    private let webhookService = WebhookService()
-    private let speakerProfileStore = SpeakerProfileStore.shared
     private let pipelineCoordinator: PipelineCoordinator
+    private let audioPlayer = AudioPlayer()
+    private let speakerProfileStore = SpeakerProfileStore.shared
 
     // Settings (passed from View's @AppStorage)
     private var currentProvider: AIProvider
@@ -73,8 +70,8 @@ final class FileDetailViewModel {
         self.currentTranscriptionMode = transcriptionMode
         self.currentAPIKey = apiKey
         self.pipelineCoordinator = PipelineCoordinator(
-            transcriptionEngine: transcriptionEngine,
-            summarizationEngine: summarizationEngine,
+            transcriptionEngine: TranscriptionEngine(),
+            summarizationEngine: SummarizationEngine(),
             repoFactory: repoFactory,
             modelContext: modelContext
         )
@@ -97,31 +94,6 @@ final class FileDetailViewModel {
 
         audioDuration = audioFile.duration
         playbackPosition = 0
-    }
-
-    func setupEngines() async {
-        do {
-            try await transcriptionEngine.configure(
-                apiKey: currentAPIKey,
-                provider: currentProvider,
-                transcriptionMode: currentTranscriptionMode
-            )
-        } catch {
-            errorMessage = "文字起こしエンジン設定エラー: \(error.localizedDescription)"
-            showErrorAlert = true
-        }
-
-        if !currentAPIKey.isEmpty {
-            do {
-                try await summarizationEngine.configure(
-                    apiKey: currentAPIKey,
-                    provider: currentProvider
-                )
-            } catch {
-                errorMessage = "要約エンジン設定エラー: \(error.localizedDescription)"
-                showErrorAlert = true
-            }
-        }
     }
 
     func loadSavedData() {
@@ -334,7 +306,7 @@ final class FileDetailViewModel {
             guard let self else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.transcriptionProgress = self.transcriptionEngine.progress
+                self.transcriptionProgress = self.pipelineCoordinator.currentTranscriptionProgress
             }
         }
     }
@@ -344,7 +316,7 @@ final class FileDetailViewModel {
             guard let self else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.summarizationProgress = self.summarizationEngine.progress
+                self.summarizationProgress = self.pipelineCoordinator.currentSummarizationProgress
             }
         }
     }
@@ -404,29 +376,6 @@ final class FileDetailViewModel {
             keyPoints: keyPoints.split(separator: "\n", omittingEmptySubsequences: true).map(String.init),
             actionItems: actionItems.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
         )
-    }
-
-    private func sendWebhook(event: WebhookEventType, data: [String: Any]) async {
-        // WebhookSettings を Repository → modelContext フォールバックで取得
-        let settings: WebhookSettings?
-        if let factory = repoFactory {
-            settings = try? factory.webhookSettingsRepo.fetch()
-        } else {
-            let descriptor = FetchDescriptor<WebhookSettings>()
-            settings = try? modelContext.fetch(descriptor).first
-        }
-
-        guard let settings else { return }
-
-        do {
-            try await webhookService.sendWebhook(
-                eventType: event,
-                data: data,
-                settings: settings
-            )
-        } catch {
-            print("Webhook 送信エラー: \(error.localizedDescription)")
-        }
     }
 
     private func handleTranscriptionPipelineEvent(_ event: PipelineEvent) {

@@ -74,9 +74,6 @@ struct FileDetailView: View {
             vm.loadSavedData()
             viewModel = vm
         }
-        .task {
-            await viewModel?.setupEngines()
-        }
         .onDisappear {
             viewModel?.cleanup()
         }
