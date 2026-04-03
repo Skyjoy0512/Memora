@@ -1,31 +1,45 @@
 import SwiftUI
 
 struct RealtimeTranscriptionView: View {
-    @EnvironmentObject private var bluetoothService: BluetoothAudioService
-    @State private var isRecording = false
-    @State private var isBluetoothEnabled = false
+    @EnvironmentObject private var omiAdapter: OmiAdapter
 
     var body: some View {
         VStack(spacing: 0) {
-            // デバイス接続状態
-            if isBluetoothEnabled {
+            if omiAdapter.isConnected {
                 VStack(spacing: MemoraRadius.md) {
-                    Text("Omiデバイスが接続されています")
+                    Text("Omi デバイスが接続されています")
                         .font(MemoraTypography.headline)
                         .foregroundStyle(MemoraColor.accentGreen)
 
-                    if isRecording {
-                        HStack(spacing: MemoraSpacing.xxs) {
-                            Circle()
-                                .fill(.red)
-                                .frame(width: 8, height: 8)
+                    Text("状態: \(omiAdapter.connectionState.description)")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
 
-                            Text("録音中")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.accentRed)
+                    if !omiAdapter.previewTranscript.isEmpty {
+                        ScrollView {
+                            Text(omiAdapter.previewTranscript)
+                                .font(MemoraTypography.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .frame(maxHeight: 220)
+                        .padding()
+                        .background(MemoraColor.divider.opacity(0.1))
+                        .cornerRadius(MemoraRadius.md)
+                    } else {
+                        Text("live transcript は preview 用です。final transcript は取り込んだ音声を Memora の STT pipeline で確定します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+
+                    if let importedAudio = omiAdapter.lastImportedAudio {
+                        Text("最新取り込み: \(importedAudio.title)")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .padding()
             } else {
                 VStack(spacing: MemoraSpacing.xxl) {
                     Spacer()
@@ -39,7 +53,7 @@ struct RealtimeTranscriptionView: View {
                         .font(MemoraTypography.headline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { bluetoothService.startScanning() }) {
+                    Button(action: { omiAdapter.startScan() }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
                             .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
@@ -56,21 +70,9 @@ struct RealtimeTranscriptionView: View {
         }
         .navigationTitle("リアルタイム転写")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: {
-                    isRecording.toggle()
-                }) {
-                    Image(systemName: isRecording ? "stop.circle.fill" : "record.circle")
-                        .foregroundStyle(isRecording ? MemoraColor.accentRed : MemoraColor.textSecondary)
-                }
-            }
-        }
         .onAppear {
-            isBluetoothEnabled = bluetoothService.isConnected
-            // 初回表示時はスキャンを開始
-            if !isBluetoothEnabled {
-                bluetoothService.startScanning()
+            if !omiAdapter.isConnected && omiAdapter.discoveredDevices.isEmpty {
+                omiAdapter.startScan()
             }
         }
     }
@@ -78,5 +80,5 @@ struct RealtimeTranscriptionView: View {
 
 #Preview {
     RealtimeTranscriptionView()
-        .environmentObject(BluetoothAudioService())
+        .environmentObject(OmiAdapter())
 }

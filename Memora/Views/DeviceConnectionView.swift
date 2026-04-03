@@ -1,14 +1,13 @@
 import SwiftUI
 
 struct DeviceConnectionView: View {
-    @EnvironmentObject private var bluetoothService: BluetoothAudioService
-    @State private var isBluetoothEnabled = false
+    @EnvironmentObject private var omiAdapter: OmiAdapter
 
     var body: some View {
         VStack(spacing: MemoraSpacing.xxl) {
             Spacer()
 
-            if bluetoothService.isConnected {
+            if omiAdapter.isConnected {
                 VStack(spacing: MemoraRadius.md) {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
@@ -18,19 +17,18 @@ struct DeviceConnectionView: View {
                     Text("デバイスに接続されています")
                         .font(MemoraTypography.headline)
 
-                    if let device = bluetoothService.discoveredDevices.first {
-                        Text(device.name)
+                    if let statusMessage = omiAdapter.statusMessage {
+                        Text(statusMessage)
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
-                    // 接続状態を表示
-                    Text("状態: \(bluetoothService.connectionState.description)")
+                    Text("状態: \(omiAdapter.connectionState.description)")
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { bluetoothService.disconnect() }) {
-                        Text("切断")
+                    Button(action: { omiAdapter.disconnect() }) {
+                        Text("セッション終了")
                             .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
                             .padding()
@@ -40,32 +38,23 @@ struct DeviceConnectionView: View {
                     }
                     .padding()
                 }
-            } else if bluetoothService.isScanning {
-                VStack(spacing: MemoraSpacing.xxl) {
-                    ProgressView()
-                        .tint(MemoraColor.textSecondary)
-
-                    Text("デバイスを検索中...")
-                        .font(MemoraTypography.headline)
-                }
-            } else if let disconnectReason = bluetoothService.disconnectReason {
-                // 切断理由を表示
+            } else if let errorMessage = omiAdapter.errorMessage {
                 VStack(spacing: MemoraSpacing.xxl) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .resizable()
                         .frame(width: 60, height: 60)
                         .foregroundStyle(.orange)
 
-                    Text("接続が切断されました")
+                    Text("接続を開始できませんでした")
                         .font(MemoraTypography.headline)
 
-                    Text(disconnectReason)
+                    Text(errorMessage)
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    Button(action: { bluetoothService.startScanning() }) {
+                    Button(action: { omiAdapter.startScan() }) {
                         Label("再接続", systemImage: "arrow.clockwise")
                             .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
@@ -76,24 +65,35 @@ struct DeviceConnectionView: View {
                     }
                     .padding()
                 }
-            } else if !bluetoothService.discoveredDevices.isEmpty {
+            } else if !omiAdapter.discoveredDevices.isEmpty {
                 VStack(spacing: MemoraSpacing.xs) {
                     Text("発見したデバイス")
                         .font(MemoraTypography.headline)
 
-                    ForEach(bluetoothService.discoveredDevices) { device in
-                        Button(action: { bluetoothService.connect(to: device) }) {
+                    if omiAdapter.isScanning {
+                        HStack(spacing: MemoraSpacing.xs) {
+                            ProgressView()
+                                .tint(MemoraColor.textSecondary)
+
+                            Text("引き続き検索中...")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    ForEach(omiAdapter.discoveredDevices) { device in
+                        Button(action: { omiAdapter.connect(to: device) }) {
                             HStack(spacing: MemoraRadius.md) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
                                     .foregroundStyle(MemoraColor.textSecondary)
                                     .frame(width: 40, height: 40)
 
                                 VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
-                                    Text(device.name)
+                                    Text(device.stableDisplayName)
                                         .font(MemoraTypography.subheadline)
                                         .foregroundStyle(.primary)
 
-                                    Text("RSSI: \(device.rssi) dBm")
+                                    Text(device.subtitle)
                                         .font(MemoraTypography.caption1)
                                         .foregroundStyle(.secondary)
                                 }
@@ -110,6 +110,14 @@ struct DeviceConnectionView: View {
                     }
                     .padding(.horizontal)
                 }
+            } else if omiAdapter.isScanning {
+                VStack(spacing: MemoraSpacing.xxl) {
+                    ProgressView()
+                        .tint(MemoraColor.textSecondary)
+
+                    Text("デバイスを検索中...")
+                        .font(MemoraTypography.headline)
+                }
             } else {
                 VStack(spacing: MemoraSpacing.xxl) {
                     Spacer()
@@ -123,7 +131,7 @@ struct DeviceConnectionView: View {
                         .font(MemoraTypography.headline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { bluetoothService.startScanning() }) {
+                    Button(action: { omiAdapter.startScan() }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
                             .font(MemoraTypography.headline)
                             .foregroundStyle(.white)
@@ -139,20 +147,10 @@ struct DeviceConnectionView: View {
             }
         }
         .padding()
-        .onChange(of: bluetoothService.isConnected) { newValue in
-            isBluetoothEnabled = newValue
-        }
-        .onChange(of: bluetoothService.isScanning) { newValue in
-            // スキャン状態の変化でbluetooth接続状態も更新
-            isBluetoothEnabled = bluetoothService.isConnected
-        }
-        .onAppear {
-            isBluetoothEnabled = bluetoothService.isConnected
-        }
     }
 }
 
 #Preview {
     DeviceConnectionView()
-        .environmentObject(BluetoothAudioService())
+        .environmentObject(OmiAdapter())
 }

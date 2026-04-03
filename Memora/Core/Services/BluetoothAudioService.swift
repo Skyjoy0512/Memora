@@ -3,8 +3,8 @@ import Foundation
 import Combine
 import AVFoundation
 
-/// Bluetooth 音声サービス
-/// Omi/Plaud デバイスから音声ストリームを受信する
+/// Generic BLE 音声サービス
+/// 開発者向けの experimental path として BLE の通知受信を検証する
 final class BluetoothAudioService: NSObject, ObservableObject {
     @Published var isConnected = false
     @Published var isScanning = false
@@ -46,37 +46,13 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     }
 
     // デバイスタイプ
+    // generic BLE path 上の参考ラベルであり、production の接続戦略には使わない
     enum DeviceType {
         case omi
         case plaud
         case unknown
     }
-
-    // Omi デバイスのサービス UUID
-    private lazy var omiServiceUUIDs: [CBUUID] = [
-        CBUUID(string: "00001804-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "f000ffc1-0451-4000-b000-000000000000"),
-        CBUUID(string: "f000ffc1-0451-4001-b000-000000000000"),
-        CBUUID(string: "00001800-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00001801-0000-1000-8000-00805f9b34fb")
-    ]
-
-    // オーディオキャラクタリスティック UUID
-    private lazy var audioCharacteristicUUIDs: [CBUUID] = [
-        CBUUID(string: "f000ffc1-0451-4001-b000-000000000000"),
-        CBUUID(string: "f000ffc1-0451-4000-b000-000000000000"),
-        CBUUID(string: "00002a29-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00002a24-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00002a25-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00002a27-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00002a26-0000-1000-8000-00805f9b34fb"),
-        CBUUID(string: "00002a28-0000-1000-8000-00805f9b34fb")
-    ]
-
-    // Plaud デバイスの UUID
-    private lazy var plaudServiceUUID = CBUUID(string: "00001800-0000-1000-8000-00805f9b34fb")
-    private lazy var plaudAudioServiceUUID = CBUUID(string: "00001803-0000-1000-8000-00805f9b34fb")
-    private var plaudDeviceType: DeviceType = .unknown
+    private var selectedDeviceType: DeviceType = .unknown
 
     // MARK: - スキャン開始・停止
 
@@ -122,7 +98,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     func connect(to device: BluetoothDevice) {
         errorMessage = nil
         disconnectReason = nil
-        plaudDeviceType = device.deviceType
+        selectedDeviceType = device.deviceType
         retryCount = 0
         connectionState = .connecting
 
@@ -323,24 +299,16 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
             self.disconnectReason = nil
             self.retryCount = 0
 
-            // サービスを探索（デバイスタイプに応じて異なる UUID）
+            // generic BLE debug path では、接続戦略をデバイス種別に分岐させず全サービスを探索する
             peripheral.delegate = self
 
             // 接続後、少し待ってからサービスを探索（安定性向上）
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 self.connectionState = .discoveringServices
-
-                switch self.plaudDeviceType {
-                case .omi:
-                    // Omi デバイスは複数のサービス UUID を探索
-                    peripheral.discoverServices(self.omiServiceUUIDs)
-                case .plaud:
-                    // Plaud デバイスはすべてのサービスを探索
-                    peripheral.discoverServices(nil)
-                case .unknown:
-                    // 未知のデバイスはすべてのサービスを探索
-                    peripheral.discoverServices(nil)
+                if self.selectedDeviceType != .unknown {
+                    print("   ヒューリスティック種別: \(self.selectedDeviceType)")
                 }
+                peripheral.discoverServices(nil)
             }
         }
     }
@@ -379,6 +347,7 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
             self.connectionState = .disconnected
             self.connectedPeripheral = nil
             self.audioCharacteristic = nil
+            self.selectedDeviceType = .unknown
 
             // 自動再接続を試みる（エラーがある場合のみ）
             if error != nil && self.retryCount < self.maxRetryCount {

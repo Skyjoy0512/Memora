@@ -32,12 +32,14 @@
 		4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */; };
 		5049E6A60A1FA1850E01960F /* Project.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14147F1C9E60307352CD67F /* Project.swift */; };
 		51671FD441BABE4D6F1C8682 /* ToastOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3748F54296E75F344439CAE5 /* ToastOverlay.swift */; };
+		51D7FE8AA56C1CFD7E306FE6 /* omi-lib in Frameworks */ = {isa = PBXBuildFile; productRef = F7F0EB5C8ED6F8F5D40449E2 /* omi-lib */; };
 		530C82B46017BC0AE11CE5C4 /* DebugLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB7BC286BAA414F45EECFD25 /* DebugLogView.swift */; };
 		5804A1516805BD7EA664BFAC /* LiquidGlassModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0670AAEC136AC56AB7E46D3F /* LiquidGlassModifier.swift */; };
 		58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */; };
 		5B0A0001E9A27A47AF81A271 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 256B3736CA071D4D15FBFC7D /* Colors.swift */; };
 		5C5F89390599A4F36F79B752 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAA7DAFC650662FE8768C3AC /* ProjectsView.swift */; };
 		5F1C4F12D3AD30A1B6CD1BEE /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68DC49DD8967C2F47CF0809 /* SummaryView.swift */; };
+		6065C1F2357F50520DE86F2B /* OmiAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */; };
 		6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */; };
 		652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */; };
 		68A7177EBED6E995E63BAA89 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDDA8A4760FD5840F5DDFF0 /* TranscriptView.swift */; };
@@ -82,7 +84,9 @@
 		EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */; };
 		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
 		F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B8C2466FE7F2C1FE124533 /* AudioFile.swift */; };
+		F221C4147CF458964504B116 /* OmiSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */; };
 		FE0BA1856E12BEBA227E8E2C /* PillButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64870BA5159BC812B9F9D4D8 /* PillButton.swift */; };
+		FFE0C810617C920D2F1100F2 /* AudioFileImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 513C9AE494096EC82FBBA55E /* AudioFileImportService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -107,6 +111,7 @@
 		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
 		507EBB154305FB72B7DDAF65 /* Memora.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Memora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5101FD06BD2A409056F3CF8E /* FilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheet.swift; sourceTree = "<group>"; };
+		513C9AE494096EC82FBBA55E /* AudioFileImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileImportService.swift; sourceTree = "<group>"; };
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		58F5AFE7CD32027935D77D74 /* AudioFileRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileRepository.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
@@ -151,6 +156,7 @@
 		DDE1D2D1BF9C33A253B3D1CC /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
 		E06D71008E5876634383AB5C /* WebhookSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSettingsRepository.swift; sourceTree = "<group>"; };
 		E37BBEF978E82980F741AB32 /* CoreDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDependency.swift; sourceTree = "<group>"; };
+		E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmiSupportTypes.swift; sourceTree = "<group>"; };
 		E5B8CA2609FAE32DEBB7B2B0 /* FileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailView.swift; sourceTree = "<group>"; };
 		E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureDependencySurface.swift; sourceTree = "<group>"; };
 		E878F1BFB271FF92F15BE7C7 /* ProcessingJobRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJobRepository.swift; sourceTree = "<group>"; };
@@ -159,11 +165,23 @@
 		F1AC57E13F6533FE2F26F55F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		F21EE7F002FD01C0D547BA99 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
 		F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSettings.swift; sourceTree = "<group>"; };
+		F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmiAdapter.swift; sourceTree = "<group>"; };
 		F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChunker.swift; sourceTree = "<group>"; };
 		F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerProfileStore.swift; sourceTree = "<group>"; };
 		F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettings.swift; sourceTree = "<group>"; };
 		F9EDFC7810796167A7286C95 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E3A203F5288D108BF0301831 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				51D7FE8AA56C1CFD7E306FE6 /* omi-lib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1D97CAA097CB00D88EFE700B = {
@@ -235,11 +253,14 @@
 			isa = PBXGroup;
 			children = (
 				F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */,
+				513C9AE494096EC82FBBA55E /* AudioFileImportService.swift */,
 				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
 				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
 				ABE468754017ED390E23EDFE /* BluetoothAudioService.swift */,
 				37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */,
 				1D386666798E98A11A464A87 /* ExportService.swift */,
+				F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */,
+				E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */,
 				C6B0DBF8D79D16F7F8A2784E /* PipelineCoordinator.swift */,
 				78A39563D755711D640B86DA /* PlaudService.swift */,
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
@@ -369,6 +390,7 @@
 			buildConfigurationList = F06078A9F7780E94FD8DF56D /* Build configuration list for PBXNativeTarget "Memora" */;
 			buildPhases = (
 				8EF4EEF5807D4B75493863D9 /* Sources */,
+				E3A203F5288D108BF0301831 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -376,6 +398,7 @@
 			);
 			name = Memora;
 			packageProductDependencies = (
+				F7F0EB5C8ED6F8F5D40449E2 /* omi-lib */,
 			);
 			productName = Memora;
 			productReference = 507EBB154305FB72B7DDAF65 /* Memora.app */;
@@ -406,6 +429,9 @@
 			);
 			mainGroup = 1D97CAA097CB00D88EFE700B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8A794AC08560634B08F0F912 /* XCRemoteSwiftPackageReference "omi" */,
+			);
 			preferredProjectObjectVersion = 70;
 			projectDirPath = "";
 			projectRoot = "";
@@ -425,6 +451,7 @@
 				0BC193ECC1BD670242A3A175 /* AskAIView.swift in Sources */,
 				856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */,
 				F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */,
+				FFE0C810617C920D2F1100F2 /* AudioFileImportService.swift in Sources */,
 				B9772E00F09BAF404462DF35 /* AudioFileRepository.swift in Sources */,
 				4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */,
 				E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */,
@@ -455,6 +482,8 @@
 				EC301520D0A1E9AE7CFA211A /* MeetingNote.swift in Sources */,
 				D0E2B97334C5CDC69349C2FD /* MeetingNoteRepository.swift in Sources */,
 				EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */,
+				6065C1F2357F50520DE86F2B /* OmiAdapter.swift in Sources */,
+				F221C4147CF458964504B116 /* OmiSupportTypes.swift in Sources */,
 				1BB9769521D61681DEA66A11 /* OnboardingView.swift in Sources */,
 				FE0BA1856E12BEBA227E8E2C /* PillButton.swift in Sources */,
 				DC40C87BAF5C918F56E3E4B5 /* PipelineCoordinator.swift in Sources */,
@@ -699,6 +728,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8A794AC08560634B08F0F912 /* XCRemoteSwiftPackageReference "omi" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/BasedHardware/omi";
+			requirement = {
+				kind = revision;
+				revision = 07571705531ccf1d3ce2d41f7b8d166a85287693;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F7F0EB5C8ED6F8F5D40449E2 /* omi-lib */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A794AC08560634B08F0F912 /* XCRemoteSwiftPackageReference "omi" */;
+			productName = "omi-lib";
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0D72A297557F8CE3A66DE6E4 /* Project object */;
 }
