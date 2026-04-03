@@ -4,7 +4,6 @@ import SwiftData
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     @StateObject private var audioRecorder = AudioRecorder()
     @State private var recordingTime: TimeInterval = 0
     @State private var timer: Timer?
@@ -139,14 +138,10 @@ struct RecordingView: View {
                 audioFile.duration = recordingTime
 
                 do {
-                    if let factory = repoFactory {
-                        try factory.audioFileRepo.save(audioFile)
-                    } else {
-                        modelContext.insert(audioFile)
-                        try modelContext.save()
-                    }
+                    modelContext.insert(audioFile)
+                    try modelContext.save()
                 } catch {
-                    print("AudioFile保存エラー: \(error)")
+                    print("[RecordingView] Save error: \(error)")
                     errorMessage = "保存エラー: \(error.localizedDescription)"
                     return
                 }

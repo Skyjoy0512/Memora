@@ -3,7 +3,6 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
@@ -214,11 +213,11 @@ struct HomeView: View {
     private func deleteAudioFiles(at offsets: IndexSet) {
         for index in offsets {
             let file = filteredFiles[index]
-            if let factory = repoFactory {
-                try? factory.audioFileRepo.delete(file)
-            } else {
-                modelContext.delete(file)
-                try? modelContext.save()
+            modelContext.delete(file)
+            do {
+                try modelContext.save()
+            } catch {
+                print("[HomeView] Delete error: \(error)")
             }
         }
     }

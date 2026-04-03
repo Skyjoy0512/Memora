@@ -39,7 +39,6 @@ final class FileDetailViewModel {
 
     // MARK: - Dependencies
     let audioFile: AudioFile
-    private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
     private let pipelineCoordinator: PipelineCoordinator
     private let audioPlayer = AudioPlayer()
@@ -57,14 +56,12 @@ final class FileDetailViewModel {
 
     init(
         audioFile: AudioFile,
-        repoFactory: RepositoryFactory?,
         modelContext: ModelContext,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
         apiKey: String
     ) {
         self.audioFile = audioFile
-        self.repoFactory = repoFactory
         self.modelContext = modelContext
         self.currentProvider = provider
         self.currentTranscriptionMode = transcriptionMode
@@ -72,7 +69,6 @@ final class FileDetailViewModel {
         self.pipelineCoordinator = PipelineCoordinator(
             transcriptionEngine: TranscriptionEngine(),
             summarizationEngine: SummarizationEngine(),
-            repoFactory: repoFactory,
             modelContext: modelContext
         )
     }
@@ -179,17 +175,14 @@ final class FileDetailViewModel {
             transcriptText = result.text
             segments = result.segments
         } else {
-            // Repository → modelContext フォールバックで取得
+            // modelContext から取得
             let transcript: Transcript?
-            if let factory = repoFactory {
-                transcript = try? factory.transcriptRepo.fetch(audioFileId: audioFile.id)
-            } else {
-                let targetID = audioFile.id
-                let descriptor = FetchDescriptor<Transcript>(
-                    predicate: #Predicate { $0.audioFileID == targetID }
-                )
-                transcript = try? modelContext.fetch(descriptor).first
-            }
+            let targetID = audioFile.id
+            var descriptor = FetchDescriptor<Transcript>(
+                predicate: #Predicate { $0.audioFileID == targetID }
+            )
+            descriptor.fetchLimit = 1
+            transcript = try? modelContext.fetch(descriptor).first
             transcriptText = transcript?.text ?? ""
         }
 
@@ -245,11 +238,11 @@ final class FileDetailViewModel {
     // MARK: - Delete
 
     func deleteAudioFile() {
-        if let factory = repoFactory {
-            try? factory.audioFileRepo.delete(audioFile)
-        } else {
-            modelContext.delete(audioFile)
-            try? modelContext.save()
+        modelContext.delete(audioFile)
+        do {
+            try modelContext.save()
+        } catch {
+            print("[FileDetailVM] Delete error: \(error)")
         }
     }
 
@@ -330,16 +323,12 @@ final class FileDetailViewModel {
         guard audioFile.isTranscribed else { return }
 
         let transcript: Transcript?
-        if let factory = repoFactory {
-            transcript = try? factory.transcriptRepo.fetch(audioFileId: audioFile.id)
-        } else {
             let targetID = audioFile.id
             var descriptor = FetchDescriptor<Transcript>(
                 predicate: #Predicate { $0.audioFileID == targetID }
             )
             descriptor.fetchLimit = 1
             transcript = try? modelContext.fetch(descriptor).first
-        }
 
         guard let transcript else { return }
 

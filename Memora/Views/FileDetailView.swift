@@ -64,7 +64,6 @@ struct FileDetailView: View {
             guard viewModel == nil else { return }
             let vm = FileDetailViewModel(
                 audioFile: audioFile,
-                repoFactory: repoFactory,
                 modelContext: modelContext,
                 provider: currentProvider,
                 transcriptionMode: currentTranscriptionMode,

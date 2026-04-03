@@ -18,7 +18,6 @@ final class PipelineCoordinator {
 
     private let transcriptionEngine: TranscriptionEngine
     private let summarizationEngine: SummarizationEngine
-    private let repoFactory: RepositoryFactory?
     private let modelContext: ModelContext
 
     // MARK: - Progress (read by FileDetailViewModel for UI polling)
@@ -29,12 +28,10 @@ final class PipelineCoordinator {
     init(
         transcriptionEngine: TranscriptionEngine,
         summarizationEngine: SummarizationEngine,
-        repoFactory: RepositoryFactory?,
         modelContext: ModelContext
     ) {
         self.transcriptionEngine = transcriptionEngine
         self.summarizationEngine = summarizationEngine
-        self.repoFactory = repoFactory
         self.modelContext = modelContext
     }
 
@@ -317,19 +314,19 @@ final class PipelineCoordinator {
     }
 
     private func saveTranscript(_ transcript: Transcript) {
-        if let factory = repoFactory {
-            try? factory.transcriptRepo.save(transcript)
-        } else {
-            modelContext.insert(transcript)
-            try? modelContext.save()
+        modelContext.insert(transcript)
+        do {
+            try modelContext.save()
+        } catch {
+            print("[PipelineCoordinator] Transcript save error: \(error)")
         }
     }
 
     private func saveAudioFile(_ audioFile: AudioFile) {
-        if let factory = repoFactory {
-            try? factory.audioFileRepo.save(audioFile)
-        } else {
-            try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("[PipelineCoordinator] AudioFile save error: \(error)")
         }
     }
 
@@ -341,12 +338,8 @@ final class PipelineCoordinator {
         let webhookService = WebhookService()
         let settings: WebhookSettings?
 
-        if let factory = repoFactory {
-            settings = try? factory.webhookSettingsRepo.fetch()
-        } else {
-            let descriptor = FetchDescriptor<WebhookSettings>()
-            settings = try? modelContext.fetch(descriptor).first
-        }
+        let descriptor = FetchDescriptor<WebhookSettings>()
+        settings = try? modelContext.fetch(descriptor).first
 
         guard let settings else { return }
 

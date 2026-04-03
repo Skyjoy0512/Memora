@@ -5,6 +5,7 @@ import AVFoundation
 
 struct ContentView: View {
     @StateObject private var bluetoothService = BluetoothAudioService()
+    @StateObject private var omiAdapter = OmiAdapter()
     @Environment(\.modelContext) private var modelContext
     @Environment(\.repositoryFactory) private var repositoryFactory
     @State private var selectedTab: MainTab = .files
@@ -55,12 +56,20 @@ struct ContentView: View {
             }
             .ignoresSafeArea(.all, edges: .bottom)
             .environmentObject(bluetoothService)
+            .environmentObject(omiAdapter)
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: audioContentTypes,
                 allowsMultipleSelection: false
             ) { result in
                 handleImportResult(result)
+            }
+            .onAppear {
+                configureOmiAdapterIfNeeded()
+            }
+            .onChange(of: omiAdapter.lastImportedAudio) { _, importedAudio in
+                guard importedAudio != nil else { return }
+                selectedTab = .files
             }
     }
 
@@ -82,48 +91,31 @@ struct ContentView: View {
     }
 
     private func importAudioFile(from url: URL) {
-        // セキュリティスコープアクセス
-        guard url.startAccessingSecurityScopedResource() else {
-            print("セキュリティスコープアクセス失敗")
-            return
-        }
-        defer { url.stopAccessingSecurityScopedResource() }
-
         do {
-            // Documents ディレクトリにコピー
-            let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let fileName = url.deletingPathExtension().lastPathComponent
-            let ext = url.pathExtension
-            let destinationName = "\(fileName)_\(UUID().uuidString.prefix(8)).\(ext)"
-            let destinationURL = documentsDir.appendingPathComponent(destinationName)
-
-            // 既存ファイルがあれば削除
-            if FileManager.default.fileExists(atPath: destinationURL.path) {
-                try FileManager.default.removeItem(at: destinationURL)
-            }
-
-            try FileManager.default.copyItem(at: url, to: destinationURL)
-
-            // 音声の長さを取得
-            let asset = AVAsset(url: destinationURL)
-            let duration = CMTimeGetSeconds(asset.duration)
-
-            // AudioFile を保存
-            let audioFile = AudioFile(title: fileName, audioURL: destinationURL.path)
-            audioFile.duration = duration
-            if let factory = repositoryFactory {
-                try? factory.audioFileRepo.save(audioFile)
-            } else {
-                modelContext.insert(audioFile)
-                try? modelContext.save()
-            }
-
-            // Files タブに切り替え
+            let audioFile = try AudioFileImportService.importAudio(
+                from: url,
+                repositoryFactory: repositoryFactory,
+                modelContext: modelContext,
+                requiresSecurityScopedAccess: true
+            )
             selectedTab = .files
-
-            print("インポート完了: \(fileName) (\(String(format: "%.1f", duration))秒)")
+            print("インポート完了: \(audioFile.title) (\(String(format: "%.1f", audioFile.duration))秒)")
         } catch {
             print("インポート処理エラー: \(error)")
+        }
+    }
+
+    private func configureOmiAdapterIfNeeded() {
+        omiAdapter.configureAudioImportHandler { sourceURL, suggestedTitle in
+            try await MainActor.run {
+                try AudioFileImportService.importAudio(
+                    from: sourceURL,
+                    suggestedTitle: suggestedTitle,
+                    repositoryFactory: repositoryFactory,
+                    modelContext: modelContext,
+                    requiresSecurityScopedAccess: false
+                )
+            }
         }
     }
 
