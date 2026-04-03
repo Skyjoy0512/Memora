@@ -66,6 +66,14 @@ struct STTExecutionConfiguration: Sendable {
     )
 }
 
+struct OnDeviceTranscriptionTimeoutError: LocalizedError, Equatable, Sendable {
+    static let message = "文字起こしがタイムアウトしました。オンデバイス認識モデルがダウンロードされていない可能性があります。設定からオンデバイスモードをオフにするか、Wi-Fi環境でやり直してください。"
+
+    var errorDescription: String? {
+        Self.message
+    }
+}
+
 enum STTLanguageNormalizer {
     static func baseLanguageCode(for rawLanguage: String) -> String {
         rawLanguage
@@ -97,6 +105,10 @@ enum STTErrorMapper {
 
         if let openAIError = error as? OpenAIError {
             return .transcriptionError(.transcriptionFailed(openAIError.localizedDescription))
+        }
+
+        if let timeoutError = error as? OnDeviceTranscriptionTimeoutError {
+            return .transcriptionError(.transcriptionFailed(timeoutError.localizedDescription))
         }
 
         return .transcriptionError(.transcriptionFailed(error.localizedDescription))

@@ -47,48 +47,19 @@ final class PipelineCoordinator {
         AsyncStream { continuation in
             Task { @MainActor in
                 do {
-                    // --- Step 1: Configure Engines ---
-                    continuation.yield(.stepStarted(.loadingAudio))
-
-                    try await transcriptionEngine.configure(
+                    let transcriptResult = try await executeTranscription(
+                        audioURL: audioURL,
+                        audioFile: audioFile,
                         apiKey: apiKey,
                         provider: provider,
-                        transcriptionMode: transcriptionMode
+                        transcriptionMode: transcriptionMode,
+                        continuation: continuation
                     )
-                    try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
-
-                    continuation.yield(.stepCompleted(.loadingAudio))
-
-                    // --- Step 2: Transcription ---
-                    continuation.yield(.stepStarted(.transcribing))
-
-                    let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
-
-                    continuation.yield(.stepCompleted(.transcribing))
-
-                    // --- Step 3: Save Transcript ---
-                    continuation.yield(.stepStarted(.mergingTranscripts))
-
-                    let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
-                    saveTranscript(transcript)
-
-                    for segment in transcriptResult.segments {
-                        transcript.addSpeakerSegment(
-                            speakerLabel: segment.speakerLabel,
-                            startTime: segment.startTime,
-                            endTime: segment.endTime,
-                            text: segment.text
-                        )
-                    }
-                    try? modelContext.save()
-
-                    audioFile.isTranscribed = true
-                    saveAudioFile(audioFile)
-
-                    continuation.yield(.stepCompleted(.mergingTranscripts))
 
                     // --- Step 4: Summary ---
                     continuation.yield(.stepStarted(.generatingSummary))
+
+                    try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
 
                     let summaryResult: SummaryResult
                     if config.includeSpeakers && !transcriptResult.segments.isEmpty {
@@ -116,7 +87,6 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.extractingMetadata))
 
                     // --- Step 6: Extract Todos ---
-                    var createdTodoCount = 0
                     if config.autoCreateTodos {
                         continuation.yield(.stepStarted(.extractingTodos))
 
@@ -126,9 +96,6 @@ final class PipelineCoordinator {
                             sourceFileTitle: audioFile.title,
                             modelContext: modelContext
                         )
-                        createdTodoCount = summaryResult.actionItems.filter {
-                            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        }.count
 
                         continuation.yield(.stepCompleted(.extractingTodos))
                     }
@@ -148,6 +115,47 @@ final class PipelineCoordinator {
 
                 } catch {
                     // 現在実行中のステップを特定してエラー通知
+                    continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
+                }
+
+                continuation.finish()
+            }
+        }
+    }
+
+    // MARK: - Transcription-Only Pipeline
+
+    /// 文字起こし + 保存 + Webhook までを実行。
+    func runTranscriptionPipeline(
+        audioURL: URL,
+        audioFile: AudioFile,
+        apiKey: String,
+        provider: AIProvider,
+        transcriptionMode: TranscriptionMode
+    ) -> AsyncStream<PipelineEvent> {
+        AsyncStream { continuation in
+            Task { @MainActor in
+                do {
+                    let transcriptResult = try await executeTranscription(
+                        audioURL: audioURL,
+                        audioFile: audioFile,
+                        apiKey: apiKey,
+                        provider: provider,
+                        transcriptionMode: transcriptionMode,
+                        continuation: continuation
+                    )
+
+                    continuation.yield(.stepStarted(.finalizing))
+
+                    await sendWebhooks(
+                        audioFile: audioFile,
+                        transcriptResult: transcriptResult,
+                        summaryResult: nil
+                    )
+
+                    continuation.yield(.stepCompleted(.finalizing))
+                    continuation.yield(.completed)
+                } catch {
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
@@ -237,6 +245,50 @@ final class PipelineCoordinator {
     }
 
     // MARK: - Private Helpers
+
+    private func executeTranscription(
+        audioURL: URL,
+        audioFile: AudioFile,
+        apiKey: String,
+        provider: AIProvider,
+        transcriptionMode: TranscriptionMode,
+        continuation: AsyncStream<PipelineEvent>.Continuation
+    ) async throws -> TranscriptResult {
+        continuation.yield(.stepStarted(.loadingAudio))
+
+        try await transcriptionEngine.configure(
+            apiKey: apiKey,
+            provider: provider,
+            transcriptionMode: transcriptionMode
+        )
+
+        continuation.yield(.stepCompleted(.loadingAudio))
+
+        continuation.yield(.stepStarted(.transcribing))
+        let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
+        continuation.yield(.stepCompleted(.transcribing))
+
+        continuation.yield(.stepStarted(.mergingTranscripts))
+
+        let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
+        saveTranscript(transcript)
+
+        for segment in transcriptResult.segments {
+            transcript.addSpeakerSegment(
+                speakerLabel: segment.speakerLabel,
+                startTime: segment.startTime,
+                endTime: segment.endTime,
+                text: segment.text
+            )
+        }
+        try? modelContext.save()
+
+        audioFile.isTranscribed = true
+        saveAudioFile(audioFile)
+
+        continuation.yield(.stepCompleted(.mergingTranscripts))
+        return transcriptResult
+    }
 
     private func saveTranscript(_ transcript: Transcript) {
         if let factory = repoFactory {

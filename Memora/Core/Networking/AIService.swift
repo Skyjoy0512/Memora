@@ -26,47 +26,70 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
     private let jaLocale = Locale(identifier: "ja_JP")
 
     private func setup() async throws {
-        // インストール済みのロケールを確認
         let installedLocales = await SpeechTranscriber.installedLocales
         print("インストール済みロケール: \(installedLocales)")
 
-        // 日本語ロケールがインストールされているか確認
         guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale) else {
             print("日本語ロケールが利用可能ではありません")
             throw LocalTranscriptionError.localeNotSupported
         }
 
-        // 日本語がインストールされているか確認
-        var useLocale: Locale = supportedLocale
-        if !installedLocales.contains(where: { $0.identifier == supportedLocale.identifier }) {
-            print("日本語ロケールがインストールされていません。英語を試します...")
-
-            let enLocale = Locale(identifier: "en_US")
-            if let enSupported = await SpeechTranscriber.supportedLocale(equivalentTo: enLocale),
-               installedLocales.contains(where: { $0.identifier == enSupported.identifier }) {
-                useLocale = enSupported
-            } else {
-                print("英語もインストールされていません。インストール済みロケール: \(installedLocales)")
-                throw LocalTranscriptionError.localeNotSupported
-            }
-        }
-
-        // SpeechTranscriber を作成
         let transcriptionPreset = SpeechTranscriber.Preset.transcription
-        let createdTranscriber = SpeechTranscriber(locale: useLocale, preset: transcriptionPreset)
+        let createdTranscriber = SpeechTranscriber(locale: supportedLocale, preset: transcriptionPreset)
+        try await ensureAssetsInstalled(for: createdTranscriber, locale: supportedLocale)
         transcriber = createdTranscriber
-        print("使用ロケール: \(useLocale)")
+        print("使用ロケール: \(supportedLocale)")
 
-        // 対応オーディオフォーマットを確認
         let compatibleFormats = await createdTranscriber.availableCompatibleAudioFormats
         print("対応オーディオフォーマット: \(compatibleFormats)")
 
-        // SpeechAnalyzer を作成
         let options = SpeechAnalyzer.Options(
             priority: .userInitiated,
             modelRetention: .whileInUse
         )
         analyzer = SpeechAnalyzer(modules: [createdTranscriber], options: options)
+    }
+
+    private func ensureAssetsInstalled(
+        for transcriber: SpeechTranscriber,
+        locale: Locale
+    ) async throws {
+        let initialStatus = await AssetInventory.status(forModules: [transcriber])
+        print("SpeechAnalyzer asset status[\(locale.identifier)]: \(String(describing: initialStatus))")
+
+        if initialStatus == .installed {
+            return
+        }
+
+        guard let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) else {
+            let latestStatus = await AssetInventory.status(forModules: [transcriber])
+            if latestStatus == .installed {
+                return
+            }
+            throw LocalTranscriptionError.assetInstallationFailed(
+                "SpeechAnalyzer 用モデルの取得要求を作成できませんでした"
+            )
+        }
+
+        print("SpeechAnalyzer 用モデルを自動ダウンロードします: \(locale.identifier)")
+        progress = 0.05
+
+        do {
+            try await request.downloadAndInstall()
+        } catch {
+            throw LocalTranscriptionError.assetInstallationFailed(error.localizedDescription)
+        }
+
+        let finalStatus = await AssetInventory.status(forModules: [transcriber])
+        print("SpeechAnalyzer asset status after install[\(locale.identifier)]: \(String(describing: finalStatus))")
+
+        guard finalStatus == .installed else {
+            throw LocalTranscriptionError.assetInstallationFailed(
+                "SpeechAnalyzer 用モデルのインストール完了を確認できませんでした"
+            )
+        }
+
+        progress = 0.15
     }
 
     deinit {
@@ -863,6 +886,7 @@ enum LocalTranscriptionError: LocalizedError {
     case transcriptionFailed(Error)
     case localeNotSupported
     case permissionDenied
+    case assetInstallationFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -874,6 +898,8 @@ enum LocalTranscriptionError: LocalizedError {
             return "この言語はサポートされていません"
         case .permissionDenied:
             return "音声認識の権限が許可されていません"
+        case .assetInstallationFailed(let message):
+            return "SpeechAnalyzer 用モデルの準備に失敗しました: \(message)"
         }
     }
 }

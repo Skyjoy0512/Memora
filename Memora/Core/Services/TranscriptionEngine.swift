@@ -298,7 +298,7 @@ final class InternalTranscriptionEngine {
 
             group.addTask {
                 try await Task.sleep(nanoseconds: 120_000_000_000) // 120秒
-                throw CancellationError()
+                throw OnDeviceTranscriptionTimeoutError()
             }
 
             guard let result = try await group.next() else {
