@@ -43,11 +43,11 @@ enum AudioFileImportService {
 
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-        let asset = AVAsset(url: destinationURL)
-        let duration = CMTimeGetSeconds(asset.duration)
+        let importedAudio = try AVAudioFile(forReading: destinationURL)
+        let durationSeconds = Double(importedAudio.length) / importedAudio.processingFormat.sampleRate
 
         let audioFile = AudioFile(title: resolvedTitle, audioURL: destinationURL.path)
-        audioFile.duration = duration.isFinite ? duration : 0
+        audioFile.duration = durationSeconds.isFinite ? durationSeconds : 0
 
         if let repositoryFactory {
             try repositoryFactory.audioFileRepo.save(audioFile)

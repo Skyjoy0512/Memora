@@ -369,7 +369,7 @@ extension TodoEditSheet.Mode {
 
 // MARK: - TodoItem Identifiable conformance
 
-extension TodoItem: @retroactive Identifiable {}
+extension TodoItem: Identifiable {}
 
 #Preview {
     ToDoView()

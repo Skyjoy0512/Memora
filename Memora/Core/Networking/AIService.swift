@@ -196,40 +196,35 @@ struct AudioFileAsyncSequence: AsyncSequence {
 
         return AsyncStream { continuation in
             Task {
-                do {
-                    let frameCount: AVAudioFrameCount = 4096
+                let frameCount: AVAudioFrameCount = 4096
 
-                    while true {
-                        // バッファを作成
-                        guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
-                            break
-                        }
-
-                        // ファイルから読み込み
-                        do {
-                            try audioFile.read(into: buffer)
-                        } catch {
-                            print("ファイル読み込みエラー: \(error)")
-                            break
-                        }
-
-                        let framesRead = buffer.frameLength
-
-                        if framesRead == 0 {
-                            print("ファイル読み込み完了")
-                            break
-                        }
-
-                        // AnalyzerInput を作成（フォーマット変換はスキップ）
-                        let input = AnalyzerInput(buffer: buffer)
-                        continuation.yield(input)
+                while true {
+                    // バッファを作成
+                    guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
+                        break
                     }
 
-                    continuation.finish()
-                } catch {
-                    print("AudioFileAsyncSequence エラー: \(error)")
-                    continuation.finish()
+                    // ファイルから読み込み
+                    do {
+                        try audioFile.read(into: buffer)
+                    } catch {
+                        print("ファイル読み込みエラー: \(error)")
+                        break
+                    }
+
+                    let framesRead = buffer.frameLength
+
+                    if framesRead == 0 {
+                        print("ファイル読み込み完了")
+                        break
+                    }
+
+                    // AnalyzerInput を作成（フォーマット変換はスキップ）
+                    let input = AnalyzerInput(buffer: buffer)
+                    continuation.yield(input)
                 }
+
+                continuation.finish()
             }
         }.makeAsyncIterator()
     }
@@ -264,8 +259,8 @@ final class SpeechAnalyzerService: LocalTranscriptionService, ObservableObject {
                     try await performTranscription(recognizer: recognizer, request: request)
                 },
                 onCancel: { [weak self] in
-                    isTranscribing = false
-                    progressTimer?.invalidate()
+                    self?.isTranscribing = false
+                    self?.progressTimer?.invalidate()
                 }
             )
         } catch {
@@ -280,7 +275,7 @@ final class SpeechAnalyzerService: LocalTranscriptionService, ObservableObject {
             var finalResult: String = ""
             var lastProgress: Int = 0
 
-            let task = recognizer.recognitionTask(with: request) { result, error in
+            _ = recognizer.recognitionTask(with: request) { result, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return
@@ -354,9 +349,9 @@ final class SpeechRecognizerService: LocalTranscriptionService, ObservableObject
                     try await performTranscription(recognizer: recognizer, request: request)
                 },
                 onCancel: { [weak self] in
-                    isTranscribing = false
-                    progressTimer?.invalidate()
-                    recognitionTask?.cancel()
+                    self?.isTranscribing = false
+                    self?.progressTimer?.invalidate()
+                    self?.recognitionTask?.cancel()
                 }
             )
         } catch {

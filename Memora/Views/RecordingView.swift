@@ -172,13 +172,20 @@ struct RecordingView: View {
 
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            recordingTime = audioRecorder.recordingTime
+            Task { @MainActor in
+                syncRecordingTime()
+            }
         }
     }
 
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    @MainActor
+    private func syncRecordingTime() {
+        recordingTime = audioRecorder.recordingTime
     }
 
     private func formatTime(_ time: TimeInterval) -> String {
