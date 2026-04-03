@@ -1,13 +1,16 @@
 import SwiftUI
 import SwiftData
+import Observation
 
 struct CreateProjectView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.repositoryFactory) private var repoFactory
+    @Environment(\.modelContext) private var modelContext
+    @State private var viewModel = CreateProjectViewModel()
     @State private var title = ""
+    let onProjectCreated: (() -> Void)?
 
-    private var projectRepo: ProjectRepositoryProtocol? {
-        repoFactory?.projectRepo
+    init(onProjectCreated: (() -> Void)? = nil) {
+        self.onProjectCreated = onProjectCreated
     }
 
     var body: some View {
@@ -16,6 +19,12 @@ struct CreateProjectView: View {
                 Section(header: Text("新しいプロジェクト")) {
                     TextField("プロジェクト名", text: $title)
                         .textFieldStyle(.plain)
+
+                    if let errorMessage = viewModel.errorMessage {
+                        Text(errorMessage)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .navigationTitle("プロジェクト作成")
@@ -30,21 +39,65 @@ struct CreateProjectView: View {
                     Button("作成") {
                         createProject()
                     }
-                    .disabled(title.isEmpty)
+                    .disabled(trimmedTitle.isEmpty)
                 }
             }
+        }
+        .onAppear {
+            viewModel.configure(projectRepository: ProjectRepository(modelContext: modelContext))
         }
     }
 
     private func createProject() {
-        guard let repo = repoFactory?.projectRepo as? ProjectRepository else { return }
-        let project = Project(title: title)
-        try? repo.save(project)
-        dismiss()
+        if viewModel.createProject(title: title) {
+            onProjectCreated?()
+            dismiss()
+        }
+    }
+
+    private var trimmedTitle: String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
 #Preview {
     CreateProjectView()
         .modelContainer(for: Project.self, inMemory: true)
+}
+
+@MainActor
+@Observable
+final class CreateProjectViewModel {
+    @ObservationIgnored
+    private var projectRepository: ProjectRepositoryProtocol?
+
+    var errorMessage: String?
+
+    func configure(projectRepository: ProjectRepositoryProtocol?) {
+        guard self.projectRepository == nil else { return }
+        self.projectRepository = projectRepository
+    }
+
+    func createProject(title: String) -> Bool {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else {
+            errorMessage = "プロジェクト名を入力してください"
+            return false
+        }
+
+        guard let projectRepository else {
+            errorMessage = "保存先が初期化されていません"
+            return false
+        }
+
+        do {
+            let project = Project(title: trimmedTitle)
+            try projectRepository.save(project)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = "保存エラー: \(error.localizedDescription)"
+            return false
+        }
+    }
 }

@@ -3,7 +3,7 @@ import SwiftData
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
+    @State private var viewModel = HomeViewModel()
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @Binding var showRecordingFromFAB: Bool
@@ -19,18 +19,13 @@ struct HomeView: View {
     @State private var sortOption: SortOption = .dateDesc
     @State private var viewMode: ViewMode = .list // 表示モード
 
-    enum SortOption: String, CaseIterable {
-        case dateDesc = "日付（新しい順）"
-        case dateAsc = "日付（古い順）"
-        case titleAsc = "タイトル（昇順）"
-        case titleDesc = "タイトル（降順）"
-    }
-
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
         case timeline = "タイムライン"
         case calendar = "カレンダー"
     }
+
+    private typealias SortOption = HomeViewModel.SortOption
 
     init(
         showRecordingFromFAB: Binding<Bool> = .constant(false),
@@ -42,54 +37,20 @@ struct HomeView: View {
 
     // フィルタリング・ソート後のファイル一覧
     var filteredFiles: [AudioFile] {
-        var files = audioFiles
-
-        // 検索
-        if !searchText.isEmpty {
-            files = files.filter { file in
-                file.title.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        // 文字起こしステータスでフィルタ
-        if let transcribed = filterTranscribed {
-            files = files.filter { $0.isTranscribed == transcribed }
-        }
-
-        // 要約ステータスでフィルタ
-        if let summarized = filterSummarized {
-            files = files.filter { $0.isSummarized == summarized }
-        }
-
-        // ライフログでフィルタ
-        if let lifeLog = filterLifeLog {
-            files = files.filter { $0.isLifeLog == lifeLog }
-        }
-
-        // タグでフィルタ
-        if let tag = selectedTag, !tag.isEmpty {
-            files = files.filter { $0.lifeLogTags.contains(tag) }
-        }
-
-        // ソート
-        switch sortOption {
-        case .dateDesc:
-            files.sort { $0.createdAt > $1.createdAt }
-        case .dateAsc:
-            files.sort { $0.createdAt < $1.createdAt }
-        case .titleAsc:
-            files.sort { $0.title < $1.title }
-        case .titleDesc:
-            files.sort { $0.title > $1.title }
-        }
-
-        return files
+        viewModel.filteredFiles(
+            searchText: searchText,
+            filterTranscribed: filterTranscribed,
+            filterSummarized: filterSummarized,
+            filterLifeLog: filterLifeLog,
+            selectedTag: selectedTag,
+            sortOption: sortOption
+        )
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                if audioFiles.isEmpty {
+                if viewModel.audioFiles.isEmpty {
                     // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
                     VStack(spacing: MemoraSpacing.xxl) {
                         Spacer()
@@ -195,7 +156,10 @@ struct HomeView: View {
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(isPresented: $showRecordingView) {
-                RecordingView()
+                RecordingView { savedAudioFile in
+                    viewModel.loadAudioFiles()
+                    selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
+                }
             }
             .navigationDestination(item: $selectedAudioFile) { file in
                 FileDetailView(audioFile: file)
@@ -206,31 +170,35 @@ struct HomeView: View {
                     filterSummarized: $filterSummarized
                 )
             }
+            .onAppear {
+                viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
+                viewModel.loadAudioFiles()
+                openPendingImportedAudioIfNeeded()
+            }
             .onChange(of: showRecordingFromFAB) { _, newValue in
                 if newValue {
                     showRecordingView = true
                     showRecordingFromFAB = false
                 }
             }
+            .onChange(of: showRecordingView) { _, isPresented in
+                if !isPresented {
+                    viewModel.loadAudioFiles()
+                    openPendingImportedAudioIfNeeded()
+                }
+            }
             .onChange(of: pendingOpenedAudioFileID) { _, _ in
+                viewModel.loadAudioFiles()
                 openPendingImportedAudioIfNeeded()
             }
-            .onChange(of: audioFiles.count) { _, _ in
+            .onChange(of: viewModel.audioFiles.count) { _, _ in
                 openPendingImportedAudioIfNeeded()
             }
         }
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
-        for index in offsets {
-            let file = filteredFiles[index]
-            modelContext.delete(file)
-            do {
-                try modelContext.save()
-            } catch {
-                print("[HomeView] Delete error: \(error)")
-            }
-        }
+        viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
 
     private var recordingHint: String {
@@ -239,7 +207,7 @@ struct HomeView: View {
 
     private func openPendingImportedAudioIfNeeded() {
         guard let pendingOpenedAudioFileID else { return }
-        guard let audioFile = audioFiles.first(where: { $0.id == pendingOpenedAudioFileID }) else { return }
+        guard let audioFile = viewModel.audioFile(id: pendingOpenedAudioFileID) else { return }
         selectedAudioFile = audioFile
         self.pendingOpenedAudioFileID = nil
     }

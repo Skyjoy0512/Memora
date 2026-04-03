@@ -3,7 +3,6 @@ import SwiftData
 
 struct ToDoView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     @Query(filter: #Predicate<TodoItem> { !$0.isCompleted },
            sort: \TodoItem.createdAt,
            order: .reverse)
@@ -126,12 +125,8 @@ struct ToDoView: View {
     private func deleteButton(_ todo: TodoItem) -> some View {
         Button(role: .destructive) {
             withAnimation {
-                if let factory = repoFactory {
-                    try? factory.todoItemRepo.delete(todo)
-                } else {
-                    modelContext.delete(todo)
-                    try? modelContext.save()
-                }
+                modelContext.delete(todo)
+                try? modelContext.save()
             }
         } label: {
             Label("削除", systemImage: "trash")
@@ -247,7 +242,6 @@ struct TodoEditSheet: View {
 
     let mode: Mode
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.repositoryFactory) private var repoFactory
     @Environment(\.dismiss) private var dismiss
 
     @State private var title = ""
@@ -343,12 +337,8 @@ struct TodoEditSheet: View {
                 priority: priority,
                 dueDate: dueDate
             )
-            if let factory = repoFactory {
-                try? factory.todoItemRepo.save(todo)
-            } else {
-                modelContext.insert(todo)
-                try? modelContext.save()
-            }
+            modelContext.insert(todo)
+            try? modelContext.save()
         case .edit(let todo):
             todo.title = trimmedTitle
             todo.notes = notes.isEmpty ? nil : notes

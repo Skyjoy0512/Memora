@@ -39,6 +39,22 @@ targets:
       INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
       ENABLE_PREVIEWS: YES
       DEVELOPMENT_ASSET_PATHS: "\"Memora/Resources/Preview Content\""
+  MemoraTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MemoraTests
+        includes: ["**/*.swift"]
+    dependencies:
+      - target: Memora
+    settings:
+      PRODUCT_NAME: MemoraTests
+      PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.MemoraTests
+      GENERATE_INFOPLIST_FILE: YES
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "iPhone Developer"
+      DEVELOPMENT_TEAM: 4R82H2PVGL
 schemes:
   Memora:
     build:
@@ -48,6 +64,8 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - MemoraTests
     profile:
       config: Release
     analyze:
