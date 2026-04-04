@@ -90,7 +90,12 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                configureOmiAdapterIfNeeded()
+                DebugLogger.shared.markLaunchStep("ContentView.onAppear")
+                // OmiAdapter 設定を遅延して起動直後の負荷を下げる
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    configureOmiAdapterIfNeeded()
+                    DebugLogger.shared.markLaunchStep("OmiAdapter 設定完了（遅延）")
+                }
             }
             .onChange(of: omiAdapter.lastImportedAudio) { _, importedAudio in
                 guard let importedAudio else { return }

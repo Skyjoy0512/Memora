@@ -17,9 +17,15 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     @Published var connectionState: ConnectionState = .disconnected
     @Published var disconnectReason: String?
 
-    private lazy var centralManager: CBCentralManager = {
-        return CBCentralManager(delegate: self, queue: nil)
-    }()
+    private var centralManager: CBCentralManager!
+    private var isCentralManagerInitialized = false
+
+    /// CBCentralManager の初期化を初回利用時まで遅延する
+    private func ensureCentralManager() {
+        guard !isCentralManagerInitialized else { return }
+        isCentralManagerInitialized = true
+        centralManager = CBCentralManager(delegate: self, queue: nil)
+    }
     private var connectedPeripheral: CBPeripheral?
     private var audioCharacteristic: CBCharacteristic?
     private var audioBuffer = Data()
@@ -57,6 +63,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     // MARK: - スキャン開始・停止
 
     func startScanning() {
+        ensureCentralManager()
         isScanning = true
         connectionState = .scanning
         errorMessage = nil
@@ -86,6 +93,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     }
 
     func stopScanning() {
+        guard isCentralManagerInitialized else { return }
         if isScanning {
             isScanning = false
             centralManager.stopScan()
@@ -96,6 +104,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     // MARK: - 接続・切断
 
     func connect(to device: BluetoothDevice) {
+        ensureCentralManager()
         errorMessage = nil
         disconnectReason = nil
         selectedDeviceType = device.deviceType
@@ -111,6 +120,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
     }
 
     func disconnect() {
+        guard isCentralManagerInitialized else { return }
         stopRecording()
 
         // 再接続タイマーをキャンセル（意図的な切断の場合）
