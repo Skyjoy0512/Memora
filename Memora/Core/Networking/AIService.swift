@@ -23,6 +23,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
     private var analyzer: SpeechAnalyzer?
     private var transcriber: SpeechTranscriber?
     private var formatConverter: AVAudioConverter?
+    private var compatibleFormats: [AVAudioFormat] = []
     private let jaLocale = Locale(identifier: "ja_JP")
 
     private func setup() async throws {
@@ -40,8 +41,9 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         transcriber = createdTranscriber
         print("使用ロケール: \(supportedLocale)")
 
-        let compatibleFormats = await createdTranscriber.availableCompatibleAudioFormats
-        print("対応オーディオフォーマット: \(compatibleFormats)")
+        let formats = await createdTranscriber.availableCompatibleAudioFormats
+        compatibleFormats = formats
+        print("[MemoraSTT] SpeechAnalyzer compatible formats: \(formats.map { String(describing: $0) }.joined(separator: ", "))")
 
         let options = SpeechAnalyzer.Options(
             priority: .userInitiated,
@@ -96,6 +98,40 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         formatConverter = nil
     }
 
+    /// ソースフォーマットと SpeechAnalyzer 互換フォーマットを比較し、
+    /// 直接互換ならそのまま、非互換なら変換先フォーマットとコンバータを返す。
+    private func resolveTargetFormat(sourceFormat: AVAudioFormat) throws -> (AVAudioFormat, AVAudioConverter?) {
+        // 完全一致チェック（sampleRate / channelCount / commonFormat）
+        if compatibleFormats.contains(where: { fmt in
+            fmt.sampleRate == sourceFormat.sampleRate &&
+            fmt.channelCount == sourceFormat.channelCount &&
+            fmt.commonFormat == sourceFormat.commonFormat
+        }) {
+            return (sourceFormat, nil)
+        }
+
+        // 同じサンプルレートを優先、なければ最初の互換フォーマットを選択
+        let bestMatch = compatibleFormats.first { fmt in
+            fmt.sampleRate == sourceFormat.sampleRate
+        } ?? compatibleFormats.first
+
+        guard let targetFormat = bestMatch else {
+            print("[MemoraSTT] No compatible format available for source: \(sourceFormat)")
+            throw LocalTranscriptionError.notSupported
+        }
+
+        guard let converter = AVAudioConverter(from: sourceFormat, to: targetFormat) else {
+            print("[MemoraSTT] Cannot create AVAudioConverter: \(sourceFormat) → \(targetFormat)")
+            throw LocalTranscriptionError.transcriptionFailed(
+                NSError(domain: "MemoraSTT", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "Cannot convert audio format for SpeechAnalyzer"
+                ])
+            )
+        }
+
+        return (targetFormat, converter)
+    }
+
     func transcribe(audioURL: URL) async throws -> String {
         isTranscribing = true
         progress = 0.0
@@ -108,10 +144,20 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
             // 音声ファイルをロード
             let audioFile = try AVAudioFile(forReading: audioURL)
-            let format = audioFile.processingFormat
+            let sourceFormat = audioFile.processingFormat
 
-            // 準備
-            try await analyzer.prepareToAnalyze(in: format)
+            // フォーマット互換性チェック
+            let (targetFormat, converter) = try resolveTargetFormat(sourceFormat: sourceFormat)
+            formatConverter = converter
+
+            if converter != nil {
+                print("[MemoraSTT] Audio format conversion needed: \(sourceFormat) → \(targetFormat)")
+            } else {
+                print("[MemoraSTT] Audio format directly compatible: \(sourceFormat)")
+            }
+
+            // 準備（互換フォーマットで呼び出し）
+            try await analyzer.prepareToAnalyze(in: targetFormat)
 
             progress = 0.3
 
@@ -133,7 +179,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
                 // 分析実行タスク
                 group.addTask {
-                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile)
+                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile, targetFormat: targetFormat, converter: converter)
                     try await analyzer.start(inputSequence: audioSequence)
                     try await analyzer.finalizeAndFinishThroughEndOfInput()
                     return (true, "")
@@ -184,43 +230,65 @@ struct AudioFileAsyncSequence: AsyncSequence {
     typealias Element = AnalyzerInput
 
     let audioFile: AVAudioFile
+    let targetFormat: AVAudioFormat?
+    let converter: AVAudioConverter?
+
+    init(audioFile: AVAudioFile, targetFormat: AVAudioFormat? = nil, converter: AVAudioConverter? = nil) {
+        self.audioFile = audioFile
+        self.targetFormat = targetFormat
+        self.converter = converter
+    }
 
     func makeAsyncIterator() -> AsyncStream<AnalyzerInput>.Iterator {
-        // オーディオフォーマットを確認
         let sourceFormat = audioFile.processingFormat
+        let tgtFormat = targetFormat
+        let conv = converter
 
-        print("ソースフォーマット: \(sourceFormat)")
-        print("  - サンプルレート: \(sourceFormat.sampleRate)")
-        print("  - チャンネル数: \(sourceFormat.channelCount)")
-        print("  - コモンフォーマット: \(sourceFormat.commonFormat)")
+        print("[MemoraSTT] AudioFileAsyncSequence source format: \(sourceFormat)")
 
         return AsyncStream { continuation in
             Task {
                 let frameCount: AVAudioFrameCount = 4096
 
                 while true {
-                    // バッファを作成
                     guard let buffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frameCount) else {
                         break
                     }
 
-                    // ファイルから読み込み
                     do {
                         try audioFile.read(into: buffer)
                     } catch {
-                        print("ファイル読み込みエラー: \(error)")
+                        print("[MemoraSTT] File read error: \(error)")
                         break
                     }
 
-                    let framesRead = buffer.frameLength
-
-                    if framesRead == 0 {
-                        print("ファイル読み込み完了")
+                    if buffer.frameLength == 0 {
                         break
                     }
 
-                    // AnalyzerInput を作成（フォーマット変換はスキップ）
-                    let input = AnalyzerInput(buffer: buffer)
+                    let outputBuffer: AVAudioPCMBuffer
+                    if let conv, let tgtFormat {
+                        let ratio = tgtFormat.sampleRate / sourceFormat.sampleRate
+                        let outputFrames = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1
+                        guard let converted = AVAudioPCMBuffer(pcmFormat: tgtFormat, frameCapacity: outputFrames) else {
+                            print("[MemoraSTT] Failed to allocate conversion buffer")
+                            break
+                        }
+                        var error: NSError?
+                        let status = conv.convert(to: converted, error: &error) { inNumPackets, outStatus in
+                            outStatus.pointee = .haveData
+                            return buffer
+                        }
+                        if status == .error {
+                            print("[MemoraSTT] Format conversion error: \(error?.localizedDescription ?? "unknown")")
+                            break
+                        }
+                        outputBuffer = converted
+                    } else {
+                        outputBuffer = buffer
+                    }
+
+                    let input = AnalyzerInput(buffer: outputBuffer)
                     continuation.yield(input)
                 }
 
