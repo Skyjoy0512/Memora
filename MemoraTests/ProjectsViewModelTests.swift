@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import Memora
 
 @MainActor
@@ -134,7 +135,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [first, second, other])
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: mockModelContext, audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: targetProjectID)
 
         #expect(viewModel.projectFiles.map(\.id) == [second.id, first.id])
@@ -146,7 +147,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [], fetchError: NSError(domain: "Test", code: 1))
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: mockModelContext, audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: UUID())
 
         #expect(viewModel.projectFiles.isEmpty)
@@ -161,7 +162,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [first, second])
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: mockModelContext, audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: projectID)
         viewModel.deleteAudioFiles(at: IndexSet(integer: 0), from: [second, first])
 
@@ -181,12 +182,18 @@ struct ProjectDetailViewModelTests {
         )
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: mockModelContext, audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: projectID)
         viewModel.deleteAudioFiles(at: IndexSet(integer: 0), from: [second, first])
 
         #expect(viewModel.projectFiles.map(\.id) == [second.id, first.id])
         #expect(viewModel.lastErrorMessage?.contains("AudioDelete") == true)
+    }
+
+    private var mockModelContext: ModelContext {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: AudioFile.self, configurations: config)
+        return container.mainContext
     }
 
     private func makeAudioFile(title: String, projectID: UUID?, daysFromNow: Int) -> AudioFile {
