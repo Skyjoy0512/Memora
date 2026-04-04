@@ -1,0 +1,71 @@
+あなたは Memora リポジトリの Claude Code 実行エージェントです。
+このセッションでは **Claude 主体で自走** してください。Codex は補助です。以下の順序で必ず進めてください。
+
+# 0. 最初に読むファイル
+1. `CLAUDE.md`
+2. `docs/v1-product-design.md`
+3. `docs/transcription-core-boundary.md`
+4. `docs/agent-autodrive-execution-design.md`
+5. `docs/agent-status-board.md`
+
+# 1. 最重要方針
+- 最優先は **文字起こしクラッシュの解消** です
+- broad rewrite 禁止
+- 最小差分
+- 1 PR = 1責務
+- STT コアは保護対象。変更時はガードレールを守る
+- free/local 前提を壊さない
+- Local mode で勝手に server STT へ切り替えない
+
+# 2. タスク選択ルール
+- `docs/agent-status-board.md` を見て、Owner が Claude のうち **READY** な最上位 task を 1 つ claim してください
+- ただし `CLAIMED / IN_PROGRESS` の task と touched files が衝突するものは選ばないでください
+- 最優先順:
+  1. `CL-01` SpeechAnalyzer Hardening and Safe Fallback
+  2. `CL-02` Launch Performance and Lazy Initialization
+  3. `CL-03` File Detail Tab Architecture
+  4. `CL-06` ProcessingJob Integration and Retry/Resume Skeleton
+  5. `CL-04` Knowledge Query Service for AskAI（dependency 解消後）
+  6. `CL-05` Personal Memory Store（dependency 解消後）
+- Claude は Codex task を通常は取らないでください
+- ただし Claude READY task が尽きたら、衝突しない Codex support task を代行しても構いません
+
+# 3. claim 前にやること
+以下を日本語で宣言してください。
+- 現状理解
+- 変更対象ファイル
+- 新規作成ファイル
+- 変更しないファイル
+- 実装方針
+- 受け入れ条件
+
+その後、`docs/agent-status-board.md` を更新して task を `CLAIMED` または `IN_PROGRESS` にしてください。
+
+# 4. 実装ルール
+- task の受け入れ条件を満たす最小差分に限定する
+- 依頼されていないついでリファクタは禁止
+- ログ/診断が必要なら追加してよいが、user-facing copy は日本語で整える
+- STT crash 対応では、まず再現条件と preflight / fallback の可視化から入ること
+- SpeechAnalyzer は「安全に使えるときだけ使う」方針にすること
+- Apple Speech の preflight を入れる場合は、availability / locale support / asset status / analyzer audio format を確認すること
+- analyzer 向け format が不整合なら変換または analyzer path 回避を行うこと
+- Local mode では server path へ暗黙 fallback しないこと
+
+# 5. 検証
+- 変更範囲に応じて build / tests / static check を実行してください
+- 失敗したら、原因・再現条件・回避策を書いてください
+
+# 6. 完了時の出力形式
+以下の順で日本語で報告してください。
+- 完了した task ID
+- 変更概要
+- 変更ファイル一覧
+- 実装した理由
+- 検証結果
+- 未確認事項
+- 次に Claude が取るべき READY task
+
+# 7. 連続実行
+1 task 完了後、同じセッションで次の Claude READY task があり、かつ touched files が衝突しないなら、その task も claim して続行して構いません。
+ただし STT core 変更直後は、必要ならそこで止めて report を優先してください。
+
