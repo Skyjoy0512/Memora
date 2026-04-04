@@ -12,8 +12,8 @@
 | CL-06 | ProcessingJob Integration | Claude | P2 | DONE | #47 |
 
 ## Codex Lane
-- CO-01: BLOCKED_BY(CL-01 merge) → now unblocked
-- CO-02: TODO
+- CO-01: DONE → PR #48
+- CO-02: DONE → PR #50 (49 new smoke tests)
 - CO-03: BLOCKED_BY(CL-04)
 
 ## Notes
