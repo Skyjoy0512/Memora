@@ -21,10 +21,20 @@ struct MemoraApp: App {
         Transcript.self,
         Project.self,
         MeetingNote.self,
+        MeetingMemo.self,
+        PhotoAttachment.self,
+        KnowledgeChunk.self,
+        AskAISession.self,
+        AskAIMessage.self,
+        MemoryProfile.self,
+        MemoryFact.self,
         TodoItem.self,
         ProcessingJob.self,
         WebhookSettings.self,
-        PlaudSettings.self
+        PlaudSettings.self,
+        CalendarEventLink.self,
+        GoogleMeetSettings.self,
+        NotionSettings.self
     ])
 
     var body: some Scene {
@@ -36,7 +46,6 @@ struct MemoraApp: App {
                     ZStack {
                         ContentView()
                             .modelContainer(container)
-                            .environment(RepositoryFactory(modelContext: container.mainContext))
 
                         if isUsingTemporaryStore {
                             temporaryStoreBanner

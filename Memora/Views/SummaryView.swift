@@ -6,33 +6,8 @@ struct SummaryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: MemoraSpacing.lg) {
-                // 要約本文
-                summaryCard(
-                    title: "要約",
-                    icon: "doc.text",
-                    content: result.summary
-                )
-
-                // 重要ポイント
-                if !result.keyPoints.isEmpty {
-                    keyPointsCard
-                }
-
-                // 決定事項
-                if let decisions = result.decisions, !decisions.isEmpty {
-                    decisionsCard(decisions)
-                }
-
-                // アクションアイテム
-                if !result.actionItems.isEmpty {
-                    actionItemsCard
-                }
-
-                Spacer()
-                    .frame(height: MemoraSpacing.xxxl)
-            }
-            .padding(MemoraSpacing.md)
+            SummaryContentView(result: result)
+                .padding(MemoraSpacing.md)
         }
         .navigationTitle("要約")
         .navigationBarTitleDisplayMode(.inline)
@@ -59,104 +34,6 @@ struct SummaryView: View {
                 .animation(.easeInOut, value: showCopiedToast)
             }
         }
-    }
-
-    // MARK: - Summary Card
-
-    private func summaryCard(title: String, icon: String, content: String) -> some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            Label(title, systemImage: icon)
-                .font(MemoraTypography.headline)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            Text(content)
-                .font(MemoraTypography.body)
-                .foregroundStyle(.primary)
-                .lineSpacing(6)
-        }
-        .padding(MemoraSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
-    }
-
-    // MARK: - Key Points Card
-
-    private var keyPointsCard: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            Label("重要ポイント", systemImage: "star")
-                .font(MemoraTypography.headline)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            ForEach(result.keyPoints.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
-                    Text("\(index + 1).")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentBlue)
-                        .frame(width: 20, alignment: .trailing)
-
-                    Text(result.keyPoints[index])
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(.primary)
-                }
-            }
-        }
-        .padding(MemoraSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
-    }
-
-    // MARK: - Decisions Card
-
-    private func decisionsCard(_ decisions: [String]) -> some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            Label("決定事項", systemImage: "checkmark.seal")
-                .font(MemoraTypography.headline)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            ForEach(decisions.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
-                    Image(systemName: "checkmark")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentGreen)
-
-                    Text(decisions[index])
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(.primary)
-                }
-            }
-        }
-        .padding(MemoraSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
-    }
-
-    // MARK: - Action Items Card
-
-    private var actionItemsCard: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            Label("アクションアイテム", systemImage: "checklist")
-                .font(MemoraTypography.headline)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            ForEach(result.actionItems.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
-                    Image(systemName: "circle")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-
-                    Text(result.actionItems[index])
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(.primary)
-                }
-            }
-        }
-        .padding(MemoraSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
     }
 
     // MARK: - Helpers
@@ -188,6 +65,125 @@ struct SummaryView: View {
         }
 
         UIPasteboard.general.string = text
+    }
+}
+
+struct SummaryContentView: View {
+    let result: SummaryResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.lg) {
+            summaryCard(
+                title: "要約",
+                icon: "doc.text",
+                content: result.summary
+            )
+
+            if !result.keyPoints.isEmpty {
+                keyPointsCard
+            }
+
+            if let decisions = result.decisions, !decisions.isEmpty {
+                decisionsCard(decisions)
+            }
+
+            if !result.actionItems.isEmpty {
+                actionItemsCard
+            }
+
+            Spacer()
+                .frame(height: MemoraSpacing.xxxl)
+        }
+    }
+
+    private func summaryCard(title: String, icon: String, content: String) -> some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            Label(title, systemImage: icon)
+                .font(MemoraTypography.headline)
+                .foregroundStyle(MemoraColor.textPrimary)
+
+            Text(content)
+                .font(MemoraTypography.body)
+                .foregroundStyle(.primary)
+                .lineSpacing(6)
+        }
+        .padding(MemoraSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MemoraColor.divider.opacity(0.05))
+        .cornerRadius(MemoraRadius.md)
+    }
+
+    private var keyPointsCard: some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            Label("重要ポイント", systemImage: "star")
+                .font(MemoraTypography.headline)
+                .foregroundStyle(MemoraColor.textPrimary)
+
+            ForEach(result.keyPoints.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
+                    Text("\(index + 1).")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentBlue)
+                        .frame(width: 20, alignment: .trailing)
+
+                    Text(result.keyPoints[index])
+                        .font(MemoraTypography.body)
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .padding(MemoraSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MemoraColor.divider.opacity(0.05))
+        .cornerRadius(MemoraRadius.md)
+    }
+
+    private func decisionsCard(_ decisions: [String]) -> some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            Label("決定事項", systemImage: "checkmark.seal")
+                .font(MemoraTypography.headline)
+                .foregroundStyle(MemoraColor.textPrimary)
+
+            ForEach(decisions.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
+                    Image(systemName: "checkmark")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentGreen)
+
+                    Text(decisions[index])
+                        .font(MemoraTypography.body)
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .padding(MemoraSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MemoraColor.divider.opacity(0.05))
+        .cornerRadius(MemoraRadius.md)
+    }
+
+    private var actionItemsCard: some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            Label("アクションアイテム", systemImage: "checklist")
+                .font(MemoraTypography.headline)
+                .foregroundStyle(MemoraColor.textPrimary)
+
+            ForEach(result.actionItems.indices, id: \.self) { index in
+                HStack(alignment: .top, spacing: MemoraSpacing.sm) {
+                    Image(systemName: "circle")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+
+                    Text(result.actionItems[index])
+                        .font(MemoraTypography.body)
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .padding(MemoraSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MemoraColor.divider.opacity(0.05))
+        .cornerRadius(MemoraRadius.md)
     }
 }
 

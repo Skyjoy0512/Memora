@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Observation
+import UIKit
 
 @Observable
 @MainActor
@@ -23,6 +24,11 @@ final class FileDetailViewModel {
     // MARK: - Results
     var transcriptResult: TranscriptResult?
     var summaryResult: SummaryResult?
+    var memoDraft = ""
+    var memoUpdatedAt: Date?
+    var memoHasUnsavedChanges = false
+    var photoAttachments: [PhotoAttachment] = []
+    var isImportingPhotos = false
 
     // MARK: - Alerts
     var errorMessage: String?
@@ -40,14 +46,25 @@ final class FileDetailViewModel {
     // MARK: - Dependencies
     let audioFile: AudioFile
     private let modelContext: ModelContext
+    @ObservationIgnored
     private let pipelineCoordinator: PipelineCoordinator
+    @ObservationIgnored
+    private let knowledgeIndexingService: KnowledgeIndexingService
+    @ObservationIgnored
+    private let ocrService = OCRService()
+    @ObservationIgnored
     private let audioPlayer = AudioPlayer()
+    @ObservationIgnored
     private let speakerProfileStore = SpeakerProfileStore.shared
 
     // Settings (passed from View's @AppStorage)
     private var currentProvider: AIProvider
     private var currentTranscriptionMode: TranscriptionMode
     private var currentAPIKey: String
+
+    // MARK: - STT Backend Diagnostics
+    var activeBackend: String?
+    var fallbackReason: String?
 
     // Timers
     private var playbackTimer: Timer?
@@ -71,6 +88,7 @@ final class FileDetailViewModel {
             summarizationEngine: SummarizationEngine(),
             modelContext: modelContext
         )
+        self.knowledgeIndexingService = KnowledgeIndexingService(modelContext: modelContext)
     }
 
     // MARK: - Setup
@@ -95,6 +113,8 @@ final class FileDetailViewModel {
     func loadSavedData() {
         loadSavedTranscript()
         loadSavedSummary()
+        loadSavedMemo()
+        loadPhotoAttachments()
     }
 
     // MARK: - Audio Playback
@@ -132,6 +152,8 @@ final class FileDetailViewModel {
     // MARK: - Transcription
 
     func startTranscription() {
+        DebugLogger.shared.addLog("FileDetailVM", "startTranscription 開始 — audioURL: \(audioURL?.path ?? "nil")", level: .info)
+
         guard let url = audioURL else {
             errorMessage = "音声URLがありません"
             showErrorAlert = true
@@ -140,8 +162,11 @@ final class FileDetailViewModel {
 
         isTranscribing = true
         transcriptionProgress = 0
+        activeBackend = nil
+        fallbackReason = nil
         startTranscriptionProgressTracking()
         pipelineObservationTask?.cancel()
+        DebugLogger.shared.addLog("FileDetailVM", "パイプラインタスク作成 — mode: \(currentTranscriptionMode.rawValue), provider: \(currentProvider.rawValue)", level: .info)
         pipelineObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
@@ -238,11 +263,36 @@ final class FileDetailViewModel {
     // MARK: - Delete
 
     func deleteAudioFile() {
-        modelContext.delete(audioFile)
+        let memo = existingMeetingMemo()
+        let transcripts = savedTranscripts()
+        let filePathsToDelete = photoAttachments.flatMap { [$0.localPath, $0.thumbnailPath] }
+
         do {
+            for transcript in transcripts {
+                try knowledgeIndexingService.removeChunks(sourceType: .transcript, sourceID: transcript.id, autosave: false)
+                modelContext.delete(transcript)
+            }
+
+            if let memo {
+                try knowledgeIndexingService.removeChunks(sourceType: .memo, sourceID: memo.id, autosave: false)
+                modelContext.delete(memo)
+            }
+
+            for attachment in photoAttachments {
+                try knowledgeIndexingService.removeChunks(sourceType: .photoOCR, sourceID: attachment.id, autosave: false)
+                modelContext.delete(attachment)
+            }
+
+            try knowledgeIndexingService.removeChunks(sourceType: .summary, sourceID: audioFile.id, autosave: false)
+            try knowledgeIndexingService.removeChunks(sourceType: .referenceTranscript, sourceID: audioFile.id, autosave: false)
+            modelContext.delete(audioFile)
             try modelContext.save()
+            for path in filePathsToDelete {
+                removeFileIfNeeded(at: path)
+            }
         } catch {
-            print("[FileDetailVM] Delete error: \(error)")
+            errorMessage = "ファイルの削除に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
         }
     }
 
@@ -269,10 +319,181 @@ final class FileDetailViewModel {
     // MARK: - Cleanup
 
     func cleanup() {
+        persistPendingMemoIfNeeded()
         pipelineObservationTask?.cancel()
         pipelineObservationTask = nil
         stopPlayback()
         stopProgressTracking()
+    }
+
+    // MARK: - AI Task Decomposition
+
+    func decomposeTodo(_ item: TodoItem) {
+        guard !currentAPIKey.isEmpty else { return }
+
+        let context = transcriptResult?.text ?? ""
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let planner = TaskPlannerService()
+            do {
+                try await planner.configure(apiKey: self.currentAPIKey, provider: self.currentProvider)
+                let subtasks = try await planner.decomposeTask(
+                    taskTitle: item.title,
+                    taskNotes: item.notes,
+                    context: context
+                )
+                self.saveSubtasks(subtasks, parentID: item.id)
+            } catch {
+                DebugLogger.shared.addLog("TaskPlanner", "分解スキップ: \(error.localizedDescription)", level: .warning)
+            }
+        }
+    }
+
+    private func saveSubtasks(_ subtasks: [PlannedSubtask], parentID: UUID) {
+        for sub in subtasks {
+            let child = TodoItem(
+                title: sub.title,
+                notes: sub.citation,
+                parentID: parentID
+            )
+            modelContext.insert(child)
+        }
+        try? modelContext.save()
+    }
+
+    // MARK: - Memo
+
+    func updateMemoDraft(_ text: String) {
+        memoDraft = text
+        memoHasUnsavedChanges = text != storedMemoMarkdown()
+    }
+
+    func saveMemo(showFeedback: Bool = true) {
+        let markdown = memoDraft
+        let plainTextCache = plainText(from: markdown)
+        let memo = existingMeetingMemo() ?? MeetingMemo(audioFileID: audioFile.id)
+
+        memo.update(markdown: markdown, plainTextCache: plainTextCache)
+
+        if existingMeetingMemo() == nil {
+            modelContext.insert(memo)
+        }
+
+        do {
+            try modelContext.save()
+            memoUpdatedAt = memo.updatedAt
+            memoHasUnsavedChanges = false
+        } catch {
+            errorMessage = "メモの保存に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+            return
+        }
+
+        do {
+            try knowledgeIndexingService.rebuildIndex(for: audioFile)
+        } catch {
+            errorMessage = "メモは保存しましたが、検索インデックス更新に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+            return
+        }
+
+        if showFeedback {
+            successMessage = "メモを保存しました"
+            showSuccessAlert = true
+        }
+    }
+
+    func persistPendingMemoIfNeeded() {
+        guard memoHasUnsavedChanges else { return }
+        saveMemo(showFeedback: false)
+    }
+
+    // MARK: - Photos
+
+    func importPhoto(from data: Data) async {
+        isImportingPhotos = true
+        defer { isImportingPhotos = false }
+
+        do {
+            let attachment = try savePhotoAttachment(from: data)
+            photoAttachments.insert(attachment, at: 0)
+            normalizePhotoAttachmentOrder()
+            let imageURL = URL(fileURLWithPath: attachment.localPath)
+            let extractedText = await ocrService.extractText(from: imageURL)
+            attachment.updateOCRText(extractedText)
+            try modelContext.save()
+        } catch {
+            errorMessage = "写真の追加に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+            return
+        }
+
+        do {
+            try knowledgeIndexingService.rebuildIndex(for: audioFile)
+        } catch {
+            errorMessage = "写真は追加しましたが、検索インデックス更新に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+    }
+
+    func updatePhotoCaption(_ attachment: PhotoAttachment, caption: String?) {
+        attachment.updateCaption(normalizedOptionalString(caption))
+
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = "キャプションの保存に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+            return
+        }
+
+        do {
+            try knowledgeIndexingService.rebuildIndex(for: audioFile)
+        } catch {
+            errorMessage = "キャプションは保存しましたが、検索インデックス更新に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+    }
+
+    func deletePhotoAttachment(_ attachment: PhotoAttachment) {
+        do {
+            try knowledgeIndexingService.removeChunks(sourceType: .photoOCR, sourceID: attachment.id, autosave: false)
+            modelContext.delete(attachment)
+            photoAttachments.removeAll { $0.id == attachment.id }
+            normalizePhotoAttachmentOrder()
+            try modelContext.save()
+            removeFileIfNeeded(at: attachment.localPath)
+            removeFileIfNeeded(at: attachment.thumbnailPath)
+        } catch {
+            errorMessage = "写真の削除に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+    }
+
+    func canMovePhotoAttachment(_ attachment: PhotoAttachment, towardLeading: Bool) -> Bool {
+        guard let index = photoAttachments.firstIndex(where: { $0.id == attachment.id }) else {
+            return false
+        }
+        return towardLeading ? index > 0 : index < photoAttachments.count - 1
+    }
+
+    func movePhotoAttachment(_ attachment: PhotoAttachment, towardLeading: Bool) {
+        guard let index = photoAttachments.firstIndex(where: { $0.id == attachment.id }) else { return }
+
+        let targetIndex = towardLeading ? index - 1 : index + 1
+        guard photoAttachments.indices.contains(targetIndex) else { return }
+
+        photoAttachments.swapAt(index, targetIndex)
+        normalizePhotoAttachmentOrder()
+
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = "写真の並び替えに失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+            loadPhotoAttachments()
+        }
     }
 
     // MARK: - Private Helpers
@@ -317,6 +538,31 @@ final class FileDetailViewModel {
     private func stopProgressTracking() {
         progressTimer?.invalidate()
         progressTimer = nil
+    }
+
+    private func loadSavedMemo() {
+        let memo = existingMeetingMemo()
+        memoDraft = memo?.markdown ?? ""
+        memoUpdatedAt = memo?.updatedAt
+        memoHasUnsavedChanges = false
+    }
+
+    private func loadPhotoAttachments() {
+        let ownerID = audioFile.id
+        let ownerTypeRaw = "audioFile"
+        var descriptor = FetchDescriptor<PhotoAttachment>(
+            predicate: #Predicate {
+                $0.ownerTypeRaw == ownerTypeRaw &&
+                $0.ownerID == ownerID
+            },
+            sortBy: [
+                SortDescriptor(\.sortOrder, order: .forward),
+                SortDescriptor(\.createdAt, order: .forward)
+            ]
+        )
+        descriptor.fetchLimit = 100
+        photoAttachments = (try? modelContext.fetch(descriptor)) ?? []
+        normalizePhotoAttachmentOrder(autosave: false)
     }
 
     private func loadSavedTranscript() {
@@ -370,6 +616,7 @@ final class FileDetailViewModel {
     private func handleTranscriptionPipelineEvent(_ event: PipelineEvent) {
         switch event {
         case .stepCompleted(.transcribing):
+            DebugLogger.shared.addLog("FileDetailVM", "文字起こし完了 — 保存処理へ", level: .info)
             stopProgressTracking()
             transcriptionProgress = max(transcriptionProgress, 0.95)
         case .stepStarted(.mergingTranscripts):
@@ -380,11 +627,13 @@ final class FileDetailViewModel {
             stopProgressTracking()
             isTranscribing = false
             transcriptionProgress = 1.0
+            updateBackendDiagnostics()
             loadSavedTranscript()
             pipelineObservationTask = nil
         case .failed(_, let error):
+            DebugLogger.shared.addLog("FileDetailVM", "文字起こしエラー: \(error.localizedDescription)", level: .error)
             stopProgressTracking()
-            isTranscribing = false
+            updateBackendDiagnostics()
             errorMessage = userFacingTranscriptionErrorMessage(for: error)
             showErrorAlert = true
             pipelineObservationTask = nil
@@ -414,6 +663,7 @@ final class FileDetailViewModel {
             successMessage = "生成完了"
             showSuccessAlert = true
             pipelineObservationTask = nil
+            extractMemoryCandidates()
         case .failed(_, let error):
             stopProgressTracking()
             isSummarizing = false
@@ -424,6 +674,13 @@ final class FileDetailViewModel {
              .stepCompleted,
              .chunkProgress:
             break
+        }
+    }
+
+    private func updateBackendDiagnostics() {
+        if let lastDiag = STTDiagnosticsLog.shared.lastEntry {
+            activeBackend = lastDiag.backend.rawValue
+            fallbackReason = lastDiag.fallbackReason
         }
     }
 
@@ -439,5 +696,198 @@ final class FileDetailViewModel {
         }
 
         return "文字起こしエラー: \(error.localizedDescription)"
+    }
+
+    private func existingMeetingMemo() -> MeetingMemo? {
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<MeetingMemo>(
+            predicate: #Predicate { $0.audioFileID == targetID }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
+    }
+
+    private func savedTranscripts() -> [Transcript] {
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<Transcript>(
+            predicate: #Predicate { $0.audioFileID == targetID }
+        )
+        descriptor.fetchLimit = 20
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func storedMemoMarkdown() -> String {
+        existingMeetingMemo()?.markdown ?? ""
+    }
+
+    private func plainText(from markdown: String) -> String {
+        markdown
+            .replacingOccurrences(of: #"(?m)^\s{0,3}#{1,6}\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?m)^\s*[-*+]\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\*\*|__|`|>"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func savePhotoAttachment(from data: Data) throws -> PhotoAttachment {
+        guard let image = UIImage(data: data) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+
+        let directory = try photoStorageDirectory()
+        let identifier = UUID().uuidString
+        let imageURL = directory.appendingPathComponent("\(identifier).jpg")
+        let thumbnailURL = directory.appendingPathComponent("\(identifier)_thumb.jpg")
+
+        guard let imageData = normalizedJPEGData(from: image, compressionQuality: 0.88) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try imageData.write(to: imageURL, options: .atomic)
+
+        let thumbnailData = thumbnailJPEGData(from: image)
+        if let thumbnailData {
+            try thumbnailData.write(to: thumbnailURL, options: .atomic)
+        }
+
+        let attachment = PhotoAttachment(
+            ownerType: .audioFile,
+            ownerID: audioFile.id,
+            sortOrder: photoAttachments.count,
+            localPath: imageURL.path,
+            thumbnailPath: thumbnailData == nil ? nil : thumbnailURL.path
+        )
+        modelContext.insert(attachment)
+        return attachment
+    }
+
+    private func photoStorageDirectory() throws -> URL {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let directory = documentsDirectory
+            .appendingPathComponent("MemoraPhotos", isDirectory: true)
+            .appendingPathComponent(audioFile.id.uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+        return directory
+    }
+
+    private func normalizedJPEGData(from image: UIImage, compressionQuality: CGFloat) -> Data? {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        let renderedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+        return renderedImage.jpegData(compressionQuality: compressionQuality)
+    }
+
+    private func thumbnailJPEGData(from image: UIImage, maxDimension: CGFloat = 320) -> Data? {
+        let longestEdge = max(image.size.width, image.size.height)
+        guard longestEdge > 0 else { return nil }
+
+        let scale = min(1, maxDimension / longestEdge)
+        let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        let thumbnail = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        return thumbnail.jpegData(compressionQuality: 0.72)
+    }
+
+    private func removeFileIfNeeded(at path: String?) {
+        guard let path, FileManager.default.fileExists(atPath: path) else { return }
+        try? FileManager.default.removeItem(atPath: path)
+    }
+
+    private func normalizedOptionalString(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func normalizePhotoAttachmentOrder(autosave: Bool = true) {
+        for (index, attachment) in photoAttachments.enumerated() {
+            if attachment.sortOrder != index {
+                attachment.updateSortOrder(index)
+            }
+        }
+
+        guard autosave else { return }
+        try? modelContext.save()
+    }
+
+    // MARK: - Memory Extraction
+
+    private func extractMemoryCandidates() {
+        let privacyMode = UserDefaults.standard.string(forKey: "memoryPrivacyMode") ?? "standard"
+        guard privacyMode != "off" else { return }
+        guard !currentAPIKey.isEmpty else { return }
+
+        let transcriptText = transcriptResult?.text ?? ""
+        let summaryText = summaryResult?.summary
+
+        guard !transcriptText.isEmpty else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let service = MemoryExtractionService()
+            do {
+                try await service.configure(apiKey: self.currentAPIKey, provider: self.currentProvider)
+                let candidates = try await service.extractCandidates(
+                    transcript: transcriptText,
+                    summary: summaryText
+                )
+                self.saveMemoryCandidates(candidates)
+            } catch {
+                DebugLogger.shared.addLog("Memory", "記憶抽出スキップ: \(error.localizedDescription)", level: .warning)
+            }
+        }
+    }
+
+    private func saveMemoryCandidates(_ candidates: [MemoryCandidateDraft]) {
+        guard !candidates.isEmpty else { return }
+
+        let profile = ensureMemoryProfile()
+        let existingKeys = fetchExistingMemoryFactKeys(profileID: profile.id)
+
+        for candidate in candidates {
+            guard !existingKeys.contains(candidate.key.lowercased()) else { continue }
+
+            let fact = MemoryFact(
+                profileID: profile.id,
+                key: candidate.key,
+                value: candidate.value,
+                source: candidate.source,
+                confidence: candidate.confidence
+            )
+            modelContext.insert(fact)
+        }
+
+        try? modelContext.save()
+    }
+
+    private func ensureMemoryProfile() -> MemoryProfile {
+        let descriptor = FetchDescriptor<MemoryProfile>(
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            return existing
+        }
+
+        let profile = MemoryProfile()
+        modelContext.insert(profile)
+        try? modelContext.save()
+        return profile
+    }
+
+    private func fetchExistingMemoryFactKeys(profileID: UUID) -> Set<String> {
+        let descriptor = FetchDescriptor<MemoryFact>(
+            predicate: #Predicate { $0.profileID == profileID }
+        )
+        let facts = (try? modelContext.fetch(descriptor)) ?? []
+        return Set(facts.map { $0.key.lowercased() })
     }
 }

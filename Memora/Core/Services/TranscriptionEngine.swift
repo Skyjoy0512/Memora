@@ -47,6 +47,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     }
 
     func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult {
+        DebugLogger.shared.addLog("TranscriptionEngine", "transcribe 開始 — url: \(audioURL.path)", level: .info)
         isTranscribing = true
         progress = 0
 
@@ -55,7 +56,9 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             progress = 0
         }
 
+        DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 呼び出し", level: .info)
         let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
+        DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 戻り — イベント待機", level: .info)
 
         let finalResult = try await withTaskCancellationHandler {
             var finalResult: TranscriptionResult?

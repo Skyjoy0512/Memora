@@ -7,7 +7,6 @@ enum AudioFileImportService {
     static func importAudio(
         from sourceURL: URL,
         suggestedTitle: String? = nil,
-        repositoryFactory: RepositoryFactory? = nil,
         modelContext: ModelContext,
         requiresSecurityScopedAccess: Bool = false
     ) throws -> AudioFile {
@@ -49,13 +48,28 @@ enum AudioFileImportService {
         let audioFile = AudioFile(title: resolvedTitle, audioURL: destinationURL.path)
         audioFile.duration = durationSeconds.isFinite ? durationSeconds : 0
 
-        if let repositoryFactory {
-            try repositoryFactory.audioFileRepo.save(audioFile)
-        } else {
-            modelContext.insert(audioFile)
-            try modelContext.save()
-        }
+        modelContext.insert(audioFile)
+        try modelContext.save()
 
         return audioFile
+    }
+
+    static func importOmiAudio(
+        from sourceURL: URL,
+        suggestedTitle: String? = nil,
+        modelContext: ModelContext
+    ) throws -> OmiImportedAudio {
+        let audioFile = try importAudio(
+            from: sourceURL,
+            suggestedTitle: suggestedTitle,
+            modelContext: modelContext,
+            requiresSecurityScopedAccess: false
+        )
+
+        return OmiImportedAudio(
+            audioFileID: audioFile.id,
+            title: audioFile.title,
+            importedAt: Date()
+        )
     }
 }

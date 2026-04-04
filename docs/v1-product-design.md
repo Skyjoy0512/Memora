@@ -113,7 +113,7 @@ PipelineCoordinator（Transcription → Summary → Todo 抽出 を統括）
 ### 技術スタック
 - **Language**: Swift 5.5+
 - **UI Framework**: SwiftUI
-- **Persistence**: SwiftData（ModelContext 直書き、repositoryFactory は残存するが非推奨）
+- **Persistence**: SwiftData（ModelContext 直書き、repositoryFactory は削除済み）
 - **Architecture**: MVVM
 - **iOS Target**: 17.0（project.yml）
 - **Xcode**: 26.3
@@ -161,9 +161,13 @@ Memora/
 │   │   ├── WebhookService.swift
 │   │   └── DebugLogger.swift
 │   ├── ViewModels/
+│   │   ├── HomeViewModel.swift
+│   │   ├── ProjectsViewModel.swift
 │   │   ├── RecordingViewModel.swift
-│   │   ├── FileDetailViewModel.swift
-│   │   └── HomeViewModel.swift
+│   │   └── FileDetailViewModel.swift
+│   ├── Repositories/
+│   │   ├── AudioFileRepository.swift
+│   │   └── ProjectRepository.swift
 │   ├── Contracts/            # DTOs
 │   └── Networking/
 │       └── AIService.swift   # ★ AI provider routing
@@ -173,8 +177,8 @@ Memora/
 │   ├── RecordingView.swift
 │   ├── SettingsView.swift
 │   ├── ProjectsView.swift
-│   ├── ProjectDetailView.swift
-│   ├── CreateProjectView.swift
+│   ├── ProjectDetailView.swift     # + ProjectDetailViewModel
+│   ├── CreateProjectView.swift     # + CreateProjectViewModel
 │   ├── ToDoView.swift
 │   ├── TranscriptView.swift
 │   ├── SummaryView.swift

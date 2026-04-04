@@ -34,6 +34,9 @@ enum PlaudImportService {
         if let duration = metadata?.duration, duration > 0 {
             audioFile.duration = duration
         }
+        if let createdAt = metadata?.createdAt {
+            audioFile.createdAt = createdAt
+        }
 
         try modelContext.save()
         return audioFile

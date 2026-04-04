@@ -4,15 +4,25 @@ import SwiftData
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    let initialProject: Project?
+    let onRecordingSaved: ((AudioFile) -> Void)?
+    @State private var viewModel = RecordingViewModel()
     @StateObject private var audioRecorder = AudioRecorder()
     @State private var recordingTime: TimeInterval = 0
     @State private var timer: Timer?
-    @State private var errorMessage: String?
     @State private var selectedProject: Project?
     @State private var showProjectPicker = false
 
     // プロジェクト一覧
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
+
+    init(
+        initialProject: Project? = nil,
+        onRecordingSaved: ((AudioFile) -> Void)? = nil
+    ) {
+        self.initialProject = initialProject
+        self.onRecordingSaved = onRecordingSaved
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,7 +57,7 @@ struct RecordingView: View {
                 Spacer()
 
                 // エラーメッセージ表示
-                if let error = errorMessage {
+                if let error = viewModel.errorMessage {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(MemoraColor.accentRed)
@@ -111,6 +121,12 @@ struct RecordingView: View {
                 }
             }
         }
+        .onAppear {
+            viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
+            if selectedProject == nil {
+                selectedProject = initialProject
+            }
+        }
         .onDisappear {
             stopTimer()
         }
@@ -128,37 +144,31 @@ struct RecordingView: View {
             do {
                 let url = try audioRecorder.stopRecording()
                 stopTimer()
+                viewModel.stopRecording()
 
-                // AudioFile を保存
-                let audioFile = AudioFile(
+                guard let savedAudioFile = viewModel.saveRecording(
                     title: formatRecordingTitle(),
-                    audioURL: url.path,
+                    fileURL: url,
+                    duration: recordingTime,
                     projectID: selectedProject?.id
-                )
-                audioFile.duration = recordingTime
-
-                do {
-                    modelContext.insert(audioFile)
-                    try modelContext.save()
-                } catch {
-                    print("[RecordingView] Save error: \(error)")
-                    errorMessage = "保存エラー: \(error.localizedDescription)"
+                ) else {
                     return
                 }
 
+                onRecordingSaved?(savedAudioFile)
                 dismiss()
             } catch {
-                errorMessage = "録音停止エラー: \(error.localizedDescription)"
+                viewModel.errorMessage = "録音停止エラー: \(error.localizedDescription)"
                 print("録音停止エラー: \(error)")
             }
         } else {
             // 録音開始
-            errorMessage = nil
+            viewModel.startRecording()
             do {
                 try audioRecorder.startRecording()
                 startTimer()
             } catch {
-                errorMessage = "録音開始エラー: \(error.localizedDescription)\n\nシミュレータではマイクが使えない場合があります"
+                viewModel.errorMessage = "録音開始エラー: \(error.localizedDescription)\n\nシミュレータではマイクが使えない場合があります"
                 print("録音開始エラー: \(error)")
             }
         }
@@ -166,6 +176,7 @@ struct RecordingView: View {
 
     private func cancelRecording() {
         audioRecorder.cancelRecording()
+        viewModel.cancelRecording()
         stopTimer()
         dismiss()
     }
@@ -186,6 +197,8 @@ struct RecordingView: View {
     @MainActor
     private func syncRecordingTime() {
         recordingTime = audioRecorder.recordingTime
+        viewModel.recordingTime = recordingTime
+        viewModel.isRecording = audioRecorder.isRecording
     }
 
     private func formatTime(_ time: TimeInterval) -> String {

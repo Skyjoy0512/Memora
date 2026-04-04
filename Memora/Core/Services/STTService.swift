@@ -141,12 +141,18 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
 }
 
 private final class STTBackendExecutor {
+    private let taskId: String
     private let configuration: STTExecutionConfiguration
     private let stateLock = NSLock()
     private var recognitionTask: SFSpeechRecognitionTask?
     private let diarizationService: SpeakerDiarizationProtocol
 
-    init(configuration: STTExecutionConfiguration, diarizationService: SpeakerDiarizationProtocol) {
+    init(
+        taskId: String,
+        configuration: STTExecutionConfiguration,
+        diarizationService: SpeakerDiarizationProtocol
+    ) {
+        self.taskId = taskId
         self.configuration = configuration
         self.diarizationService = diarizationService
     }
@@ -185,35 +191,88 @@ private final class STTBackendExecutor {
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
         let locale = localeForRecognition(language: language)
-        print("[MemoraSTT] transcribeLocally — locale: \(locale.identifier), SpeechAnalyzer flag: \(SpeechAnalyzerFeatureFlag.isEnabled)")
+        let transcriptionStart = ContinuousClock.now
 
         #if !targetEnvironment(simulator)
-        if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
-            print("[MemoraSTT] SpeechAnalyzer パスを試行中...")
-            do {
-                return try await transcribeWithSpeechAnalyzerWithTimeout(
-                    audioURL: audioURL,
-                    locale: locale,
-                    progress: progress,
-                    partialResult: partialResult
-                )
-            } catch {
-                print("[MemoraSTT] SpeechAnalyzer fallback: \(error.localizedDescription)")
-            }
-        } else {
-            if #available(iOS 26.0, *) {
-                print("[MemoraSTT] SpeechAnalyzer スキップ — flag OFF またはシミュレータ")
+        if #available(iOS 26.0, *) {
+            let preflight = SpeechAnalyzerPreflight()
+            let result = await preflight.run(locale: locale)
+
+            switch result {
+            case .ready(let diag):
+                print("[MemoraSTT] SpeechAnalyzer preflight passed — \(diag.summary)")
+                do {
+                    let transcription = try await transcribeWithSpeechAnalyzerWithTimeout(
+                        audioURL: audioURL,
+                        locale: locale,
+                        progress: progress,
+                        partialResult: partialResult
+                    )
+                    let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+                    let ms = Double(elapsed.components.seconds) * 1000.0
+                        + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+                    STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                        taskId: taskId,
+                        backend: .speechAnalyzer,
+                        locale: locale.identifier,
+                        assetState: diag.assetStatus,
+                        audioFormat: diag.compatibleFormatsDescription,
+                        fallbackReason: nil,
+                        processingTimeMs: ms,
+                        recordedAt: Date()
+                    ))
+                    return transcription
+                } catch {
+                    print("[MemoraSTT] SpeechAnalyzer runtime fallback: \(error.localizedDescription)")
+                    STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                        taskId: taskId,
+                        backend: .speechAnalyzer,
+                        locale: locale.identifier,
+                        assetState: diag.assetStatus,
+                        audioFormat: nil,
+                        fallbackReason: "runtime error: \(error.localizedDescription)",
+                        processingTimeMs: nil,
+                        recordedAt: Date()
+                    ))
+                }
+
+            case .unavailable(let reason, let diag):
+                print("[MemoraSTT] SpeechAnalyzer preflight failed — \(reason.description)")
+                STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                    taskId: taskId,
+                    backend: .sfSpeechRecognizer,
+                    locale: locale.identifier,
+                    assetState: diag.assetStatus,
+                    audioFormat: nil,
+                    fallbackReason: reason.description,
+                    processingTimeMs: nil,
+                    recordedAt: Date()
+                ))
             }
         }
         #endif
 
         print("[MemoraSTT] SFSpeechRecognizer パスを使用")
-        return try await transcribeWithSpeechRecognizer(
+        let transcription = try await transcribeWithSpeechRecognizer(
             audioURL: audioURL,
             locale: locale,
             progress: progress,
             partialResult: partialResult
         )
+        let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+        let ms = Double(elapsed.components.seconds) * 1000.0
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+            taskId: taskId,
+            backend: .sfSpeechRecognizer,
+            locale: locale.identifier,
+            assetState: nil,
+            audioFormat: nil,
+            fallbackReason: nil,
+            processingTimeMs: ms,
+            recordedAt: Date()
+        ))
+        return transcription
     }
 
     private func transcribeWithSpeechRecognizer(
@@ -371,6 +430,7 @@ private final class STTBackendExecutor {
         }
 
         print("[MemoraSTT] API パス開始 — provider: \(configuration.provider.rawValue)")
+        let remoteStart = ContinuousClock.now
 
         let service = AIService()
         service.setProvider(configuration.provider)
@@ -389,6 +449,20 @@ private final class STTBackendExecutor {
             audioURL: audioURL,
             segments: baseSegments
         )
+
+        let elapsed = remoteStart.duration(to: ContinuousClock.now)
+        let ms = Double(elapsed.components.seconds) * 1000.0
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+            taskId: taskId,
+            backend: .cloudAPI,
+            locale: language ?? "unknown",
+            assetState: nil,
+            audioFormat: nil,
+            fallbackReason: nil,
+            processingTimeMs: ms,
+            recordedAt: Date()
+        ))
 
         return TranscriptionResult(
             fullText: text,
@@ -585,6 +659,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
 
                 let engine = STTBackendExecutor(
+                    taskId: "\(handle.taskId)-chunk-\(chunk.index)",
                     configuration: configuration,
                     diarizationService: diarizationService
                 )

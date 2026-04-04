@@ -27,14 +27,15 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var loadedURL: URL?
     private var progressContinuations: [UUID: AsyncStream<TimeInterval>.Continuation] = [:]
-    private var progressTimer: Timer?
+    private nonisolated(unsafe) var progressTimer: Timer?
 
     override init() {
         super.init()
     }
 
     deinit {
-        // TODO: stopProgressTimer() 呼び出しを修正
+        progressTimer?.invalidate()
+        progressTimer = nil
     }
 
     func load(url: URL) async throws {
