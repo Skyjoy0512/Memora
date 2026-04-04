@@ -5,6 +5,7 @@ enum SourceType: String, CaseIterable {
     case recording = "recording"
     case `import` = "import"
     case plaud = "plaud"
+    case google = "google"
 }
 
 @Model

@@ -6,45 +6,55 @@ struct TranscriptView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: MemoraSpacing.xxl) {
-                // 文字起こし全文
+            TranscriptContentView(
+                result: result,
+                showSegments: showSegments
+            )
+            .padding()
+        }
+        .navigationTitle("文字起こし")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct TranscriptContentView: View {
+    let result: TranscriptResult
+    var showSegments = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.xxl) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("文字起こし")
+                    .font(MemoraTypography.headline)
+
+                Text(result.text)
+                    .font(MemoraTypography.body)
+                    .foregroundStyle(.primary)
+                    .lineSpacing(6)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MemoraColor.divider.opacity(0.05))
+            .cornerRadius(MemoraRadius.md)
+
+            if showSegments && !result.segments.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("文字起こし")
+                    Text("話者分離")
                         .font(MemoraTypography.headline)
 
-                    Text(result.text)
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(.primary)
-                        .lineSpacing(6)
+                    ForEach(result.segments.indices, id: \.self) { index in
+                        SpeakerSegmentView(segment: result.segments[index])
+                    }
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(MemoraColor.divider.opacity(0.05))
                 .cornerRadius(MemoraRadius.md)
-
-                // 話者セグメント
-                if showSegments && !result.segments.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("話者分離")
-                            .font(MemoraTypography.headline)
-
-                        ForEach(result.segments.indices, id: \.self) { index in
-                            SpeakerSegmentView(segment: result.segments[index])
-                        }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MemoraColor.divider.opacity(0.05))
-                    .cornerRadius(MemoraRadius.md)
-                }
-
-                Spacer()
-                    .frame(height: 40)
             }
-            .padding()
+
+            Spacer()
+                .frame(height: 40)
         }
-        .navigationTitle("文字起こし")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

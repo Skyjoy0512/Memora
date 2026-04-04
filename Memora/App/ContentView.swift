@@ -68,8 +68,8 @@ struct ContentView: View {
             }
             .fileImporter(
                 isPresented: $showPlaudImporter,
-                allowedContentTypes: [.json, .plainText],
-                allowsMultipleSelection: false
+                allowedContentTypes: plaudContentTypes,
+                allowsMultipleSelection: true
             ) { result in
                 handlePlaudImportResult(result)
             }
@@ -103,6 +103,13 @@ struct ContentView: View {
     private var audioContentTypes: [UTType] {
         [.mpeg4Audio, .wav, .mp3, .aiff]
             .compactMap { $0 }
+    }
+
+    // MARK: - Plaud Content Types
+    private var plaudContentTypes: [UTType] {
+        var types: [UTType] = [.json, .plainText]
+        types += [.mpeg4Audio, .wav, .mp3].compactMap { $0 }
+        return types
     }
 
     // MARK: - Import Handling
@@ -147,64 +154,142 @@ struct ContentView: View {
     private func handlePlaudImportResult(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let url = urls.first else { return }
-            importPlaudFile(from: url)
+            guard !urls.isEmpty else { return }
+            importPlaudFiles(urls)
         case .failure(let error):
             presentImportError(prefix: "Plaud ファイルの選択に失敗しました", error: error)
         }
     }
 
-    private func importPlaudFile(from url: URL) {
-        let fileName = url.deletingPathExtension().lastPathComponent
-        let ext = url.pathExtension.lowercased()
+    private func importPlaudFiles(_ urls: [URL]) {
+        let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "aiff", "aac"]
+        let metadataExtensions: Set<String> = ["json"]
+        let textExtensions: Set<String> = ["txt", "text"]
 
-        do {
-            if ext == "json" {
-                // JSON メタデータのみ → テキスト参照データとしてインポート
-                let didAccess = url.startAccessingSecurityScopedResource()
-                defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+        var audioURLs: [(URL, String)] = []   // (url, filenameWithoutExt)
+        var jsonURLs: [(URL, String)] = []
+        var textURLs: [(URL, String)] = []
 
-                let data = try Data(contentsOf: url)
-                let export = try JSONDecoder().decode(PlaudExportFile.self, from: data)
+        for url in urls {
+            let ext = url.pathExtension.lowercased()
+            let stem = url.deletingPathExtension().lastPathComponent
+            if audioExtensions.contains(ext) {
+                audioURLs.append((url, stem))
+            } else if metadataExtensions.contains(ext) {
+                jsonURLs.append((url, stem))
+            } else if textExtensions.contains(ext) {
+                textURLs.append((url, stem))
+            }
+        }
 
-                let title = export.title ?? fileName
-                let audioFile: AudioFile
-                if let transcript = export.transcript, !transcript.isEmpty {
-                    audioFile = PlaudImportService.importTextOnly(
-                        title: title,
-                        textContent: transcript,
-                        modelContext: modelContext
-                    )
-                    if let summary = export.summary, !summary.isEmpty {
-                        audioFile.summary = summary
-                        audioFile.isSummarized = true
-                        try modelContext.save()
+        var lastImportedID: UUID?
+
+        // 音声 + JSON ペアをファイル名プレフィックスでマッチング
+        var matchedAudioIndices: Set<Int> = []
+        var matchedJSONIndices: Set<Int> = []
+
+        for (ai, audioInfo) in audioURLs.enumerated() {
+            for (ji, jsonInfo) in jsonURLs.enumerated() where !matchedJSONIndices.contains(ji) {
+                if audioInfo.1 == jsonInfo.1 || audioInfo.1.hasPrefix(jsonInfo.1) || jsonInfo.1.hasPrefix(audioInfo.1) {
+                    do {
+                        let audioFile = try PlaudImportService.importFromExport(
+                            audioURL: audioInfo.0,
+                            metadataURL: jsonInfo.0,
+                            modelContext: modelContext
+                        )
+                        lastImportedID = audioFile.id
+                        matchedAudioIndices.insert(ai)
+                        matchedJSONIndices.insert(ji)
+                    } catch {
+                        presentImportError(prefix: "Plaud ファイルのインポートに失敗しました", error: error)
                     }
-                } else {
-                    audioFile = PlaudImportService.importTextOnly(
-                        title: title,
-                        textContent: export.summary ?? "",
-                        modelContext: modelContext
-                    )
+                    break
                 }
-                selectedTab = .files
-                pendingOpenedAudioFileID = audioFile.id
-            } else {
-                // .txt 等のテキストファイル → 参照文字起こしとしてインポート
-                let didAccess = url.startAccessingSecurityScopedResource()
-                defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            }
+        }
 
-                let text = try String(contentsOf: url, encoding: .utf8)
-                let audioFile = PlaudImportService.importTextOnly(
-                    title: fileName,
-                    textContent: text,
+        // マッチしなかった音声ファイルを個別インポート
+        for (i, audioInfo) in audioURLs.enumerated() where !matchedAudioIndices.contains(i) {
+            do {
+                let audioFile = try PlaudImportService.importFromExport(
+                    audioURL: audioInfo.0,
+                    metadataURL: nil,
                     modelContext: modelContext
                 )
-                selectedTab = .files
-                pendingOpenedAudioFileID = audioFile.id
+                lastImportedID = audioFile.id
+            } catch {
+                presentImportError(prefix: "Plaud ファイルのインポートに失敗しました", error: error)
             }
+        }
+
+        // マッチしなかった JSON をテキストとしてインポート
+        for (i, jsonInfo) in jsonURLs.enumerated() where !matchedJSONIndices.contains(i) {
+            let audioFile = importPlaudJSON(url: jsonInfo.0, fileName: jsonInfo.1)
+            lastImportedID = audioFile?.id ?? lastImportedID
+        }
+
+        // テキストファイルをインポート
+        for textInfo in textURLs {
+            let audioFile = importPlaudText(url: textInfo.0, fileName: textInfo.1)
+            lastImportedID = audioFile?.id ?? lastImportedID
+        }
+
+        if let lastImportedID {
+            selectedTab = .files
+            pendingOpenedAudioFileID = lastImportedID
+        }
+    }
+
+    private func importPlaudJSON(url: URL, fileName: String) -> AudioFile? {
+        do {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+            let data = try Data(contentsOf: url)
+            let export = try JSONDecoder().decode(PlaudExportFile.self, from: data)
+
+            let title = export.title ?? fileName
+            let audioFile: AudioFile
+            if let transcript = export.transcript, !transcript.isEmpty {
+                audioFile = PlaudImportService.importTextOnly(
+                    title: title,
+                    textContent: transcript,
+                    modelContext: modelContext
+                )
+                if let summary = export.summary, !summary.isEmpty {
+                    audioFile.summary = summary
+                    audioFile.isSummarized = true
+                    try modelContext.save()
+                }
+            } else {
+                audioFile = PlaudImportService.importTextOnly(
+                    title: title,
+                    textContent: export.summary ?? "",
+                    modelContext: modelContext
+                )
+            }
+            return audioFile
         } catch {
             presentImportError(prefix: "Plaud ファイルのインポートに失敗しました", error: error)
+            return nil
+        }
+    }
+
+    private func importPlaudText(url: URL, fileName: String) -> AudioFile? {
+        do {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+
+            let text = try String(contentsOf: url, encoding: .utf8)
+            let audioFile = PlaudImportService.importTextOnly(
+                title: fileName,
+                textContent: text,
+                modelContext: modelContext
+            )
+            return audioFile
+        } catch {
+            presentImportError(prefix: "Plaud ファイルのインポートに失敗しました", error: error)
+            return nil
         }
     }
 

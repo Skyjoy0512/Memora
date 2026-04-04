@@ -19,6 +19,7 @@ final class PipelineCoordinator {
     private let transcriptionEngine: TranscriptionEngine
     private let summarizationEngine: SummarizationEngine
     private let modelContext: ModelContext
+    private lazy var knowledgeIndexingService = KnowledgeIndexingService(modelContext: modelContext)
 
     // MARK: - Progress (read by FileDetailViewModel for UI polling)
 
@@ -85,19 +86,31 @@ final class PipelineCoordinator {
                     audioFile.keyPoints = summaryResult.keyPointsText
                     audioFile.actionItems = summaryResult.actionItemsText
                     saveAudioFile(audioFile)
+                    reindexKnowledge(for: audioFile)
 
                     continuation.yield(.stepCompleted(.extractingMetadata))
 
-                    // --- Step 6: Extract Todos ---
+                    // --- Step 6: Extract Todos (AI Task Planner) ---
                     if config.autoCreateTodos {
                         continuation.yield(.stepStarted(.extractingTodos))
 
-                        summarizationEngine.createTodoItems(
-                            from: summaryResult,
-                            sourceFileId: audioFile.id,
-                            sourceFileTitle: audioFile.title,
-                            modelContext: modelContext
-                        )
+                        let planner = TaskPlannerService()
+                        do {
+                            try await planner.configure(apiKey: apiKey, provider: provider)
+                            let plannedTasks = try await planner.planTasks(
+                                transcript: transcriptResult.text,
+                                summary: summaryResult.summary
+                            )
+                            savePlannedTasks(plannedTasks, sourceFileId: audioFile.id, sourceFileTitle: audioFile.title)
+                        } catch {
+                            DebugLogger.shared.addLog("Pipeline", "TaskPlanner フォールバック: \(error.localizedDescription)", level: .warning)
+                            summarizationEngine.createTodoItems(
+                                from: summaryResult,
+                                sourceFileId: audioFile.id,
+                                sourceFileTitle: audioFile.title,
+                                modelContext: modelContext
+                            )
+                        }
 
                         continuation.yield(.stepCompleted(.extractingTodos))
                     }
@@ -224,6 +237,7 @@ final class PipelineCoordinator {
                     audioFile.keyPoints = summaryResult.keyPointsText
                     audioFile.actionItems = summaryResult.actionItemsText
                     saveAudioFile(audioFile)
+                    reindexKnowledge(for: audioFile)
 
                     continuation.yield(.stepCompleted(.extractingMetadata))
 
@@ -277,6 +291,7 @@ final class PipelineCoordinator {
         transcriptionMode: TranscriptionMode,
         continuation: AsyncStream<PipelineEvent>.Continuation
     ) async throws -> TranscriptResult {
+        DebugLogger.shared.addLog("Pipeline", "executeTranscription 開始", level: .info)
         continuation.yield(.stepStarted(.loadingAudio))
 
         try await transcriptionEngine.configure(
@@ -288,12 +303,15 @@ final class PipelineCoordinator {
         continuation.yield(.stepCompleted(.loadingAudio))
 
         continuation.yield(.stepStarted(.transcribing))
+        DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し", level: .info)
         let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
+        DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 完了 — text length: \(transcriptResult.text.count)", level: .info)
         continuation.yield(.stepCompleted(.transcribing))
 
         continuation.yield(.stepStarted(.mergingTranscripts))
 
         let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
+        DebugLogger.shared.addLog("Pipeline", "Transcript 保存開始", level: .info)
         saveTranscript(transcript)
 
         for segment in transcriptResult.segments {
@@ -308,6 +326,7 @@ final class PipelineCoordinator {
 
         audioFile.isTranscribed = true
         saveAudioFile(audioFile)
+        reindexKnowledge(for: audioFile)
 
         continuation.yield(.stepCompleted(.mergingTranscripts))
         return transcriptResult
@@ -328,6 +347,42 @@ final class PipelineCoordinator {
         } catch {
             print("[PipelineCoordinator] AudioFile save error: \(error)")
         }
+    }
+
+    private func reindexKnowledge(for audioFile: AudioFile) {
+        do {
+            try knowledgeIndexingService.rebuildIndex(for: audioFile)
+        } catch {
+            DebugLogger.shared.addLog(
+                "Pipeline",
+                "Knowledge index rebuild failed: \(error.localizedDescription)",
+                level: .warning
+            )
+        }
+    }
+
+    private func savePlannedTasks(_ plannedTasks: [PlannedTask], sourceFileId: UUID, sourceFileTitle: String) {
+        for planned in plannedTasks {
+            let parent = TodoItem(
+                title: planned.title,
+                notes: planned.citation,
+                assignee: planned.assignee,
+                speaker: planned.assignee,
+                priority: planned.priority.rawValue,
+                relativeDueDate: planned.relativeDueDate?.rawValue
+            )
+            modelContext.insert(parent)
+
+            for sub in planned.subtasks {
+                let child = TodoItem(
+                    title: sub.title,
+                    notes: sub.citation,
+                    parentID: parent.id
+                )
+                modelContext.insert(child)
+            }
+        }
+        try? modelContext.save()
     }
 
     private func sendWebhooks(

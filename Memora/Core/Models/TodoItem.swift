@@ -12,6 +12,7 @@ public final class TodoItem {
     var dueDate: Date?
     var relativeDueDate: String?
     var projectID: UUID?
+    var parentID: UUID?
     var isCompleted: Bool = false
     var createdAt: Date
     var completedAt: Date?
@@ -24,7 +25,8 @@ public final class TodoItem {
         priority: String = "medium",
         dueDate: Date? = nil,
         relativeDueDate: String? = nil,
-        projectID: UUID? = nil
+        projectID: UUID? = nil,
+        parentID: UUID? = nil
     ) {
         self.id = UUID()
         self.title = title
@@ -35,6 +37,7 @@ public final class TodoItem {
         self.dueDate = dueDate
         self.relativeDueDate = relativeDueDate
         self.projectID = projectID
+        self.parentID = parentID
         self.createdAt = Date()
     }
 }

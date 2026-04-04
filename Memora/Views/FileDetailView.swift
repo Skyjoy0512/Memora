@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
+import UIKit
 
 struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +13,10 @@ struct FileDetailView: View {
     @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
     @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @State private var viewModel: FileDetailViewModel?
+    @State private var selectedTab: FileDetailTab = .summary
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var previewPhotoID: UUID?
+    @State private var showAskAI = false
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -51,6 +57,13 @@ struct FileDetailView: View {
                 }
                 .disabled(viewModel?.audioURL == nil && viewModel?.transcriptResult == nil)
             }
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    showAskAI = true
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+            }
             ToolbarItem(placement: .destructiveAction) {
                 Button(role: .destructive) {
                     viewModel?.showDeleteAlert = true
@@ -70,10 +83,27 @@ struct FileDetailView: View {
             )
             vm.setupAudioPlayer()
             vm.loadSavedData()
+            selectedTab = preferredInitialTab(for: vm)
             viewModel = vm
         }
         .onDisappear {
             viewModel?.cleanup()
+        }
+        .sheet(isPresented: $showAskAI) {
+            AskAIView(scope: .file(fileId: audioFile.id))
+        }
+        .onChange(of: selectedPhotoItems) { _, newItems in
+            guard let vm = viewModel, !newItems.isEmpty else { return }
+            Task {
+                for item in newItems {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        await vm.importPhoto(from: data)
+                    }
+                }
+                await MainActor.run {
+                    selectedPhotoItems = []
+                }
+            }
         }
     }
 
@@ -83,94 +113,15 @@ struct FileDetailView: View {
     private func mainContent(vm: FileDetailViewModel) -> some View {
         ScrollView {
             VStack(spacing: MemoraSpacing.xxl) {
-                Spacer()
-                    .frame(height: MemoraSpacing.xxl)
-
-                // 音声波形イメージ
-                Image(systemName: "waveform")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 120, height: 120)
-                    .foregroundStyle(MemoraColor.textSecondary)
-
-                // タイトル
-                Text(audioFile.title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-
-                // メタデータ
-                HStack(spacing: MemoraSpacing.xxl) {
-                    Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
-                    Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-                Divider()
-                    .padding(.horizontal)
-
-                // プレイヤーコントロール
+                headerSection(vm: vm)
                 playerControls(vm: vm)
-
-                Divider()
-                    .padding(.horizontal)
-
-                // 参照文字起こし（Plaud）
-                if let refTranscript = audioFile.referenceTranscript, !refTranscript.isEmpty {
-                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-                        HStack {
-                            Image(systemName: "doc.text")
-                                .foregroundStyle(MemoraColor.accentBlue)
-                            Text("参照文字起こし（Plaud）")
-                                .font(MemoraTypography.subheadline)
-                                .fontWeight(.semibold)
-                        }
-
-                        ScrollView {
-                            Text(refTranscript)
-                                .font(MemoraTypography.body)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .frame(maxHeight: 180)
-                        .padding(8)
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
-
-                        Text("Plaud 側で生成された文字起こしです。Memora の文字起こしとは独立しています。")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
-                }
-
-                // アクションボタン
-                actionButtons(vm: vm)
-
-                Spacer()
+                speakerRegistrationCard(vm: vm)
+                tabPicker
+                tabContent(vm: vm)
             }
-            .padding()
-        }
-        .navigationDestination(isPresented: Binding(
-            get: { vm.showTranscriptView },
-            set: { vm.showTranscriptView = $0 }
-        )) {
-            if let result = vm.transcriptResult {
-                TranscriptView(result: result)
-            } else {
-                Text("文字起こしデータがありません")
-            }
-        }
-        .navigationDestination(isPresented: Binding(
-            get: { vm.showSummaryView },
-            set: { vm.showSummaryView = $0 }
-        )) {
-            if let result = vm.summaryResult {
-                SummaryView(result: result)
-            } else {
-                Text("要約データがありません")
-            }
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.top, MemoraSpacing.xxl)
+            .padding(.bottom, MemoraSpacing.xxxl)
         }
         .sheet(isPresented: Binding(
             get: { vm.showGenerationFlow },
@@ -231,6 +182,28 @@ struct FileDetailView: View {
         }
     }
 
+    private func headerSection(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.lg) {
+            Image(systemName: "waveform")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 96, height: 96)
+                .foregroundStyle(MemoraColor.textSecondary)
+
+            Text(audioFile.title)
+                .font(MemoraTypography.title2)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: MemoraSpacing.xxl) {
+                Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
+                Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
+            }
+            .font(MemoraTypography.subheadline)
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     // MARK: - Player Controls
 
     @ViewBuilder
@@ -282,130 +255,539 @@ struct FileDetailView: View {
             }
         }
         .padding(.vertical, MemoraSpacing.xxl)
+        .frame(maxWidth: .infinity)
+        .background(MemoraColor.surfaceSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
     }
 
-    // MARK: - Action Buttons
-
-    @ViewBuilder
-    private func actionButtons(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            // 文字起こし
-            if vm.isTranscribing {
-                VStack(spacing: MemoraSpacing.lg) {
-                    ProgressView(value: vm.transcriptionProgress)
-                        .tint(MemoraColor.textSecondary)
-                    Text("文字起こし中... \(Int(vm.transcriptionProgress * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(MemoraColor.divider.opacity(0.1))
-                .cornerRadius(MemoraRadius.md)
-            } else if vm.transcriptResult != nil {
-                Button(action: { vm.showTranscriptView = true }) {
-                    Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            } else if audioFile.isTranscribed {
-                Button(action: { vm.showTranscriptView = true }) {
-                    Label("文字起こし結果を表示", systemImage: "text.alignleft")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            } else {
-                Button(action: { vm.startTranscription() }) {
-                    Label("文字起こし", systemImage: "text.alignleft")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            }
-
-            // 要約
-            if vm.isSummarizing {
-                VStack(spacing: MemoraSpacing.lg) {
-                    ProgressView(value: vm.summarizationProgress)
-                        .tint(MemoraColor.textSecondary)
-                    Text("要約中... \(Int(vm.summarizationProgress * 100))%")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(MemoraColor.divider.opacity(0.1))
-                .cornerRadius(MemoraRadius.md)
-            } else if vm.summaryResult != nil {
-                Button(action: { vm.showSummaryView = true }) {
-                    Label("要約結果を表示", systemImage: "text.quote")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            } else if audioFile.isSummarized {
-                Button(action: { vm.showSummaryView = true }) {
-                    Label("要約結果を表示", systemImage: "text.quote")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            } else if vm.transcriptResult != nil || audioFile.isTranscribed {
-                Button(action: { vm.showGenerationFlow = true }) {
-                    Label("生成", systemImage: "text.quote")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
-            } else {
-                Button(action: {}) {
-                    Label("要約", systemImage: "text.quote")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(MemoraColor.divider.opacity(0.05))
-                        .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.secondary)
-            }
-
-            // スピーカー登録
-            if vm.audioURL != nil {
-                Button(action: { vm.registerPrimarySpeakerSample() }) {
-                    VStack(spacing: 6) {
-                        Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
-                            .frame(maxWidth: .infinity)
-                        Text("1人だけが話している録音を使うと精度が安定します")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(MemoraColor.divider.opacity(0.08))
-                    .cornerRadius(MemoraRadius.md)
-                }
-                .foregroundStyle(.primary)
+    private var tabPicker: some View {
+        Picker("表示タブ", selection: $selectedTab) {
+            ForEach(FileDetailTab.allCases) { tab in
+                Text(tab.title).tag(tab)
             }
         }
-        .padding(.horizontal)
+        .pickerStyle(.segmented)
+    }
+
+    @ViewBuilder
+    private func tabContent(vm: FileDetailViewModel) -> some View {
+        switch selectedTab {
+        case .summary:
+            summaryTab(vm: vm)
+        case .transcript:
+            transcriptTab(vm: vm)
+        case .memo:
+            memoTab(vm: vm)
+        }
+    }
+
+    private func summaryTab(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.lg) {
+            if vm.isSummarizing {
+                progressCard(
+                    title: "要約を生成中",
+                    progress: vm.summarizationProgress,
+                    message: "要点とアクションアイテムを整理しています。"
+                )
+            } else if let result = vm.summaryResult {
+                SummaryContentView(result: result)
+            } else if audioFile.isSummarized {
+                placeholderCard(
+                    icon: "text.quote",
+                    title: "要約を読み込めませんでした",
+                    description: "保存済みデータの取得後に、このタブへ表示されます。"
+                )
+            } else if vm.transcriptResult != nil || audioFile.isTranscribed {
+                placeholderCard(
+                    icon: "sparkles.rectangle.stack",
+                    title: "要約をまだ作成していません",
+                    description: "文字起こしから要約を生成すると、ここに本文と重要ポイントが表示されます。",
+                    buttonTitle: "要約を生成",
+                    buttonAction: { vm.showGenerationFlow = true }
+                )
+            } else {
+                placeholderCard(
+                    icon: "text.quote",
+                    title: "先に文字起こしが必要です",
+                    description: "要約タブは文字起こし結果をもとに作成されます。まず Transcript タブで文字起こしを実行してください。"
+                )
+            }
+        }
+    }
+
+    private func transcriptTab(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.lg) {
+            if vm.isTranscribing {
+                progressCard(
+                    title: "文字起こしを実行中",
+                    progress: vm.transcriptionProgress,
+                    message: "音声を解析して、話者ごとのテキストを整えています。"
+                )
+            } else if let result = vm.transcriptResult {
+                TranscriptContentView(result: result)
+
+                if let reason = vm.fallbackReason, !reason.isEmpty {
+                    detailCard {
+                        HStack(spacing: MemoraSpacing.sm) {
+                            Image(systemName: "info.circle")
+                                .foregroundStyle(MemoraColor.accentBlue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("バックエンド: \(vm.activeBackend ?? "不明")")
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(.primary)
+                                Text(reason)
+                                    .font(MemoraTypography.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            } else if audioFile.isTranscribed {
+                placeholderCard(
+                    icon: "text.alignleft",
+                    title: "文字起こしを読み込めませんでした",
+                    description: "保存済みデータの取得後に、このタブへ全文を表示します。"
+                )
+            } else {
+                placeholderCard(
+                    icon: "waveform.badge.magnifyingglass",
+                    title: "文字起こしはまだありません",
+                    description: "録音を文字起こしすると、全文と話者セグメントをこのタブで確認できます。",
+                    buttonTitle: "文字起こしを開始",
+                    buttonAction: { vm.startTranscription() }
+                )
+            }
+
+            if let referenceTranscript = audioFile.referenceTranscript, !referenceTranscript.isEmpty {
+                detailCard {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                        Label("参照文字起こし（Plaud）", systemImage: "doc.text")
+                            .font(MemoraTypography.headline)
+                            .foregroundStyle(MemoraColor.accentBlue)
+
+                        Text(referenceTranscript)
+                            .font(MemoraTypography.body)
+                            .foregroundStyle(.primary)
+                            .lineSpacing(6)
+
+                        Text("Plaud 側で生成された文字起こしです。Memora の文字起こしとは独立しています。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func memoTab(vm: FileDetailViewModel) -> some View {
+        VStack(spacing: MemoraSpacing.lg) {
+            detailCard {
+                VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                            Label("Markdown メモ", systemImage: "square.and.pencil")
+                                .font(MemoraTypography.headline)
+                            Text("会議メモ、気づき、補足情報を Markdown で残せます。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button("保存") {
+                            vm.saveMemo()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!vm.memoHasUnsavedChanges)
+                    }
+
+                    TextEditor(text: Binding(
+                        get: { vm.memoDraft },
+                        set: { vm.updateMemoDraft($0) }
+                    ))
+                    .font(MemoraTypography.body)
+                    .frame(minHeight: 220)
+                    .padding(MemoraSpacing.sm)
+                    .background(MemoraColor.divider.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+                    .scrollContentBackground(.hidden)
+
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Circle()
+                            .fill(vm.memoHasUnsavedChanges ? MemoraColor.accentRed : MemoraColor.accentGreen)
+                            .frame(width: 8, height: 8)
+
+                        Text(memoStatusText(vm: vm))
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            detailCard {
+                VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                            Label("添付写真", systemImage: "photo.on.rectangle")
+                                .font(MemoraTypography.headline)
+                            Text("ホワイトボードや資料の写真をメモと一緒に残せます。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        PhotosPicker(
+                            selection: $selectedPhotoItems,
+                            maxSelectionCount: 10,
+                            matching: .images
+                        ) {
+                            Label("追加", systemImage: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    if vm.isImportingPhotos {
+                        ProgressView("写真を取り込み中...")
+                            .font(MemoraTypography.caption1)
+                    }
+
+                    if vm.photoAttachments.isEmpty {
+                        EmptyStateView(
+                            icon: "photo.badge.plus",
+                            title: "写真はまだありません",
+                            description: "資料やホワイトボードを追加すると、ここにギャラリー表示されます。"
+                        )
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: MemoraSpacing.sm) {
+                                ForEach(vm.photoAttachments, id: \.id) { attachment in
+                                    Button {
+                                        previewPhotoID = attachment.id
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+                                            memoThumbnail(for: attachment)
+                                                .frame(width: 132, height: 98)
+                                                .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+
+                                            Text(attachment.caption ?? "キャプションなし")
+                                                .font(MemoraTypography.caption1)
+                                                .foregroundStyle(MemoraColor.textPrimary)
+                                                .lineLimit(1)
+                                        }
+                                        .frame(width: 132, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, MemoraSpacing.xxs)
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { previewPhotoID != nil },
+                set: { if !$0 { previewPhotoID = nil } }
+            )
+        ) {
+            if let attachment = selectedPreviewAttachment(in: vm) {
+                PhotoAttachmentPreviewSheet(
+                    attachment: attachment,
+                    image: fullSizeImage(for: attachment),
+                    canMoveLeading: vm.canMovePhotoAttachment(attachment, towardLeading: true),
+                    canMoveTrailing: vm.canMovePhotoAttachment(attachment, towardLeading: false),
+                    onSaveCaption: { caption in
+                        vm.updatePhotoCaption(attachment, caption: caption)
+                    },
+                    onMoveLeading: {
+                        vm.movePhotoAttachment(attachment, towardLeading: true)
+                    },
+                    onMoveTrailing: {
+                        vm.movePhotoAttachment(attachment, towardLeading: false)
+                    },
+                    onDelete: {
+                        vm.deletePhotoAttachment(attachment)
+                        previewPhotoID = nil
+                    }
+                )
+            }
+        }
+    }
+
+    private func speakerRegistrationCard(vm: FileDetailViewModel) -> some View {
+        Group {
+            if vm.audioURL != nil {
+                detailCard {
+                    Button(action: { vm.registerPrimarySpeakerSample() }) {
+                        VStack(spacing: 6) {
+                            Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
+                                .frame(maxWidth: .infinity)
+                            Text("1人だけが話している録音を使うと精度が安定します")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.primary)
+                }
+            }
+        }
+    }
+
+    private func progressCard(title: String, progress: Double, message: String) -> some View {
+        detailCard {
+            VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                Text(title)
+                    .font(MemoraTypography.headline)
+
+                ProgressView(value: progress)
+                    .tint(MemoraColor.textSecondary)
+
+                Text("\(Int(progress * 100))%  \(message)")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func placeholderCard(
+        icon: String,
+        title: String,
+        description: String,
+        buttonTitle: String? = nil,
+        buttonAction: (() -> Void)? = nil
+    ) -> some View {
+        detailCard {
+            EmptyStateView(
+                icon: icon,
+                title: title,
+                description: description,
+                buttonTitle: buttonTitle,
+                buttonAction: buttonAction
+            )
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func detailCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(MemoraSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MemoraColor.surfaceSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+    }
+
+    private func preferredInitialTab(for vm: FileDetailViewModel) -> FileDetailTab {
+        if vm.summaryResult != nil || audioFile.isSummarized {
+            return .summary
+        }
+
+        if vm.transcriptResult != nil || audioFile.isTranscribed || !(audioFile.referenceTranscript?.isEmpty ?? true) {
+            return .transcript
+        }
+
+        return .memo
+    }
+}
+
+private extension FileDetailView {
+    func memoStatusText(vm: FileDetailViewModel) -> String {
+        if vm.memoHasUnsavedChanges {
+            return "未保存の変更があります"
+        }
+
+        if let updatedAt = vm.memoUpdatedAt {
+            return "最終保存: \(vm.formatDate(updatedAt))"
+        }
+
+        return "まだメモは保存されていません"
+    }
+
+    func selectedPreviewAttachment(in vm: FileDetailViewModel) -> PhotoAttachment? {
+        guard let previewPhotoID else { return nil }
+        return vm.photoAttachments.first { $0.id == previewPhotoID }
+    }
+
+    @ViewBuilder
+    func memoThumbnail(for attachment: PhotoAttachment) -> some View {
+        if let image = thumbnailImage(for: attachment) {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: MemoraRadius.md)
+                    .fill(MemoraColor.divider.opacity(0.16))
+                Image(systemName: "photo")
+                    .foregroundStyle(MemoraColor.textSecondary)
+            }
+        }
+    }
+
+    func thumbnailImage(for attachment: PhotoAttachment) -> UIImage? {
+        if let thumbnailPath = attachment.thumbnailPath,
+           let image = UIImage(contentsOfFile: thumbnailPath) {
+            return image
+        }
+
+        return UIImage(contentsOfFile: attachment.localPath)
+    }
+
+    func fullSizeImage(for attachment: PhotoAttachment) -> UIImage? {
+        UIImage(contentsOfFile: attachment.localPath)
+    }
+}
+
+struct PhotoAttachmentPreviewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let attachment: PhotoAttachment
+    let image: UIImage?
+    let canMoveLeading: Bool
+    let canMoveTrailing: Bool
+    let onSaveCaption: (String) -> Void
+    let onMoveLeading: () -> Void
+    let onMoveTrailing: () -> Void
+    let onDelete: () -> Void
+
+    @State private var captionText: String
+
+    init(
+        attachment: PhotoAttachment,
+        image: UIImage?,
+        canMoveLeading: Bool = false,
+        canMoveTrailing: Bool = false,
+        onSaveCaption: @escaping (String) -> Void,
+        onMoveLeading: @escaping () -> Void = {},
+        onMoveTrailing: @escaping () -> Void = {},
+        onDelete: @escaping () -> Void
+    ) {
+        self.attachment = attachment
+        self.image = image
+        self.canMoveLeading = canMoveLeading
+        self.canMoveTrailing = canMoveTrailing
+        self.onSaveCaption = onSaveCaption
+        self.onMoveLeading = onMoveLeading
+        self.onMoveTrailing = onMoveTrailing
+        self.onDelete = onDelete
+        _captionText = State(initialValue: attachment.caption ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: MemoraSpacing.lg) {
+                    Group {
+                        if let image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else {
+                            RoundedRectangle(cornerRadius: MemoraRadius.lg)
+                                .fill(MemoraColor.divider.opacity(0.16))
+                                .frame(height: 240)
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 32))
+                                        .foregroundStyle(MemoraColor.textSecondary)
+                                }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+
+                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                        Text("キャプション")
+                            .font(MemoraTypography.headline)
+
+                        TextField("写真の内容をメモ", text: $captionText, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+
+                        Text("追加日: \(formattedDate(attachment.createdAt))")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(MemoraSpacing.lg)
+            }
+            .navigationTitle("写真プレビュー")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("閉じる") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        onSaveCaption(captionText)
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .bottomBar) {
+                    HStack {
+                        Button {
+                            onMoveLeading()
+                        } label: {
+                            Label("前へ", systemImage: "arrow.left")
+                        }
+                        .disabled(!canMoveLeading)
+
+                        Button {
+                            onMoveTrailing()
+                        } label: {
+                            Label("次へ", systemImage: "arrow.right")
+                        }
+                        .disabled(!canMoveTrailing)
+
+                        Spacer()
+
+                        Button("削除", role: .destructive) {
+                            onDelete()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return formatter.string(from: date)
+    }
+}
+
+private enum FileDetailTab: String, CaseIterable, Identifiable {
+    case summary
+    case transcript
+    case memo
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .summary:
+            return "Summary"
+        case .transcript:
+            return "Transcript"
+        case .memo:
+            return "Memo"
+        }
     }
 }
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: AudioFile.self, configurations: config)
+    let container = try! ModelContainer(
+        for: AudioFile.self,
+        Transcript.self,
+        MeetingMemo.self,
+        PhotoAttachment.self,
+        configurations: config
+    )
 
     let audioFile = AudioFile(title: "テスト録音", audioURL: "")
     audioFile.duration = 120

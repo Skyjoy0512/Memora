@@ -12,6 +12,7 @@ struct HomeView: View {
     // 検索・フィルタリング用
     @State private var searchText = ""
     @State private var showFilterSheet = false
+    @State private var showAskAI = false
     @State private var filterTranscribed: Bool? = nil // nil=すべて, true=済み, false=未済み
     @State private var filterSummarized: Bool? = nil // nil=すべて, true=済み, false=未済み
     @State private var filterLifeLog: Bool? = nil // nil=すべて, true=ライフログのみ
@@ -155,11 +156,23 @@ struct HomeView: View {
             .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showAskAI = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                    }
+                }
+            }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView { savedAudioFile in
                     viewModel.loadAudioFiles()
                     selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
                 }
+            }
+            .sheet(isPresented: $showAskAI) {
+                AskAIView(scope: .global)
             }
             .navigationDestination(item: $selectedAudioFile) { file in
                 FileDetailView(audioFile: file)
