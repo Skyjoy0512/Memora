@@ -13,7 +13,7 @@
 
 ## Codex Lane
 - CO-01: BLOCKED_BY(CL-01 merge) → now unblocked
-- CO-02: TODO
+- CO-02: DONE → PR #50 (49 new smoke tests)
 - CO-03: BLOCKED_BY(CL-04)
 
 ## Notes
