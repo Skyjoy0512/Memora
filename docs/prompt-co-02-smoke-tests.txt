@@ -1,0 +1,157 @@
+あなたは Memora リポジトリの Claude Code 実行エージェントです。
+このセッションでは **CO-02: Launch Diagnostics / Smoke Tests** を完了させてください。
+
+# 0. 最初に読むファイル
+1. `CLAUDE.md`
+2. `docs/v1-product-design.md`
+3. `docs/agent-status-board.md`
+
+# 1. タスク概要
+- **Task ID**: CO-02
+- **Owner**: Codex（Claude Code セッションで代行）
+- **Priority**: P1
+- **Parallel lane**: Codex-S
+- **Depends on**: none
+
+# 2. 目的
+起動性能と STT preflight の破壊を早く検知する。
+今回のスプリントで実施した主要変更（CL-01〜CL-06）に対する regression test を追加する。
+
+# 3. 変更対象ファイル
+- `MemoraTests/Services/STTPreflightTests.swift`（新規作成）
+- `MemoraTests/Services/KnowledgeIndexingTests.swift`（既存、拡張）
+- `MemoraTests/FileDetailViewModelTests.swift`（既存、拡張）
+- `MemoraTests/Services/ProcessingJobTests.swift`（新規作成）
+
+### 変更しないファイル（絶対に触らない）
+- `Memora/Core/Services/STTService.swift`
+- `Memora/Core/Services/STTSupportTypes.swift`
+- `Memora/Core/Services/TranscriptionEngine.swift`
+- `Memora/Core/Networking/AIService.swift`
+- `Memora/App/MemoraApp.swift`
+- `Memora/App/ContentView.swift`
+- 全ての View / ViewModel / Model ファイル（テストのみ追加）
+
+# 4. 現状理解（コードから読み取った事実）
+
+## 既存テストの現状
+- `TestHelpers.swift` — `TestModelContainer` と `STTCoreTests` を含む
+  - **重要**: iOS 26.2 Simulator で SwiftData ModelContainer を複数作成すると EXC_BREAKPOINT が発生するバグあり
+  - そのため ModelContext を使ったテストは不可。@Model オブジェクトのプロパティテストのみ実行
+  - `STTCoreTests`: OnDeviceTranscriptionTimeoutError のエラーメッセージテスト2件
+- `FileDetailViewModelTests.swift` — formatDate/formatDuration/formatTime + 初期状態 + audioFile 保持テスト
+- `AudioFileTests.swift` / `TodoItemTests.swift` / `TranscriptTests.swift` — モデルのプロパティテスト
+- `KnowledgePipelineTests.swift` — KnowledgeIndexingService のテスト
+
+## テストの制約
+- **SwiftData ModelContext が使えない** — @Model オブジェクトの直接テストのみ可能
+- テストは `@Test` マクロ（Swift Testing）を使用
+- `@MainActor` が必要なテストには `@MainActor` を付与
+
+## テストすべき内容
+1. **STT preflight 関連**（CL-01）:
+   - `STTErrorMapper` のマッピングロジック
+   - `OnDeviceTranscriptionTimeoutError` のプロパティ（既存テストあり、拡張）
+   - `SpeechAnalyzerFeatureFlag` のデフォルト値
+   - `LocalTranscriptionError` のエラーメッセージ
+
+2. **KnowledgeIndexingService 静的メソッド**（CL-04 関連、既存インデックス）:
+   - `chunkText(_:targetLength:hardLimit:)` の分割ロジック
+   - `extractKeywords(from:limit:)` のキーワード抽出
+   - `normalizedIndexableText(_:)` の正規化
+   - ※ これらは `nonisolated static` メソッドなので ModelContext 不要
+
+3. **ProcessingJob モデル**（CL-06）:
+   - プロパティのデフォルト値（ModelContext 不要なら）
+   - `canRetry` ロジック（retryCount < maxRetries）
+   - ヘルパーメソッドの動作（markStarted, updateProgress, markCompleted, markFailed）
+
+4. **FileDetailViewModel**（CL-03）:
+   - 既存テストにタブ関連のテストを追加（selectedTab 等）
+
+# 5. 実装要件
+
+### STTPreflightTests（新規）
+1. `STTErrorMapper` の全ケースのマッピングテスト
+2. `LocalTranscriptionError` の各ケースの `errorDescription` テスト
+3. `SpeechAnalyzerFeatureFlag.isEnabled` のデフォルト値確認（テスト実行時に他テストと独立させる）
+4. `AIError` の各ケースのエラーメッセージテスト
+
+### KnowledgeIndexingTests（既存拡張）
+1. `KnowledgeIndexingService.chunkText` のテスト:
+   - 空文字 → 空配列
+   - 短い文字（targetLength 未満）→ 1要素
+   - 長い文字 → 複数要素に分割、各要素が hardLimit 以下
+   - 改行区切りのテキストの分割
+2. `KnowledgeIndexingService.extractKeywords` のテスト:
+   - 空文字 → 空配列
+   - 英語のキーワード抽出
+   - 日本語のキーワード抽出
+   - limit パラメータの動作確認
+3. `KnowledgeIndexingService.normalizedIndexableText` のテスト:
+   - nil → nil
+   - 空文字 → nil
+   - 正常テキスト → トリム済みテキスト
+
+### ProcessingJobTests（新規）
+※ SwiftData ModelContext が使えないため、@Model クラスの直接インスタンス化も制限がある。
+可能な範囲でテスト:
+1. `canRetry` のロジックテスト:
+   - retryCount=0, maxRetries=1 → true
+   - retryCount=1, maxRetries=1 → false
+   - retryCount=0, maxRetries=3 → true
+2. もし @Model の直接インスタンス化が不可の場合は、ロジックを static メソッドに切り出してテストする（ただし「ついでリファクタ」にあたるため、最小限に留める）
+
+### FileDetailViewModelTests（既存拡張）
+1. `FileDetailTab` enum のケース確認テスト:
+   - `.summary / .transcript / .memo` の3ケースが存在
+2. タブ表示に関連する ViewModel プロパティの確認テスト
+
+# 6. 受け入れ条件
+- 今回の主要変更に対する最低限の regression test が増える
+- 全テストが `swift test` または Xcode で通る
+- ModelContext を使わない（EXC_BREAKPOINT 回避）
+
+# 7. 実装方針（最小差分）
+
+### Step 1: STTPreflightTests 作成
+- `MemoraTests/Services/STTPreflightTests.swift` を新規作成
+- STTErrorMapper / LocalTranscriptionError / AIError / OpenAIError のテスト
+- SpeechAnalyzerFeatureFlag デフォルト値テスト（テスト間でリセットに注意）
+
+### Step 2: KnowledgeIndexingTests 拡張
+- `KnowledgePipelineTests.swift` に `chunkText / extractKeywords / normalizedIndexableText` のテストを追加
+- または `KnowledgeIndexingStaticTests` を同ファイルに追加
+
+### Step 3: ProcessingJobTests 作成
+- `MemoraTests/Services/ProcessingJobTests.swift` を新規作成
+- canRetry ロジックのテスト（@Model インスタンス化が可能か確認しつつ）
+
+### Step 4: FileDetailViewModelTests 拡張
+- FileDetailTab enum のケーステストを追加
+
+# 8. 検証
+- `xcodebuild -project Memora.xcodeproj -scheme Memora -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.0' test`
+- または `xcodebuild build` 後にテストを実行
+- 失敗したら原因・回避策を書く
+
+# 9. 完了時の出力形式
+以下の順で日本語で報告:
+- 変更概要
+- 変更ファイル一覧
+- 実装した理由
+- 検証結果（テスト件数・全通過/失敗）
+- 未確認事項
+- 次に Claude が取るべき READY task
+
+# 10. ブランチ・PR
+- ブランチ: `feat/co-02-smoke-tests`
+- コミットメッセージ: `test: add smoke tests for STT preflight, KnowledgeIndexing, ProcessingJob (CO-02)`
+- PR 作成後、`docs/agent-status-board.md` の CO-02 を DONE に更新
+
+# 11. 禁止事項
+- broad rewrite 禁止
+- 依頼範囲外のついでリファクタ禁止
+- `main` への直接 push 禁止
+- STT コアファイルへの変更禁止
+- SwiftData ModelContext を使用するテストの作成禁止（EXC_BREAKPOINT バグ）

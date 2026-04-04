@@ -1,0 +1,112 @@
+あなたは Memora リポジトリの Claude Code 実行エージェントです。
+このセッションでは **CL-03: File Detail Tab Architecture** を完了させてください。
+
+# 0. 最初に読むファイル
+1. `CLAUDE.md`
+2. `docs/v1-product-design.md`
+3. `docs/agent-status-board.md`
+
+# 1. タスク概要
+- **Task ID**: CL-03
+- **Owner**: Claude
+- **Priority**: P1
+- **Parallel lane**: Claude-C
+- **Depends on**: none（CL-01, CL-02 とファイル衝突なし）
+
+# 2. 目的
+録音ファイル詳細を PLAUD Note 的な常設タブ体験に寄せる。
+Summary / Transcript / Memo を同一ページ内で即時切り替え可能にする。
+
+# 3. 変更対象ファイル
+- `Memora/Views/FileDetailView.swift` — タブ UI の常設化、ボタン遷移の削減
+- `Memora/Core/ViewModels/FileDetailViewModel.swift` — タブ状態管理（必要最小限）
+
+### 変更しないファイル（絶対に触らない）
+- `Memora/Core/Services/STTService.swift`
+- `Memora/Core/Services/STTSupportTypes.swift`
+- `Memora/Core/Services/TranscriptionEngine.swift`
+- `Memora/Core/Networking/AIService.swift`
+- `Memora/App/MemoraApp.swift`
+- `Memora/App/ContentView.swift`
+- `Memora/Core/Models/ProcessingJob.swift`
+- `Memora/Core/Services/PipelineCoordinator.swift`
+
+# 4. 現状理解（コードから読み取った事実）
+
+## FileDetailView.swift の現状
+- **既にタブ実装が存在する**:
+  - `FileDetailTab` enum: `.summary / .transcript / .memo`（line 763-780）
+  - `@State private var selectedTab: FileDetailTab = .summary`（line 16）
+  - `tabPicker` — `.segmented` Picker（line 263-269）
+  - `tabContent(vm:)` — switch で各タブを切り替え（line 272-282）
+- 各タブの中身も実装済み:
+  - `summaryTab` — 要約結果 or プレースホルダー（line 284-316）
+  - `transcriptTab` — 文字起こし結果 or プレースホルダー + fallback diagnostic card（line 318-379）
+  - `memoTab` — TextEditor + photo strip + save button（line 382-518）
+- `preferredInitialTab(for:)` で初期タブを決定（line 584-594）
+- 音声プレイヤー、スピーカー登録カードはタブの外にある
+
+## FileDetailViewModel.swift の現状
+- `@Observable` + `@MainActor`
+- `transcriptResult / summaryResult / memoDraft` 等の状態管理
+- `startTranscription() / startSummarization() / saveMemo()` 等のアクション
+- `handleTranscriptionPipelineEvent / handleSummarizationPipelineEvent` で進捗・結果更新
+- STT backend diagnostics: `activeBackend / fallbackReason`
+
+# 5. 現状評価
+**FileDetailView は既に Summary / Transcript / Memo のタブ切り替えを実装済み**。
+
+受け入れ条件を再確認:
+1. ✅ FileDetail で Summary / Transcript / Memo を即時切り替えできる → **既に実装済み**
+2. ⚠️ memo 保存・未保存検知・index 更新が維持される → **実装済み**。`memoHasUnsavedChanges` / `saveMemo()` / `persistPendingMemoIfNeeded()` / `knowledgeIndexingService.rebuildIndex` が全て動く
+3. ⚠️ 画面遷移の往復が減る → **既にタブ内で完結している**
+
+# 6. 実装方針
+このタスクは **大部分が実装済み**。残存する改善点を確認し、あれば最小差分で対応:
+
+1. **確認すべき点**:
+   - `showTranscriptView` / `showSummaryView` プロパティが ViewModel に存在するが使われていないか？ → 使われていれば削除またはタブ切り替えに置換
+   - `GenerationFlowSheet` の起動方法がタブ内から可能か → `vm.showGenerationFlow = true` で summaryTab からボタンで起動可能
+   - 要約未実行時に「文字起こし結果を表示」「要約結果を表示」のような別画面遷移ボタンが残っていないか
+
+2. **改善が必要な場合**:
+   - 要約生成フローのトリガーを summaryTab 内に統合（既にボタンあり）
+   - 文字起こし開始トリガーを transcriptTab 内に統合（既にボタンあり）
+   - ViewModel の `showTranscriptView / showSummaryView` が未使用なら削除
+
+3. **受け入れ条件を満たす最小差分**:
+   - タブ UI が常設で機能している → ✅
+   - memo の autosave / index rebuild が壊れていない → ✅
+   - 画面遷移の往復が減っている → ✅
+
+**結論**: 現状で受け入れ条件を満たしている場合は、CL-03 を DONE とマークし、改善点があれば最小差分で追加する。
+
+# 7. 受け入れ条件
+- FileDetail で Summary / Transcript / Memo を即時切り替えできる
+- memo 保存・未保存検知・index 更新が維持される
+- 画面遷移の往復が減る
+
+# 8. 検証
+- `xcodebuild -project Memora.xcodeproj -scheme Memora -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.0' build`
+- 失敗したら原因・回避策を書く
+
+# 9. 完了時の出力形式
+以下の順で日本語で報告:
+- 変更概要（または「既に実装済み、追加変更なし」）
+- 変更ファイル一覧（変更なしなら空）
+- 実装した理由
+- 検証結果
+- 未確認事項
+- 次に Claude が取るべき READY task
+
+# 10. ブランチ・PR
+- ブランチ: `feat/cl-03-file-detail-tabs`
+- コミットメッセージ: `refactor: verify file detail tab architecture meets acceptance criteria (CL-03)`
+- PR 作成後、`docs/agent-status-board.md` の CL-03 を DONE に更新
+- **変更がない場合でも** status board を更新し、PR で現状報告を行う
+
+# 11. 禁止事項
+- broad rewrite 禁止
+- 依頼範囲外のついでリファクタ禁止
+- `main` への直接 push 禁止
+- STT コアファイルへの変更禁止
