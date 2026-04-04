@@ -69,7 +69,9 @@ struct MemoraApp: App {
                 }
                 guard !hasStartedInitialLoad else { return }
                 hasStartedInitialLoad = true
+                DebugLogger.shared.markLaunchStep("loadModelContainer 開始")
                 await loadModelContainer()
+                DebugLogger.shared.markLaunchStep("loadModelContainer 完了")
             }
             .sheet(isPresented: $showDebugLog) {
                 NavigationStack {
@@ -204,25 +206,32 @@ struct MemoraApp: App {
         DebugLogger.shared.addLog("ModelContainer", "\(storeMode) 初期化開始", level: .info)
 
         let loadTask = Task.detached(priority: .userInitiated) { () -> Result<(container: ModelContainer, recovered: Bool), Error> in
+            DebugLogger.shared.markLaunchStep("Task.detached: ModelContainer 生成開始")
             do {
-                return Result.success((try Self.createModelContainer(resetStore: resetStore, inMemoryOnly: useInMemoryStore), false))
+                let container = try Self.createModelContainer(resetStore: resetStore, inMemoryOnly: useInMemoryStore)
+                DebugLogger.shared.markLaunchStep("Task.detached: ModelContainer 生成成功")
+                return Result.success((container, false))
             } catch {
                 guard !resetStore, !useInMemoryStore else {
                     return Result.failure(error)
                 }
 
                 do {
-                    return Result.success((try Self.createModelContainer(resetStore: true), true))
+                    let container = try Self.createModelContainer(resetStore: true)
+                    DebugLogger.shared.markLaunchStep("Task.detached: ModelContainer リセット生成成功")
+                    return Result.success((container, true))
                 } catch {
                     return Result.failure(error)
                 }
             }
         }
 
+        DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 開始")
         let outcome = await Self.awaitModelContainerOutcome(
             from: loadTask,
             timeoutNanoseconds: useInMemoryStore ? nil : 5_000_000_000
         )
+        DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 完了")
 
         let shouldApplyResult = await MainActor.run {
             loadAttemptToken == attemptToken
@@ -265,10 +274,12 @@ struct MemoraApp: App {
             loadTask.cancel()
             DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（5秒）", level: .warning)
             DebugLogger.shared.addLog("ModelContainer", "永続ストアを諦めて一時ストアへフォールバックします", level: .warning)
+            DebugLogger.shared.markLaunchStep("タイムアウト → 一時ストアフォールバック開始")
 
             let fallbackResult = await Task.detached(priority: .userInitiated) {
                 Result { try Self.createModelContainer(inMemoryOnly: true) }
             }.value
+            DebugLogger.shared.markLaunchStep("一時ストアフォールバック完了")
 
             switch fallbackResult {
             case .success(let fallbackContainer):

@@ -33,6 +33,13 @@ final class DebugLogger: ObservableObject {
         addLog("App", "起動完了 (\(String(format: "%.2f", duration))秒)", level: .info)
     }
 
+    /// 起動中の任意ステップを計測
+    func markLaunchStep(_ label: String) {
+        guard let start = appStartTime else { return }
+        let duration = Date().timeIntervalSince(start)
+        addLog("LaunchTiming", "\(label) (\(String(format: "%.3f", duration))秒)", level: .info)
+    }
+
     /// 一般ログ追加
     func addLog(_ category: String, _ message: String, level: LogLevel = .info) {
         let entry = DebugLogEntry(
