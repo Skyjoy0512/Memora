@@ -63,8 +63,6 @@ struct FileDetailViewModelTests {
         #expect(vm.showErrorAlert == false)
         #expect(vm.successMessage == nil)
         #expect(vm.showSuccessAlert == false)
-        #expect(vm.showTranscriptView == false)
-        #expect(vm.showSummaryView == false)
         #expect(vm.showShareSheet == false)
         #expect(vm.showGenerationFlow == false)
         #expect(vm.showDeleteAlert == false)

@@ -37,8 +37,6 @@ final class FileDetailViewModel {
     var showSuccessAlert = false
 
     // MARK: - Navigation
-    var showTranscriptView = false
-    var showSummaryView = false
     var showShareSheet = false
     var showGenerationFlow = false
     var showDeleteAlert = false
