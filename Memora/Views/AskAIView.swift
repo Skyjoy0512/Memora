@@ -12,6 +12,8 @@ struct AskAIView: View {
 
     let scope: ChatScope
 
+    @State private var queryService: KnowledgeQueryService?
+
     @State private var activeScope: ChatScope
     @State private var availableScopes: [AskAIScopeOption] = []
     @State private var sessions: [AskAISession] = []
@@ -90,6 +92,7 @@ struct AskAIView: View {
             }
         }
         .task {
+            queryService = KnowledgeQueryService(modelContext: modelContext, memoryPrivacyMode: memoryPrivacyMode)
             reloadScopeOptions()
             reloadForActiveScope()
         }
@@ -351,7 +354,13 @@ struct AskAIView: View {
     }
 
     private func reloadForActiveScope() {
-        sourceBadges = buildContextPack(for: activeScope).sourceBadges
+        if let qs = queryService {
+            sourceBadges = qs.buildContext(for: activeScope).sourceBadges.map {
+                AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)
+            }
+        } else {
+            sourceBadges = buildContextPack(for: activeScope).sourceBadges
+        }
         let scopedSessions = fetchSessions(for: activeScope)
         sessions = scopedSessions
 
@@ -423,17 +432,34 @@ struct AskAIView: View {
 
             try await service.configure(apiKey: apiKey)
 
-            let contextPack = buildContextPack(for: activeScope)
-            sourceBadges = contextPack.sourceBadges
+            let qsContext = queryService?.buildContext(for: activeScope)
+            let localContext = buildContextPack(for: activeScope)
 
-            let prompt = makePrompt(userMessage: userMessage, contextPack: contextPack)
+            sourceBadges = qsContext?.sourceBadges.map {
+                AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)
+            } ?? localContext.sourceBadges
+
+            let prompt: String
+            if let qs = queryService, let qsContext {
+                prompt = qs.makePrompt(userMessage: userMessage, contextPack: qsContext)
+            } else {
+                prompt = makePrompt(userMessage: userMessage, contextPack: localContext)
+            }
             let result = try await service.summarize(transcript: prompt)
             let responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let citations: [AskAICitation]
+            if let qsContext {
+                citations = Array(qsContext.citations.map {
+                    AskAICitation(id: $0.id, title: $0.title, sourceLabel: $0.sourceLabel, excerpt: $0.excerpt)
+                }.prefix(4))
+            } else {
+                citations = Array(localContext.citations.prefix(4))
+            }
             let assistantMessage = AskAIConversationMessage(
                 id: UUID(),
                 role: .assistant,
                 content: responseText.isEmpty ? "回答を生成できませんでした。" : responseText,
-                citations: Array(contextPack.citations.prefix(4)),
+                citations: citations,
                 createdAt: Date()
             )
 
