@@ -64,6 +64,10 @@ final class FileDetailViewModel {
     var activeBackend: String?
     var fallbackReason: String?
 
+    // MARK: - Retry State
+    @ObservationIgnored
+    private(set) var lastFailedJob: ProcessingJob?
+
     // Timers
     private var playbackTimer: Timer?
     private var progressTimer: Timer?
@@ -632,6 +636,7 @@ final class FileDetailViewModel {
             DebugLogger.shared.addLog("FileDetailVM", "文字起こしエラー: \(error.localizedDescription)", level: .error)
             stopProgressTracking()
             updateBackendDiagnostics()
+            recordFailedJob(jobType: "transcription")
             errorMessage = userFacingTranscriptionErrorMessage(for: error)
             showErrorAlert = true
             pipelineObservationTask = nil
@@ -665,6 +670,7 @@ final class FileDetailViewModel {
         case .failed(_, let error):
             stopProgressTracking()
             isSummarizing = false
+            recordFailedJob(jobType: "summary")
             errorMessage = "要約エラー: \(error.localizedDescription)"
             showErrorAlert = true
             pipelineObservationTask = nil
@@ -673,6 +679,34 @@ final class FileDetailViewModel {
              .chunkProgress:
             break
         }
+    }
+
+    // MARK: - Retry
+
+    func retryLastFailedJob() {
+        guard let job = lastFailedJob, job.canRetry else { return }
+        job.retryCount += 1
+        try? modelContext.save()
+        lastFailedJob = nil
+
+        switch job.jobType {
+        case "transcription":
+            startTranscription()
+        case "summary":
+            startSummarization()
+        default:
+            break
+        }
+    }
+
+    private func recordFailedJob(jobType: String) {
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<ProcessingJob>(
+            predicate: #Predicate { $0.audioFileID == targetID && $0.status == "failed" }
+        )
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+        descriptor.fetchLimit = 1
+        lastFailedJob = try? modelContext.fetch(descriptor).first
     }
 
     private func updateBackendDiagnostics() {

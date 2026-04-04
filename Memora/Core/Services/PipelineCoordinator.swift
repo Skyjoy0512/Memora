@@ -49,6 +49,10 @@ final class PipelineCoordinator {
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
             let task = Task { @MainActor in
+                let job = ProcessingJob(audioFileID: audioFile.id, jobType: "full")
+                modelContext.insert(job)
+                try? modelContext.save()
+
                 do {
                     let transcriptResult = try await executeTranscription(
                         audioURL: audioURL,
@@ -56,10 +60,12 @@ final class PipelineCoordinator {
                         apiKey: apiKey,
                         provider: provider,
                         transcriptionMode: transcriptionMode,
-                        continuation: continuation
+                        continuation: continuation,
+                        job: job
                     )
 
                     // --- Step 4: Summary ---
+                    job.updateProgress(0.5, stage: PipelineStep.generatingSummary.rawValue)
                     continuation.yield(.stepStarted(.generatingSummary))
 
                     try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
@@ -79,6 +85,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.generatingSummary))
 
                     // --- Step 5: Save Summary ---
+                    job.updateProgress(0.7, stage: PipelineStep.extractingMetadata.rawValue)
                     continuation.yield(.stepStarted(.extractingMetadata))
 
                     audioFile.isSummarized = true
@@ -92,6 +99,7 @@ final class PipelineCoordinator {
 
                     // --- Step 6: Extract Todos (AI Task Planner) ---
                     if config.autoCreateTodos {
+                        job.updateProgress(0.8, stage: PipelineStep.extractingTodos.rawValue)
                         continuation.yield(.stepStarted(.extractingTodos))
 
                         let planner = TaskPlannerService()
@@ -116,6 +124,7 @@ final class PipelineCoordinator {
                     }
 
                     // --- Step 7: Finalize ---
+                    job.updateProgress(0.95, stage: PipelineStep.finalizing.rawValue)
                     continuation.yield(.stepStarted(.finalizing))
 
                     // Webhook 送信
@@ -126,11 +135,17 @@ final class PipelineCoordinator {
                     )
 
                     continuation.yield(.stepCompleted(.finalizing))
+
+                    job.markCompleted()
+                    try? modelContext.save()
                     continuation.yield(.completed)
 
                 } catch is CancellationError {
+                    job.markFailed("Cancelled", stage: job.stage)
+                    try? modelContext.save()
                 } catch {
-                    // 現在実行中のステップを特定してエラー通知
+                    job.markFailed(error.localizedDescription, stage: job.stage)
+                    try? modelContext.save()
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
@@ -158,6 +173,10 @@ final class PipelineCoordinator {
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
             let task = Task { @MainActor in
+                let job = ProcessingJob(audioFileID: audioFile.id, jobType: "transcription")
+                modelContext.insert(job)
+                try? modelContext.save()
+
                 do {
                     let transcriptResult = try await executeTranscription(
                         audioURL: audioURL,
@@ -165,9 +184,11 @@ final class PipelineCoordinator {
                         apiKey: apiKey,
                         provider: provider,
                         transcriptionMode: transcriptionMode,
-                        continuation: continuation
+                        continuation: continuation,
+                        job: job
                     )
 
+                    job.updateProgress(0.95, stage: PipelineStep.finalizing.rawValue)
                     continuation.yield(.stepStarted(.finalizing))
 
                     await sendWebhooks(
@@ -177,9 +198,16 @@ final class PipelineCoordinator {
                     )
 
                     continuation.yield(.stepCompleted(.finalizing))
+
+                    job.markCompleted()
+                    try? modelContext.save()
                     continuation.yield(.completed)
                 } catch is CancellationError {
+                    job.markFailed("Cancelled", stage: job.stage)
+                    try? modelContext.save()
                 } catch {
+                    job.markFailed(error.localizedDescription, stage: job.stage)
+                    try? modelContext.save()
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
@@ -208,6 +236,11 @@ final class PipelineCoordinator {
     ) -> AsyncStream<PipelineEvent> {
         AsyncStream { continuation in
             let task = Task { @MainActor in
+                let job = ProcessingJob(audioFileID: audioFile.id, jobType: "summary")
+                job.markStarted(stage: PipelineStep.generatingSummary.rawValue)
+                modelContext.insert(job)
+                try? modelContext.save()
+
                 do {
                     // Configure
                     try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
@@ -230,6 +263,7 @@ final class PipelineCoordinator {
                     continuation.yield(.stepCompleted(.generatingSummary))
 
                     // Save
+                    job.updateProgress(0.7, stage: PipelineStep.extractingMetadata.rawValue)
                     continuation.yield(.stepStarted(.extractingMetadata))
 
                     audioFile.isSummarized = true
@@ -243,6 +277,7 @@ final class PipelineCoordinator {
 
                     // Todos
                     if config.autoCreateTodos {
+                        job.updateProgress(0.85, stage: PipelineStep.extractingTodos.rawValue)
                         continuation.yield(.stepStarted(.extractingTodos))
 
                         summarizationEngine.createTodoItems(
@@ -256,6 +291,7 @@ final class PipelineCoordinator {
                     }
 
                     // Finalize
+                    job.updateProgress(0.95, stage: PipelineStep.finalizing.rawValue)
                     continuation.yield(.stepStarted(.finalizing))
 
                     await sendWebhooks(
@@ -265,10 +301,17 @@ final class PipelineCoordinator {
                     )
 
                     continuation.yield(.stepCompleted(.finalizing))
+
+                    job.markCompleted()
+                    try? modelContext.save()
                     continuation.yield(.completed)
 
                 } catch is CancellationError {
+                    job.markFailed("Cancelled", stage: job.stage)
+                    try? modelContext.save()
                 } catch {
+                    job.markFailed(error.localizedDescription, stage: job.stage)
+                    try? modelContext.save()
                     continuation.yield(.failed(step: .generatingSummary, error: CoreError.summaryError(.generationFailed(error.localizedDescription))))
                 }
 
@@ -289,9 +332,11 @@ final class PipelineCoordinator {
         apiKey: String,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode,
-        continuation: AsyncStream<PipelineEvent>.Continuation
+        continuation: AsyncStream<PipelineEvent>.Continuation,
+        job: ProcessingJob
     ) async throws -> TranscriptResult {
         DebugLogger.shared.addLog("Pipeline", "executeTranscription 開始", level: .info)
+        job.markStarted(stage: PipelineStep.loadingAudio.rawValue)
         continuation.yield(.stepStarted(.loadingAudio))
 
         try await transcriptionEngine.configure(
@@ -302,12 +347,14 @@ final class PipelineCoordinator {
 
         continuation.yield(.stepCompleted(.loadingAudio))
 
+        job.updateProgress(0.1, stage: PipelineStep.transcribing.rawValue)
         continuation.yield(.stepStarted(.transcribing))
         DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し", level: .info)
         let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
         DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 完了 — text length: \(transcriptResult.text.count)", level: .info)
         continuation.yield(.stepCompleted(.transcribing))
 
+        job.updateProgress(0.6, stage: PipelineStep.mergingTranscripts.rawValue)
         continuation.yield(.stepStarted(.mergingTranscripts))
 
         let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
