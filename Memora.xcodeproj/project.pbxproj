@@ -82,6 +82,8 @@
 		A4E00A26603C9F64B5568FE8 /* ToDoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700A6211D2AFD1801C9B1EB5 /* ToDoView.swift */; };
 		A979D543A59F91F4D062DAA0 /* FABMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19286A2C8501408A34BE2FFE /* FABMenu.swift */; };
 		AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */; };
+		DF52AD1A41B64D129531AA43 /* STTPreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF52AD1A41B64D129531AA42 /* STTPreflightTests.swift */; };
+		8DF480449FF44E9DBBE84630 /* ProcessingJobTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DF480449FF44E9DBBE84629 /* ProcessingJobTests.swift */; };
 		AA7994718C7BFD958D77F23E /* BottomFloatingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 478C272ADA83E135F09E4B9A /* BottomFloatingBar.swift */; };
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
 		B3BA6CB64AB933B8260FAFF8 /* GoogleMeetSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414C610C6D0E54B950FAB362 /* GoogleMeetSettings.swift */; };
@@ -200,6 +202,8 @@
 		A9B326B618C8C1EE53C70ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		ABE468754017ED390E23EDFE /* BluetoothAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothAudioService.swift; sourceTree = "<group>"; };
 		AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgePipelineTests.swift; sourceTree = "<group>"; };
+		DF52AD1A41B64D129531AA42 /* STTPreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTPreflightTests.swift; sourceTree = "<group>"; };
+		8DF480449FF44E9DBBE84629 /* ProcessingJobTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJobTests.swift; sourceTree = "<group>"; };
 		AE8F49CB7EC9028D7A3E6D4F /* CreateProjectViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectViewModelTests.swift; sourceTree = "<group>"; };
 		AFAE9CD0723E38AB21228D1E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
@@ -439,6 +443,8 @@
 			children = (
 				AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */,
 				855C85865B09046C10B73313 /* OpenAIExportServiceTests.swift */,
+				DF52AD1A41B64D129531AA42 /* STTPreflightTests.swift */,
+				8DF480449FF44E9DBBE84629 /* ProcessingJobTests.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -617,6 +623,8 @@
 				A4D5B536984B05B400C1748D /* HomeViewModelTests.swift in Sources */,
 				AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */,
 				D883A6572307EB3C8854848C /* OpenAIExportServiceTests.swift in Sources */,
+				DF52AD1A41B64D129531AA43 /* STTPreflightTests.swift in Sources */,
+				8DF480449FF44E9DBBE84630 /* ProcessingJobTests.swift in Sources */,
 				C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */,
 				BFDFF0B53584B39B312F07AB /* TestHelpers.swift in Sources */,
 				CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */,
