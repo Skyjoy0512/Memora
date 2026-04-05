@@ -12,7 +12,6 @@ struct ContentView: View {
     @State private var isExpanded: Bool = false
     @State private var showRecording = false
     @State private var showFileImporter = false
-    @State private var showPlaudImporter = false
     @State private var importErrorMessage: String?
 
     var body: some View {
@@ -61,17 +60,10 @@ struct ContentView: View {
             .environmentObject(omiAdapter)
             .fileImporter(
                 isPresented: $showFileImporter,
-                allowedContentTypes: audioContentTypes,
-                allowsMultipleSelection: false
-            ) { result in
-                handleImportResult(result)
-            }
-            .fileImporter(
-                isPresented: $showPlaudImporter,
-                allowedContentTypes: plaudContentTypes,
+                allowedContentTypes: importContentTypes,
                 allowsMultipleSelection: true
             ) { result in
-                handlePlaudImportResult(result)
+                handleImportResult(result)
             }
             .alert("インポートエラー", isPresented: Binding(
                 get: { importErrorMessage != nil },
@@ -104,27 +96,32 @@ struct ContentView: View {
             }
     }
 
-    // MARK: - Audio Content Types
-    private var audioContentTypes: [UTType] {
-        [.mpeg4Audio, .wav, .mp3, .aiff]
+    // MARK: - Import Content Types
+    private var importContentTypes: [UTType] {
+        [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText]
             .compactMap { $0 }
-    }
-
-    // MARK: - Plaud Content Types
-    private var plaudContentTypes: [UTType] {
-        var types: [UTType] = [.json, .plainText]
-        types += [.mpeg4Audio, .wav, .mp3].compactMap { $0 }
-        return types
     }
 
     // MARK: - Import Handling
     private func handleImportResult(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let url = urls.first else { return }
-            importAudioFile(from: url)
+            guard !urls.isEmpty else { return }
+            let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "aiff", "aac"]
+            let plaudURLs = urls.filter { !audioExtensions.contains($0.pathExtension.lowercased()) }
+            let audioURLs = urls.filter { audioExtensions.contains($0.pathExtension.lowercased()) }
+
+            // 音声ファイルは通常インポート
+            for url in audioURLs {
+                importAudioFile(from: url)
+            }
+
+            // Plaud 系ファイル（JSON/TXT等）は Plaud 処理
+            if !plaudURLs.isEmpty {
+                importPlaudFiles(plaudURLs)
+            }
         case .failure(let error):
-            presentImportError(prefix: "音声ファイルの選択に失敗しました", error: error)
+            presentImportError(prefix: "ファイルの選択に失敗しました", error: error)
         }
     }
 
@@ -156,16 +153,6 @@ struct ContentView: View {
     }
 
     // MARK: - Plaud Import Handling
-    private func handlePlaudImportResult(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard !urls.isEmpty else { return }
-            importPlaudFiles(urls)
-        case .failure(let error):
-            presentImportError(prefix: "Plaud ファイルの選択に失敗しました", error: error)
-        }
-    }
-
     private func importPlaudFiles(_ urls: [URL]) {
         let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "aiff", "aac"]
         let metadataExtensions: Set<String> = ["json"]
@@ -365,14 +352,6 @@ struct ContentView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     showFileImporter = true
-                }
-            }
-            ActionGridButton(icon: "doc.badge.plus", title: "Plaud") {
-                withAnimation(.bouncy(duration: 0.5, extraBounce: 0.05)) {
-                    isExpanded = false
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    showPlaudImporter = true
                 }
             }
         }
