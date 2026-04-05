@@ -365,4 +365,117 @@ struct KnowledgeQueryServiceTests {
             #expect(highRange.lowerBound < lowRange.lowerBound)
         }
     }
+
+    // MARK: - Memory Context Reflection
+
+    @Test("MemoryProfile がある時、instructionHints に設定が含まれる")
+    func memoryProfileInHints() {
+        let ctx = makeContext()
+        let profile = MemoryProfile(
+            summaryStyle: "箇条書き",
+            preferredLanguage: "日本語",
+            roleLabel: "プロジェクトマネージャー",
+            glossaryJSON: "{\"Sprint\":\"開発区間\"}"
+        )
+        ctx.insert(profile)
+        try? ctx.save()
+
+        let service = makeService(context: ctx)
+        let pack = service.buildContext(for: .global)
+
+        #expect(pack.instructionHints.contains(where: { $0.contains("preferred language") }))
+        #expect(pack.instructionHints.contains(where: { $0.contains("summary style") }))
+        #expect(pack.instructionHints.contains(where: { $0.contains("user role") }))
+    }
+
+    @Test("MemoryFact がある時、promptContext に fact が含まれる")
+    func memoryFactsInContext() {
+        let ctx = makeContext()
+        let profile = MemoryProfile()
+        ctx.insert(profile)
+
+        let fact = MemoryFact(
+            profileID: profile.id,
+            key: "preferredLanguage",
+            value: "日本語で回答",
+            source: "auto:summary",
+            confidence: 0.8
+        )
+        ctx.insert(fact)
+        try? ctx.save()
+
+        let service = makeService(context: ctx)
+        let pack = service.buildContext(for: .global)
+
+        #expect(pack.promptContext.contains("preferredLanguage"))
+        #expect(pack.promptContext.contains("日本語で回答"))
+    }
+
+    @Test("privacy mode off の時、memory context が空になる")
+    func memoryOffNoContext() {
+        let ctx = makeContext()
+        let profile = MemoryProfile(summaryStyle: "箇条書き")
+        ctx.insert(profile)
+
+        let fact = MemoryFact(
+            profileID: profile.id,
+            key: "role",
+            value: "エンジニア",
+            source: "auto:transcription",
+            confidence: 0.9
+        )
+        ctx.insert(fact)
+        try? ctx.save()
+
+        let service = makeService(context: ctx, privacyMode: "off")
+        let pack = service.buildContext(for: .global)
+
+        #expect(!pack.promptContext.contains("箇条書き"))
+        #expect(!pack.promptContext.contains("エンジニア"))
+        #expect(pack.instructionHints.contains(where: { $0.contains("memory 設定が完全オフ") }))
+    }
+
+    @Test("MemoryProfile が無くてもエラーにならない")
+    func noMemoryProfileNoError() {
+        let ctx = makeContext()
+        let service = makeService(context: ctx)
+        let pack = service.buildContext(for: .global)
+
+        #expect(pack.scopeTitle == "Memora 全体")
+        #expect(!pack.promptContext.contains("Approved Memory"))
+    }
+
+    @Test("MemoryFact の confidence が高いものが優先される")
+    func memoryFactConfidenceOrdering() {
+        let ctx = makeContext()
+        let profile = MemoryProfile()
+        ctx.insert(profile)
+
+        let lowFact = MemoryFact(
+            profileID: profile.id,
+            key: "lowPriority",
+            value: "低信頼度ファクト",
+            source: "auto:summary",
+            confidence: 0.3
+        )
+        let highFact = MemoryFact(
+            profileID: profile.id,
+            key: "highPriority",
+            value: "高信頼度ファクト",
+            source: "auto:summary",
+            confidence: 0.95
+        )
+        ctx.insert(lowFact)
+        ctx.insert(highFact)
+        try? ctx.save()
+
+        let service = makeService(context: ctx)
+        let pack = service.buildContext(for: .global)
+
+        let context = pack.promptContext
+        if let highRange = context.range(of: "高信頼度ファクト"),
+           let lowRange = context.range(of: "低信頼度ファクト") {
+            #expect(highRange.lowerBound < lowRange.lowerBound)
+        }
+    }
 }

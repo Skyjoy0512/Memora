@@ -85,7 +85,7 @@
 - Todo 作成に繋がる
 
 ### Status
-- READY_AFTER(Epic B)
+- DONE
 
 ---
 

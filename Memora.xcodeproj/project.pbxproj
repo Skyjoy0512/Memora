@@ -80,6 +80,7 @@
 		9BCDB110CA2C8DEC19A3ADA6 /* CreateProjectViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8F49CB7EC9028D7A3E6D4F /* CreateProjectViewModelTests.swift */; };
 		9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */; };
 		9F5BADCD93F5AFCDBEC57A8F /* ProjectPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */; };
+		A05D9CF869BDFE089C043795 /* TaskPlannerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0847C3DDA2C5BE49253D10FF /* TaskPlannerServiceTests.swift */; };
 		A0C2830EC408A00821FB7C5F /* WebhookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */; };
 		A4D5B536984B05B400C1748D /* HomeViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3114A00A5EF9D97405BFC124 /* HomeViewModelTests.swift */; };
 		A4E00A26603C9F64B5568FE8 /* ToDoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700A6211D2AFD1801C9B1EB5 /* ToDoView.swift */; };
@@ -101,6 +102,7 @@
 		C70BF10CBC56522326FDE98F /* KnowledgeQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */; };
 		CAA8912BEAD313DE50481F84 /* MemoryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2ECDB306E7A48E122A6B63 /* MemoryProfile.swift */; };
 		CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA39BD91FCB01D63A19ECAEA /* TodoItemRepositoryTests.swift */; };
+		CE3CEDEB4D3314FEE99F6DE8 /* MemoryExtractionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D384554ADB6BFA244C1DA8C3 /* MemoryExtractionServiceTests.swift */; };
 		CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */; };
 		D120066EBCC812C9F7C428BA /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7C571C60384295BBBCFB9D9 /* Spacing.swift */; };
 		D19883AD857920AD2DE449C6 /* GoogleAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA7E242D95B2B86EDB58ECD4 /* GoogleAuthService.swift */; };
@@ -142,6 +144,7 @@
 		05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudRecording.swift; sourceTree = "<group>"; };
 		0670AAEC136AC56AB7E46D3F /* LiquidGlassModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassModifier.swift; sourceTree = "<group>"; };
 		07A0D42867DF06711C803A32 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
+		0847C3DDA2C5BE49253D10FF /* TaskPlannerServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPlannerServiceTests.swift; sourceTree = "<group>"; };
 		111DA217ED25AE7B6816929C /* WebhookService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookService.swift; sourceTree = "<group>"; };
 		16E2FDFF2DC0CA719D305AA1 /* AskAISession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAISession.swift; sourceTree = "<group>"; };
 		19286A2C8501408A34BE2FFE /* FABMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FABMenu.swift; sourceTree = "<group>"; };
@@ -226,6 +229,7 @@
 		CF0BC77DB14C7A124C09B5E7 /* PhotoAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachment.swift; sourceTree = "<group>"; };
 		CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudExportModels.swift; sourceTree = "<group>"; };
 		D14147F1C9E60307352CD67F /* Project.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Project.swift; sourceTree = "<group>"; };
+		D384554ADB6BFA244C1DA8C3 /* MemoryExtractionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryExtractionServiceTests.swift; sourceTree = "<group>"; };
 		D4219D772B47C2D53AD2A29A /* ProjectRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRepository.swift; sourceTree = "<group>"; };
 		D4D1F89D958FA1B55DCF5023 /* STTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTService.swift; sourceTree = "<group>"; };
 		D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraApp.swift; sourceTree = "<group>"; };
@@ -452,8 +456,10 @@
 			children = (
 				AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */,
 				3AE9D793EEF58F5A51E4C3E0 /* KnowledgeQueryServiceTests.swift */,
+				D384554ADB6BFA244C1DA8C3 /* MemoryExtractionServiceTests.swift */,
 				855C85865B09046C10B73313 /* OpenAIExportServiceTests.swift */,
 				E0ED0108BC9A5810D057A9E8 /* STTPreflightTests.swift */,
+				0847C3DDA2C5BE49253D10FF /* TaskPlannerServiceTests.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -632,9 +638,11 @@
 				A4D5B536984B05B400C1748D /* HomeViewModelTests.swift in Sources */,
 				AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */,
 				95069F555725B9DBD2988D7C /* KnowledgeQueryServiceTests.swift in Sources */,
+				CE3CEDEB4D3314FEE99F6DE8 /* MemoryExtractionServiceTests.swift in Sources */,
 				D883A6572307EB3C8854848C /* OpenAIExportServiceTests.swift in Sources */,
 				C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */,
 				7EAA607ED871E0A46CD65BE0 /* STTPreflightTests.swift in Sources */,
+				A05D9CF869BDFE089C043795 /* TaskPlannerServiceTests.swift in Sources */,
 				BFDFF0B53584B39B312F07AB /* TestHelpers.swift in Sources */,
 				CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */,
 				37B189A82F502FD789C37D22 /* TodoItemTests.swift in Sources */,
