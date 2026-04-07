@@ -252,34 +252,70 @@ private final class STTBackendExecutor {
         }
         #endif
 
-        print("[MemoraSTT] SFSpeechRecognizer パスを使用")
-        let transcription = try await transcribeWithSpeechRecognizer(
-            audioURL: audioURL,
-            locale: locale,
-            progress: progress,
-            partialResult: partialResult
-        )
-        let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
-        let ms = Double(elapsed.components.seconds) * 1000.0
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
-        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
-            taskId: taskId,
-            backend: .sfSpeechRecognizer,
-            locale: locale.identifier,
-            assetState: nil,
-            audioFormat: nil,
-            fallbackReason: nil,
-            processingTimeMs: ms,
-            recordedAt: Date()
-        ))
-        return transcription
+        print("[MemoraSTT] SFSpeechRecognizer パスを使用（タイムアウト付き）")
+        do {
+            let transcription = try await transcribeWithSpeechRecognizerWithTimeout(
+                audioURL: audioURL,
+                locale: locale,
+                progress: progress,
+                partialResult: partialResult
+            )
+            let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+            let ms = Double(elapsed.components.seconds) * 1000.0
+                + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: nil,
+                processingTimeMs: ms,
+                recordedAt: Date()
+            ))
+            return transcription
+        } catch is OnDeviceTranscriptionTimeoutError {
+            print("[MemoraSTT] オンモデバイス認識タイムアウト — requiresOnDeviceRecognition=false でリトライ")
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: "on-device timeout, retrying with server recognition",
+                processingTimeMs: nil,
+                recordedAt: Date()
+            ))
+            let transcription = try await transcribeWithSpeechRecognizerWithTimeout(
+                audioURL: audioURL,
+                locale: locale,
+                progress: progress,
+                partialResult: partialResult,
+                forceOnDevice: false
+            )
+            let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+            let ms = Double(elapsed.components.seconds) * 1000.0
+                + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: "server recognition (on-device timed out)",
+                processingTimeMs: ms,
+                recordedAt: Date()
+            ))
+            return transcription
+        }
     }
 
     private func transcribeWithSpeechRecognizer(
         audioURL: URL,
         locale: Locale,
         progress: @escaping @Sendable (Double) -> Void,
-        partialResult: @escaping @Sendable (String) -> Void
+        partialResult: @escaping @Sendable (String) -> Void,
+        forceOnDevice: Bool = true
     ) async throws -> TranscriptionResult {
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             print("[MemoraSTT] SFSpeechRecognizer 利用不可 — locale: \(locale.identifier)")
@@ -288,12 +324,12 @@ private final class STTBackendExecutor {
 
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
         request.shouldReportPartialResults = false
-        request.requiresOnDeviceRecognition = true
+        request.requiresOnDeviceRecognition = forceOnDevice
         if #available(iOS 16.0, *) {
             request.addsPunctuation = true
         }
 
-        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: true")
+        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: \(forceOnDevice)")
         progress(0.2)
 
         let recognitionResult = try await withTaskCancellationHandler {
@@ -349,7 +385,7 @@ private final class STTBackendExecutor {
             )
         }
 
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+        let segmentsWithSpeakers = await detectSpeakersWithTimeout(
             audioURL: audioURL,
             segments: baseSegments
         )
@@ -359,6 +395,39 @@ private final class STTBackendExecutor {
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
             segments: segmentsWithSpeakers
         )
+    }
+
+    /// SFSpeechRecognizer に60秒タイムアウトを追加したラッパー。
+    /// コールバックが永久に返らない iOS バグを防止する。
+    private func transcribeWithSpeechRecognizerWithTimeout(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void,
+        forceOnDevice: Bool = true
+    ) async throws -> TranscriptionResult {
+        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
+            group.addTask {
+                try await self.transcribeWithSpeechRecognizer(
+                    audioURL: audioURL,
+                    locale: locale,
+                    progress: progress,
+                    partialResult: partialResult,
+                    forceOnDevice: forceOnDevice
+                )
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: 60_000_000_000) // 60秒
+                self.cancelRecognitionTask()
+                throw OnDeviceTranscriptionTimeoutError()
+            }
+            guard let result = try await group.next() else {
+                group.cancelAll()
+                throw CoreError.transcriptionError(.transcriptionFailed("SFSpeechRecognizer produced no result"))
+            }
+            group.cancelAll()
+            return result
+        }
     }
 
     @available(iOS 26.0, *)
@@ -379,7 +448,7 @@ private final class STTBackendExecutor {
             }
 
             group.addTask {
-                try await Task.sleep(nanoseconds: 120_000_000_000)
+                try await Task.sleep(nanoseconds: 60_000_000_000) // 60秒
                 throw OnDeviceTranscriptionTimeoutError()
             }
 
@@ -408,7 +477,7 @@ private final class STTBackendExecutor {
 
         let duration = await audioFileDuration(for: audioURL)
         let baseSegments = makeFallbackSegments(from: text, duration: duration)
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+        let segmentsWithSpeakers = await detectSpeakersWithTimeout(
             audioURL: audioURL,
             segments: baseSegments
         )
@@ -445,7 +514,7 @@ private final class STTBackendExecutor {
 
         let duration = await audioFileDuration(for: audioURL)
         let baseSegments = makeFallbackSegments(from: text, duration: duration)
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
+        let segmentsWithSpeakers = await detectSpeakersWithTimeout(
             audioURL: audioURL,
             segments: baseSegments
         )
@@ -542,6 +611,38 @@ private final class STTBackendExecutor {
         recognitionTask = nil
         stateLock.unlock()
     }
+
+    /// 話者分離にタイムアウトを追加。ハング時にフォールバックとして元セグメントを返す。
+    private func detectSpeakersWithTimeout(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        timeout: TimeInterval = 60
+    ) async -> [TranscriptionSegment] {
+        do {
+            return try await withThrowingTaskGroup(of: [TranscriptionSegment].self) { group in
+                group.addTask { [self] in
+                    await diarizationService.detectSpeakers(
+                        audioURL: audioURL,
+                        segments: segments
+                    )
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    print("[MemoraSTT] 話者分離タイムアウト(\(Int(timeout))秒) — フォールバック使用")
+                    return segments
+                }
+                guard let result = try await group.next() else {
+                    group.cancelAll()
+                    return segments
+                }
+                group.cancelAll()
+                return result
+            }
+        } catch {
+            print("[MemoraSTT] 話者分離エラー — フォールバック使用: \(error)")
+            return segments
+        }
+    }
 }
 
 final class STTService: STTServiceProtocol, @unchecked Sendable {
@@ -601,7 +702,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         handle.attach(task: task)
 
         Task { [weak self] in
-            _ = try? await task.value
+            do {
+                _ = try await task.value
+            } catch {
+                print("[MemoraSTT] バックグラウンドタスクエラー: \(error.localizedDescription)")
+            }
             self?.removeTask(taskId: handle.taskId)
         }
 

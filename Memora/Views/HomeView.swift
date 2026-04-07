@@ -50,118 +50,27 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            Group {
                 if viewModel.audioFiles.isEmpty {
-                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
-                    VStack(spacing: MemoraSpacing.xxl) {
-                        Spacer()
-
-                        Image(systemName: "waveform")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundStyle(MemoraColor.textSecondary)
-
-                        Text("Memora")
-                            .font(MemoraTypography.largeTitle)
-
-                        Text("録音ファイル一覧")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(recordingHint)
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 8)
-
-                        Spacer()
-                    }
-                    .padding(.bottom, 110)
+                    emptyStateView
                 } else {
-                    // ファイル一覧
-                    VStack(spacing: 0) {
-                        // 表示モード選択
-                        Picker("表示モード", selection: $viewMode) {
-                            Text("リスト").tag(ViewMode.list)
-                            Text("タイムライン").tag(ViewMode.timeline)
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-
-                        // 検索バー
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-
-                            TextField("検索", text: $searchText)
-                                .textFieldStyle(.plain)
-
-                            if !searchText.isEmpty {
-                                Button(action: { searchText = "" }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, MemoraSpacing.lg)
-                        .padding(.vertical, MemoraSpacing.xs)
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
-                        .padding(.horizontal)
-
-                        // フィルター・ソートバー
-                        HStack(spacing: 8) {
-                            // フィルターボタン
-                            Button(action: { showFilterSheet = true }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "line.3.horizontal.decrease.circle")
-                                    Text("フィルター")
-                                }
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, MemoraSpacing.lg)
-                                .padding(.vertical, 6)
-                                .background(MemoraColor.divider.opacity(0.1))
-                                .cornerRadius(MemoraRadius.sm)
-                            }
-
-                            Spacer()
-
-                            // ソート選択
-                            Picker("", selection: $sortOption) {
-                                ForEach(SortOption.allCases, id: \.self) { option in
-                                    Text(option.rawValue).tag(option)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .font(MemoraTypography.caption1)
-                        }
-                        .padding(.horizontal)
-
-                        Divider()
-
-                        // ファイル一覧
-                        List {
-                            ForEach(filteredFiles) { file in
-                                AudioFileRow(audioFile: file)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedAudioFile = file
-                                    }
-                            }
-                            .onDelete(perform: deleteAudioFiles)
-                        }
-                    }
+                    fileListSection
                 }
             }
-            .safeAreaPadding(.bottom, 116)
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showAskAI = true
                     } label: {
-                        Image(systemName: "sparkles")
+                        Image(systemName: "sparkle")
+                    }
+
+                    Button {
+                        showFilterSheet = true
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
                     }
                 }
             }
@@ -210,6 +119,32 @@ struct HomeView: View {
         }
     }
 
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "録音ファイル一覧",
+            systemImage: "waveform",
+            description: Text(recordingHint)
+        )
+    }
+
+    // MARK: - Content Section
+
+    private var fileListSection: some View {
+        List {
+            ForEach(filteredFiles) { file in
+                AudioFileRow(audioFile: file)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        selectedAudioFile = file
+                    }
+            }
+            .onDelete(perform: deleteAudioFiles)
+        }
+        .listStyle(.insetGrouped)
+    }
+
     private func deleteAudioFiles(at offsets: IndexSet) {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
@@ -230,62 +165,39 @@ struct AudioFileRow: View {
     let audioFile: AudioFile
 
     var body: some View {
-        HStack(spacing: MemoraSpacing.lg) {
-            // アイコン
-            Image(systemName: "waveform")
-                .font(MemoraTypography.title2)
-                .foregroundStyle(MemoraColor.textSecondary)
-                .frame(width: 40, height: 40)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                Text(formatDate(audioFile.createdAt))
+                    .font(MemoraTypography.caption1)
+                    .tracking(-0.43)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
-            VStack(alignment: .leading, spacing: 5) {
                 Text(audioFile.title)
-                    .font(MemoraTypography.headline)
-                    .foregroundStyle(.primary)
+                    .font(MemoraTypography.body)
+                    .tracking(-0.43)
+                    .foregroundStyle(MemoraColor.textPrimary)
 
-                HStack(spacing: 5) {
-                    Text(formatDate(audioFile.createdAt))
+                if let summary = audioFile.summary, !summary.isEmpty {
+                    Text(summary)
                         .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-
-                    Text("•")
-                        .foregroundStyle(.secondary)
-
-                    Text(formatDuration(audioFile.duration))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
+                        .tracking(-0.23)
+                        .foregroundStyle(MemoraColor.textTertiary)
+                        .lineLimit(2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, MemoraSpacing.xs)
 
-            Spacer()
-
-            if audioFile.isPlaudImport {
-                Text("Plaud")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentBlue)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(MemoraColor.accentBlue.opacity(0.1))
-                    .cornerRadius(4)
-            }
-
-            if audioFile.isTranscribed {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(MemoraColor.textSecondary)
-            }
+            Divider()
+                .background(MemoraColor.divider)
         }
-        .padding(.vertical, MemoraSpacing.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd HH:mm"
         return formatter.string(from: date)
-    }
-
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 
