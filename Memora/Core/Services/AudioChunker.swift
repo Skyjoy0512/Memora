@@ -58,10 +58,12 @@ private final class ExportSessionBox: @unchecked Sendable {
 }
 
 final class AudioChunker: AudioChunkerProtocol {
-    private let shortThreshold: TimeInterval = 60 * 60
+    // 90秒未満はチャンク分割なし
+    private let shortThreshold: TimeInterval = 90
     private let longThreshold: TimeInterval = 60 * 60 * 3
-    private let standardChunkDuration: TimeInterval = 10 * 60
-    private let smallChunkDuration: TimeInterval = 5 * 60
+    // SFSpeechRecognizer が確実に処理できるチャンクサイズ（90秒）
+    private let standardChunkDuration: TimeInterval = 90
+    private let smallChunkDuration: TimeInterval = 90
 
     func analyzeAndChunk(
         fileURL: URL,

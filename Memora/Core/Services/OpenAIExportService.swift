@@ -24,12 +24,16 @@ final class OpenAIExportService {
         audioFile: AudioFile,
         transcript: Transcript?,
         format: OpenAIExportFormat,
-        purpose: OpenAIFilePurpose
+        purpose: OpenAIFilePurpose,
+        memoText: String? = nil,
+        todoItems: [TodoItem] = []
     ) async throws -> OpenAIFileUploadResult {
         let data = try generateContent(
             audioFile: audioFile,
             transcript: transcript,
-            format: format
+            format: format,
+            memoText: memoText,
+            todoItems: todoItems
         )
 
         try validateSize(data)
@@ -43,13 +47,20 @@ final class OpenAIExportService {
     func exportMeetings(
         meetings: [(AudioFile, Transcript?)],
         format: OpenAIExportFormat,
-        purpose: OpenAIFilePurpose
+        purpose: OpenAIFilePurpose,
+        memoTexts: [UUID: String] = [:],
+        todoItemsByProject: [UUID: [TodoItem]] = [:]
     ) async throws -> OpenAIFileUploadResult {
         guard !meetings.isEmpty else {
             throw OpenAIExportError.noDataToExport
         }
 
-        let data = try generateBatchContent(meetings: meetings, format: format)
+        let data = try generateBatchContent(
+            meetings: meetings,
+            format: format,
+            memoTexts: memoTexts,
+            todoItemsByProject: todoItemsByProject
+        )
         try validateSize(data)
 
         let timestamp = Int(Date().timeIntervalSince1970)
@@ -72,31 +83,35 @@ final class OpenAIExportService {
     private func generateContent(
         audioFile: AudioFile,
         transcript: Transcript?,
-        format: OpenAIExportFormat
+        format: OpenAIExportFormat,
+        memoText: String?,
+        todoItems: [TodoItem]
     ) throws -> Data {
         switch format {
         case .json:
-            return try generateJSON(audioFile: audioFile, transcript: transcript)
+            return try generateJSON(audioFile: audioFile, transcript: transcript, memoText: memoText, todoItems: todoItems)
         case .markdown:
-            return try generateMarkdown(audioFile: audioFile, transcript: transcript)
+            return try generateMarkdown(audioFile: audioFile, transcript: transcript, memoText: memoText, todoItems: todoItems)
         }
     }
 
     private func generateBatchContent(
         meetings: [(AudioFile, Transcript?)],
-        format: OpenAIExportFormat
+        format: OpenAIExportFormat,
+        memoTexts: [UUID: String],
+        todoItemsByProject: [UUID: [TodoItem]]
     ) throws -> Data {
         switch format {
         case .json:
-            return try generateBatchJSON(meetings: meetings)
+            return try generateBatchJSON(meetings: meetings, memoTexts: memoTexts, todoItemsByProject: todoItemsByProject)
         case .markdown:
-            return try generateBatchMarkdown(meetings: meetings)
+            return try generateBatchMarkdown(meetings: meetings, memoTexts: memoTexts, todoItemsByProject: todoItemsByProject)
         }
     }
 
     // MARK: - JSON Generation
 
-    private func generateJSON(audioFile: AudioFile, transcript: Transcript?) throws -> Data {
+    private func generateJSON(audioFile: AudioFile, transcript: Transcript?, memoText: String?, todoItems: [TodoItem]) throws -> Data {
         var meetingData: [String: Any] = [
             "title": audioFile.title,
             "createdAt": iso8601String(audioFile.createdAt),
@@ -122,6 +137,26 @@ final class OpenAIExportService {
             ]
         }
 
+        if let memoText, !memoText.isEmpty {
+            meetingData["memo"] = memoText
+        }
+
+        if !todoItems.isEmpty {
+            meetingData["todos"] = todoItems.map { todo in
+                var item: [String: Any] = [
+                    "title": todo.title,
+                    "isCompleted": todo.isCompleted,
+                    "priority": todo.priority
+                ]
+                if let notes = todo.notes { item["notes"] = notes }
+                if let assignee = todo.assignee { item["assignee"] = assignee }
+                if let dueDate = todo.dueDate {
+                    item["dueDate"] = iso8601String(dueDate)
+                }
+                return item
+            }
+        }
+
         let exportData: [String: Any] = [
             "source": "Memora",
             "exportDate": iso8601String(Date()),
@@ -135,7 +170,7 @@ final class OpenAIExportService {
         }
     }
 
-    private func generateBatchJSON(meetings: [(AudioFile, Transcript?)]) throws -> Data {
+    private func generateBatchJSON(meetings: [(AudioFile, Transcript?)], memoTexts: [UUID: String], todoItemsByProject: [UUID: [TodoItem]]) throws -> Data {
         var meetingsArray: [[String: Any]] = []
 
         for (audioFile, transcript) in meetings {
@@ -163,6 +198,24 @@ final class OpenAIExportService {
                 ]
             }
 
+            if let memo = memoTexts[audioFile.id], !memo.isEmpty {
+                meetingData["memo"] = memo
+            }
+
+            if let projectID = audioFile.projectID,
+               let todos = todoItemsByProject[projectID], !todos.isEmpty {
+                meetingData["todos"] = todos.map { todo in
+                    var item: [String: Any] = [
+                        "title": todo.title,
+                        "isCompleted": todo.isCompleted,
+                        "priority": todo.priority
+                    ]
+                    if let notes = todo.notes { item["notes"] = notes }
+                    if let assignee = todo.assignee { item["assignee"] = assignee }
+                    return item
+                }
+            }
+
             meetingsArray.append(meetingData)
         }
 
@@ -181,7 +234,7 @@ final class OpenAIExportService {
 
     // MARK: - Markdown Generation
 
-    private func generateMarkdown(audioFile: AudioFile, transcript: Transcript?) throws -> Data {
+    private func generateMarkdown(audioFile: AudioFile, transcript: Transcript?, memoText: String?, todoItems: [TodoItem]) throws -> Data {
         var content = "---\n"
         content += "source: Memora\n"
         content += "export_date: \(formatDateForHeader(Date()))\n"
@@ -205,7 +258,19 @@ final class OpenAIExportService {
             content += "## 要約\n\n"
             content += "### 要約\n\n\(summary)\n\n"
             content += "### 要点\n\n\(keyPoints)\n\n"
-            content += "### アクションアイテム\n\n\(actionItems)"
+            content += "### アクションアイテム\n\n\(actionItems)\n\n"
+        }
+
+        if let memoText, !memoText.isEmpty {
+            content += "## メモ\n\n\(memoText)\n\n"
+        }
+
+        if !todoItems.isEmpty {
+            content += "## タスク\n\n"
+            for todo in todoItems {
+                let check = todo.isCompleted ? "x" : " "
+                content += "- [\(check)] \(todo.title)\n"
+            }
         }
 
         guard let data = content.data(using: .utf8) else {
@@ -214,7 +279,7 @@ final class OpenAIExportService {
         return data
     }
 
-    private func generateBatchMarkdown(meetings: [(AudioFile, Transcript?)]) throws -> Data {
+    private func generateBatchMarkdown(meetings: [(AudioFile, Transcript?)], memoTexts: [UUID: String], todoItemsByProject: [UUID: [TodoItem]]) throws -> Data {
         var content = "---\n"
         content += "source: Memora\n"
         content += "export_date: \(formatDateForHeader(Date()))\n"
@@ -241,6 +306,20 @@ final class OpenAIExportService {
                 content += "### 要約\n\n\(summary)\n\n"
                 content += "### 要点\n\n\(keyPoints)\n\n"
                 content += "### アクションアイテム\n\n\(actionItems)\n\n"
+            }
+
+            if let memo = memoTexts[audioFile.id], !memo.isEmpty {
+                content += "### メモ\n\n\(memo)\n\n"
+            }
+
+            if let projectID = audioFile.projectID,
+               let todos = todoItemsByProject[projectID], !todos.isEmpty {
+                content += "### タスク\n\n"
+                for todo in todos {
+                    let check = todo.isCompleted ? "x" : " "
+                    content += "- [\(check)] \(todo.title)\n"
+                }
+                content += "\n"
             }
 
             if index < meetings.count - 1 {

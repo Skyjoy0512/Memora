@@ -104,7 +104,7 @@
 - 重い常時同期なしで価値が出る
 
 ### Status
-- READY_AFTER(Epic C)
+- DONE
 
 ---
 
@@ -123,7 +123,7 @@
 - ただし本格実装は P0/P1 の後
 
 ### Status
-- BACKLOG
+- IN_PROGRESS（Google Meet インポート UI 完了）
 
 ---
 

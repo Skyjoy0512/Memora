@@ -6,11 +6,18 @@ struct DebugLogView: View {
 
     @State private var filterText = ""
     @State private var selectedLevel: LogLevel? = nil
+    @State private var showSTTOnly = false
     @State private var showExportSheet = false
     @State private var exportURL: URL?
 
     var filteredLogs: [DebugLogEntry] {
         var filtered = logger.logs
+
+        if showSTTOnly {
+            filtered = filtered.filter {
+                $0.category == "STTDiagnostics" || $0.category == "MemoraSTT" || $0.category == "Pipeline"
+            }
+        }
 
         if !filterText.isEmpty {
             filtered = filtered.filter {
@@ -98,7 +105,11 @@ struct DebugLogView: View {
             // レベルフィルター
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: MemoraSpacing.xs) {
-                    FilterChip(title: "すべて", isSelected: selectedLevel == nil) {
+                    FilterChip(title: "STT", isSelected: showSTTOnly) {
+                        showSTTOnly.toggle()
+                    }
+
+                    FilterChip(title: "すべて", isSelected: selectedLevel == nil && !showSTTOnly) {
                         selectedLevel = nil
                     }
 

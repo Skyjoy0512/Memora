@@ -133,10 +133,11 @@ final class NotionService {
 
     // MARK: - Create Page (Full Export)
 
-    /// AudioFile から Notion ページを作成（要約 + 文字起こし全文）。
+    /// AudioFile から Notion ページを作成（要約 + 文字起こし全文 + タスク）。
     func createPageFromAudioFile(
         audioFile: AudioFile,
         transcriptText: String?,
+        todoItems: [TodoItem] = [],
         modelContext: ModelContext,
         token: String,
         parentPageID: String
@@ -170,6 +171,15 @@ final class NotionService {
             blocks.append(headingBlock(text: "Action Items", level: 2))
             for item in actionItems.split(separator: "\n", omittingEmptySubsequences: true) {
                 blocks.append(toDoBlock(text: String(item), checked: false))
+            }
+            blocks.append(dividerBlock())
+        }
+
+        // Tasks (from TodoItem)
+        if !todoItems.isEmpty {
+            blocks.append(headingBlock(text: "Tasks", level: 2))
+            for todo in todoItems {
+                blocks.append(toDoBlock(text: todo.title, checked: todo.isCompleted))
             }
             blocks.append(dividerBlock())
         }

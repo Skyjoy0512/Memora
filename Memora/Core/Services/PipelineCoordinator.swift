@@ -347,10 +347,38 @@ final class PipelineCoordinator {
 
         continuation.yield(.stepCompleted(.loadingAudio))
 
+        // 文字起こしステップ: 失敗時にリトライ（最大 maxRetries 回）
         job.updateProgress(0.1, stage: PipelineStep.transcribing.rawValue)
         continuation.yield(.stepStarted(.transcribing))
-        DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し", level: .info)
-        let transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
+
+        var transcriptResult: TranscriptResult?
+        var lastError: Error?
+
+        while job.canRetry || transcriptResult != nil {
+            do {
+                DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し (attempt \(job.retryCount + 1))", level: .info)
+                transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
+                break
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+                DebugLogger.shared.addLog("Pipeline", "文字起こし失敗: \(error.localizedDescription) (retry \(job.retryCount)/\(job.maxRetries))", level: .warning)
+                if job.canRetry {
+                    job.incrementRetry()
+                    job.markStarted(stage: PipelineStep.transcribing.rawValue)
+                    continuation.yield(.stepStarted(.transcribing))
+                } else {
+                    break
+                }
+            }
+        }
+
+        guard let transcriptResult else {
+            let errorMessage = lastError?.localizedDescription ?? "Transcription failed"
+            throw CoreError.transcriptionError(.transcriptionFailed(errorMessage))
+        }
+
         DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 完了 — text length: \(transcriptResult.text.count)", level: .info)
         continuation.yield(.stepCompleted(.transcribing))
 

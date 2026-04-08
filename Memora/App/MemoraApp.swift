@@ -13,6 +13,7 @@ struct MemoraApp: App {
     @State private var hasLoggedStart = false
     @State private var hasStartedInitialLoad = false
     @State private var loadAttemptToken = UUID()
+    @State private var temporaryStoreReason: String?
 
     private static let tempStoreFlagKey = "didUseTemporaryStoreLastSession"
 
@@ -83,14 +84,38 @@ struct MemoraApp: App {
 
     private var temporaryStoreBanner: some View {
         VStack {
-            HStack(spacing: 8) {
-                Image(systemName: "externaldrive.badge.exclamationmark")
-                Text("一時モードで起動中です。この起動中の変更は保持されません。")
-                    .font(.caption)
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("一時モードで起動中")
+                        .font(.subheadline.bold())
+                    Text(temporaryStoreReason ?? "このセッションの変更は保存されません。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    Task { await loadModelContainer() }
+                } label: {
+                    Text("再試行")
+                        .font(.caption.bold())
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.thinMaterial, in: Capsule())
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.orange.opacity(0.3), lineWidth: 1)
+            )
+            .padding(.horizontal, 16)
             .padding(.top, 8)
 
             Spacer()
@@ -226,10 +251,17 @@ struct MemoraApp: App {
             }
         }
 
+        // ストアファイル有無でタイムアウトを適応化
+        // 初回起動（ファイルなし）は DB 新規作成に時間がかかるため長めに設定
+        let storeExists = (try? Self.persistentStoreURL()).flatMap { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        let adaptiveTimeout: UInt64 = storeExists ? 8_000_000_000 : 15_000_000_000
+        let timeoutNanoseconds = useInMemoryStore ? nil as UInt64? : adaptiveTimeout
+        DebugLogger.shared.addLog("ModelContainer", "タイムアウト設定: \(storeExists ? "8s（既存ストア）" : "15s（初回/新規）")", level: .info)
+
         DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 開始")
         let outcome = await Self.awaitModelContainerOutcome(
             from: loadTask,
-            timeoutNanoseconds: useInMemoryStore ? nil : 5_000_000_000
+            timeoutNanoseconds: timeoutNanoseconds
         )
         DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 完了")
 
@@ -245,6 +277,7 @@ struct MemoraApp: App {
                 await MainActor.run {
                     self.modelContainer = success.container
                     self.isUsingTemporaryStore = useInMemoryStore
+                    self.temporaryStoreReason = useInMemoryStore ? "一時モードで起動しています" : nil
                     self.isLoading = false
                     self.loadingMessage = "データを準備中..."
                 }
@@ -272,7 +305,7 @@ struct MemoraApp: App {
             }
         case .timedOut:
             loadTask.cancel()
-            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（5秒）", level: .warning)
+            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（\(storeExists ? "8秒" : "15秒")）", level: .warning)
             DebugLogger.shared.addLog("ModelContainer", "永続ストアを諦めて一時ストアへフォールバックします", level: .warning)
             DebugLogger.shared.markLaunchStep("タイムアウト → 一時ストアフォールバック開始")
 
@@ -286,6 +319,7 @@ struct MemoraApp: App {
                 await MainActor.run {
                     self.modelContainer = fallbackContainer
                     self.isUsingTemporaryStore = true
+                    self.temporaryStoreReason = "初期化タイムアウトのため一時モードに切り替わりました"
                     self.canResetPersistentStore = true
                     self.errorMessage = nil
                     self.isLoading = false
@@ -306,6 +340,8 @@ struct MemoraApp: App {
     }
 
     nonisolated private static func createModelContainer(resetStore: Bool = false, inMemoryOnly: Bool = false) throws -> ModelContainer {
+        let containerStart = ContinuousClock.now
+
         let configuration: ModelConfiguration
         if inMemoryOnly {
             configuration = ModelConfiguration(isStoredInMemoryOnly: true, allowsSave: true, cloudKitDatabase: .none)
@@ -313,10 +349,21 @@ struct MemoraApp: App {
             let storeURL = try persistentStoreURL()
             if resetStore {
                 try removePersistentStore(at: storeURL)
+                DebugLogger.shared.addLog("ModelContainer", "既存ストアを削除して再作成", level: .warning)
             }
             configuration = ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
         }
-        return try ModelContainer(for: schema, configurations: [configuration])
+
+        DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了")
+
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+
+        let elapsed = containerStart.duration(to: ContinuousClock.now)
+        let ms = Double(elapsed.components.seconds) * 1000.0
+            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+        DebugLogger.shared.addLog("ModelContainer", "createModelContainer 完了 (\(String(format: "%.0f", ms))ms)", level: .info)
+
+        return container
     }
 
     nonisolated private static func persistentStoreURL() throws -> URL {

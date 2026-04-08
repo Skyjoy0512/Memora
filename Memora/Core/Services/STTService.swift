@@ -252,7 +252,7 @@ private final class STTBackendExecutor {
         }
         #endif
 
-        print("[MemoraSTT] SFSpeechRecognizer パスを使用（タイムアウト付き）")
+        print("[MemoraSTT] SFSpeechRecognizer パスを使用（on-device → server フォールバック付き）")
         do {
             let transcription = try await transcribeWithSpeechRecognizerWithTimeout(
                 audioURL: audioURL,
@@ -274,15 +274,17 @@ private final class STTBackendExecutor {
                 recordedAt: Date()
             ))
             return transcription
-        } catch is OnDeviceTranscriptionTimeoutError {
-            print("[MemoraSTT] オンモデバイス認識タイムアウト — requiresOnDeviceRecognition=false でリトライ")
+        } catch {
+            // on-device がタイムアウト・モデル未ダウンロード・その他エラーのいずれでも
+            // server recognition にフォールバックする
+            print("[MemoraSTT] on-device 認識失敗 — server recognition でリトライ: \(error.localizedDescription)")
             STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
                 taskId: taskId,
                 backend: .sfSpeechRecognizer,
                 locale: locale.identifier,
                 assetState: nil,
                 audioFormat: nil,
-                fallbackReason: "on-device timeout, retrying with server recognition",
+                fallbackReason: "on-device failed (\(error.localizedDescription)), retrying with server",
                 processingTimeMs: nil,
                 recordedAt: Date()
             ))
@@ -302,7 +304,7 @@ private final class STTBackendExecutor {
                 locale: locale.identifier,
                 assetState: nil,
                 audioFormat: nil,
-                fallbackReason: "server recognition (on-device timed out)",
+                fallbackReason: "server recognition (on-device failed)",
                 processingTimeMs: ms,
                 recordedAt: Date()
             ))
@@ -323,7 +325,8 @@ private final class STTBackendExecutor {
         }
 
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
-        request.shouldReportPartialResults = false
+        // partial results を有効化: volatile（中間結果）と final（確定結果）を区別する
+        request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = forceOnDevice
         if #available(iOS 16.0, *) {
             request.addsPunctuation = true
@@ -339,10 +342,6 @@ private final class STTBackendExecutor {
                 var didResume = false
 
                 let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                    if let result {
-                        partialResult(result.bestTranscription.formattedString)
-                    }
-
                     if let error {
                         callbackLock.lock()
                         let shouldResume = !didResume
@@ -355,8 +354,15 @@ private final class STTBackendExecutor {
                         return
                     }
 
-                    guard let result, result.isFinal else { return }
+                    guard let result else { return }
 
+                    // volatile（中間結果）: isFinal でなければ partial として転送
+                    if !result.isFinal {
+                        partialResult(result.bestTranscription.formattedString)
+                        return
+                    }
+
+                    // final（確定結果）: continuation を resume
                     callbackLock.lock()
                     let shouldResume = !didResume
                     didResume = true
@@ -468,7 +474,7 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        let service = SpeechAnalyzerService26()
+        let service = SpeechAnalyzerService26(locale: locale)
 
         progress(0.2)
         let text = try await service.transcribe(audioURL: audioURL)
@@ -749,12 +755,6 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
 
-            defer {
-                Task {
-                    await chunker.cleanup(chunks: preparedChunks)
-                }
-            }
-
             var chunkResults: [TranscriptionResult] = []
             let totalChunks = max(preparedChunks.count, 1)
 
@@ -798,19 +798,24 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
             handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
             handle.finish()
+            // 成功時: 一時ファイルを同期待ちで削除
+            await chunker.cleanup(chunks: preparedChunks)
             return mergedResult
         } catch is CancellationError {
             handle.yield(.transcriptionCancelled(taskId: handle.taskId))
             handle.finish()
+            await chunker.cleanup(chunks: preparedChunks)
             throw CancellationError()
         } catch let coreError as CoreError {
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
             handle.finish()
+            await chunker.cleanup(chunks: preparedChunks)
             throw coreError
         } catch {
             let mappedError = STTErrorMapper.mapToCoreError(error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: mappedError))
             handle.finish()
+            await chunker.cleanup(chunks: preparedChunks)
             throw mappedError
         }
     }

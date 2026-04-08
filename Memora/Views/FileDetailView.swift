@@ -17,6 +17,17 @@ struct FileDetailView: View {
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var previewPhotoID: UUID?
     @State private var showAskAI = false
+    @State private var calendarEventLink: CalendarEventLink?
+    @State private var suggestedEvent: EventKitEventWrapper?
+    @State private var isLinkingEvent = false
+
+    /// EKEvent の軽量ラッパー（@State で保持するため）
+    struct EventKitEventWrapper {
+        let id: String
+        let title: String
+        let startDate: Date
+        let endDate: Date
+    }
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -51,20 +62,46 @@ struct FileDetailView: View {
                     dismiss()
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { viewModel?.showShareSheet = true }) {
-                    Image(systemName: "square.and.arrow.up")
+            ToolbarItemGroup(placement: .primaryAction) {
+                // タブごとの context-aware actions
+                switch selectedTab {
+                case .summary:
+                    if viewModel?.summaryResult != nil {
+                        Button(action: { viewModel?.showGenerationFlow = true }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    Button(action: { viewModel?.showShareSheet = true }) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(viewModel?.summaryResult == nil)
+
+                case .transcript:
+                    if viewModel?.transcriptResult != nil {
+                        Button(action: { viewModel?.startTranscription() }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .disabled(viewModel?.isTranscribing == true)
+                    }
+                    Button(action: { viewModel?.showShareSheet = true }) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(viewModel?.transcriptResult == nil)
+
+                case .memo:
+                    Button(action: { viewModel?.saveMemo() }) {
+                        Image(systemName: "checkmark")
+                    }
+                    .disabled(viewModel?.memoHasUnsavedChanges != true)
                 }
-                .disabled(viewModel?.audioURL == nil && viewModel?.transcriptResult == nil)
-            }
-            ToolbarItem(placement: .secondaryAction) {
+
                 Button {
                     showAskAI = true
                 } label: {
                     Image(systemName: "sparkles")
                 }
             }
-            ToolbarItem(placement: .destructiveAction) {
+            ToolbarItem(placement: .secondaryAction) {
                 Button(role: .destructive) {
                     viewModel?.showDeleteAlert = true
                 } label: {
@@ -85,6 +122,7 @@ struct FileDetailView: View {
             vm.loadSavedData()
             selectedTab = preferredInitialTab(for: vm)
             viewModel = vm
+            loadCalendarEventLink()
         }
         .onDisappear {
             viewModel?.cleanup()
@@ -112,10 +150,9 @@ struct FileDetailView: View {
     @ViewBuilder
     private func mainContent(vm: FileDetailViewModel) -> some View {
         ScrollView {
-            VStack(spacing: MemoraSpacing.xxl) {
+            VStack(spacing: MemoraSpacing.lg) {
                 headerSection(vm: vm)
                 playerControls(vm: vm)
-                speakerRegistrationCard(vm: vm)
                 tabPicker
                 tabContent(vm: vm)
             }
@@ -183,34 +220,210 @@ struct FileDetailView: View {
     }
 
     private func headerSection(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            Image(systemName: "waveform")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 96, height: 96)
-                .foregroundStyle(MemoraColor.textSecondary)
-
+        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
             Text(audioFile.title)
-                .font(MemoraTypography.title2)
-                .multilineTextAlignment(.center)
+                .font(MemoraTypography.title3)
+                .fontWeight(.semibold)
 
-            HStack(spacing: MemoraSpacing.xxl) {
+            HStack(spacing: MemoraSpacing.sm) {
                 Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
-                Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+
+                if audioFile.duration > 0 {
+                    Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+
+                sourceBadge
+
+                Spacer()
             }
-            .font(MemoraTypography.subheadline)
-            .foregroundStyle(.secondary)
+
+            calendarEventCard
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var sourceBadge: some View {
+        let icon: String = {
+            switch audioFile.sourceType {
+            case .recording: return "mic.fill"
+            case .import: return "square.and.arrow.down"
+            case .plaud: return "waveform"
+            case .google: return "video.fill"
+            }
+        }()
+        Label({
+            switch audioFile.sourceType {
+            case .recording: return "録音"
+            case .import: return "インポート"
+            case .plaud: return "Plaud"
+            case .google: return "Meet"
+            }
+        }(), systemImage: icon)
+            .font(MemoraTypography.caption1)
+            .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Calendar Event Card
+
+    @ViewBuilder
+    private var calendarEventCard: some View {
+        if let link = calendarEventLink {
+            // 紐付済みイベント
+            HStack(spacing: MemoraSpacing.sm) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(MemoraColor.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(link.title)
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(.primary)
+                    Text("\(formatEventDate(link.startAt)) - \(formatEventTime(link.endAt))")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+                Spacer()
+                Button {
+                    unlinkCalendarEvent()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                        .foregroundStyle(MemoraColor.textSecondary)
+                        .font(.caption)
+                }
+            }
+            .padding(MemoraSpacing.sm)
+            .background(MemoraColor.accentBlue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+        } else if let suggested = suggestedEvent {
+            // 提案イベント
+            HStack(spacing: MemoraSpacing.sm) {
+                Image(systemName: "calendar.badge.plus")
+                    .foregroundStyle(MemoraColor.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(suggested.title)
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(.primary)
+                    Text(formatEventDate(suggested.startDate))
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+                Spacer()
+                Button {
+                    linkSuggestedEvent(suggested)
+                } label: {
+                    if isLinkingEvent {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text("紐付")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(MemoraColor.accentBlue)
+                            .clipShape(Capsule())
+                    }
+                }
+                .disabled(isLinkingEvent)
+            }
+            .padding(MemoraSpacing.sm)
+            .background(MemoraColor.accentBlue.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+        }
+    }
+
+    // MARK: - Calendar Event Helpers
+
+    private func loadCalendarEventLink() {
+        let service = CalendarService()
+        calendarEventLink = service.fetchLink(for: audioFile, modelContext: modelContext)
+
+        // 紐付がなければ提案を探す
+        if calendarEventLink == nil && service.isAuthorized {
+            if let event = service.findMatchingEvent(for: audioFile) {
+                suggestedEvent = EventKitEventWrapper(
+                    id: event.calendarItemIdentifier,
+                    title: event.title ?? "",
+                    startDate: event.startDate,
+                    endDate: event.endDate
+                )
+            }
+        }
+    }
+
+    private func linkSuggestedEvent(_ wrapper: EventKitEventWrapper) {
+        isLinkingEvent = true
+        let service = CalendarService()
+        // Find the actual EKEvent again
+        if let event = service.findMatchingEvent(for: audioFile) {
+            do {
+                let link = try service.linkEventToAudioFile(
+                    event: event,
+                    audioFile: audioFile,
+                    modelContext: modelContext
+                )
+                calendarEventLink = link
+                suggestedEvent = nil
+            } catch {
+                // Silently fail - not critical
+            }
+        }
+        isLinkingEvent = false
+    }
+
+    private func unlinkCalendarEvent() {
+        let service = CalendarService()
+        do {
+            try service.unlinkEvent(audioFile: audioFile, modelContext: modelContext)
+            calendarEventLink = nil
+            // Re-suggest
+            if service.isAuthorized {
+                if let event = service.findMatchingEvent(for: audioFile) {
+                    suggestedEvent = EventKitEventWrapper(
+                        id: event.calendarItemIdentifier,
+                        title: event.title ?? "",
+                        startDate: event.startDate,
+                        endDate: event.endDate
+                    )
+                }
+            }
+        } catch {
+            // Silently fail
+        }
+    }
+
+    private func formatEventDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func formatEventTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     // MARK: - Player Controls
 
     @ViewBuilder
     private func playerControls(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.xxl) {
+        HStack(spacing: MemoraSpacing.md) {
+            // 再生ボタン
+            Button(action: { vm.togglePlayback() }) {
+                Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(MemoraColor.divider)
+                    .clipShape(Circle())
+            }
+
             // プログレスバー
-            VStack(spacing: 5) {
+            VStack(spacing: 2) {
                 Slider(
                     value: Binding(
                         get: { vm.playbackPosition },
@@ -225,39 +438,21 @@ struct FileDetailView: View {
                         }
                     }
                 )
-                .accentColor(MemoraColor.textSecondary)
+                .tint(.secondary)
 
                 HStack {
                     Text(vm.formatTime(vm.playbackPosition))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
                     Spacer()
-
                     Text(vm.formatTime(vm.audioDuration))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
-            }
-            .padding(.horizontal)
-
-            // 再生ボタン
-            Button(action: { vm.togglePlayback() }) {
-                ZStack {
-                    Circle()
-                        .fill(MemoraColor.divider)
-                        .frame(width: 70, height: 70)
-
-                    Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white)
-                }
+                .font(MemoraTypography.caption2)
+                .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, MemoraSpacing.xxl)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, MemoraSpacing.sm)
+        .padding(.vertical, MemoraSpacing.xs)
         .background(MemoraColor.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
     }
 
     private var tabPicker: some View {
@@ -291,6 +486,27 @@ struct FileDetailView: View {
                 )
             } else if let result = vm.summaryResult {
                 SummaryContentView(result: result)
+
+                // Summary タブの context-aware actions
+                HStack(spacing: MemoraSpacing.sm) {
+                    Button {
+                        vm.showGenerationFlow = true
+                    } label: {
+                        Label("再生成", systemImage: "arrow.clockwise")
+                            .font(MemoraTypography.caption1)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+
+                    Button {
+                        vm.showShareSheet = true
+                    } label: {
+                        Label("エクスポート", systemImage: "square.and.arrow.up")
+                            .font(MemoraTypography.caption1)
+                    }
+                    .buttonStyle(.bordered)
+                }
             } else if audioFile.isSummarized {
                 placeholderCard(
                     icon: "text.quote",
@@ -325,6 +541,20 @@ struct FileDetailView: View {
                 )
             } else if let result = vm.transcriptResult {
                 TranscriptContentView(result: result)
+
+                // Transcript タブの context-aware actions
+                HStack(spacing: MemoraSpacing.sm) {
+                    Button {
+                        vm.startTranscription()
+                    } label: {
+                        Label("再文字起こし", systemImage: "arrow.clockwise")
+                            .font(MemoraTypography.caption1)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(vm.isTranscribing)
+
+                    Spacer()
+                }
 
                 if let reason = vm.fallbackReason, !reason.isEmpty {
                     detailCard {
@@ -376,6 +606,9 @@ struct FileDetailView: View {
                     }
                 }
             }
+
+            // 話者登録（Transcript タブ内）
+            speakerRegistrationCard(vm: vm)
         }
     }
 

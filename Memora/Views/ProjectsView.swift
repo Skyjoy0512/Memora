@@ -6,6 +6,7 @@ struct ProjectsView: View {
     @State private var viewModel = ProjectsViewModel()
     @State private var showCreateProjectView = false
     @State private var selectedProject: Project?
+    @Query private var audioFiles: [AudioFile]
 
     var body: some View {
         NavigationStack {
@@ -57,7 +58,7 @@ struct ProjectsView: View {
                     VStack(spacing: 0) {
                         List {
                             ForEach(viewModel.projects) { project in
-                                ProjectRow(project: project)
+                                ProjectRow(project: project, fileCount: fileCount(for: project))
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         selectedProject = project
@@ -97,6 +98,10 @@ struct ProjectsView: View {
         }
     }
 
+    private func fileCount(for project: Project) -> Int {
+        audioFiles.filter { $0.projectID == project.id }.count
+    }
+
     private func deleteProjects(at offsets: IndexSet) {
         viewModel.deleteProjects(at: offsets, from: viewModel.projects)
     }
@@ -124,28 +129,34 @@ struct InlineErrorMessage: View {
 
 struct ProjectRow: View {
     let project: Project
+    var fileCount: Int = 0
 
     var body: some View {
-        HStack(spacing: 12) {
-            // フォルダアイコン
-            Image(systemName: "folder")
-                .font(.title2)
-                .foregroundStyle(MemoraColor.textSecondary)
-                .frame(width: 40, height: 40)
+        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+            Text(project.title)
+                .font(MemoraTypography.body)
+                .foregroundStyle(MemoraColor.textPrimary)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(project.title)
-                    .font(MemoraTypography.headline)
-                    .foregroundStyle(.primary)
+            HStack(spacing: MemoraSpacing.xs) {
+                Text(formatDate(project.updatedAt))
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
-                Text("更新: \(formatDate(project.updatedAt))")
+                if fileCount > 0 {
+                    Text("\(fileCount)ファイル")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "folder")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(MemoraColor.textSecondary)
             }
-
-            Spacer()
         }
-        .padding(.vertical, MemoraSpacing.xxxs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, MemoraSpacing.xs)
     }
 
     private func formatDate(_ date: Date) -> String {

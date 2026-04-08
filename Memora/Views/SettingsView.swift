@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Speech
+import AuthenticationServices
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -29,6 +30,7 @@ struct SettingsView: View {
     @State private var showPlaudStatusAlert: Bool = false
     @State private var isLoggedIn: Bool = false
     @State private var showDebugLog: Bool = false
+    @State private var modelStoreService = ModelStoreService()
 
     // Notion 設定
     @Query private var notionSettingsList: [NotionSettings]
@@ -41,12 +43,24 @@ struct SettingsView: View {
     @State private var selectedNotionPageID: String?
     @State private var showNotionPagePicker: Bool = false
 
+    // Google Meet 設定
+    @Query private var googleSettingsList: [GoogleMeetSettings]
+    @State private var googleClientID: String = ""
+    @State private var googleRedirectURI: String = ""
+    @State private var isGoogleAuthorizing: Bool = false
+    @State private var googleAuthResult: String?
+    @State private var showGoogleMeetImport: Bool = false
+
     var notionSettings: NotionSettings? {
         notionSettingsList.first
     }
 
     var plaudSettings: PlaudSettings? {
         plaudSettingsList.first
+    }
+
+    var googleSettings: GoogleMeetSettings? {
+        googleSettingsList.first
     }
 
     var currentProvider: AIProvider {
@@ -68,6 +82,7 @@ struct SettingsView: View {
                 aiProviderSection
                 apiKeySection
                 notionIntegrationSection
+                googleMeetIntegrationSection
                 memorySettingsSection
                 usageInstructionsSection
                 dataManagementSection
@@ -83,6 +98,7 @@ struct SettingsView: View {
         .onAppear {
             loadPlaudSettings()
             loadNotionSettings()
+            loadGoogleSettings()
         }
         .alert("API キー削除", isPresented: $showDeleteAlert) {
             Button("キャンセル", role: .cancel) {}
@@ -213,7 +229,11 @@ struct SettingsView: View {
                                 .foregroundStyle(MemoraColor.textSecondary)
                         }
 
-                        if !provider.supportsTranscription {
+                        if provider == .local {
+                            Text(LocalLLMProvider.isAvailable ? "On-Device" : "未対応")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(LocalLLMProvider.isAvailable ? MemoraColor.accentGreen : .secondary)
+                        } else if !provider.supportsTranscription {
                             Text("要約のみ")
                                 .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
@@ -223,22 +243,41 @@ struct SettingsView: View {
             }
             .pickerStyle(.inline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("選択中のプロバイダー:")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(.secondary)
+            if currentProvider == .local {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: LocalLLMProvider.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(LocalLLMProvider.isAvailable ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                        Text(LocalLLMProvider.isAvailable ? "On-Device LLM 利用可能" : "この端末では On-Device LLM は利用できません")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
 
-                Text(currentProvider.rawValue)
-                    .font(MemoraTypography.subheadline)
-                    .fontWeight(.semibold)
-
-                if currentTranscriptionMode == .api && !currentProvider.supportsTranscription {
-                    Text("※ 選択されたプロバイダーはAPI文字起こしをサポートしていません")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentRed)
+                    if LocalLLMProvider.isAvailable {
+                        Text("iOS 26 Foundation Models を使用します。API キー不要・無料。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    }
                 }
+                .padding(.vertical, MemoraSpacing.xxxs)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("選択中のプロバイダー:")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+
+                    Text(currentProvider.rawValue)
+                        .font(MemoraTypography.subheadline)
+                        .fontWeight(.semibold)
+
+                    if currentTranscriptionMode == .api && !currentProvider.supportsTranscription {
+                        Text("※ 選択されたプロバイダーはAPI文字起こしをサポートしていません")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+                }
+                .padding(.vertical, MemoraSpacing.xxxs)
             }
-            .padding(.vertical, MemoraSpacing.xxxs)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("料金目安（参考）:")
@@ -253,7 +292,8 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var apiKeySection: some View {
-        Section("API キー設定") {
+        if currentProvider.requiresAPIKey {
+            Section("API キー設定") {
             SecureField("API キー", text: currentAPIKeyBinding)
                 .textFieldStyle(.plain)
 
@@ -607,6 +647,83 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Gemma 4 Experimental
+            gemma4ExperimentalSection
+        }
+    }
+
+    @ViewBuilder
+    private var gemma4ExperimentalSection: some View {
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+            HStack {
+                Image(systemName: "flask")
+                    .foregroundStyle(.purple)
+                Text("Gemma 4 実験プロファイル")
+                    .font(MemoraTypography.subheadline)
+                    .fontWeight(.semibold)
+            }
+
+            if Gemma4DeviceGate.isEligible {
+                Toggle(isOn: Binding(
+                    get: { Gemma4FeatureFlag.isEnabled },
+                    set: { Gemma4FeatureFlag.isEnabled = $0 }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Gemma 4 プロファイルを有効化")
+                        Text("Local 選択時に Foundation Models を Gemma 4 プロファイル経由で使用します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if Gemma4FeatureFlag.isEnabled {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentGreen)
+                        Text("Gemma 4 実験プロファイル有効")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    }
+
+                    Text(Gemma4DeviceGate.deviceSummary)
+                        .font(MemoraTypography.caption2)
+                        .foregroundStyle(MemoraColor.textTertiary)
+
+                    NavigationLink {
+                        Gemma4BenchmarkView()
+                    } label: {
+                        HStack(spacing: MemoraSpacing.sm) {
+                            Image(systemName: "gauge.with.dots.needle.33percent")
+                                .foregroundStyle(MemoraColor.accentBlue)
+                            Text("ベンチマークを実行")
+                        }
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentRed)
+                        Text("このデバイスでは利用できません")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+
+                    if let reason = Gemma4DeviceGate.ineligibilityReason {
+                        Text(reason)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(Gemma4DeviceGate.deviceSummary)
+                        .font(MemoraTypography.caption2)
+                        .foregroundStyle(MemoraColor.textTertiary)
+                }
+            }
+        }
+        .padding(.vertical, MemoraSpacing.xxxs)
+    }
+
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
                 set: { newValue in
@@ -746,6 +863,122 @@ struct SettingsView: View {
             Text("アプリ初回起動時のパフォーマンスを確認できます")
                 .font(MemoraTypography.caption1)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Google Meet Integration Section
+
+    @ViewBuilder
+    private var googleMeetIntegrationSection: some View {
+        Section {
+            Toggle("Google Meet 連携を有効化", isOn: Binding(
+                get: { googleSettings?.isEnabled ?? false },
+                set: { newValue in
+                    if let settings = googleSettings {
+                        settings.isEnabled = newValue
+                        settings.updatedAt = Date()
+                    } else if newValue {
+                        let newSettings = GoogleMeetSettings()
+                        newSettings.isEnabled = true
+                        newSettings.clientID = googleClientID
+                        newSettings.redirectURIScheme = googleRedirectURI
+                        modelContext.insert(newSettings)
+                    }
+                    try? modelContext.save()
+                }
+            ))
+
+            if googleSettings?.isEnabled == true {
+                TextField("Client ID", text: Binding(
+                    get: { googleClientID },
+                    set: { newValue in
+                        googleClientID = newValue
+                        if let settings = googleSettings {
+                            settings.clientID = newValue
+                            settings.updatedAt = Date()
+                            try? modelContext.save()
+                        }
+                    }
+                ))
+                .textFieldStyle(.plain)
+                .autocapitalization(.none)
+                .font(.system(.body, design: .monospaced))
+
+                TextField("Redirect URI Scheme", text: Binding(
+                    get: { googleRedirectURI },
+                    set: { newValue in
+                        googleRedirectURI = newValue
+                        if let settings = googleSettings {
+                            settings.redirectURIScheme = newValue
+                            settings.updatedAt = Date()
+                            try? modelContext.save()
+                        }
+                    }
+                ))
+                .textFieldStyle(.plain)
+                .autocapitalization(.none)
+                .font(.system(.body, design: .monospaced))
+
+                if googleSettings?.isTokenValid == true {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentGreen)
+                        Text("認証済み")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    }
+
+                    if let expiresAt = googleSettings?.tokenExpiresAt {
+                        Text("トークン有効期限: \(formatDate(expiresAt))")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.textSecondary)
+                    }
+
+                    Button {
+                        showGoogleMeetImport = true
+                    } label: {
+                        Label("Meet からインポート", systemImage: "video.badge.plus")
+                            .font(MemoraTypography.subheadline)
+                    }
+
+                    Button(role: .destructive) {
+                        disconnectGoogle()
+                    } label: {
+                        Text("連携を解除")
+                    }
+                } else if !googleClientID.isEmpty && !googleRedirectURI.isEmpty {
+                    Button {
+                        Task { await authorizeGoogle() }
+                    } label: {
+                        HStack {
+                            Text("Google で認証")
+                            if isGoogleAuthorizing {
+                                Spacer()
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                    }
+                    .disabled(isGoogleAuthorizing)
+
+                    if let result = googleAuthResult {
+                        Text(result)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(result.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                    }
+                } else {
+                    Text("Client ID と Redirect URI Scheme を設定してください")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+            }
+        } header: {
+            Text("Google Meet 連携")
+        } footer: {
+            Text("Google Meet の会議録画・文字起こしをインポートします。Google Cloud Console で OAuth 2.0 Client ID を作成し、Redirect URI Scheme（カスタム URL スキーム）を設定してください。")
+        }
+        .sheet(isPresented: $showGoogleMeetImport) {
+            GoogleMeetImportView()
         }
     }
 
@@ -893,6 +1126,8 @@ struct SettingsView: View {
                     return apiKeyGemini
                 case .deepseek:
                     return apiKeyDeepSeek
+                case .local:
+                    return ""
                 }
             },
             set: { newValue in
@@ -903,6 +1138,8 @@ struct SettingsView: View {
                     apiKeyGemini = newValue
                 case .deepseek:
                     apiKeyDeepSeek = newValue
+                case .local:
+                    break
                 }
             }
         )
@@ -936,6 +1173,14 @@ struct SettingsView: View {
             }
             .font(MemoraTypography.caption1)
             .foregroundStyle(.secondary)
+
+        case .local:
+            VStack(alignment: .leading, spacing: 2) {
+                Text("• 無料・オフライン対応")
+                Text("• iOS 26 Foundation Models を使用")
+            }
+            .font(MemoraTypography.caption1)
+            .foregroundStyle(MemoraColor.accentGreen)
         }
     }
 
@@ -944,6 +1189,67 @@ struct SettingsView: View {
         notionToken = settings.integrationToken
         notionParentPageID = settings.parentPageID
         selectedNotionPageID = settings.parentPageID.isEmpty ? nil : settings.parentPageID
+    }
+
+    private func loadGoogleSettings() {
+        guard let settings = googleSettings else { return }
+        googleClientID = settings.clientID
+        googleRedirectURI = settings.redirectURIScheme
+    }
+
+    private func authorizeGoogle() async {
+        isGoogleAuthorizing = true
+        googleAuthResult = nil
+
+        do {
+            let authService = GoogleAuthService()
+            let contextProvider = AuthPresentationContextProvider()
+            let response = try await authService.authorize(
+                clientID: googleClientID,
+                redirectURIScheme: googleRedirectURI,
+                contextProvider: contextProvider
+            )
+
+            let settings = googleSettings ?? {
+                let s = GoogleMeetSettings()
+                s.isEnabled = true
+                modelContext.insert(s)
+                return s
+            }()
+
+            settings.clientID = googleClientID
+            settings.redirectURIScheme = googleRedirectURI
+            settings.accessToken = response.accessToken
+            if let refresh = response.refreshToken {
+                settings.refreshToken = refresh
+            }
+            settings.tokenExpiresAt = response.calculatedExpiresAt
+            settings.updatedAt = Date()
+
+            try modelContext.save()
+            googleAuthResult = "認証に成功しました"
+        } catch {
+            googleAuthResult = "エラー: \(error.localizedDescription)"
+        }
+
+        isGoogleAuthorizing = false
+    }
+
+    private func disconnectGoogle() {
+        if let settings = googleSettings {
+            if !settings.accessToken.isEmpty {
+                Task {
+                    let authService = GoogleAuthService()
+                    try? await authService.revokeToken(settings.accessToken)
+                }
+            }
+            settings.accessToken = ""
+            settings.refreshToken = ""
+            settings.tokenExpiresAt = nil
+            settings.updatedAt = Date()
+            try? modelContext.save()
+        }
+        googleAuthResult = nil
     }
 
     private func testNotionConnection() async {
@@ -1700,6 +2006,7 @@ private struct STTDiagnosticsView: View {
         List {
             configurationSection
             diagnosticsSection
+            recoverySection
             recentExecutionSection
             fallbackSection
             testSection
@@ -1776,6 +2083,31 @@ private struct STTDiagnosticsView: View {
                 Text("診断情報はまだありません。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recoverySection: some View {
+        if let category = snapshot?.lastFailureCategory {
+            Section("復旧ヒント") {
+                VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundStyle(.yellow)
+                        Text(category.localizedTitle)
+                            .font(MemoraTypography.subheadline)
+                            .fontWeight(.semibold)
+                    }
+
+                    Text(category.recoveryAction)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(MemoraSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.yellow.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
             }
         }
     }
@@ -2062,4 +2394,113 @@ private struct NotionPagePickerView: View {
     SettingsView()
         .environmentObject(OmiAdapter())
         .environmentObject(BluetoothAudioService())
+}
+
+// MARK: - Google Auth Presentation Context
+
+private final class AuthPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            return UIWindow()
+        }
+        return window
+    }
+}
+
+// MARK: - Gemma 4 Benchmark View
+
+private struct Gemma4BenchmarkView: View {
+    @StateObject private var runner = Gemma4BenchmarkRunner()
+
+    var body: some View {
+        List {
+            Section("ベンチマーク") {
+                Button {
+                    Task { await runner.runAll() }
+                } label: {
+                    HStack(spacing: MemoraSpacing.sm) {
+                        if runner.isRunning {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "play.fill")
+                                .foregroundStyle(MemoraColor.accentBlue)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(runner.isRunning ? "実行中..." : "ベンチマーク実行")
+                                .font(MemoraTypography.subheadline)
+                                .foregroundStyle(.primary)
+
+                            Text("3 種類のテストでレイテンシを計測")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .disabled(runner.isRunning)
+            }
+
+            if !runner.results.isEmpty {
+                Section("結果") {
+                    ForEach(runner.results) { result in
+                        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+                            HStack {
+                                Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(result.success ? MemoraColor.accentGreen : MemoraColor.accentRed)
+
+                                Text(result.testName)
+                                    .font(MemoraTypography.subheadline)
+
+                                Spacer()
+
+                                if result.success {
+                                    Text(String(format: "%.0fms", result.latencyMs))
+                                        .font(MemoraTypography.caption1)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(MemoraColor.accentBlue)
+                                }
+                            }
+
+                            if result.success {
+                                HStack(spacing: MemoraSpacing.sm) {
+                                    Label("\(result.tokenCount) tokens", systemImage: "text.word.spacing")
+                                        .font(MemoraTypography.caption2)
+                                        .foregroundStyle(MemoraColor.textSecondary)
+
+                                    Label(String(format: "%.1f tok/s", result.tokensPerSecond), systemImage: "speedometer")
+                                        .font(MemoraTypography.caption2)
+                                        .foregroundStyle(MemoraColor.textSecondary)
+                                }
+                            } else if let error = result.errorMessage {
+                                Text(error)
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(MemoraColor.accentRed)
+                            }
+                        }
+                        .padding(.vertical, MemoraSpacing.xxxs)
+                    }
+                }
+
+                Section("サマリー") {
+                    let successResults = runner.results.filter(\.success)
+                    if !successResults.isEmpty {
+                        let avgLatency = successResults.map(\.latencyMs).reduce(0, +) / Double(successResults.count)
+                        let avgTps = successResults.map(\.tokensPerSecond).reduce(0, +) / Double(successResults.count)
+
+                        LabeledContent("平均レイテンシ", value: String(format: "%.0fms", avgLatency))
+                        LabeledContent("平均スループット", value: String(format: "%.1f tok/s", avgTps))
+                        LabeledContent("成功率", value: "\(successResults.count)/\(runner.results.count)")
+                    } else {
+                        Text("すべてのテストが失敗しました")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Gemma 4 Benchmark")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 }

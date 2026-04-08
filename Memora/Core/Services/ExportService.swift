@@ -98,27 +98,35 @@ final class ExportService {
         }
     }
 
-    /// すべて（文字起こし + 要約）をエクスポート
+    /// すべて（文字起こし + 要約 + メモ + タスク）をエクスポート
     func exportAll(
         transcript: Transcript?,
         audioFile: AudioFile,
-        format: ExportFormat
+        format: ExportFormat,
+        memoText: String? = nil,
+        todoItems: [TodoItem] = []
     ) throws -> URL {
         switch format {
         case .txt:
             return try exportAllAsTXT(
                 transcript: transcript,
-                audioFile: audioFile
+                audioFile: audioFile,
+                memoText: memoText,
+                todoItems: todoItems
             )
         case .markdown:
             return try exportAllAsMarkdown(
                 transcript: transcript,
-                audioFile: audioFile
+                audioFile: audioFile,
+                memoText: memoText,
+                todoItems: todoItems
             )
         case .json:
             return try exportAllAsJSON(
                 transcript: transcript,
-                audioFile: audioFile
+                audioFile: audioFile,
+                memoText: memoText,
+                todoItems: todoItems
             )
         case .srt:
             guard let transcript = transcript else {
@@ -170,7 +178,9 @@ final class ExportService {
 
     private func exportAllAsTXT(
         transcript: Transcript?,
-        audioFile: AudioFile
+        audioFile: AudioFile,
+        memoText: String?,
+        todoItems: [TodoItem]
     ) throws -> URL {
         var content = "# \(audioFile.title)\n"
         content += "# 作成日: \(formatDate(audioFile.createdAt))\n"
@@ -189,7 +199,19 @@ final class ExportService {
             content += "## 要約\n\n"
             content += "### 要約\n\(summary)\n\n"
             content += "### 要点\n\(keyPoints)\n\n"
-            content += "### アクションアイテム\n\(actionItems)"
+            content += "### アクションアイテム\n\(actionItems)\n\n"
+        }
+
+        if let memoText, !memoText.isEmpty {
+            content += "## メモ\n\n\(memoText)\n\n"
+        }
+
+        if !todoItems.isEmpty {
+            content += "## タスク\n\n"
+            for todo in todoItems {
+                let check = todo.isCompleted ? "[x]" : "[ ]"
+                content += "- \(check) \(todo.title)\n"
+            }
         }
 
         return try saveToFile(content: content, extension: "txt")
@@ -228,7 +250,9 @@ final class ExportService {
 
     private func exportAllAsMarkdown(
         transcript: Transcript?,
-        audioFile: AudioFile
+        audioFile: AudioFile,
+        memoText: String?,
+        todoItems: [TodoItem]
     ) throws -> URL {
         var content = "# \(audioFile.title)\n\n"
         content += "**作成日:** \(formatDate(audioFile.createdAt))  \n"
@@ -248,7 +272,19 @@ final class ExportService {
             content += "## 要約\n\n"
             content += "### 要約\n\n\(summary)\n\n"
             content += "### 要点\n\n\(keyPoints)\n\n"
-            content += "### アクションアイテム\n\n\(actionItems)"
+            content += "### アクションアイテム\n\n\(actionItems)\n\n"
+        }
+
+        if let memoText, !memoText.isEmpty {
+            content += "## メモ\n\n\(memoText)\n\n"
+        }
+
+        if !todoItems.isEmpty {
+            content += "## タスク\n\n"
+            for todo in todoItems {
+                let check = todo.isCompleted ? "x" : " "
+                content += "- [\(check)] \(todo.title)\n"
+            }
         }
 
         return try saveToFile(content: content, extension: "md")
@@ -298,7 +334,9 @@ final class ExportService {
 
     private func exportAllAsJSON(
         transcript: Transcript?,
-        audioFile: AudioFile
+        audioFile: AudioFile,
+        memoText: String?,
+        todoItems: [TodoItem]
     ) throws -> URL {
         var data: [String: Any] = [
             "title": audioFile.title,
@@ -322,6 +360,26 @@ final class ExportService {
                 "keyPoints": keyPoints.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) },
                 "actionItems": actionItems.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
             ]
+        }
+
+        if let memoText, !memoText.isEmpty {
+            data["memo"] = memoText
+        }
+
+        if !todoItems.isEmpty {
+            data["todos"] = todoItems.map { todo in
+                var item: [String: Any] = [
+                    "title": todo.title,
+                    "isCompleted": todo.isCompleted,
+                    "priority": todo.priority
+                ]
+                if let notes = todo.notes { item["notes"] = notes }
+                if let assignee = todo.assignee { item["assignee"] = assignee }
+                if let dueDate = todo.dueDate {
+                    item["dueDate"] = ISO8601DateFormatter().string(from: dueDate)
+                }
+                return item
+            }
         }
 
         let jsonData = try JSONSerialization.data(withJSONObject: data, options: [.prettyPrinted])

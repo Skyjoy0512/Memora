@@ -67,53 +67,59 @@ final class KnowledgeQueryService {
             return emptyPack(scopeTitle: "このファイル")
         }
 
-        let transcript = fetchTranscript(for: file.id)?.text
-        let memo = fetchMeetingMemo(for: file.id)?.plainTextCache
-
         var sources: [ContextSource] = memoryContextSources()
-        sources += [
-            makeContextSource(
-                type: "transcript",
-                title: "\(file.title) / Transcript",
-                body: transcript,
-                systemImage: "text.alignleft",
-                shortLabel: "Transcript"
-            ),
-            makeContextSource(
-                type: "summary",
-                title: "\(file.title) / Summary",
-                body: file.summary,
-                systemImage: "text.quote",
-                shortLabel: "Summary"
-            ),
-            makeContextSource(
-                type: "memo",
-                title: "\(file.title) / Memo",
-                body: memo,
-                systemImage: "square.and.pencil",
-                shortLabel: "Memo"
-            ),
-            makeContextSource(
-                type: "reference",
-                title: "\(file.title) / Plaud",
-                body: file.referenceTranscript,
-                systemImage: "doc.text",
-                shortLabel: "Plaud"
-            )
-        ].compactMap { $0 }
 
-        // Add KnowledgeChunk-based photoOCR context
-        let photoOCRChunks = fetchChunks(scopeType: .file, scopeID: fileID, sourceType: .photoOCR, limit: 2)
-        for chunk in photoOCRChunks {
-            if let source = makeContextSource(
-                type: "photoOCR",
-                title: "\(file.title) / Photo OCR",
-                body: chunk.text,
-                systemImage: "photo",
-                shortLabel: "OCR"
-            ) {
-                sources.append(source)
+        // Primary: KnowledgeChunk-based retrieval (rank descending, top-8)
+        let chunks = fetchChunks(scopeType: .file, scopeID: fileID, limit: 8)
+
+        if !chunks.isEmpty {
+            for chunk in chunks {
+                let image = sourceImage(for: chunk.sourceType)
+                if let source = makeContextSource(
+                    type: chunk.sourceTypeRaw,
+                    title: "\(file.title) / \(chunk.sourceTypeRaw.capitalized)",
+                    body: chunk.text,
+                    systemImage: image,
+                    shortLabel: chunk.sourceTypeRaw.capitalized
+                ) {
+                    sources.append(source)
+                }
             }
+        } else {
+            // Fallback: direct entity queries when no chunks exist
+            let transcript = fetchTranscript(for: file.id)?.text
+            let memo = fetchMeetingMemo(for: file.id)?.plainTextCache
+
+            sources += [
+                makeContextSource(
+                    type: "transcript",
+                    title: "\(file.title) / Transcript",
+                    body: transcript,
+                    systemImage: "text.alignleft",
+                    shortLabel: "Transcript"
+                ),
+                makeContextSource(
+                    type: "summary",
+                    title: "\(file.title) / Summary",
+                    body: file.summary,
+                    systemImage: "text.quote",
+                    shortLabel: "Summary"
+                ),
+                makeContextSource(
+                    type: "memo",
+                    title: "\(file.title) / Memo",
+                    body: memo,
+                    systemImage: "square.and.pencil",
+                    shortLabel: "Memo"
+                ),
+                makeContextSource(
+                    type: "reference",
+                    title: "\(file.title) / Plaud",
+                    body: file.referenceTranscript,
+                    systemImage: "doc.text",
+                    shortLabel: "Plaud"
+                )
+            ].compactMap { $0 }
         }
 
         return makeContextPack(scopeTitle: file.title, sources: sources)
@@ -130,20 +136,11 @@ final class KnowledgeQueryService {
         var sources: [ContextSource] = memoryContextSources()
 
         for chunk in chunks {
-            let image: String
-            switch chunk.sourceType {
-            case .summary: image = "text.quote"
-            case .transcript: image = "text.alignleft"
-            case .memo: image = "square.and.pencil"
-            case .todo: image = "checklist"
-            case .photoOCR: image = "photo"
-            case .referenceTranscript: image = "doc.text"
-            }
             if let source = makeContextSource(
                 type: chunk.sourceTypeRaw,
-                title: chunk.text.prefix(40).description,
+                title: chunkTitle(sourceType: chunk.sourceType, scopeName: project?.title ?? "Project"),
                 body: chunk.text,
-                systemImage: image,
+                systemImage: sourceImage(for: chunk.sourceType),
                 shortLabel: chunk.sourceTypeRaw.capitalized
             ) {
                 sources.append(source)
@@ -209,20 +206,11 @@ final class KnowledgeQueryService {
         var sources: [ContextSource] = memoryContextSources()
 
         for chunk in chunks {
-            let image: String
-            switch chunk.sourceType {
-            case .summary: image = "text.quote"
-            case .transcript: image = "text.alignleft"
-            case .memo: image = "square.and.pencil"
-            case .todo: image = "checklist"
-            case .photoOCR: image = "photo"
-            case .referenceTranscript: image = "doc.text"
-            }
             if let source = makeContextSource(
                 type: chunk.sourceTypeRaw,
-                title: chunk.text.prefix(40).description,
+                title: chunkTitle(sourceType: chunk.sourceType, scopeName: "Global"),
                 body: chunk.text,
-                systemImage: image,
+                systemImage: sourceImage(for: chunk.sourceType),
                 shortLabel: chunk.sourceTypeRaw.capitalized
             ) {
                 sources.append(source)
@@ -304,22 +292,42 @@ final class KnowledgeQueryService {
         sourceType: KnowledgeChunkSourceType? = nil,
         limit: Int = 6
     ) -> [KnowledgeChunk] {
-        var descriptor = FetchDescriptor<KnowledgeChunk>(
-            sortBy: [
-                SortDescriptor(\.rankHint, order: .reverse),
-                SortDescriptor(\.createdAt, order: .reverse)
-            ]
-        )
-        descriptor.fetchLimit = limit * 2 // fetch extra, then filter
+        // Use predicate-based filtering for better performance
+        let scopeTypeRaw = scopeType.rawValue
 
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        let filtered = all.filter { chunk in
-            guard chunk.scopeType == scopeType else { return false }
-            if let scopeID, chunk.scopeID != scopeID { return false }
-            if let sourceType, chunk.sourceType != sourceType { return false }
-            return true
+        var descriptor: FetchDescriptor<KnowledgeChunk>
+        if let scopeID {
+            descriptor = FetchDescriptor<KnowledgeChunk>(
+                predicate: #Predicate {
+                    $0.scopeTypeRaw == scopeTypeRaw && $0.scopeID == scopeID
+                },
+                sortBy: [
+                    SortDescriptor(\.rankHint, order: .reverse),
+                    SortDescriptor(\.createdAt, order: .reverse)
+                ]
+            )
+        } else {
+            descriptor = FetchDescriptor<KnowledgeChunk>(
+                predicate: #Predicate {
+                    $0.scopeTypeRaw == scopeTypeRaw
+                },
+                sortBy: [
+                    SortDescriptor(\.rankHint, order: .reverse),
+                    SortDescriptor(\.createdAt, order: .reverse)
+                ]
+            )
         }
-        return Array(filtered.prefix(limit))
+        descriptor.fetchLimit = limit * 2
+
+        var results = (try? modelContext.fetch(descriptor)) ?? []
+
+        // Additional sourceType filter if needed (not in predicate to avoid complex predicates)
+        if let sourceType {
+            let sourceTypeRaw = sourceType.rawValue
+            results = results.filter { $0.sourceTypeRaw == sourceTypeRaw }
+        }
+
+        return Array(results.prefix(limit))
     }
 
     // MARK: - Memory Context
@@ -532,6 +540,30 @@ final class KnowledgeQueryService {
     }
 
     // MARK: - Helpers
+
+    private func sourceImage(for sourceType: KnowledgeChunkSourceType) -> String {
+        switch sourceType {
+        case .summary: return "text.quote"
+        case .transcript: return "text.alignleft"
+        case .memo: return "square.and.pencil"
+        case .todo: return "checklist"
+        case .photoOCR: return "photo"
+        case .referenceTranscript: return "doc.text"
+        }
+    }
+
+    private func chunkTitle(sourceType: KnowledgeChunkSourceType, scopeName: String) -> String {
+        let label: String
+        switch sourceType {
+        case .summary: label = "Summary"
+        case .transcript: label = "Transcript"
+        case .memo: label = "Memo"
+        case .todo: label = "Todo"
+        case .photoOCR: label = "Photo OCR"
+        case .referenceTranscript: label = "Reference"
+        }
+        return "\(scopeName) / \(label)"
+    }
 
     private func makeContextSource(
         type: String,

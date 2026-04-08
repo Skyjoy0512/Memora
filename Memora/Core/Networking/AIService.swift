@@ -24,14 +24,18 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
     private var transcriber: SpeechTranscriber?
     private var formatConverter: AVAudioConverter?
     private var compatibleFormats: [AVAudioFormat] = []
-    private let jaLocale = Locale(identifier: "ja_JP")
+    private let locale: Locale
+
+    init(locale: Locale = Locale(identifier: "ja_JP")) {
+        self.locale = locale
+    }
 
     private func setup() async throws {
         let installedLocales = await SpeechTranscriber.installedLocales
         print("インストール済みロケール: \(installedLocales)")
 
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: jaLocale) else {
-            print("日本語ロケールが利用可能ではありません")
+        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
+            print("ロケール \(locale.identifier) が利用可能ではありません")
             throw LocalTranscriptionError.localeNotSupported
         }
 
@@ -185,17 +189,30 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                     return (true, "")
                 }
 
+                // セーフティタイムアウト: 結果収集がハングした場合の保護
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 45_000_000_000) // 45秒
+                    print("[MemoraSTT] SpeechAnalyzer 結果収集セーフティタイムアウト")
+                    return (true, "") // 分析完了シグナルとして扱い、ループを脱出
+                }
+
                 // 分析の完了を待つ
                 var analysisDone = false
                 var transcriptParts: [String] = []
+                var analysisDoneReceived = 0
 
                 for try await result in group {
                     if result.analysisDone {
-                        analysisDone = true
-                        // 分析完了後、さらに少し待って結果を収集
-                        if transcriptParts.isEmpty {
-                            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1秒待機
+                        analysisDoneReceived += 1
+                        if analysisDoneReceived > 1 {
+                            // 2回目の analysisDone = セーフティタイムアウトまたは重複
+                            if transcriptParts.isEmpty {
+                                print("[MemoraSTT] SpeechAnalyzer: 分析完了後も結果なし — 終了")
+                            }
+                            group.cancelAll()
+                            break
                         }
+                        analysisDone = true
                     } else {
                         transcriptParts.append(result.transcript)
                     }
@@ -474,6 +491,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case openai = "OpenAI"
     case gemini = "Gemini"
     case deepseek = "DeepSeek"
+    case local = "Local"
 
     var id: String { rawValue }
 
@@ -482,6 +500,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .openai: return true
         case .gemini: return false
         case .deepseek: return false
+        case .local: return false
         }
     }
 
@@ -490,6 +509,15 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .openai: return .openai
         case .gemini: return nil
         case .deepseek: return nil
+        case .local: return nil
+        }
+    }
+
+    /// API キーが必要なプロバイダーか
+    var requiresAPIKey: Bool {
+        switch self {
+        case .openai, .gemini, .deepseek: return true
+        case .local: return false
         }
     }
 }
@@ -526,6 +554,7 @@ protocol AIServiceProtocol {
     func configure(apiKey: String) async throws
     func transcribe(audioURL: URL) async throws -> String
     func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String])
+    func generate(_ prompt: String) async throws -> String
 }
 
 // MARK: - Unified Service
@@ -538,6 +567,9 @@ final class AIService: AIServiceProtocol, ObservableObject {
     private var deepSeekService: DeepSeekService?
     private var localTranscriptionService: LocalTranscriptionService?
 
+    /// LLMProvider 経由のプロバイダー（C2 追加）
+    private var llmProvider: (any LLMProvider)?
+
     var currentProvider: AIProvider { provider }
     var currentTranscriptionMode: TranscriptionMode { transcriptionMode }
 
@@ -549,14 +581,43 @@ final class AIService: AIServiceProtocol, ObservableObject {
         self.transcriptionMode = mode
     }
 
+    /// 外部から LLMProvider を注入する（C3/C4 で local provider を差し込む用）
+    func setLLMProvider(_ provider: any LLMProvider) {
+        self.llmProvider = provider
+    }
+
+    /// Gemma 4 実験プロファイルを有効化する。
+    /// stable path (LocalLLMProvider) を上書きせず、独立スロットに注入する。
+    func enableGemma4Experimental() {
+        guard Gemma4ExperimentalProvider.isReady else { return }
+        self.llmProvider = Gemma4ExperimentalProvider()
+    }
+
     func configure(apiKey: String) async throws {
         switch provider {
+        case .local:
+            // Gemma 4 実験プロファイルが有効ならそちらを優先
+            if Gemma4ExperimentalProvider.isReady {
+                llmProvider = Gemma4ExperimentalProvider()
+            } else {
+                guard LocalLLMProvider.isAvailable else {
+                    throw AIError.notConfigured
+                }
+                let localProvider = LocalLLMProvider()
+                llmProvider = localProvider
+            }
         case .openai:
-            openAIService = OpenAIService(apiKey: apiKey)
+            let service = OpenAIService(apiKey: apiKey)
+            openAIService = service
+            llmProvider = service
         case .gemini:
-            geminiService = GeminiService(apiKey: apiKey)
+            let service = GeminiService(apiKey: apiKey)
+            geminiService = service
+            llmProvider = service
         case .deepseek:
-            deepSeekService = DeepSeekService(apiKey: apiKey)
+            let service = DeepSeekService(apiKey: apiKey)
+            deepSeekService = service
+            llmProvider = service
         }
 
         // ローカル文字起こしの初期化
@@ -596,7 +657,16 @@ final class AIService: AIServiceProtocol, ObservableObject {
     }
 
     func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
+        // LLMProvider 経由の統一路線（外部注入された provider があればそちらを優先）
+        if let llmProvider {
+            let result = try await llmProvider.summarize(transcript: transcript)
+            return (result.summary, result.keyPoints, result.actionItems)
+        }
+
+        // フォールバック: 従来のサービス直呼び出し
         switch provider {
+        case .local:
+            throw AIError.notConfigured
         case .openai:
             guard let service = openAIService else { throw AIError.notConfigured }
             return try await service.summarize(transcript: transcript)
@@ -608,11 +678,20 @@ final class AIService: AIServiceProtocol, ObservableObject {
             return try await service.summarize(transcript: transcript)
         }
     }
+
+    /// LLMProvider 経由でテキスト生成（AskAI などで使用）
+    func generate(_ prompt: String) async throws -> String {
+        guard let llmProvider else {
+            throw AIError.notConfigured
+        }
+        return try await llmProvider.generate(prompt)
+    }
 }
 
 // MARK: - OpenAI Service
 
-final class OpenAIService {
+final class OpenAIService: LLMProvider {
+    let displayName = "OpenAI"
     private let apiKey: String
     private let baseURL = "https://api.openai.com/v1"
     private let session: URLSession
@@ -622,6 +701,104 @@ final class OpenAIService {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 120
         self.session = URLSession(configuration: configuration)
+    }
+
+    // MARK: - LLMProvider
+
+    func generate(_ prompt: String) async throws -> String {
+        let requestBody: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                ["role": "user", "content": prompt]
+            ],
+            "temperature": 0.3,
+            "max_tokens": 2048
+        ]
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/chat/completions")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMProviderError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw LLMProviderError.apiError(httpResponse.statusCode, errorString)
+        }
+
+        let result = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
+        guard let content = result.choices.first?.message.content else {
+            throw LLMProviderError.decodingError
+        }
+        return content
+    }
+
+    func summarize(transcript: String) async throws -> LLMProviderSummary {
+        let prompt = """
+        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
+        出力は以下のJSON形式で返してください：
+
+        {
+          "summary": "会議の要約",
+          "keyPoints": ["重要ポイント1", "重要ポイント2"],
+          "actionItems": ["アクションアイテム1", "アクションアイテム2"]
+        }
+
+        Transcript:
+        \(transcript)
+        """
+
+        let requestBody: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                ["role": "system", "content": "あなたは会議の文字起こしから要約を作成するアシスタントです。"],
+                ["role": "user", "content": prompt]
+            ],
+            "temperature": 0.3,
+            "max_tokens": 2048
+        ]
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/chat/completions")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenAIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if let errorString = String(data: data, encoding: .utf8) {
+                throw OpenAIError.apiError(httpResponse.statusCode, errorString)
+            }
+            throw OpenAIError.apiError(httpResponse.statusCode, "Unknown error")
+        }
+
+        let result = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
+
+        guard let content = result.choices.first?.message.content else {
+            throw OpenAIError.decodingError
+        }
+
+        // Parse JSON response
+        guard let data = content.data(using: .utf8),
+              let summaryData = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let summary = summaryData["summary"] as? String,
+              let keyPoints = summaryData["keyPoints"] as? [String],
+              let actionItems = summaryData["actionItems"] as? [String] else {
+            throw OpenAIError.decodingError
+        }
+
+        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -734,7 +911,8 @@ final class OpenAIService {
 
 // MARK: - Gemini Service
 
-final class GeminiService {
+final class GeminiService: LLMProvider {
+    let displayName = "Gemini"
     private let apiKey: String
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
     private let session: URLSession
@@ -745,6 +923,45 @@ final class GeminiService {
         configuration.timeoutIntervalForRequest = 120
         self.session = URLSession(configuration: configuration)
     }
+
+    // MARK: - LLMProvider
+
+    func generate(_ prompt: String) async throws -> String {
+        let requestBody: [String: Any] = [
+            "contents": [
+                ["parts": [["text": prompt]]]
+            ],
+            "generationConfig": [
+                "temperature": 0.3,
+                "topK": 1,
+                "topP": 1
+            ]
+        ]
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMProviderError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw LLMProviderError.apiError(httpResponse.statusCode, errorString)
+        }
+
+        let result = try JSONDecoder().decode(GeminiResponse.self, from: data)
+        guard let content = result.candidates.first?.content.parts.first?.text else {
+            throw LLMProviderError.decodingError
+        }
+        return content
+    }
+
+    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
 
     func transcribe(audioURL: URL) async throws -> String {
         let audioData = try Data(contentsOf: audioURL)
@@ -867,7 +1084,8 @@ final class GeminiService {
 
 // MARK: - DeepSeek Service
 
-final class DeepSeekService {
+final class DeepSeekService: LLMProvider {
+    let displayName = "DeepSeek"
     private let apiKey: String
     private let baseURL = "https://api.deepseek.com/v1"
     private let session: URLSession
@@ -877,6 +1095,42 @@ final class DeepSeekService {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 120
         self.session = URLSession(configuration: configuration)
+    }
+
+    // MARK: - LLMProvider
+
+    func generate(_ prompt: String) async throws -> String {
+        let requestBody: [String: Any] = [
+            "model": "deepseek-chat",
+            "messages": [
+                ["role": "user", "content": prompt]
+            ],
+            "temperature": 0.3,
+            "max_tokens": 2048
+        ]
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/chat/completions")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LLMProviderError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorString = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw LLMProviderError.apiError(httpResponse.statusCode, errorString)
+        }
+
+        let result = try JSONDecoder().decode(DeepSeekResponse.self, from: data)
+        guard let content = result.choices.first?.message.content else {
+            throw LLMProviderError.decodingError
+        }
+        return content
     }
 
     func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {

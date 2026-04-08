@@ -22,6 +22,7 @@ struct STTDiagnosticsSnapshot {
     let testSummary: String
     let diagnosticModeLabel: String
     let generatedAt: Date
+    let lastFailureCategory: STTFailureCategory?
 
     var generatedAtText: String {
         let formatter = DateFormatter()
@@ -94,7 +95,8 @@ enum STTDiagnosticsRunner {
                 ? "API backend の設定整合性を確認しました。"
                 : "API backend の選択条件を満たしていないため、設定の修正が必要です。",
             diagnosticModeLabel: "設定チェック",
-            generatedAt: Date()
+            generatedAt: Date(),
+            lastFailureCategory: STTFailureCategory.classifyLastFailure()
         )
     }
 
@@ -175,7 +177,8 @@ enum STTDiagnosticsRunner {
                 ? "SFSpeechRecognizer backend の基本状態を確認しました。"
                 : "SFSpeechRecognizer の権限または availability を見直してください。",
             diagnosticModeLabel: "設定チェック",
-            generatedAt: Date()
+            generatedAt: Date(),
+            lastFailureCategory: STTFailureCategory.classifyLastFailure()
         )
     }
 
@@ -217,7 +220,8 @@ enum STTDiagnosticsRunner {
             fallbackReason: simulatorReason.isEmpty ? fallbackReason : simulatorReason,
             testSummary: inspection.testSummary,
             diagnosticModeLabel: "高速チェック",
-            generatedAt: Date()
+            generatedAt: Date(),
+            lastFailureCategory: STTFailureCategory.classifyLastFailure()
         )
     }
 
@@ -261,7 +265,8 @@ enum STTDiagnosticsRunner {
                     : simulatorReason,
                 testSummary: "SpeechAnalyzer preflight を実行し、availability / locale / asset / audio format を確認しました。",
                 diagnosticModeLabel: "preflight 実行",
-                generatedAt: Date()
+                generatedAt: Date(),
+                lastFailureCategory: nil
             )
 
         case .unavailable(let reason, let diagnostics):
@@ -286,7 +291,8 @@ enum STTDiagnosticsRunner {
                 fallbackReason: simulatorReason.isEmpty ? reason.description : simulatorReason,
                 testSummary: "SpeechAnalyzer preflight を実行し、フォールバック条件を確認しました。",
                 diagnosticModeLabel: "preflight 実行",
-                generatedAt: Date()
+                generatedAt: Date(),
+                lastFailureCategory: STTFailureCategory.classifyLastFailure()
             )
         }
     }

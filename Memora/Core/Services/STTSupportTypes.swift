@@ -125,6 +125,84 @@ struct SpeechAnalyzerFeatureFlag {
 
 // MARK: - STT Backend Diagnostics
 
+/// 文字起こし失敗の分類と recovery action。
+enum STTFailureCategory: String, CaseIterable {
+    case localeUnsupported
+    case assetNotInstalled
+    case formatMismatch
+    case timeout
+    case permissionDenied
+    case apiModeUnavailable
+    case other
+
+    var localizedTitle: String {
+        switch self {
+        case .localeUnsupported: return "言語が未対応"
+        case .assetNotInstalled: return "音声認識モデル未ダウンロード"
+        case .formatMismatch: return "音声フォーマット非互換"
+        case .timeout: return "処理タイムアウト"
+        case .permissionDenied: return "音声認識の権限がありません"
+        case .apiModeUnavailable: return "API 文字起こしを利用できません"
+        case .other: return "不明なエラー"
+        }
+    }
+
+    var recoveryAction: String {
+        switch self {
+        case .localeUnsupported:
+            return "設定で言語を変更するか、API モードを試してください。"
+        case .assetNotInstalled:
+            return "Wi-Fi 環境で再試行するとモデルが自動ダウンロードされます。"
+        case .formatMismatch:
+            return "別の音声形式（M4A / WAV）でインポートし直してください。"
+        case .timeout:
+            return "on-device モデルが未ダウンロードの可能性があります。Wi-Fi で再試行するか、API モードに切り替えてください。"
+        case .permissionDenied:
+            return "iOS 設定 → Memora → 音声認識を許可してください。"
+        case .apiModeUnavailable:
+            return "設定で API キーを入力するか、プロバイダーを OpenAI に変更してください。"
+        case .other:
+            return "再度お試しください。問題が続く場合は一時的に API モードをご利用ください。"
+        }
+    }
+
+    /// 直近の diagnostic entry から分類を推定する。
+    static func classify(from entry: STTBackendDiagnosticEntry?) -> STTFailureCategory {
+        guard let entry, let reason = entry.fallbackReason, !reason.isEmpty else {
+            return .other
+        }
+        let lower = reason.lowercased()
+        if lower.contains("locale") || lower.contains("言語") || lower.contains("language") {
+            return .localeUnsupported
+        }
+        if lower.contains("asset") || lower.contains("model") || lower.contains("installed") || lower.contains("install") {
+            return .assetNotInstalled
+        }
+        if lower.contains("format") || lower.contains("互換") {
+            return .formatMismatch
+        }
+        if lower.contains("timeout") || lower.contains("タイムアウト") {
+            return .timeout
+        }
+        if lower.contains("permission") || lower.contains("denied") || lower.contains("権限") {
+            return .permissionDenied
+        }
+        if lower.contains("api") || lower.contains("key") || lower.contains("provider") {
+            return .apiModeUnavailable
+        }
+        return .other
+    }
+
+    /// 直近の diagnostic entry がフォールバックを含む場合に分類を返す。
+    static func classifyLastFailure() -> STTFailureCategory? {
+        guard let last = STTDiagnosticsLog.shared.lastEntry,
+              last.fallbackReason != nil else {
+            return nil
+        }
+        return classify(from: last)
+    }
+}
+
 /// STT バックエンド選択結果の診断記録。
 /// どのバックエンドが使われたか、fallback 理由、処理時間を記録する。
 struct STTBackendDiagnosticEntry: Sendable, Codable, Identifiable {

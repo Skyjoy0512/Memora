@@ -41,6 +41,8 @@ struct AskAIView: View {
             return apiKeyGemini
         case .deepseek:
             return apiKeyDeepSeek
+        case .local:
+            return "" // Local プロバイダーは API キー不要
         }
     }
 
@@ -297,7 +299,7 @@ struct AskAIView: View {
     private var thinkingIndicator: some View {
         if isLoading {
             HStack(spacing: MemoraSpacing.sm) {
-                Text("Thinking...")
+                Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
                     .font(MemoraTypography.body)
                     .foregroundStyle(MemoraColor.textSecondary)
                 ThinkingDots()
@@ -423,10 +425,8 @@ struct AskAIView: View {
             return
         }
 
-        let service = AIService()
-        service.setProvider(currentProvider)
-
-        do {
+        // Local プロバイダー以外では API キーをチェック
+        if currentProvider != .local {
             let apiKey = currentAPIKey
             guard !apiKey.isEmpty else {
                 let message = AskAIConversationMessage(
@@ -441,8 +441,26 @@ struct AskAIView: View {
                 persistMessage(message, sessionID: session.id)
                 return
             }
+        } else if !LocalLLMProvider.isAvailable && !Gemma4ExperimentalProvider.isReady {
+            let message = AskAIConversationMessage(
+                id: UUID(),
+                role: .assistant,
+                content: "この端末では On-Device AI が利用できません。設定画面からプロバイダーを変更してください。",
+                citations: [],
+                createdAt: Date()
+            )
+            isLoading = false
+            messages.append(message)
+            persistMessage(message, sessionID: session.id)
+            return
+        }
 
-            try await service.configure(apiKey: apiKey)
+        let service = AIService()
+        service.setProvider(currentProvider)
+
+        do {
+            // Local プロバイダーは空文字列で configure する
+            try await service.configure(apiKey: currentAPIKey)
 
             let contextPack = qs.buildContext(for: activeScope)
 
@@ -452,8 +470,15 @@ struct AskAIView: View {
 
             let prompt = qs.makePrompt(userMessage: userMessage, contextPack: contextPack)
 
-            let result = try await service.summarize(transcript: prompt)
-            let responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let responseText: String
+            if currentProvider == .local {
+                // Local プロバイダーは generate を直接使用（構造化出力ではなく自由テキスト）
+                responseText = try await service.generate(prompt)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                let result = try await service.summarize(transcript: prompt)
+                responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             let citations = Array(contextPack.citations.map {
                 AskAICitation(id: $0.id, title: $0.title, sourceLabel: $0.sourceLabel, excerpt: $0.excerpt)
             }.prefix(4))

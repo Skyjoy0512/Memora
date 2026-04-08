@@ -26,6 +26,9 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
 
     private let sttService: STTServiceProtocol = STTService()
 
+    /// progress 更新の最小差分。これ未満の変動は SwiftUI 再描画をスキップする。
+    private static let progressThreshold: Double = 0.005
+
     func configure(
         apiKey: String,
         provider: AIProvider = .openai,
@@ -60,15 +63,18 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
         DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 戻り — イベント待機", level: .info)
 
+        // イベントループは MainActor 上で実行されるが、`for await` で待機中は
+        // MainActor は解放される。progress 更新は threshold で間引き、
+        // SwiftUI の過剰再描画を防止する。
         let finalResult = try await withTaskCancellationHandler {
             var finalResult: TranscriptionResult?
 
             for await event in events {
                 switch event {
                 case .transcriptionStarted:
-                    progress = max(progress, 0.02)
+                    updateProgress(max(progress, 0.02))
                 case .transcriptionProgress(_, let value):
-                    progress = value
+                    updateProgress(value)
                 case .transcriptionCompleted(_, let result):
                     progress = 1.0
                     finalResult = result
@@ -76,8 +82,10 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
                     throw error
                 case .transcriptionCancelled:
                     throw CancellationError()
-                case .transcriptionPartialResult,
-                     .audioChunkStarted,
+                case .transcriptionPartialResult:
+                    // volatile（中間結果）: UI には progress だけで十分
+                    continue
+                case .audioChunkStarted,
                      .audioChunkProgress,
                      .audioChunkCompleted:
                     continue
@@ -99,6 +107,12 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             coreResult: finalResult,
             duration: await audioFileDuration(for: audioURL)
         )
+    }
+
+    /// threshold を超える変動のみ @Published に反映する。
+    private func updateProgress(_ value: Double) {
+        guard abs(value - progress) >= Self.progressThreshold else { return }
+        progress = value
     }
 
     func cancelActiveTranscription() async {
