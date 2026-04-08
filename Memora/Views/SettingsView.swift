@@ -294,28 +294,29 @@ struct SettingsView: View {
     private var apiKeySection: some View {
         if currentProvider.requiresAPIKey {
             Section("API キー設定") {
-            SecureField("API キー", text: currentAPIKeyBinding)
-                .textFieldStyle(.plain)
+                SecureField("API キー", text: currentAPIKeyBinding)
+                    .textFieldStyle(.plain)
 
-            if !currentAPIKeyBinding.wrappedValue.isEmpty {
-                Text("API キーが設定されています")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentGreen)
-            }
+                if !currentAPIKeyBinding.wrappedValue.isEmpty {
+                    Text("API キーが設定されています")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentGreen)
+                }
 
-            if currentTranscriptionMode == .api {
-                Text("API文字起こしまたは要約には API キーが必要です。")
+                if currentTranscriptionMode == .api {
+                    Text("API文字起こしまたは要約には API キーが必要です。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("要約には API キーが必要です。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("API キーはローカルにのみ保存されます。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
-            } else {
-                Text("要約には API キーが必要です。")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(.secondary)
             }
-
-            Text("API キーはローカルにのみ保存されます。")
-                .font(MemoraTypography.caption1)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -648,81 +649,74 @@ struct SettingsView: View {
             }
 
             // Gemma 4 Experimental
-            gemma4ExperimentalSection
-        }
-    }
-
-    @ViewBuilder
-    private var gemma4ExperimentalSection: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            HStack {
-                Image(systemName: "flask")
-                    .foregroundStyle(.purple)
-                Text("Gemma 4 実験プロファイル")
-                    .font(MemoraTypography.subheadline)
-                    .fontWeight(.semibold)
-            }
-
-            if Gemma4DeviceGate.isEligible {
-                Toggle(isOn: Binding(
-                    get: { Gemma4FeatureFlag.isEnabled },
-                    set: { Gemma4FeatureFlag.isEnabled = $0 }
-                )) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Gemma 4 プロファイルを有効化")
-                        Text("Local 選択時に Foundation Models を Gemma 4 プロファイル経由で使用します。")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(.secondary)
-                    }
+            VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                HStack {
+                    Image(systemName: "flask")
+                        .foregroundStyle(.purple)
+                    Text("Gemma 4 実験プロファイル")
+                        .font(MemoraTypography.subheadline)
+                        .fontWeight(.semibold)
                 }
 
-                if Gemma4FeatureFlag.isEnabled {
-                    HStack(spacing: MemoraSpacing.xs) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(MemoraColor.accentGreen)
-                        Text("Gemma 4 実験プロファイル有効")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(MemoraColor.accentGreen)
-                    }
-
-                    Text(Gemma4DeviceGate.deviceSummary)
-                        .font(MemoraTypography.caption2)
-                        .foregroundStyle(MemoraColor.textTertiary)
-
-                    NavigationLink {
-                        Gemma4BenchmarkView()
-                    } label: {
-                        HStack(spacing: MemoraSpacing.sm) {
-                            Image(systemName: "gauge.with.dots.needle.33percent")
-                                .foregroundStyle(MemoraColor.accentBlue)
-                            Text("ベンチマークを実行")
+                if Gemma4DeviceGate.isEligible {
+                    Toggle(isOn: Binding(
+                        get: { Gemma4FeatureFlag.isEnabled },
+                        set: { Gemma4FeatureFlag.isEnabled = $0 }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Gemma 4 プロファイルを有効化")
+                            Text("Local 選択時に Foundation Models を Gemma 4 プロファイル経由で使用します。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: MemoraSpacing.xs) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(MemoraColor.accentRed)
-                        Text("このデバイスでは利用できません")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(MemoraColor.accentRed)
-                    }
 
-                    if let reason = Gemma4DeviceGate.ineligibilityReason {
-                        Text(reason)
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(.secondary)
-                    }
+                    if Gemma4FeatureFlag.isEnabled {
+                        HStack(spacing: MemoraSpacing.xs) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(MemoraColor.accentGreen)
+                            Text("Gemma 4 実験プロファイル有効")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentGreen)
+                        }
 
-                    Text(Gemma4DeviceGate.deviceSummary)
-                        .font(MemoraTypography.caption2)
-                        .foregroundStyle(MemoraColor.textTertiary)
+                        Text(Gemma4DeviceGate.deviceSummary)
+                            .font(MemoraTypography.caption2)
+                            .foregroundStyle(MemoraColor.textTertiary)
+
+                        NavigationLink {
+                            Gemma4BenchmarkView()
+                        } label: {
+                            HStack(spacing: MemoraSpacing.sm) {
+                                Image(systemName: "gauge.with.dots.needle.33percent")
+                                    .foregroundStyle(MemoraColor.accentBlue)
+                                Text("ベンチマークを実行")
+                            }
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: MemoraSpacing.xs) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(MemoraColor.accentRed)
+                            Text("このデバイスでは利用できません")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentRed)
+                        }
+
+                        if let reason = Gemma4DeviceGate.ineligibilityReason {
+                            Text(reason)
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(Gemma4DeviceGate.deviceSummary)
+                            .font(MemoraTypography.caption2)
+                            .foregroundStyle(MemoraColor.textTertiary)
+                    }
                 }
             }
-        }
-        .padding(.vertical, MemoraSpacing.xxxs)
-    }
+            .padding(.vertical, MemoraSpacing.xxxs)
 
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
@@ -747,7 +741,6 @@ struct SettingsView: View {
 
             if plaudSettings?.isEnabled ?? false {
                 if isLoggedIn {
-                    // ログイン済み
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
@@ -797,7 +790,6 @@ struct SettingsView: View {
                         }
                     }
                 } else {
-                    // 未ログイン
                     Picker("API サーバー", selection: $plaudApiServer) {
                         Text("api.plaud.ai").tag("api.plaud.ai")
                         Text("api-euc1.plaud.ai").tag("api-euc1.plaud.ai")

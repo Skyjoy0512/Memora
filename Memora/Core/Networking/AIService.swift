@@ -962,6 +962,69 @@ final class GeminiService: LLMProvider {
     }
 
     func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
+        let prompt = """
+        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
+        出力は以下のJSON形式で返してください：
+
+        {
+          "summary": "会議の要約",
+          "keyPoints": ["重要ポイント1", "重要ポイント2"],
+          "actionItems": ["アクションアイテム1", "アクションアイテム2"]
+        }
+
+        Transcript:
+        \(transcript)
+        """
+
+        let requestBody: [String: Any] = [
+            "contents": [
+                [
+                    "parts": [
+                        ["text": "あなたは会議の文字起こしから要約を作成するアシスタントです。\n\n\(prompt)"]
+                    ]
+                ]
+            ],
+            "generationConfig": [
+                "temperature": 0.3,
+                "topK": 1,
+                "topP": 1
+            ]
+        ]
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            if let errorString = String(data: data, encoding: .utf8) {
+                throw AIError.apiError(httpResponse.statusCode, errorString)
+            }
+            throw AIError.apiError(httpResponse.statusCode, "Unknown error")
+        }
+
+        let result = try JSONDecoder().decode(GeminiResponse.self, from: data)
+
+        guard let content = result.candidates.first?.content.parts.first?.text else {
+            throw AIError.decodingError
+        }
+
+        guard let jsonData = content.data(using: .utf8),
+              let summaryData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let summary = summaryData["summary"] as? String,
+              let keyPoints = summaryData["keyPoints"] as? [String],
+              let actionItems = summaryData["actionItems"] as? [String] else {
+            throw AIError.decodingError
+        }
+
+        return (summary, keyPoints, actionItems)
+    }
 
     func transcribe(audioURL: URL) async throws -> String {
         let audioData = try Data(contentsOf: audioURL)
