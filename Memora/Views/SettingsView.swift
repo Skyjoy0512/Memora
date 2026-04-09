@@ -110,6 +110,8 @@ struct SettingsView: View {
                     apiKeyGemini = ""
                 case .deepseek:
                     apiKeyDeepSeek = ""
+                case .local:
+                    break
                 }
             }
         } message: {
@@ -1974,6 +1976,8 @@ private struct STTDiagnosticsView: View {
             return apiKeyGemini
         case .deepseek:
             return apiKeyDeepSeek
+        case .local:
+            return ""
         }
     }
 

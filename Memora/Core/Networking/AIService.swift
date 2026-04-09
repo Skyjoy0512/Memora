@@ -652,6 +652,8 @@ final class AIService: AIServiceProtocol, ObservableObject {
                 return try await service.transcribe(audioURL: audioURL)
             case .deepseek:
                 throw AIError.transcriptionNotSupported
+            case .local:
+                throw AIError.transcriptionNotSupported
             }
         }
     }
@@ -663,20 +665,12 @@ final class AIService: AIServiceProtocol, ObservableObject {
             return (result.summary, result.keyPoints, result.actionItems)
         }
 
-        // フォールバック: 従来のサービス直呼び出し
-        switch provider {
-        case .local:
+        // フォールバック: LLMProvider 経由で統一呼び出し
+        guard let provider = llmProvider else {
             throw AIError.notConfigured
-        case .openai:
-            guard let service = openAIService else { throw AIError.notConfigured }
-            return try await service.summarize(transcript: transcript)
-        case .gemini:
-            guard let service = geminiService else { throw AIError.notConfigured }
-            return try await service.summarize(transcript: transcript)
-        case .deepseek:
-            guard let service = deepSeekService else { throw AIError.notConfigured }
-            return try await service.summarize(transcript: transcript)
         }
+        let r = try await provider.summarize(transcript: transcript)
+        return (r.summary, r.keyPoints, r.actionItems)
     }
 
     /// LLMProvider 経由でテキスト生成（AskAI などで使用）
@@ -961,7 +955,7 @@ final class GeminiService: LLMProvider {
         return content
     }
 
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
+    func summarize(transcript: String) async throws -> LLMProviderSummary {
         let prompt = """
         以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
         出力は以下のJSON形式で返してください：
@@ -1023,7 +1017,7 @@ final class GeminiService: LLMProvider {
             throw AIError.decodingError
         }
 
-        return (summary, keyPoints, actionItems)
+        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -1075,73 +1069,6 @@ final class GeminiService: LLMProvider {
         }
 
         return content
-    }
-
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
-        let prompt = """
-        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
-        出力は以下のJSON形式で返してください：
-
-        {
-          "summary": "会議の要約",
-          "keyPoints": ["重要ポイント1", "重要ポイント2"],
-          "actionItems": ["アクションアイテム1", "アクションアイテム2"]
-        }
-
-        Transcript:
-        \(transcript)
-        """
-
-        let requestBody: [String: Any] = [
-            "contents": [
-                [
-                    "parts": [
-                        ["text": "あなたは会議の文字起こしから要約を作成するアシスタントです。\n\n\(prompt)"]
-                    ]
-                ]
-            ],
-            "generationConfig": [
-                "temperature": 0.3,
-                "topK": 1,
-                "topP": 1
-            ]
-        ]
-
-        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if let errorString = String(data: data, encoding: .utf8) {
-                throw AIError.apiError(httpResponse.statusCode, errorString)
-            }
-            throw AIError.apiError(httpResponse.statusCode, "Unknown error")
-        }
-
-        let result = try JSONDecoder().decode(GeminiResponse.self, from: data)
-
-        guard let content = result.candidates.first?.content.parts.first?.text else {
-            throw AIError.decodingError
-        }
-
-        // Parse JSON response
-        guard let data = content.data(using: .utf8),
-              let summaryData = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let summary = summaryData["summary"] as? String,
-              let keyPoints = summaryData["keyPoints"] as? [String],
-              let actionItems = summaryData["actionItems"] as? [String] else {
-            throw AIError.decodingError
-        }
-
-        return (summary, keyPoints, actionItems)
     }
 }
 
@@ -1196,7 +1123,7 @@ final class DeepSeekService: LLMProvider {
         return content
     }
 
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
+    func summarize(transcript: String) async throws -> LLMProviderSummary {
         let prompt = """
         以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
         出力は以下のJSON形式で返してください：
@@ -1246,16 +1173,15 @@ final class DeepSeekService: LLMProvider {
             throw AIError.decodingError
         }
 
-        // Parse JSON response
-        guard let data = content.data(using: .utf8),
-              let summaryData = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let jsonData = content.data(using: .utf8),
+              let summaryData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let summary = summaryData["summary"] as? String,
               let keyPoints = summaryData["keyPoints"] as? [String],
               let actionItems = summaryData["actionItems"] as? [String] else {
             throw AIError.decodingError
         }
 
-        return (summary, keyPoints, actionItems)
+        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 }
 

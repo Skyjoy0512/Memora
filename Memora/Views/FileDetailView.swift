@@ -42,6 +42,7 @@ struct FileDetailView: View {
         case .openai: return apiKeyOpenAI
         case .gemini: return apiKeyGemini
         case .deepseek: return apiKeyDeepSeek
+        case .local: return ""
         }
     }
 

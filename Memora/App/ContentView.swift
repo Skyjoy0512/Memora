@@ -1,6 +1,13 @@
 import SwiftUI
 import SwiftData
 
+enum MainTab: Hashable {
+    case files
+    case projects
+    case todo
+    case settings
+}
+
 struct ContentView: View {
     @StateObject private var bluetoothService = BluetoothAudioService()
     @StateObject private var omiAdapter = OmiAdapter()

@@ -17,92 +17,10 @@ struct ProjectDetailView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if let errorMessage = viewModel.lastErrorMessage {
-                    InlineErrorMessage(message: errorMessage)
-                        .padding(.horizontal)
-                        .padding(.top, MemoraSpacing.sm)
-                }
-
-                if viewModel.projectFiles.isEmpty {
-                    ScrollView {
-                        VStack(spacing: MemoraSpacing.lg) {
-                            projectPhotoSection
-                                .padding(.horizontal)
-                                .padding(.top, MemoraSpacing.lg)
-
-                            Image(systemName: "folder")
-                                .resizable()
-                                .frame(width: 60, height: 60)
-                                .foregroundStyle(MemoraColor.textSecondary)
-
-                            Text(project.title)
-                                .font(.title)
-                                .fontWeight(.bold)
-
-                            Text("まだファイルがありません")
-                                .font(MemoraTypography.headline)
-                                .foregroundStyle(.secondary)
-
-                            Button(action: { showRecordingView = true }) {
-                                Label("録音を開始", systemImage: "mic.circle.fill")
-                                    .font(MemoraTypography.headline)
-                                    .foregroundStyle(.white)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(MemoraColor.divider)
-                                    .cornerRadius(MemoraRadius.sm)
-                            }
-                            .padding(.horizontal)
-
-                            Text("録音を開始してファイルを追加しましょう")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                                .padding(.bottom, MemoraSpacing.xxxl)
-                        }
-                    }
-                } else {
-                    List {
-                        projectPhotoSection
-
-                        Section("録音") {
-                            ForEach(viewModel.projectFiles) { file in
-                                AudioFileRow(audioFile: file)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedAudioFile = file
-                                    }
-                            }
-                            .onDelete(perform: deleteAudioFiles)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("詳細")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    PhotosPicker(
-                        selection: $selectedPhotoItems,
-                        maxSelectionCount: 10,
-                        matching: .images
-                    ) {
-                        Image(systemName: "photo.badge.plus")
-                    }
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        showAskAI = true
-                    } label: {
-                        Image(systemName: "sparkles")
-                    }
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showRecordingView = true }) {
-                        Image(systemName: "mic")
-                    }
-                }
-            }
+            mainContent
+                .navigationTitle("詳細")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { toolbarContent }
         }
         .navigationDestination(isPresented: $showEditProjectView) {
             EditProjectView(project: project)
@@ -119,27 +37,7 @@ struct ProjectDetailView: View {
                 set: { if !$0 { previewPhotoID = nil } }
             )
         ) {
-            if let attachment = selectedPreviewAttachment() {
-                PhotoAttachmentPreviewSheet(
-                    attachment: attachment,
-                    image: fullSizeImage(for: attachment),
-                    canMoveLeading: viewModel.canMovePhotoAttachment(attachment, towardLeading: true),
-                    canMoveTrailing: viewModel.canMovePhotoAttachment(attachment, towardLeading: false),
-                    onSaveCaption: { caption in
-                        viewModel.updatePhotoCaption(attachment, caption: caption)
-                    },
-                    onMoveLeading: {
-                        viewModel.movePhotoAttachment(attachment, towardLeading: true)
-                    },
-                    onMoveTrailing: {
-                        viewModel.movePhotoAttachment(attachment, towardLeading: false)
-                    },
-                    onDelete: {
-                        viewModel.deletePhotoAttachment(attachment)
-                        previewPhotoID = nil
-                    }
-                )
-            }
+            photoPreviewSheet
         }
         .navigationDestination(item: $selectedAudioFile) { file in
             FileDetailView(audioFile: file)
@@ -169,6 +67,131 @@ struct ProjectDetailView: View {
                     selectedPhotoItems = []
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            if let errorMessage = viewModel.lastErrorMessage {
+                InlineErrorMessage(message: errorMessage)
+                    .padding(.horizontal)
+                    .padding(.top, MemoraSpacing.sm)
+            }
+
+            if viewModel.projectFiles.isEmpty {
+                emptyStateView
+            } else {
+                fileListContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyStateView: some View {
+        ScrollView {
+            VStack(spacing: MemoraSpacing.lg) {
+                projectPhotoSection
+                    .padding(.horizontal)
+                    .padding(.top, MemoraSpacing.lg)
+
+                Image(systemName: "folder")
+                    .resizable()
+                    .frame(width: 60, height: 60)
+                    .foregroundStyle(MemoraColor.textSecondary)
+
+                Text(project.title)
+                    .font(.title)
+                    .fontWeight(.bold)
+
+                Text("まだファイルがありません")
+                    .font(MemoraTypography.headline)
+                    .foregroundStyle(.secondary)
+
+                Button(action: { showRecordingView = true }) {
+                    Label("録音を開始", systemImage: "mic.circle.fill")
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(MemoraColor.divider)
+                        .cornerRadius(MemoraRadius.sm)
+                }
+                .padding(.horizontal)
+
+                Text("録音を開始してファイルを追加しましょう")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, MemoraSpacing.xxxl)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var fileListContent: some View {
+        List {
+            projectPhotoSection
+
+            Section("録音") {
+                ForEach(viewModel.projectFiles) { file in
+                    AudioFileRow(audioFile: file, projectName: project.title)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedAudioFile = file
+                        }
+                }
+                .onDelete(perform: deleteAudioFiles)
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            PhotosPicker(
+                selection: $selectedPhotoItems,
+                maxSelectionCount: 10,
+                matching: .images
+            ) {
+                Image(systemName: "photo.badge.plus")
+            }
+        }
+        ToolbarItem(placement: .secondaryAction) {
+            Button {
+                showAskAI = true
+            } label: {
+                Image(systemName: "sparkles")
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button(action: { showRecordingView = true }) {
+                Image(systemName: "mic")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var photoPreviewSheet: some View {
+        if let attachment = selectedPreviewAttachment() {
+            PhotoAttachmentPreviewSheet(
+                attachment: attachment,
+                image: fullSizeImage(for: attachment),
+                canMoveLeading: viewModel.canMovePhotoAttachment(attachment, towardLeading: true),
+                canMoveTrailing: viewModel.canMovePhotoAttachment(attachment, towardLeading: false),
+                onSaveCaption: { caption in
+                    viewModel.updatePhotoCaption(attachment, caption: caption)
+                },
+                onMoveLeading: {
+                    viewModel.movePhotoAttachment(attachment, towardLeading: true)
+                },
+                onMoveTrailing: {
+                    viewModel.movePhotoAttachment(attachment, towardLeading: false)
+                },
+                onDelete: {
+                    viewModel.deletePhotoAttachment(attachment)
+                    previewPhotoID = nil
+                }
+            )
         }
     }
 

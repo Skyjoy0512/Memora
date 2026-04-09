@@ -573,6 +573,8 @@ private struct TaskBreakdownSheet: View {
             return apiKeyGemini.trimmingCharacters(in: .whitespacesAndNewlines)
         case .deepseek:
             return apiKeyDeepSeek.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .local:
+            return ""
         }
     }
 
