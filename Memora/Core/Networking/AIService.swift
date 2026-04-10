@@ -167,8 +167,8 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                 print("[MemoraSTT] File pre-check failed: \(error.localizedDescription) — falling back")
                 throw LocalTranscriptionError.transcriptionFailed(error)
             }
-            // 読み込み位置をリセットするためファイルを再オープン
-            let audioFileForAnalysis = try AVAudioFile(forReading: audioURL)
+            // 読み込み位置をリセット（同じインスタンスを再利用）
+            audioFile.framePosition = 0
 
             // フォーマット互換性チェック
             let (targetFormat, converter) = try resolveTargetFormat(sourceFormat: sourceFormat)
@@ -203,7 +203,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
                 // 分析実行タスク
                 group.addTask {
-                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFileForAnalysis, targetFormat: targetFormat, converter: converter)
+                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile, targetFormat: targetFormat, converter: converter)
                     try await analyzer.start(inputSequence: audioSequence)
                     try await analyzer.finalizeAndFinishThroughEndOfInput()
                     return (true, "")
