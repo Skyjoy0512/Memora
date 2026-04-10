@@ -230,7 +230,15 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                 }
 
                 let transcript = transcriptParts.joined(separator: "\n")
-                return transcript.isEmpty ? "文字起こしの結果がありません" : transcript
+                if transcript.isEmpty {
+                    print("[MemoraSTT] SpeechAnalyzer: 結果が空 — フォールバックへ")
+                    throw LocalTranscriptionError.transcriptionFailed(
+                        NSError(domain: "MemoraSTT", code: -2, userInfo: [
+                            NSLocalizedDescriptionKey: "SpeechAnalyzer produced no transcript"
+                        ])
+                    )
+                }
+                return transcript
             }
         } catch {
             await MainActor.run {
