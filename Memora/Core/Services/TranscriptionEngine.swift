@@ -76,11 +76,14 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
                 case .transcriptionProgress(_, let value):
                     updateProgress(value)
                 case .transcriptionCompleted(_, let result):
+                    print("[MemoraSTT] TranscriptionEngine: .transcriptionCompleted 受信 — \(result.fullText.count)文字")
                     progress = 1.0
                     finalResult = result
                 case .transcriptionFailed(_, let error):
+                    print("[MemoraSTT] TranscriptionEngine: .transcriptionFailed 受信 — \(error)")
                     throw error
                 case .transcriptionCancelled:
+                    print("[MemoraSTT] TranscriptionEngine: .transcriptionCancelled 受信")
                     throw CancellationError()
                 case .transcriptionPartialResult:
                     // volatile（中間結果）: UI には progress だけで十分
@@ -92,6 +95,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
                 }
             }
 
+            print("[MemoraSTT] TranscriptionEngine: イベントループ終了 — finalResult is nil: \(finalResult == nil)")
             guard let finalResult else {
                 throw CoreError.transcriptionError(.transcriptionFailed("Transcription did not produce a result"))
             }

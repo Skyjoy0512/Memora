@@ -193,6 +193,9 @@ private final class STTBackendExecutor {
         let locale = localeForRecognition(language: language)
         let transcriptionStart = ContinuousClock.now
 
+        // SpeechAnalyzer (iOS 26) を優先使用。
+        // 高レベルAPI analyzeSequence(from:) で MP3/M4A を直接処理。
+        // 失敗時は SFSpeechRecognizer にフォールバック。
         #if !targetEnvironment(simulator)
         if #available(iOS 26.0, *) {
             let preflight = SpeechAnalyzerPreflight()
@@ -325,7 +328,6 @@ private final class STTBackendExecutor {
         }
 
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
-        // partial results を有効化: volatile（中間結果）と final（確定結果）を区別する
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = forceOnDevice
         if #available(iOS 16.0, *) {
@@ -335,34 +337,36 @@ private final class STTBackendExecutor {
         print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: \(forceOnDevice)")
         progress(0.2)
 
-        let recognitionResult = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
-                let callbackLock = NSLock()
-                var didResume = false
+        // DispatchWorkItem ベースのタイムアウト: withCheckedThrowingContinuation は
+        // Task キャンセルに対応しないため、タイマーで直接 continuation を resume する
+        let timeoutSeconds: TimeInterval = forceOnDevice ? 30 : 60
 
-                let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                    if let error {
-                        callbackLock.lock()
-                        let shouldResume = !didResume
-                        didResume = true
-                        callbackLock.unlock()
+        let recognitionResult = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
+            let callbackLock = NSLock()
+            var didResume = false
 
-                        guard shouldResume else { return }
-                        self?.clearRecognitionTask()
-                        continuation.resume(throwing: error)
-                        return
-                    }
+            // タイムアウトタイマー: 指定秒数内に結果が来なければ continuation を resume
+            let timeoutWorkItem = DispatchWorkItem(qos: .userInitiated) { [weak self] in
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                guard shouldResume else { return }
+                print("[MemoraSTT] SFSpeechRecognizer タイムアウト (\(timeoutSeconds)s) — onDevice: \(forceOnDevice)")
+                self?.clearRecognitionTask()
+                continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
+            }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + timeoutSeconds,
+                execute: timeoutWorkItem
+            )
 
-                    guard let result else { return }
+            let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                // 成功またはエラー時はタイマーをキャンセル
+                timeoutWorkItem.cancel()
 
-                    // volatile（中間結果）: isFinal でなければ partial として転送
-                    if !result.isFinal {
-                        partialResult(result.bestTranscription.formattedString)
-                        return
-                    }
-
-                    // final（確定結果）: continuation を resume
+                if let error {
                     callbackLock.lock()
                     let shouldResume = !didResume
                     didResume = true
@@ -370,13 +374,30 @@ private final class STTBackendExecutor {
 
                     guard shouldResume else { return }
                     self?.clearRecognitionTask()
-                    continuation.resume(returning: result)
+                    continuation.resume(throwing: error)
+                    return
                 }
 
-                self.storeRecognitionTask(task)
+                guard let result else { return }
+
+                // volatile（中間結果）
+                if !result.isFinal {
+                    partialResult(result.bestTranscription.formattedString)
+                    return
+                }
+
+                // final（確定結果）
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+
+                guard shouldResume else { return }
+                self?.clearRecognitionTask()
+                continuation.resume(returning: result)
             }
-        } onCancel: {
-            self.cancelRecognitionTask()
+
+            self.storeRecognitionTask(task)
         }
 
         progress(0.92)
@@ -412,28 +433,14 @@ private final class STTBackendExecutor {
         partialResult: @escaping @Sendable (String) -> Void,
         forceOnDevice: Bool = true
     ) async throws -> TranscriptionResult {
-        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
-            group.addTask {
-                try await self.transcribeWithSpeechRecognizer(
-                    audioURL: audioURL,
-                    locale: locale,
-                    progress: progress,
-                    partialResult: partialResult,
-                    forceOnDevice: forceOnDevice
-                )
-            }
-            group.addTask {
-                try await Task.sleep(nanoseconds: 60_000_000_000) // 60秒
-                self.cancelRecognitionTask()
-                throw OnDeviceTranscriptionTimeoutError()
-            }
-            guard let result = try await group.next() else {
-                group.cancelAll()
-                throw CoreError.transcriptionError(.transcriptionFailed("SFSpeechRecognizer produced no result"))
-            }
-            group.cancelAll()
-            return result
-        }
+        // タイムアウトは transcribeWithSpeechRecognizer 内の DispatchWorkItem で処理
+        try await transcribeWithSpeechRecognizer(
+            audioURL: audioURL,
+            locale: locale,
+            progress: progress,
+            partialResult: partialResult,
+            forceOnDevice: forceOnDevice
+        )
     }
 
     @available(iOS 26.0, *)
@@ -474,25 +481,32 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer 開始")
         let service = SpeechAnalyzerService26(locale: locale)
 
         progress(0.2)
         let text = try await service.transcribe(audioURL: audioURL)
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: SpeechAnalyzerService26 完了 — \(text.count)文字")
         partialResult(text)
         progress(0.92)
 
         let duration = await audioFileDuration(for: audioURL)
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: duration=\(duration)s")
         let baseSegments = makeFallbackSegments(from: text, duration: duration)
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: baseSegments=\(baseSegments.count)件, 話者分離開始")
         let segmentsWithSpeakers = await detectSpeakersWithTimeout(
             audioURL: audioURL,
             segments: baseSegments
         )
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: 話者分離完了 — \(segmentsWithSpeakers.count)セグメント")
 
-        return TranscriptionResult(
+        let result = TranscriptionResult(
             fullText: text,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
             segments: segmentsWithSpeakers
         )
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: TranscriptionResult 生成完了")
+        return result
     }
 
     private func transcribeRemotely(
@@ -740,6 +754,8 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         let chunker = chunkerFactory()
         var preparedChunks: [AudioChunk] = []
 
+        print("[MemoraSTT] runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)")
+
         do {
             handle.yield(.transcriptionStarted(taskId: handle.taskId))
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
@@ -755,6 +771,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
 
+            print("[MemoraSTT] runTask: チャンク数 \(preparedChunks.count)")
             var chunkResults: [TranscriptionResult] = []
             let totalChunks = max(preparedChunks.count, 1)
 
@@ -786,6 +803,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     }
                 )
 
+                print("[MemoraSTT] runTask: chunk \(index) 完了 — text: \(result.fullText.prefix(40))")
                 chunkResults.append(result)
                 handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
             }
@@ -795,8 +813,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 results: chunkResults,
                 preferredLanguage: handle.language
             )
+            print("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
+            print("[MemoraSTT] runTask: transcriptionCompleted を yield 開始")
             handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
+            print("[MemoraSTT] runTask: finish() 呼び出し")
             handle.finish()
             // 成功時: 一時ファイルを同期待ちで削除
             await chunker.cleanup(chunks: preparedChunks)
