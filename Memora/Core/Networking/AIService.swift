@@ -167,8 +167,8 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                 print("[MemoraSTT] File pre-check failed: \(error.localizedDescription) — falling back")
                 throw LocalTranscriptionError.transcriptionFailed(error)
             }
-            // 読み込み位置をリセット（同じインスタンスを再利用）
-            audioFile.framePosition = 0
+            // 注: framePosition リセットは MP3 等の圧縮フォーマットで動作しないため、
+            // pre-check で消費した 1024 フレーム分（約23ms）はそのまま続けて読む
 
             // フォーマット互換性チェック
             let (targetFormat, converter) = try resolveTargetFormat(sourceFormat: sourceFormat)
