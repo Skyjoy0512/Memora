@@ -150,6 +150,26 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             let audioFile = try AVAudioFile(forReading: audioURL)
             let sourceFormat = audioFile.processingFormat
 
+            // 読み込み可能性を事前検証（MP3 等で nilError が出るファイルを早期検出）
+            let testBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: 1024)!
+            do {
+                try audioFile.read(into: testBuffer)
+                guard testBuffer.frameLength > 0 else {
+                    print("[MemoraSTT] File pre-check: frameLength=0 — skipping SpeechAnalyzer")
+                    throw LocalTranscriptionError.transcriptionFailed(
+                        NSError(domain: "MemoraSTT", code: -3, userInfo: [
+                            NSLocalizedDescriptionKey: "Audio file produced no samples"
+                        ])
+                    )
+                }
+                print("[MemoraSTT] File pre-check OK: \(testBuffer.frameLength) frames readable")
+            } catch {
+                print("[MemoraSTT] File pre-check failed: \(error.localizedDescription) — falling back")
+                throw LocalTranscriptionError.transcriptionFailed(error)
+            }
+            // 読み込み位置をリセットするためファイルを再オープン
+            let audioFileForAnalysis = try AVAudioFile(forReading: audioURL)
+
             // フォーマット互換性チェック
             let (targetFormat, converter) = try resolveTargetFormat(sourceFormat: sourceFormat)
             formatConverter = converter
@@ -183,7 +203,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
                 // 分析実行タスク
                 group.addTask {
-                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFile, targetFormat: targetFormat, converter: converter)
+                    let audioSequence = AudioFileAsyncSequence(audioFile: audioFileForAnalysis, targetFormat: targetFormat, converter: converter)
                     try await analyzer.start(inputSequence: audioSequence)
                     try await analyzer.finalizeAndFinishThroughEndOfInput()
                     return (true, "")
