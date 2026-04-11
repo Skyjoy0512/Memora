@@ -27,6 +27,9 @@ struct HomeView: View {
     @State private var sortOption: SortOption = .dateDesc
     @State private var viewMode: ViewMode = .list
 
+    // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
+    @State private var cachedFilteredFiles: [AudioFile] = []
+
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
         case timeline = "タイムライン"
@@ -43,9 +46,13 @@ struct HomeView: View {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
     }
 
-    // フィルタリング・ソート後のファイル一覧
+    // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
     var filteredFiles: [AudioFile] {
-        viewModel.filteredFiles(
+        cachedFilteredFiles
+    }
+
+    private func updateFilteredFiles() {
+        cachedFilteredFiles = viewModel.filteredFiles(
             searchText: searchText,
             filterTranscribed: filterTranscribed,
             filterSummarized: filterSummarized,
@@ -148,21 +155,29 @@ struct HomeView: View {
             .onAppear {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
             }
             .onChange(of: showRecordingView) { _, isPresented in
                 if !isPresented {
                     viewModel.loadAudioFiles()
+                    updateFilteredFiles()
                     openPendingImportedAudioIfNeeded()
                 }
             }
             .onChange(of: pendingOpenedAudioFileID) { _, _ in
                 viewModel.loadAudioFiles()
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
             }
-            .onChange(of: viewModel.audioFiles.count) { _, _ in
+            .onChange(of: viewModel.audioFiles) { _, _ in
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
             }
+            .onChange(of: searchText) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterTranscribed) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
+            .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
     }
 
@@ -178,6 +193,12 @@ struct HomeView: View {
 
     // MARK: - Content Section
 
+    private var projectLookup: [UUID: String] {
+        Dictionary(uniqueKeysWithValues: projects.compactMap { p in
+            p.title.isEmpty ? nil : (p.id, p.title)
+        })
+    }
+
     private var fileListSection: some View {
         List {
             if hasActiveFilters {
@@ -185,7 +206,7 @@ struct HomeView: View {
             }
 
             ForEach(filteredFiles) { file in
-                let projectName = projects.first(where: { $0.id == file.projectID })?.title
+                let projectName = file.projectID.flatMap { projectLookup[$0] }
                 AudioFileRow(audioFile: file, projectName: projectName)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -344,6 +365,12 @@ struct AudioFileRow: View {
     let audioFile: AudioFile
     let projectName: String?
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM/dd HH:mm"
+        return f
+    }()
+
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
             // 1行目: タイトル（最も重要な情報を先頭に）
@@ -407,9 +434,7 @@ struct AudioFileRow: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd HH:mm"
-        return formatter.string(from: date)
+        Self.dateFormatter.string(from: date)
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {
