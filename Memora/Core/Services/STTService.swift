@@ -472,8 +472,15 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
-            group.addTask {
+        // continuation + DispatchWorkItem でタイムアウトを実装。
+        // withThrowingTaskGroup は全子タスク完了を待つため、
+        // detectSpeakers が非協力的だとタイムアウトが効かない。
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<TranscriptionResult, Error>) in
+            let callbackLock = NSLock()
+            var didResume = false
+
+            let transcriptionTask = Task {
                 try await self.transcribeWithSpeechAnalyzer(
                     audioURL: audioURL,
                     locale: locale,
@@ -482,17 +489,45 @@ private final class STTBackendExecutor {
                 )
             }
 
-            group.addTask {
-                try await Task.sleep(nanoseconds: 60_000_000_000) // 60秒
-                throw OnDeviceTranscriptionTimeoutError()
+            // 60秒タイムアウト
+            let timeoutWorkItem = DispatchWorkItem(qos: .userInitiated) {
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                if shouldResume {
+                    transcriptionTask.cancel()
+                    DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer 60秒タイムアウト", level: .warning)
+                    continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
+                }
             }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + 60,
+                execute: timeoutWorkItem
+            )
 
-            guard let result = try await group.next() else {
-                group.cancelAll()
-                throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer produced no result"))
+            Task {
+                do {
+                    let result = try await transcriptionTask.value
+                    timeoutWorkItem.cancel()
+                    callbackLock.lock()
+                    let shouldResume = !didResume
+                    didResume = true
+                    callbackLock.unlock()
+                    if shouldResume {
+                        continuation.resume(returning: result)
+                    }
+                } catch {
+                    timeoutWorkItem.cancel()
+                    callbackLock.lock()
+                    let shouldResume = !didResume
+                    didResume = true
+                    callbackLock.unlock()
+                    if shouldResume {
+                        continuation.resume(throwing: error)
+                    }
+                }
             }
-            group.cancelAll()
-            return result
         }
     }
 
@@ -662,36 +697,47 @@ private final class STTBackendExecutor {
     }
 
     /// 話者分離にタイムアウトを追加。ハング時にフォールバックとして元セグメントを返す。
+    /// withThrowingTaskGroup は全子タスクの完了を待つため、非協力的なタスクがあると
+    /// タイムアウトが効かない。代わりに continuation + DispatchWorkItem を使う。
     private func detectSpeakersWithTimeout(
         audioURL: URL,
         segments: [TranscriptionSegment],
         timeout: TimeInterval = 10
     ) async -> [TranscriptionSegment] {
-        do {
-            return try await withThrowingTaskGroup(of: [TranscriptionSegment].self) { group in
-                group.addTask { [self] in
-                    await diarizationService.detectSpeakers(
-                        audioURL: audioURL,
-                        segments: segments
-                    )
+        await withCheckedContinuation { continuation in
+            let callbackLock = NSLock()
+            var didResume = false
+
+            // 話者分離を非同期タスクで実行
+            Task { [self] in
+                let result = await diarizationService.detectSpeakers(
+                    audioURL: audioURL,
+                    segments: segments
+                )
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                if shouldResume {
+                    DebugLogger.shared.addLog("STTBackend", "話者分離完了 — \(result.count)セグメント", level: .info)
+                    continuation.resume(returning: result)
                 }
-                group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            }
+
+            // タイムアウトタイマー: 指定秒数内に話者分離が完了しなければフォールバック
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + timeout
+            ) {
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                if shouldResume {
                     print("[MemoraSTT] 話者分離タイムアウト(\(Int(timeout))秒) — フォールバック使用")
                     DebugLogger.shared.addLog("STTBackend", "話者分離タイムアウト(\(Int(timeout))秒) — フォールバック使用", level: .warning)
-                    return segments
+                    continuation.resume(returning: segments)
                 }
-                guard let result = try await group.next() else {
-                    group.cancelAll()
-                    return segments
-                }
-                group.cancelAll()
-                return result
             }
-        } catch {
-            print("[MemoraSTT] 話者分離エラー — フォールバック使用: \(error)")
-            DebugLogger.shared.addLog("STTBackend", "話者分離エラー — フォールバック使用: \(error.localizedDescription)", level: .warning)
-            return segments
         }
     }
 }
