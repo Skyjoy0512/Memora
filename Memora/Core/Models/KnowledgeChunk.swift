@@ -23,6 +23,7 @@ final class KnowledgeChunk {
     var scopeID: UUID?
     var sourceTypeRaw: String
     var sourceID: UUID?
+    var audioFile: AudioFile?
     var text: String
     var keywords: [String]
     var rankHint: Double

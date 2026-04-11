@@ -30,6 +30,23 @@ final class AudioFile {
     var sourceTypeRaw: String = SourceType.recording.rawValue
     var referenceTranscript: String?
 
+    // MARK: - Relationships (cascade delete)
+
+    @Relationship(deleteRule: .cascade, inverse: \Transcript.audioFile)
+    var transcripts: [Transcript] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \ProcessingJob.audioFile)
+    var processingJobs: [ProcessingJob] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \PhotoAttachment.audioFile)
+    var photoAttachments: [PhotoAttachment] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \KnowledgeChunk.audioFile)
+    var knowledgeChunks: [KnowledgeChunk] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \CalendarEventLink.audioFile)
+    var calendarEventLinks: [CalendarEventLink] = []
+
     var sourceType: SourceType {
         get { SourceType(rawValue: sourceTypeRaw) ?? .recording }
         set { sourceTypeRaw = newValue.rawValue }

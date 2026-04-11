@@ -57,6 +57,9 @@ struct MemoraApp: App {
                 }
             }
             .task {
+                // 既存 UserDefaults の API 鍵を Keychain に移行（初回のみ実行）
+                KeychainService.migrateFromUserDefaults()
+
                 // アプリ起動開始を記録
                 if !hasLoggedStart {
                     DebugLogger.shared.markAppStart()
@@ -288,6 +291,11 @@ struct MemoraApp: App {
                     // モデル数計測はバックグラウンドで実行（起動をブロックしない）
                     Task.detached(priority: .utility) {
                         await Self.logModelCounts(container: success.container)
+                    }
+                    // 完了済み ProcessingJob をクリーンアップ
+                    Task { @MainActor in
+                        let context = ModelContext(success.container)
+                        ProcessingJob.cleanupCompletedJobs(in: context)
                     }
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
