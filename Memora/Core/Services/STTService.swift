@@ -651,7 +651,7 @@ private final class STTBackendExecutor {
     private func detectSpeakersWithTimeout(
         audioURL: URL,
         segments: [TranscriptionSegment],
-        timeout: TimeInterval = 60
+        timeout: TimeInterval = 10
     ) async -> [TranscriptionSegment] {
         do {
             return try await withThrowingTaskGroup(of: [TranscriptionSegment].self) { group in
