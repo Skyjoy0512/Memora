@@ -64,6 +64,13 @@ struct FileDetailView: View {
                 }
             }
             ToolbarItemGroup(placement: .primaryAction) {
+                // Ask AI は全タブ共通
+                Button {
+                    showAskAI = true
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+
                 // タブごとの context-aware actions
                 switch selectedTab {
                 case .summary:
@@ -94,12 +101,6 @@ struct FileDetailView: View {
                         Image(systemName: "checkmark")
                     }
                     .disabled(viewModel?.memoHasUnsavedChanges != true)
-                }
-
-                Button {
-                    showAskAI = true
-                } label: {
-                    Image(systemName: "sparkles")
                 }
             }
             ToolbarItem(placement: .secondaryAction) {
@@ -228,21 +229,34 @@ struct FileDetailView: View {
     private func headerSection(vm: FileDetailViewModel) -> some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
             Text(audioFile.title)
-                .font(MemoraTypography.title3)
-                .fontWeight(.semibold)
+                .font(MemoraTypography.title2)
+                .fontWeight(.bold)
 
+            // メタ情報: 日時 / 長さ / ソース / プロジェクト
             HStack(spacing: MemoraSpacing.sm) {
-                Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
+                Text(vm.formatDate(audioFile.createdAt))
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
 
                 if audioFile.duration > 0 {
-                    Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
+                    Text(vm.formatDuration(audioFile.duration))
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
 
                 sourceBadge
+
+                if let projectTitle = resolvedProjectTitle {
+                    HStack(spacing: 2) {
+                        Image(systemName: "folder")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                        Text(projectTitle)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
 
                 Spacer()
             }
@@ -250,6 +264,16 @@ struct FileDetailView: View {
             calendarEventCard
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// projectID からプロジェクト名を解決（キャッシュ付き）
+    private var resolvedProjectTitle: String? {
+        guard let projectID = audioFile.projectID else { return nil }
+        var descriptor = FetchDescriptor<Project>(
+            predicate: #Predicate<Project> { $0.id == projectID }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor).first)?.title
     }
 
     @ViewBuilder
@@ -422,10 +446,8 @@ struct FileDetailView: View {
             Button(action: { vm.togglePlayback() }) {
                 Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.tint)
                     .frame(width: 40, height: 40)
-                    .background(MemoraColor.divider)
-                    .clipShape(Circle())
             }
 
             // プログレスバー
@@ -444,7 +466,6 @@ struct FileDetailView: View {
                         }
                     }
                 )
-                .tint(.secondary)
 
                 HStack {
                     Text(vm.formatTime(vm.playbackPosition))
@@ -457,14 +478,12 @@ struct FileDetailView: View {
         }
         .padding(.horizontal, MemoraSpacing.sm)
         .padding(.vertical, MemoraSpacing.xs)
-        .background(MemoraColor.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
     }
 
     private var tabPicker: some View {
         Picker("表示タブ", selection: $selectedTab) {
             ForEach(FileDetailTab.allCases) { tab in
-                Text(tab.title).tag(tab)
+                Label(tab.title, systemImage: tab.icon).tag(tab)
             }
         }
         .pickerStyle(.segmented)
@@ -505,8 +524,12 @@ struct FileDetailView: View {
 
                     Spacer()
 
-                    Button {
-                        vm.showShareSheet = true
+                    Menu {
+                        Button {
+                            vm.showShareSheet = true
+                        } label: {
+                            Label("共有", systemImage: "square.and.arrow.up")
+                        }
                     } label: {
                         Label("エクスポート", systemImage: "square.and.arrow.up")
                             .font(MemoraTypography.caption1)
@@ -558,6 +581,16 @@ struct FileDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .disabled(vm.isTranscribing)
+
+                    if result.segments.count > 1 {
+                        Button {
+                            vm.registerPrimarySpeakerSample()
+                        } label: {
+                            Label("話者登録", systemImage: "person.crop.circle.badge.plus")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+                    }
 
                     Spacer()
                 }
@@ -622,14 +655,10 @@ struct FileDetailView: View {
         VStack(spacing: MemoraSpacing.lg) {
             detailCard {
                 VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                    // メモヘッダー
                     HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                            Label("Markdown メモ", systemImage: "square.and.pencil")
-                                .font(MemoraTypography.headline)
-                            Text("会議メモ、気づき、補足情報を Markdown で残せます。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("Markdown メモ", systemImage: "square.and.pencil")
+                            .font(MemoraTypography.headline)
 
                         Spacer()
 
@@ -663,16 +692,12 @@ struct FileDetailView: View {
                 }
             }
 
+            // 写真セクション（Memo 文脈に溶け込ませる）
             detailCard {
                 VStack(alignment: .leading, spacing: MemoraSpacing.md) {
                     HStack {
-                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                            Label("添付写真", systemImage: "photo.on.rectangle")
-                                .font(MemoraTypography.headline)
-                            Text("ホワイトボードや資料の写真をメモと一緒に残せます。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("写真", systemImage: "photo.on.rectangle")
+                            .font(MemoraTypography.headline)
 
                         Spacer()
 
@@ -692,12 +717,11 @@ struct FileDetailView: View {
                     }
 
                     if vm.photoAttachments.isEmpty {
-                        EmptyStateView(
-                            icon: "photo.badge.plus",
-                            title: "写真はまだありません",
-                            description: "資料やホワイトボードを追加すると、ここにギャラリー表示されます。"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Text("写真を追加するとメモと一緒に確認できます")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, MemoraSpacing.sm)
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: MemoraSpacing.sm) {
@@ -1014,6 +1038,17 @@ private enum FileDetailTab: String, CaseIterable, Identifiable {
             return "Transcript"
         case .memo:
             return "Memo"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .summary:
+            return "text.quote"
+        case .transcript:
+            return "text.alignleft"
+        case .memo:
+            return "square.and.pencil"
         }
     }
 }

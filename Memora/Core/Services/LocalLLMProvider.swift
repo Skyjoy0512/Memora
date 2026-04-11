@@ -3,57 +3,12 @@ import Foundation
 import FoundationModels
 #endif
 
-// MARK: - LLM Provider Protocol
-
-/// LLM プロバイダーの共通契約。
-/// OpenAI / Gemini / DeepSeek / Local を同じインターフェースで扱う。
-protocol LLMProvider: Sendable {
-    /// プロバイダー名（UI 表示用）
-    var displayName: String { get }
-
-    /// テキスト生成（要約・AskAI などで使用）
-    /// - Parameter prompt: プロンプト全文
-    /// - Returns: 生成されたテキスト
-    func generate(_ prompt: String) async throws -> String
-
-    /// テキスト生成（構造化出力・要約用）
-    /// - Parameter transcript: 文字起こしテキスト
-    /// - Returns: 要約・キーポイント・アクションアイテム
-    func summarize(transcript: String) async throws -> LLMProviderSummary
-}
-
-/// 要約結果の共通モデル
-struct LLMProviderSummary: Sendable {
-    let summary: String
-    let keyPoints: [String]
-    let actionItems: [String]
-}
-
-// MARK: - Provider Registry
-
-/// 利用可能な LLM プロバイダーを管理するレジストリ。
-enum LLMProviderKind: String, CaseIterable, Identifiable {
-    case openai = "OpenAI"
-    case gemini = "Gemini"
-    case deepseek = "DeepSeek"
-    case local = "Local"
-
-    var id: String { rawValue }
-
-    var supportsTranscription: Bool {
-        switch self {
-        case .openai: return true
-        case .gemini: return false
-        case .deepseek: return false
-        case .local: return false
-        }
-    }
-}
-
 // MARK: - Local LLM Provider
 
-/// iOS 26 Foundation Models framework を使ったオンデバイス LLM プロバイダー。
+/// iOS Foundation Models framework を使ったオンデバイス LLM プロバイダー。
 /// 利用不可の環境では `notAvailable` を投げる。
+///
+/// C3 で本格実装予定。現在は iOS 26 Foundation Models の基本パスのみ。
 final class LocalLLMProvider: LLMProvider {
     let displayName = "Local (On-Device)"
 
@@ -69,6 +24,12 @@ final class LocalLLMProvider: LLMProvider {
         return false
     }
 
+    var isAvailable: Bool {
+        get async {
+            Self.isAvailable
+        }
+    }
+
     func generate(_ prompt: String) async throws -> String {
         if #available(iOS 26.0, *) {
             #if canImport(FoundationModels)
@@ -82,6 +43,12 @@ final class LocalLLMProvider: LLMProvider {
             #endif
         }
         throw LLMProviderError.notAvailable
+    }
+
+    func generateStream(prompt: String, onChunk: @Sendable (String) -> Void) async throws -> String {
+        // C3 で Foundation Models のストリーミング API に対応予定
+        // 現在は protocol extension のデフォルト実装（generate → onChunk）を使用
+        return try await generate(prompt)
     }
 
     func summarize(transcript: String) async throws -> LLMProviderSummary {
@@ -161,33 +128,5 @@ final class LocalLLMProvider: LLMProvider {
             keyPoints: keyPoints,
             actionItems: actionItems
         )
-    }
-}
-
-// MARK: - Errors
-
-enum LLMProviderError: LocalizedError {
-    case notAvailable
-    case notConfigured
-    case apiKeyMissing
-    case invalidResponse
-    case decodingError
-    case apiError(Int, String)
-
-    var errorDescription: String? {
-        switch self {
-        case .notAvailable:
-            return "このプロバイダーは現在利用できません"
-        case .notConfigured:
-            return "プロバイダーが設定されていません"
-        case .apiKeyMissing:
-            return "APIキーが設定されていません"
-        case .invalidResponse:
-            return "無効なレスポンスです"
-        case .decodingError:
-            return "レスポンスの解析に失敗しました"
-        case .apiError(let code, let message):
-            return "APIエラー (\(code)): \(message)"
-        }
     }
 }

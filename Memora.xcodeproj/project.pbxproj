@@ -103,7 +103,9 @@
 		6E0EB5FC50C845CE9E3021DE /* AskAIRetrievalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B9152E2FAD441E8E0D29C8 /* AskAIRetrievalService.swift */; };
 		E0D1C2B3A4958765 /* ModelStoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */; };
 		E2D1C0B9A8F7E6D5C4B3A2F1 /* Gemma4ExperimentalProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */; };
-		F9E8D7C6B5A43210 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8 /* LLMProvider.swift */; };
+		A1B2C3D4E5F6A7B9 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8 /* LLMProvider.swift */; };
+		F9E8D7C6B5A43210 /* RemoteLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E8D7C6B5A43211 /* RemoteLLMProvider.swift */; };
+		F9E8D7C6B5A43212 /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E8D7C6B5A43213 /* LocalLLMProvider.swift */; };
 		993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */; };
 		CAA8912BEAD313DE50481F84 /* MemoryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2ECDB306E7A48E122A6B63 /* MemoryProfile.swift */; };
 		CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA39BD91FCB01D63A19ECAEA /* TodoItemRepositoryTests.swift */; };
@@ -208,6 +210,8 @@
 		B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreService.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gemma4ExperimentalProvider.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8 /* LLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProvider.swift; sourceTree = "<group>"; };
+		F9E8D7C6B5A43211 /* RemoteLLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLLMProvider.swift; sourceTree = "<group>"; };
+		F9E8D7C6B5A43213 /* LocalLLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMProvider.swift; sourceTree = "<group>"; };
 		9A28393773CC00F5CE77856E /* RealtimeTranscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriptionView.swift; sourceTree = "<group>"; };
 		9A456B5536BB720E54CD2148 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
 		9C11AD42B19158882B877B1D /* CalendarEventLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventLink.swift; sourceTree = "<group>"; };
@@ -379,7 +383,8 @@
 				993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */,
 				87B9152E2FAD441E8E0D29C8 /* AskAIRetrievalService.swift */,
 				B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */,
-				A1B2C3D4E5F6A7B8 /* LLMProvider.swift */,
+				F9E8D7C6B5A43211 /* RemoteLLMProvider.swift */,
+				F9E8D7C6B5A43213 /* LocalLLMProvider.swift */,
 				F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */,
 				02F81CCC3A4D19FFB63F51DF /* LocalRetrievalEngine.swift */,
 				3B07507E149A272F0FA66681 /* MemoryExtractionService.swift */,
@@ -522,6 +527,7 @@
 				E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */,
 				3345B61561D96543AAEE5780 /* OpenAIExportDTOs.swift */,
 				7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */,
+				A1B2C3D4E5F6A7B8 /* LLMProvider.swift */,
 			);
 			path = Contracts;
 			sourceTree = "<group>";
@@ -710,7 +716,9 @@
 				6E0EB5FC50C845CE9E3021DE /* AskAIRetrievalService.swift in Sources */,
 				E0D1C2B3A4958765 /* ModelStoreService.swift in Sources */,
 				E2D1C0B9A8F7E6D5C4B3A2F1 /* Gemma4ExperimentalProvider.swift in Sources */,
-				F9E8D7C6B5A43210 /* LLMProvider.swift in Sources */,
+				A1B2C3D4E5F6A7B9 /* LLMProvider.swift in Sources */,
+				F9E8D7C6B5A43210 /* RemoteLLMProvider.swift in Sources */,
+				F9E8D7C6B5A43212 /* LocalLLMProvider.swift in Sources */,
 				5804A1516805BD7EA664BFAC /* LiquidGlassModifier.swift in Sources */,
 				D730E9ED44214744B711F3D8 /* LiveRecordingBanner.swift in Sources */,
 				5B468FE59015D7D78C0CFFA9 /* LocalRetrievalEngine.swift in Sources */,
