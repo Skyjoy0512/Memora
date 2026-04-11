@@ -81,9 +81,9 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             )
         } catch {
             // イベントストリームが途中で終了した場合、handle.result() で直接取得を試みる
-            // runTask の Task はまだ実行中（話者分離など）→ 完了を待って結果を受け取る
-            if let handle = concreteHandle, handle.isRunning {
-                DebugLogger.shared.addLog("TranscriptionEngine", "イベントストリーム終了 — handle.result() でフォールバック取得: \(error.localizedDescription)", level: .warning)
+            // isRunning チェックは外す — タスク完了後でも result は取得可能
+            if let handle = concreteHandle {
+                DebugLogger.shared.addLog("TranscriptionEngine", "イベントストリーム終了 — handle.result() でフォールバック取得: \(error.localizedDescription), isRunning=\(handle.isRunning)", level: .warning)
                 do {
                     let directResult = try await handle.result()
                     DebugLogger.shared.addLog("TranscriptionEngine", "handle.result() 成功 — \(directResult.fullText.count)文字", level: .info)

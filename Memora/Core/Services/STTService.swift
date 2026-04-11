@@ -726,6 +726,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
         let handle = STTTaskHandle(audioURL: audioURL, language: language)
         store(handle: handle)
+        DebugLogger.shared.addLog("STTService", "startTranscription — handle 作成: \(handle.taskId), mode: \(configuration.transcriptionMode.rawValue)", level: .info)
 
         let task = Task(priority: .userInitiated) { [weak self] () throws -> TranscriptionResult in
             guard let self else {
@@ -770,9 +771,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         var preparedChunks: [AudioChunk] = []
 
         print("[MemoraSTT] runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)")
+        DebugLogger.shared.addLog("STTService", "runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)", level: .info)
 
         do {
             print("[MemoraSTT] runTask: .transcriptionStarted を yield")
+            DebugLogger.shared.addLog("STTService", "yield .transcriptionStarted", level: .info)
             handle.yield(.transcriptionStarted(taskId: handle.taskId))
             print("[MemoraSTT] runTask: .transcriptionProgress(0.02) を yield")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
@@ -789,6 +792,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             }
 
             print("[MemoraSTT] runTask: チャンク数 \(preparedChunks.count)")
+            DebugLogger.shared.addLog("STTService", "チャンク数: \(preparedChunks.count)", level: .info)
             var chunkResults: [TranscriptionResult] = []
             let totalChunks = max(preparedChunks.count, 1)
 
@@ -821,6 +825,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
 
                 print("[MemoraSTT] runTask: chunk \(index) 完了 — text: \(result.fullText.prefix(40))")
+                DebugLogger.shared.addLog("STTService", "chunk \(index) 完了 — \(result.fullText.count)文字", level: .info)
                 chunkResults.append(result)
                 handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
             }
@@ -831,28 +836,32 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 preferredLanguage: handle.language
             )
             print("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
+            DebugLogger.shared.addLog("STTService", "merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント", level: .info)
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
             print("[MemoraSTT] runTask: .transcriptionCompleted を yield — \(mergedResult.fullText.count)文字")
             handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
             print("[MemoraSTT] runTask: .transcriptionCompleted yield 完了")
-            print("[MemoraSTT] runTask: finish() 呼び出し")
+            DebugLogger.shared.addLog("STTService", "yield .transcriptionCompleted — finish() 呼び出し", level: .info)
             handle.finish()
             print("[MemoraSTT] runTask: finish() 完了")
             // 成功時: 一時ファイルを同期待ちで削除
             await chunker.cleanup(chunks: preparedChunks)
             return mergedResult
         } catch is CancellationError {
+            DebugLogger.shared.addLog("STTService", "runTask cancelled — taskId: \(handle.taskId)", level: .warning)
             handle.yield(.transcriptionCancelled(taskId: handle.taskId))
             handle.finish()
             await chunker.cleanup(chunks: preparedChunks)
             throw CancellationError()
         } catch let coreError as CoreError {
+            DebugLogger.shared.addLog("STTService", "runTask CoreError — taskId: \(handle.taskId): \(coreError.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
             handle.finish()
             await chunker.cleanup(chunks: preparedChunks)
             throw coreError
         } catch {
             let mappedError = STTErrorMapper.mapToCoreError(error)
+            DebugLogger.shared.addLog("STTService", "runTask error — taskId: \(handle.taskId): \(error.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: mappedError))
             handle.finish()
             await chunker.cleanup(chunks: preparedChunks)
