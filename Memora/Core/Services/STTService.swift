@@ -16,6 +16,18 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     private var resultTask: Task<TranscriptionResult, Error>?
     private var running = true
 
+    deinit {
+        let stillRunning: Bool
+        lock.lock()
+        stillRunning = running
+        lock.unlock()
+        if stillRunning {
+            print("[MemoraSTT] STTTaskHandle.deinit — ⚠️ まだ running=true のまま解放: taskId=\(taskId), url=\(audioURL.lastPathComponent)")
+        } else {
+            print("[MemoraSTT] STTTaskHandle.deinit — 正常解放: taskId=\(taskId)")
+        }
+    }
+
     init(audioURL: URL, language: String?) {
         self.id = UUID().uuidString
         self.audioURL = audioURL

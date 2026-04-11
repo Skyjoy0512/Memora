@@ -60,23 +60,44 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         }
 
         DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 呼び出し", level: .info)
-        let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
+        let (rawHandle, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
         DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 戻り — イベント待機", level: .info)
 
-        // イベントループを非 MainActor で実行して、MainActor の解放待ちを防ぐ
-        // progress 更新のみ MainActor に戻る
-        let finalResult = try await withTaskCancellationHandler {
-            try await consumeEvents(events: events, audioURL: audioURL)
-        } onCancel: {
-            Task {
-                await self.sttService.cancelAllTasks()
-            }
-        }
+        // handle.result() フォールバック用に具象型を保持
+        let concreteHandle = rawHandle as? STTTaskHandle
 
-        return TranscriptResult(
-            coreResult: finalResult,
-            duration: await audioFileDuration(for: audioURL)
-        )
+        do {
+            let finalResult = try await withTaskCancellationHandler {
+                try await consumeEvents(events: events, audioURL: audioURL)
+            } onCancel: {
+                Task {
+                    await self.sttService.cancelAllTasks()
+                }
+            }
+
+            return TranscriptResult(
+                coreResult: finalResult,
+                duration: await audioFileDuration(for: audioURL)
+            )
+        } catch {
+            // イベントストリームが途中で終了した場合、handle.result() で直接取得を試みる
+            // runTask の Task はまだ実行中（話者分離など）→ 完了を待って結果を受け取る
+            if let handle = concreteHandle, handle.isRunning {
+                DebugLogger.shared.addLog("TranscriptionEngine", "イベントストリーム終了 — handle.result() でフォールバック取得: \(error.localizedDescription)", level: .warning)
+                do {
+                    let directResult = try await handle.result()
+                    DebugLogger.shared.addLog("TranscriptionEngine", "handle.result() 成功 — \(directResult.fullText.count)文字", level: .info)
+                    return TranscriptResult(
+                        coreResult: directResult,
+                        duration: await audioFileDuration(for: audioURL)
+                    )
+                } catch {
+                    DebugLogger.shared.addLog("TranscriptionEngine", "handle.result() も失敗: \(error.localizedDescription)", level: .error)
+                    throw error
+                }
+            }
+            throw error
+        }
     }
 
     /// 非同期イベントストリームを消費する。MainActor から分離して実行し、
