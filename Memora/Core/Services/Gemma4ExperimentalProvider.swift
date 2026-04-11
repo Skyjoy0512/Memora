@@ -19,6 +19,7 @@ enum Gemma4DeviceGate {
     /// このデバイスで Gemma 4 実験が有効化可能か
     static var isEligible: Bool {
         guard isOSSupported else { return false }
+        guard isChipSupported else { return false }
         guard isMemorySufficient else { return false }
         return true
     }
@@ -27,6 +28,9 @@ enum Gemma4DeviceGate {
     static var ineligibilityReason: String? {
         if !isOSSupported {
             return "iOS 26 以降が必要です"
+        }
+        if !isChipSupported {
+            return "A17 Pro / M1 以降のチップが必要です"
         }
         if !isMemorySufficient {
             return "8GB 以上のメモリが必要です"
@@ -37,7 +41,7 @@ enum Gemma4DeviceGate {
     /// 詳細なデバイス情報（ベンチマーク UI 用）
     static var deviceSummary: String {
         let memoryGB = ProcessInfo.processInfo.physicalMemory / (1024 * 1024 * 1024)
-        return "RAM: \(memoryGB)GB / OS eligible: \(isOSSupported) / Memory eligible: \(isMemorySufficient)"
+        return "RAM: \(memoryGB)GB / Chip: \(chipIdentifier) / OS eligible: \(isOSSupported) / Chip eligible: \(isChipSupported) / Memory eligible: \(isMemorySufficient)"
     }
 
     private static var isOSSupported: Bool {
@@ -47,11 +51,75 @@ enum Gemma4DeviceGate {
         return false
     }
 
+    /// A17 Pro / M1 以降（Neural Engine 搭載）かを判定する。
+    /// iPhone: A17 Pro (iPhone 15 Pro 系) 以降
+    /// iPad / Mac: M1 以降
+    /// シミュレータでは常に true を返す（開発用途）。
+    private static var isChipSupported: Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        let chip = chipIdentifier.lowercased()
+
+        // Mac (Apple Silicon): always supported
+        if chip.hasPrefix("mac") { return true }
+
+        // iPad: M1+ or A17 Pro+
+        if chip.hasPrefix("ipad") {
+            return isIPadChipSupported(chip)
+        }
+
+        // iPhone: A17 Pro+ (iPhone15,2+ = iPhone 15 Pro)
+        return isIPhoneChipSupported(chip)
+        #endif
+    }
+
     // Gemma 4 は 8GB+ RAM を目安とする（stable path の 6GB より厳しい）
     private static var isMemorySufficient: Bool {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         let eightGB: UInt64 = 8 * 1024 * 1024 * 1024
         return physicalMemory >= eightGB
+    }
+
+    /// hw.machine からデバイス識別子を取得する
+    static var chipIdentifier: String {
+        var size = 0
+        sysctlbyname("hw.machine", nil, &size, nil, 0)
+        var machine = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.machine", &machine, &size, nil, 0)
+        return String(cString: machine)
+    }
+
+    /// iPhone チップ判定: A17 Pro 以降
+    /// iPhone15,2 = iPhone 15 Pro (A17 Pro)
+    /// iPhone16,x = iPhone 16 series (A18 Pro)
+    /// iPhone17,x = iPhone 17 series (A19 Pro)
+    private static func isIPhoneChipSupported(_ chip: String) -> Bool {
+        // "iphone15,2" 以降のモデル番号
+        guard let modelNumber = extractModelNumber(from: chip, prefix: "iphone") else {
+            return false
+        }
+        // iPhone 15 Pro (15) 以降 → A17 Pro 以降
+        return modelNumber >= 15
+    }
+
+    /// iPad チップ判定: M1 以降 または A17 Pro 以降
+    private static func isIPadChipSupported(_ chip: String) -> Bool {
+        // M1+ iPad: iPad13,x (M1), iPad14,x (M2), iPad16,x (M4)
+        if let modelNumber = extractModelNumber(from: chip, prefix: "ipad") {
+            // iPad13,1+ = M1 以降
+            if modelNumber >= 13 { return true }
+        }
+        return false
+    }
+
+    /// "iphone15,2" → 15, "ipad13,1" → 13 のようにモデル番号を抽出
+    private static func extractModelNumber(from chip: String, prefix: String) -> Int? {
+        guard chip.hasPrefix(prefix) && chip.count > prefix.count else { return nil }
+        let withoutPrefix = String(chip.dropFirst(prefix.count))
+        let modelStr = withoutPrefix.prefix { $0.isNumber }
+        guard !modelStr.isEmpty else { return nil }
+        return Int(modelStr)
     }
 }
 
@@ -66,6 +134,13 @@ final class Gemma4ExperimentalProvider: LLMProvider {
     /// feature flag と device gate の両方を満たしているか
     static var isReady: Bool {
         Gemma4FeatureFlag.isEnabled && Gemma4DeviceGate.isEligible
+    }
+
+    /// LLMProvider protocol 準拠。現在有効化可能かを返す。
+    var isAvailable: Bool {
+        get async {
+            Self.isReady
+        }
     }
 
     func generate(_ prompt: String) async throws -> String {
