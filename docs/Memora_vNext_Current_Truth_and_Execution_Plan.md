@@ -153,8 +153,8 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 ### Track C — Ask AI / Local LLM
 - [ ] **C1. Ask AI を retrieval service ベースへ移行する** → AskAIRetrievalService + query-aware retrieval 実装済み
 - [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する** → protocol + RemoteLLMProvider + LocalLLMProvider stub 完了
-- [ ] **C3. iOS local LLM provider を実装する（documented path から）**
-- [ ] **C4. Gemma 4 experimental profile を追加する**
+- [ ] **C3. iOS local LLM provider を実装する（documented path から）** → Foundation Models streaming + prewarm 実装完了
+- [ ] **C4. Gemma 4 experimental profile を追加する** → device gate + feature flag 実装完了
 
 ### Later / Parking Lot
 - [ ] D1. Notion / external knowledge export
