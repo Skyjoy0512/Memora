@@ -39,12 +39,14 @@ final class KnowledgeQueryService {
 
     private let modelContext: ModelContext
     private let memoryPrivacyMode: String
+    private let retrievalService: AskAIRetrievalService
 
     // MARK: - Init
 
     init(modelContext: ModelContext, memoryPrivacyMode: String = "standard") {
         self.modelContext = modelContext
         self.memoryPrivacyMode = memoryPrivacyMode
+        self.retrievalService = AskAIRetrievalService(modelContext: modelContext)
     }
 
     // MARK: - Public API
@@ -57,6 +59,181 @@ final class KnowledgeQueryService {
             return fetchProjectContext(projectID: projectId)
         case .global:
             return fetchGlobalContext()
+        }
+    }
+
+    /// Query-aware retrieval を利用して context を構築する。
+    /// LocalRetrievalEngine の keyword scoring と rankHint を組み合わせ、
+    /// クエリに関連するチャンクを優先的に取得する。
+    func buildContext(for scope: ChatScope, query: String) -> ContextPack {
+        let retrievalScope = Self.toRetrievalScope(scope)
+        let retrievalContext = retrievalService.retrieve(scope: retrievalScope, query: query, topN: 8)
+
+        var sources: [ContextSource] = memoryContextSources()
+
+        for retrieved in retrievalContext.chunks {
+            let chunk = retrieved.chunk
+            let scopeName = scopeName(for: scope)
+            if let source = makeContextSource(
+                type: chunk.sourceTypeRaw,
+                title: chunkTitle(sourceType: chunk.sourceType, scopeName: scopeName),
+                body: chunk.text,
+                systemImage: sourceImage(for: chunk.sourceType),
+                shortLabel: chunk.sourceTypeRaw.capitalized
+            ) {
+                sources.append(source)
+            }
+        }
+
+        // File scope のみ直接コンテキストを追加
+        if case .file(let fileID) = scope, let file = fetchAudioFile(id: fileID) {
+            if sources.isEmpty {
+                // Fallback: direct entity queries when no chunks exist
+                let transcript = retrievalContext.transcriptText
+                let memo = fetchMeetingMemo(for: file.id)?.plainTextCache
+
+                sources += [
+                    makeContextSource(
+                        type: "transcript",
+                        title: "\(file.title) / Transcript",
+                        body: transcript,
+                        systemImage: "text.alignleft",
+                        shortLabel: "Transcript"
+                    ),
+                    makeContextSource(
+                        type: "summary",
+                        title: "\(file.title) / Summary",
+                        body: file.summary,
+                        systemImage: "text.quote",
+                        shortLabel: "Summary"
+                    ),
+                    makeContextSource(
+                        type: "memo",
+                        title: "\(file.title) / Memo",
+                        body: memo,
+                        systemImage: "square.and.pencil",
+                        shortLabel: "Memo"
+                    ),
+                    makeContextSource(
+                        type: "reference",
+                        title: "\(file.title) / Plaud",
+                        body: file.referenceTranscript,
+                        systemImage: "doc.text",
+                        shortLabel: "Plaud"
+                    )
+                ].compactMap { $0 }
+            }
+        }
+
+        // Project scope fallback
+        if case .project(let projectID) = scope, sources.filter({ $0.type != "memory-profile" && $0.type != "memory-facts" }).isEmpty {
+            let files = fetchAudioFiles(projectID: projectID).prefix(4)
+            let todos = fetchTodos(projectID: projectID).prefix(4)
+
+            for file in files {
+                if let summary = file.summary, !summary.isEmpty {
+                    sources.append(ContextSource(
+                        type: "summary",
+                        title: "\(file.title) / Summary",
+                        body: summary,
+                        systemImage: "text.quote",
+                        shortLabel: "Summary"
+                    ))
+                } else if let transcript = fetchTranscript(for: file.id)?.text, !transcript.isEmpty {
+                    sources.append(ContextSource(
+                        type: "transcript",
+                        title: "\(file.title) / Transcript",
+                        body: transcript,
+                        systemImage: "text.alignleft",
+                        shortLabel: "Transcript"
+                    ))
+                }
+
+                if let memo = fetchMeetingMemo(for: file.id)?.plainTextCache, !memo.isEmpty {
+                    sources.append(ContextSource(
+                        type: "memo",
+                        title: "\(file.title) / Memo",
+                        body: memo,
+                        systemImage: "square.and.pencil",
+                        shortLabel: "Memo"
+                    ))
+                }
+            }
+
+            if !todos.isEmpty {
+                let todoText = todos.map { "• \($0.title)" }.joined(separator: "\n")
+                sources.append(ContextSource(
+                    type: "todo",
+                    title: "\(fetchProject(id: projectID)?.title ?? "Project") / Todo",
+                    body: todoText,
+                    systemImage: "checklist",
+                    shortLabel: "Todo"
+                ))
+            }
+        }
+
+        // Global scope fallback
+        if case .global = scope, sources.filter({ $0.type != "memory-profile" && $0.type != "memory-facts" }).isEmpty {
+            let files = fetchRecentAudioFiles(limit: 5)
+            let todos = fetchTodos(projectID: nil).filter { !$0.isCompleted }.prefix(5)
+
+            for file in files {
+                if let summary = file.summary, !summary.isEmpty {
+                    sources.append(ContextSource(
+                        type: "summary",
+                        title: "\(file.title) / Summary",
+                        body: summary,
+                        systemImage: "text.quote",
+                        shortLabel: "Summary"
+                    ))
+                } else if let transcript = fetchTranscript(for: file.id)?.text, !transcript.isEmpty {
+                    sources.append(ContextSource(
+                        type: "transcript",
+                        title: "\(file.title) / Transcript",
+                        body: transcript,
+                        systemImage: "text.alignleft",
+                        shortLabel: "Transcript"
+                    ))
+                }
+            }
+
+            if !todos.isEmpty {
+                let todoText = todos.map { "• \($0.title)" }.joined(separator: "\n")
+                sources.append(ContextSource(
+                    type: "todo",
+                    title: "Global / Todo",
+                    body: todoText,
+                    systemImage: "checklist",
+                    shortLabel: "Todo"
+                ))
+            }
+        }
+
+        let scopeTitle = scopeName(for: scope)
+        return makeContextPack(scopeTitle: scopeTitle, sources: sources)
+    }
+
+    // MARK: - Scope Helpers
+
+    private static func toRetrievalScope(_ scope: ChatScope) -> RetrievalScope {
+        switch scope {
+        case .file(let fileId):
+            return .file(fileId)
+        case .project(let projectId):
+            return .project(projectId)
+        case .global:
+            return .global
+        }
+    }
+
+    private func scopeName(for scope: ChatScope) -> String {
+        switch scope {
+        case .file(let fileId):
+            return fetchAudioFile(id: fileId)?.title ?? "このファイル"
+        case .project(let projectId):
+            return fetchProject(id: projectId)?.title ?? "このプロジェクト"
+        case .global:
+            return "Global"
         }
     }
 

@@ -285,8 +285,10 @@ struct MemoraApp: App {
                     DebugLogger.shared.addLog("ModelContainer", "一時ストアで起動 — このセッションの変更は保存されません", level: .warning)
                     UserDefaults.standard.set(true, forKey: Self.tempStoreFlagKey)
                 } else {
-                    // モデル数を計測
-                    await Self.logModelCounts(container: success.container)
+                    // モデル数計測はバックグラウンドで実行（起動をブロックしない）
+                    Task.detached(priority: .utility) {
+                        await Self.logModelCounts(container: success.container)
+                    }
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
                 }

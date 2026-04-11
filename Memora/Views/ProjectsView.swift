@@ -133,10 +133,13 @@ struct ProjectRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+            // 1行目: タイトル（AudioFileRow と同じ順序）
             Text(project.title)
                 .font(MemoraTypography.body)
                 .foregroundStyle(MemoraColor.textPrimary)
+                .lineLimit(1)
 
+            // 2行目: 日付 + ファイル数
             HStack(spacing: MemoraSpacing.xs) {
                 Text(formatDate(project.updatedAt))
                     .font(MemoraTypography.caption1)
@@ -149,10 +152,6 @@ struct ProjectRow: View {
                 }
 
                 Spacer()
-
-                Image(systemName: "folder")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.textSecondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

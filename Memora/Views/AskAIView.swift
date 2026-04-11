@@ -462,7 +462,7 @@ struct AskAIView: View {
             // Local プロバイダーは空文字列で configure する
             try await service.configure(apiKey: currentAPIKey)
 
-            let contextPack = qs.buildContext(for: activeScope)
+            let contextPack = qs.buildContext(for: activeScope, query: userMessage)
 
             sourceBadges = contextPack.sourceBadges.map {
                 AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)

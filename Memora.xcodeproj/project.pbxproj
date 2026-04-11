@@ -100,6 +100,7 @@
 		C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C606CEF85C1406BC777BC4 /* ProjectsViewModelTests.swift */; };
 		C2A359EBDA11B49EDAF60492 /* SpeakerDiarizationProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */; };
 		C70BF10CBC56522326FDE98F /* KnowledgeQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */; };
+		6E0EB5FC50C845CE9E3021DE /* AskAIRetrievalService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B9152E2FAD441E8E0D29C8 /* AskAIRetrievalService.swift */; };
 		E0D1C2B3A4958765 /* ModelStoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */; };
 		E2D1C0B9A8F7E6D5C4B3A2F1 /* Gemma4ExperimentalProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */; };
 		F9E8D7C6B5A43210 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8 /* LLMProvider.swift */; };
@@ -203,6 +204,7 @@
 		90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceConnectionView.swift; sourceTree = "<group>"; };
 		949CE2F0FBD00A67C0BA2D5B /* AudioFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileTests.swift; sourceTree = "<group>"; };
 		993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeQueryService.swift; sourceTree = "<group>"; };
+		87B9152E2FAD441E8E0D29C8 /* AskAIRetrievalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIRetrievalService.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreService.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gemma4ExperimentalProvider.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8 /* LLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProvider.swift; sourceTree = "<group>"; };
@@ -375,6 +377,7 @@
 				E1C413D352E596E90736EC8B /* GoogleMeetService.swift */,
 				7A7D85118AB680A796C34305 /* KnowledgeIndexingService.swift */,
 				993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */,
+				87B9152E2FAD441E8E0D29C8 /* AskAIRetrievalService.swift */,
 				B2C3D4E5F6A7B8C9 /* ModelStoreService.swift */,
 				A1B2C3D4E5F6A7B8 /* LLMProvider.swift */,
 				F1A2B3C4D5E6F7A8B9C0D1E2 /* Gemma4ExperimentalProvider.swift */,
@@ -704,6 +707,7 @@
 				6BDB02D081F1D3549F5E4FDE /* KnowledgeChunk.swift in Sources */,
 				8D7CC0038B9A902EE3266F28 /* KnowledgeIndexingService.swift in Sources */,
 				C70BF10CBC56522326FDE98F /* KnowledgeQueryService.swift in Sources */,
+				6E0EB5FC50C845CE9E3021DE /* AskAIRetrievalService.swift in Sources */,
 				E0D1C2B3A4958765 /* ModelStoreService.swift in Sources */,
 				E2D1C0B9A8F7E6D5C4B3A2F1 /* Gemma4ExperimentalProvider.swift in Sources */,
 				F9E8D7C6B5A43210 /* LLMProvider.swift in Sources */,

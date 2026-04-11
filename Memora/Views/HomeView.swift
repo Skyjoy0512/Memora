@@ -346,7 +346,13 @@ struct AudioFileRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-            // 1行目: 日付 + duration + source badge
+            // 1行目: タイトル（最も重要な情報を先頭に）
+            Text(audioFile.title)
+                .font(MemoraTypography.body)
+                .foregroundStyle(MemoraColor.textPrimary)
+                .lineLimit(1)
+
+            // 2行目: 日付 + duration + source
             HStack(spacing: MemoraSpacing.xs) {
                 Text(formatDate(audioFile.createdAt))
                     .font(MemoraTypography.caption1)
@@ -358,38 +364,27 @@ struct AudioFileRow: View {
                         .foregroundStyle(MemoraColor.textSecondary)
                 }
 
+                sourceBadge
+
+                Spacer()
+            }
+
+            // 3行目: project + status（ある場合のみ）
+            HStack(spacing: MemoraSpacing.xxs) {
+                if let projectName {
+                    Label(projectName, systemImage: "folder")
+                        .font(MemoraTypography.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
                 Spacer()
 
-                sourceBadge
-            }
-
-            // 2行目: プロジェクト名（ある場合）
-            if let projectName {
-                Label(projectName, systemImage: "folder")
-                    .font(MemoraTypography.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            // 3行目: タイトル
-            Text(audioFile.title)
-                .font(MemoraTypography.body)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            // 4行目: status chips + summary
-            HStack(spacing: MemoraSpacing.xxs) {
                 if audioFile.isTranscribed {
                     StatusChip(title: "文字起こし済", color: MemoraColor.accentBlue)
                 }
                 if audioFile.isSummarized {
                     StatusChip(title: "要約済", color: MemoraColor.accentGreen)
                 }
-            }
-
-            if let summary = audioFile.summary, !summary.isEmpty {
-                Text(summary)
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.textTertiary)
-                    .lineLimit(2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -448,27 +443,20 @@ private struct AskAIFloatingButton: View {
         Button(action: action) {
             HStack(spacing: MemoraSpacing.xs) {
                 Image(systemName: "sparkle")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 14, weight: .medium))
 
                 Text("Ask AI")
                     .font(MemoraTypography.subheadline)
                     .fontWeight(.medium)
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, MemoraSpacing.lg)
+            .padding(.horizontal, MemoraSpacing.md)
             .padding(.vertical, MemoraSpacing.sm)
-            .background(
-                LinearGradient(
-                    colors: [MemoraColor.accentBlue, Color.blue.opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .background(MemoraColor.accentBlue)
             .clipShape(Capsule())
-            .shadow(color: MemoraColor.shadowMedium, radius: 8, x: 0, y: 4)
         }
-        .padding(.trailing, MemoraSpacing.lg)
-        .padding(.bottom, MemoraSpacing.xl)
+        .padding(.trailing, MemoraSpacing.md)
+        .padding(.bottom, MemoraSpacing.lg)
     }
 }
 
