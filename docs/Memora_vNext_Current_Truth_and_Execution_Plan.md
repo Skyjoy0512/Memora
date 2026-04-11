@@ -148,11 +148,11 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 ### Track B — iOS 26 Design Refresh
 - [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する** → ツールバー整理済み
 - [ ] **B2. Home / Project 一覧を content-first に整理する** → タイトル1行目、メタデータ固定順、カード統一
-- [ ] **B3. File Detail を完成形 UI に寄せる**
+- [ ] **B3. File Detail を完成形 UI に寄せる** → タブアイコン、context-aware actions、ヘッダー整理完了
 
 ### Track C — Ask AI / Local LLM
 - [ ] **C1. Ask AI を retrieval service ベースへ移行する** → AskAIRetrievalService + query-aware retrieval 実装済み
-- [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する**
+- [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する** → protocol + RemoteLLMProvider + LocalLLMProvider stub 完了
 - [ ] **C3. iOS local LLM provider を実装する（documented path から）**
 - [ ] **C4. Gemma 4 experimental profile を追加する**
 
