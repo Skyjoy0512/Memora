@@ -141,9 +141,9 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 
 ### Track A — Reliability / Performance（最優先）
 - [x] **A1. SpeechAnalyzer preflight と backend resolver を導入する**
-- [ ] **A2. File transcription pipeline を harden する**
-- [ ] **A3. 起動時の重さと temporary store fallback を改善する**
-- [ ] **A4. STT diagnostics と recovery UX を完成させる**
+- [ ] **A2. File transcription pipeline を harden する** → handle.result() フォールバック追加、要実機検証
+- [ ] **A3. 起動時の重さと temporary store fallback を改善する** → 診断ログ追加済み
+- [ ] **A4. STT diagnostics と recovery UX を完成させる** → in-flow recovery UX 追加完了
 
 ### Track B — iOS 26 Design Refresh
 - [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する**
