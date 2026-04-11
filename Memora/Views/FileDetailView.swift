@@ -200,10 +200,15 @@ struct FileDetailView: View {
         )) {
             Button("OK", role: .cancel) {
                 vm.errorMessage = nil
+                vm.recoveryAction = nil
             }
         } message: {
             if let message = vm.errorMessage {
-                Text(message)
+                if let recovery = vm.recoveryAction {
+                    Text("\(message)\n\n\(recovery)")
+                } else {
+                    Text(message)
+                }
             }
         }
         .alert("完了", isPresented: Binding(

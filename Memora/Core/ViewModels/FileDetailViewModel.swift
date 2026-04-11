@@ -33,6 +33,7 @@ final class FileDetailViewModel {
     // MARK: - Alerts
     var errorMessage: String?
     var showErrorAlert = false
+    var recoveryAction: String?
     var successMessage: String?
     var showSuccessAlert = false
 
@@ -717,6 +718,10 @@ final class FileDetailViewModel {
     }
 
     private func userFacingTranscriptionErrorMessage(for error: Error) -> String {
+        // 診断ログから失敗分類を取得
+        let category = STTFailureCategory.classifyLastFailure()
+        recoveryAction = category?.recoveryAction
+
         if let timeoutError = error as? OnDeviceTranscriptionTimeoutError {
             return timeoutError.localizedDescription
         }
@@ -725,6 +730,11 @@ final class FileDetailViewModel {
            case let .transcriptionFailed(message) = transcriptionError,
            message == OnDeviceTranscriptionTimeoutError.message {
             return message
+        }
+
+        // 分類されたカテゴリがあればそちらのタイトルを使う
+        if let category, category != .other {
+            return category.localizedTitle
         }
 
         return "文字起こしエラー: \(error.localizedDescription)"
