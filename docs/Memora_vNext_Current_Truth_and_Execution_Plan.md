@@ -142,16 +142,16 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 ### Track A — Reliability / Performance（最優先）
 - [x] **A1. SpeechAnalyzer preflight と backend resolver を導入する**
 - [ ] **A2. File transcription pipeline を harden する** → handle.result() フォールバック追加、要実機検証
-- [ ] **A3. 起動時の重さと temporary store fallback を改善する** → 診断ログ追加済み
+- [ ] **A3. 起動時の重さと temporary store fallback を改善する** → logModelCounts 非同期化、adaptive timeout 導入済み
 - [ ] **A4. STT diagnostics と recovery UX を完成させる** → in-flow recovery UX 追加完了
 
 ### Track B — iOS 26 Design Refresh
-- [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する**
-- [ ] **B2. Home / Project 一覧を content-first に整理する**
+- [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する** → ツールバー整理済み
+- [ ] **B2. Home / Project 一覧を content-first に整理する** → タイトル1行目、メタデータ固定順、カード統一
 - [ ] **B3. File Detail を完成形 UI に寄せる**
 
 ### Track C — Ask AI / Local LLM
-- [ ] **C1. Ask AI を retrieval service ベースへ移行する**
+- [ ] **C1. Ask AI を retrieval service ベースへ移行する** → AskAIRetrievalService + query-aware retrieval 実装済み
 - [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する**
 - [ ] **C3. iOS local LLM provider を実装する（documented path から）**
 - [ ] **C4. Gemma 4 experimental profile を追加する**
