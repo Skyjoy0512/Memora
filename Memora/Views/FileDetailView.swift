@@ -9,9 +9,6 @@ struct FileDetailView: View {
     let audioFile: AudioFile
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @State private var viewModel: FileDetailViewModel?
     @State private var selectedTab: FileDetailTab = .summary
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
@@ -39,9 +36,9 @@ struct FileDetailView: View {
 
     var currentAPIKey: String {
         switch currentProvider {
-        case .openai: return apiKeyOpenAI
-        case .gemini: return apiKeyGemini
-        case .deepseek: return apiKeyDeepSeek
+        case .openai: return KeychainService.load(key: .apiKeyOpenAI)
+        case .gemini: return KeychainService.load(key: .apiKeyGemini)
+        case .deepseek: return KeychainService.load(key: .apiKeyDeepSeek)
         case .local: return ""
         }
     }

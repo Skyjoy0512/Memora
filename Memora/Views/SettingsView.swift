@@ -10,10 +10,10 @@ struct SettingsView: View {
     @EnvironmentObject private var omiAdapter: OmiAdapter
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = MemoryPrivacyMode.standard.rawValue
+    @State private var apiKeyOpenAI = KeychainService.load(key: .apiKeyOpenAI)
+    @State private var apiKeyGemini = KeychainService.load(key: .apiKeyGemini)
+    @State private var apiKeyDeepSeek = KeychainService.load(key: .apiKeyDeepSeek)
     @State private var showDeleteAlert = false
 
     // Plaud 設定
@@ -123,6 +123,15 @@ struct SettingsView: View {
             if let status = plaudSyncStatus {
                 Text(status)
             }
+        }
+        .onChange(of: apiKeyOpenAI) { _, newValue in
+            KeychainService.save(key: .apiKeyOpenAI, value: newValue)
+        }
+        .onChange(of: apiKeyGemini) { _, newValue in
+            KeychainService.save(key: .apiKeyGemini, value: newValue)
+        }
+        .onChange(of: apiKeyDeepSeek) { _, newValue in
+            KeychainService.save(key: .apiKeyDeepSeek, value: newValue)
         }
     }
 
@@ -1950,9 +1959,6 @@ private struct STTDiagnosticsView: View {
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
     @AppStorage("speechAnalyzerEnabled") private var speechAnalyzerEnabled: Bool = false
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("sttDiagnosticsLastFallbackReason") private var storedFallbackReason = "未診断"
 
     @State private var snapshot: STTDiagnosticsSnapshot?
@@ -1971,11 +1977,11 @@ private struct STTDiagnosticsView: View {
     private var currentAPIKey: String {
         switch currentProvider {
         case .openai:
-            return apiKeyOpenAI
+            return KeychainService.load(key: .apiKeyOpenAI)
         case .gemini:
-            return apiKeyGemini
+            return KeychainService.load(key: .apiKeyGemini)
         case .deepseek:
-            return apiKeyDeepSeek
+            return KeychainService.load(key: .apiKeyDeepSeek)
         case .local:
             return ""
         }

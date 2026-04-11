@@ -5,9 +5,6 @@ struct AskAIView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = "standard"
 
     let scope: ChatScope
@@ -36,11 +33,11 @@ struct AskAIView: View {
     private var currentAPIKey: String {
         switch currentProvider {
         case .openai:
-            return apiKeyOpenAI
+            return KeychainService.load(key: .apiKeyOpenAI)
         case .gemini:
-            return apiKeyGemini
+            return KeychainService.load(key: .apiKeyGemini)
         case .deepseek:
-            return apiKeyDeepSeek
+            return KeychainService.load(key: .apiKeyDeepSeek)
         case .local:
             return "" // Local プロバイダーは API キー不要
         }

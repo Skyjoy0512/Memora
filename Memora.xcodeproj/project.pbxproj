@@ -90,6 +90,7 @@
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
 		B3BA6CB64AB933B8260FAFF8 /* GoogleMeetSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414C610C6D0E54B950FAB362 /* GoogleMeetSettings.swift */; };
 		B9772E00F09BAF404462DF35 /* AudioFileRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F5AFE7CD32027935D77D74 /* AudioFileRepository.swift */; };
+		KC1B2C3D4E5F6A7B8C9D0E1F /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KC1A2B3C4D5E6F7A8B9C0D1E /* KeychainService.swift */; };
 		B9F1325DAA70D5EC08321084 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F848386F9F51426F48C6975B /* CalendarService.swift */; };
 		BAB01369B21EFDEC036FE66E /* BluetoothAudioService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABE468754017ED390E23EDFE /* BluetoothAudioService.swift */; };
 		BAB5138670ECF8986DC74816 /* MemoryExtractionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B07507E149A272F0FA66681 /* MemoryExtractionService.swift */; };
@@ -184,6 +185,7 @@
 		578CADDA2E5E15C0BDC288E0 /* FileDetailViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailViewModelTests.swift; sourceTree = "<group>"; };
 		5847EA98DB4E15AD3F280B6B /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
 		58F5AFE7CD32027935D77D74 /* AudioFileRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileRepository.swift; sourceTree = "<group>"; };
+		KC1A2B3C4D5E6F7A8B9C0D1E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		5B9B239A10FD480509DFB57B /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		5C2ECDB306E7A48E122A6B63 /* MemoryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfile.swift; sourceTree = "<group>"; };
 		5CB46D474CD953FE5A8EEBB6 /* OpenAIExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIExportService.swift; sourceTree = "<group>"; };
@@ -377,6 +379,7 @@
 				F848386F9F51426F48C6975B /* CalendarService.swift */,
 				37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */,
 				1D386666798E98A11A464A87 /* ExportService.swift */,
+				KC1A2B3C4D5E6F7A8B9C0D1E /* KeychainService.swift */,
 				FA7E242D95B2B86EDB58ECD4 /* GoogleAuthService.swift */,
 				E1C413D352E596E90736EC8B /* GoogleMeetService.swift */,
 				7A7D85118AB680A796C34305 /* KnowledgeIndexingService.swift */,
@@ -696,6 +699,7 @@
 				530C82B46017BC0AE11CE5C4 /* DebugLogView.swift in Sources */,
 				0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */,
 				DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */,
+				KC1B2C3D4E5F6A7B8C9D0E1F /* KeychainService.swift in Sources */,
 				AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */,
 				1B95C29B25AE5C7169C244D4 /* ExportOptionsSheet.swift in Sources */,
 				38FE2784E0967E5E330984CA /* ExportService.swift in Sources */,
