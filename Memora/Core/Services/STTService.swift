@@ -22,7 +22,10 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
         self.language = language
 
         var storedContinuation: AsyncStream<STTEvent>.Continuation?
-        self.streamStorage = AsyncStream { continuation in
+        // .unbounded バッファリングでイベントドロップを防止
+        self.streamStorage = AsyncStream(
+            bufferingPolicy: .unbounded
+        ) { continuation in
             storedContinuation = continuation
         }
         self.continuation = storedContinuation
@@ -757,7 +760,9 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         print("[MemoraSTT] runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)")
 
         do {
+            print("[MemoraSTT] runTask: .transcriptionStarted を yield")
             handle.yield(.transcriptionStarted(taskId: handle.taskId))
+            print("[MemoraSTT] runTask: .transcriptionProgress(0.02) を yield")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
 
             preparedChunks = try await chunker.analyzeAndChunk(fileURL: handle.audioURL) { completed, total in
@@ -815,10 +820,12 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             )
             print("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
-            print("[MemoraSTT] runTask: transcriptionCompleted を yield 開始")
+            print("[MemoraSTT] runTask: .transcriptionCompleted を yield — \(mergedResult.fullText.count)文字")
             handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
+            print("[MemoraSTT] runTask: .transcriptionCompleted yield 完了")
             print("[MemoraSTT] runTask: finish() 呼び出し")
             handle.finish()
+            print("[MemoraSTT] runTask: finish() 完了")
             // 成功時: 一時ファイルを同期待ちで削除
             await chunker.cleanup(chunks: preparedChunks)
             return mergedResult

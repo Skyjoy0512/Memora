@@ -31,9 +31,9 @@ struct FilterSheet: View {
                         .font(MemoraTypography.headline)
 
                     HStack(spacing: MemoraSpacing.xs) {
-                        filterButton(title: "すべて", selected: filterSummarized == nil)
-                        filterButton(title: "済み", selected: filterSummarized == true)
-                        filterButton(title: "未済み", selected: filterSummarized == false)
+                        summaryFilterButton(title: "すべて", selected: filterSummarized == nil)
+                        summaryFilterButton(title: "済み", selected: filterSummarized == true)
+                        summaryFilterButton(title: "未済み", selected: filterSummarized == false)
                     }
                 }
                 .padding()
@@ -45,11 +45,11 @@ struct FilterSheet: View {
                 // リセットボタン
                 Button(action: resetFilters) {
                     Text("リセット")
-                        .font(MemoraTypography.headline)
-                        .foregroundStyle(.white)
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(MemoraColor.accentBlue)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(MemoraColor.divider)
+                        .padding(MemoraSpacing.sm)
+                        .background(MemoraColor.accentBlue.opacity(0.1))
                         .cornerRadius(MemoraRadius.md)
                 }
                 .padding()
@@ -71,7 +71,6 @@ struct FilterSheet: View {
         Button(action: {
             if title == "すべて" {
                 filterTranscribed = nil
-                filterSummarized = nil
             } else if title == "済み" {
                 filterTranscribed = true
             } else if title == "未済み" {
@@ -83,7 +82,27 @@ struct FilterSheet: View {
                 .foregroundStyle(selected ?? false ? .white : .primary)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(selected ?? false ? MemoraColor.divider : MemoraColor.divider.opacity(0.1))
+                .background(selected ?? false ? MemoraColor.accentBlue : MemoraColor.divider.opacity(0.1))
+                .cornerRadius(MemoraRadius.sm)
+        }
+    }
+
+    private func summaryFilterButton(title: String, selected: Bool?) -> some View {
+        Button(action: {
+            if title == "すべて" {
+                filterSummarized = nil
+            } else if title == "済み" {
+                filterSummarized = true
+            } else if title == "未済み" {
+                filterSummarized = false
+            }
+        }) {
+            Text(title)
+                .font(MemoraTypography.subheadline)
+                .foregroundStyle(selected ?? false ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(selected ?? false ? MemoraColor.accentBlue : MemoraColor.divider.opacity(0.1))
                 .cornerRadius(MemoraRadius.sm)
         }
     }

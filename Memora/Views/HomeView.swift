@@ -68,7 +68,7 @@ struct HomeView: View {
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button {
                             showRecordingView = true
@@ -90,20 +90,21 @@ struct HomeView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "plus")
+                        Label("追加", systemImage: "plus")
                     }
+                }
 
-                    Button {
-                        showAskAI = true
-                    } label: {
-                        Image(systemName: "sparkle")
+                if hasActiveFilters {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("フィルタをクリア") {
+                            clearFilters()
+                        }
                     }
-
-                    Button {
-                        showFilterSheet = true
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                    }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                AskAIFloatingButton {
+                    showAskAI = true
                 }
             }
             .navigationDestination(isPresented: $showRecordingView) {
@@ -115,14 +116,14 @@ struct HomeView: View {
             .sheet(isPresented: $showAskAI) {
                 AskAIView(scope: .global)
             }
-            .navigationDestination(item: $selectedAudioFile) { file in
-                FileDetailView(audioFile: file)
-            }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
                     filterTranscribed: $filterTranscribed,
                     filterSummarized: $filterSummarized
                 )
+            }
+            .navigationDestination(item: $selectedAudioFile) { file in
+                FileDetailView(audioFile: file)
             }
             .fileImporter(
                 isPresented: $showFileImporter,
@@ -235,8 +236,16 @@ struct HomeView: View {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
 
+    private func clearFilters() {
+        filterTranscribed = nil
+        filterSummarized = nil
+        filterLifeLog = nil
+        selectedTag = nil
+        searchText = ""
+    }
+
     private var recordingHint: String {
-        "右下の追加ボタンから録音を開始"
+        "右下の AskAI またはツールバーの追加ボタンから利用"
     }
 
     private func openPendingImportedAudioIfNeeded() {
@@ -427,6 +436,39 @@ private struct StatusChip: View {
             .padding(.vertical, 2)
             .background(color.opacity(0.12))
             .clipShape(Capsule())
+    }
+}
+
+// MARK: - AskAI Floating Button
+
+private struct AskAIFloatingButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: MemoraSpacing.xs) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text("Ask AI")
+                    .font(MemoraTypography.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, MemoraSpacing.lg)
+            .padding(.vertical, MemoraSpacing.sm)
+            .background(
+                LinearGradient(
+                    colors: [MemoraColor.accentBlue, Color.blue.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(Capsule())
+            .shadow(color: MemoraColor.shadowMedium, radius: 8, x: 0, y: 4)
+        }
+        .padding(.trailing, MemoraSpacing.lg)
+        .padding(.bottom, MemoraSpacing.xl)
     }
 }
 

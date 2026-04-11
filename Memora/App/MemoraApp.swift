@@ -285,6 +285,8 @@ struct MemoraApp: App {
                     DebugLogger.shared.addLog("ModelContainer", "一時ストアで起動 — このセッションの変更は保存されません", level: .warning)
                     UserDefaults.standard.set(true, forKey: Self.tempStoreFlagKey)
                 } else {
+                    // モデル数を計測
+                    await Self.logModelCounts(container: success.container)
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
                 }
@@ -345,23 +347,38 @@ struct MemoraApp: App {
         let configuration: ModelConfiguration
         if inMemoryOnly {
             configuration = ModelConfiguration(isStoredInMemoryOnly: true, allowsSave: true, cloudKitDatabase: .none)
+            DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了（インメモリ）")
         } else {
             let storeURL = try persistentStoreURL()
+            let storeCheckStart = ContinuousClock.now
+
+            // ストア情報を記録
+            DebugLogger.shared.logStoreInfo(url: storeURL)
+
+            let storeCheckElapsed = storeCheckStart.duration(to: ContinuousClock.now)
+            let storeCheckMs = Double(storeCheckElapsed.components.seconds) * 1000.0
+                + Double(storeCheckElapsed.components.attoseconds) / 1_000_000_000_000.0
+            DebugLogger.shared.addLog("ModelContainer", "ストア情報確認 (\(String(format: "%.0f", storeCheckMs))ms)", level: .info)
+
             if resetStore {
                 try removePersistentStore(at: storeURL)
                 DebugLogger.shared.addLog("ModelContainer", "既存ストアを削除して再作成", level: .warning)
             }
             configuration = ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
+            DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了（永続）")
         }
 
-        DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了")
-
+        let modelContainerStart = ContinuousClock.now
         let container = try ModelContainer(for: schema, configurations: [configuration])
+        let modelContainerElapsed = modelContainerStart.duration(to: ContinuousClock.now)
+        let modelContainerMs = Double(modelContainerElapsed.components.seconds) * 1000.0
+            + Double(modelContainerElapsed.components.attoseconds) / 1_000_000_000.0
+        DebugLogger.shared.addLog("ModelContainer", "ModelContainer 生成 (\(String(format: "%.0f", modelContainerMs))ms)", level: .info)
 
-        let elapsed = containerStart.duration(to: ContinuousClock.now)
-        let ms = Double(elapsed.components.seconds) * 1000.0
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
-        DebugLogger.shared.addLog("ModelContainer", "createModelContainer 完了 (\(String(format: "%.0f", ms))ms)", level: .info)
+        let totalElapsed = containerStart.duration(to: ContinuousClock.now)
+        let totalMs = Double(totalElapsed.components.seconds) * 1000.0
+            + Double(totalElapsed.components.attoseconds) / 1_000_000_000.0
+        DebugLogger.shared.addLog("ModelContainer", "createModelContainer 総計 (\(String(format: "%.0f", totalMs))ms)", level: .info)
 
         return container
     }
@@ -420,5 +437,39 @@ struct MemoraApp: App {
             group.cancelAll()
             return firstOutcome
         }
+    }
+
+    /// モデル数を計測してログに出力する
+    private static func logModelCounts(container: ModelContainer) async {
+        let countStart = ContinuousClock.now
+
+        let context = ModelContext(container)
+        let counts: [(String, Int)] = [
+            ("AudioFile", (try? context.fetchCount(FetchDescriptor<AudioFile>())) ?? 0),
+            ("Transcript", (try? context.fetchCount(FetchDescriptor<Transcript>())) ?? 0),
+            ("Project", (try? context.fetchCount(FetchDescriptor<Project>())) ?? 0),
+            ("MeetingNote", (try? context.fetchCount(FetchDescriptor<MeetingNote>())) ?? 0),
+            ("MeetingMemo", (try? context.fetchCount(FetchDescriptor<MeetingMemo>())) ?? 0),
+            ("PhotoAttachment", (try? context.fetchCount(FetchDescriptor<PhotoAttachment>())) ?? 0),
+            ("KnowledgeChunk", (try? context.fetchCount(FetchDescriptor<KnowledgeChunk>())) ?? 0),
+            ("AskAISession", (try? context.fetchCount(FetchDescriptor<AskAISession>())) ?? 0),
+            ("AskAIMessage", (try? context.fetchCount(FetchDescriptor<AskAIMessage>())) ?? 0),
+            ("MemoryProfile", (try? context.fetchCount(FetchDescriptor<MemoryProfile>())) ?? 0),
+            ("MemoryFact", (try? context.fetchCount(FetchDescriptor<MemoryFact>())) ?? 0),
+            ("TodoItem", (try? context.fetchCount(FetchDescriptor<TodoItem>())) ?? 0),
+            ("ProcessingJob", (try? context.fetchCount(FetchDescriptor<ProcessingJob>())) ?? 0)
+        ]
+
+        let countElapsed = countStart.duration(to: ContinuousClock.now)
+        let countMs = Double(countElapsed.components.seconds) * 1000.0
+            + Double(countElapsed.components.attoseconds) / 1_000_000_000.0
+
+        var countInfo = "モデル数計測 (\(String(format: "%.0f", countMs))ms): "
+        countInfo += counts.map { "\($0.0)=\($0.1)" }.joined(separator: ", ")
+        DebugLogger.shared.addLog("ModelContainer", countInfo, level: .info)
+
+        // トータルレコード数
+        let totalRecords = counts.reduce(0) { $0 + $1.1 }
+        DebugLogger.shared.addLog("ModelContainer", "総レコード数: \(totalRecords)", level: .info)
     }
 }

@@ -140,21 +140,21 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 > A が全部 DONE になるまで、B/C は「並列でも安全なものだけ」にする。
 
 ### Track A — Reliability / Performance（最優先）
-- [x] **A1. SpeechAnalyzer preflight と backend resolver を導入する** ✓
-- [x] **A2. File transcription pipeline を harden する** ✓
-- [x] **A3. 起動時の重さと temporary store fallback を改善する** ✓
-- [x] **A4. STT diagnostics と recovery UX を完成させる** ✓
+- [x] **A1. SpeechAnalyzer preflight と backend resolver を導入する**
+- [ ] **A2. File transcription pipeline を harden する**
+- [ ] **A3. 起動時の重さと temporary store fallback を改善する**
+- [ ] **A4. STT diagnostics と recovery UX を完成させる**
 
 ### Track B — iOS 26 Design Refresh
-- [x] **B1. App shell を HIG / Liquid Glass に合わせて再設計する** ✓
-- [x] **B2. Home / Project 一覧を content-first に整理する** ✓
-- [x] **B3. File Detail を完成形 UI に寄せる** ✓
+- [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する**
+- [ ] **B2. Home / Project 一覧を content-first に整理する**
+- [ ] **B3. File Detail を完成形 UI に寄せる**
 
 ### Track C — Ask AI / Local LLM
-- [x] **C1. Ask AI を retrieval service ベースへ移行する** ✓
-- [x] **C2. `LLMProvider` abstraction と local provider slot を追加する** ✓
-- [x] **C3. iOS local LLM provider を実装する（documented path から）** ✓
-- [x] **C4. Gemma 4 experimental profile を追加する** ✓
+- [ ] **C1. Ask AI を retrieval service ベースへ移行する**
+- [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する**
+- [ ] **C3. iOS local LLM provider を実装する（documented path から）**
+- [ ] **C4. Gemma 4 experimental profile を追加する**
 
 ### Later / Parking Lot
 - [ ] D1. Notion / external knowledge export

@@ -63,44 +63,10 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
         DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 戻り — イベント待機", level: .info)
 
-        // イベントループは MainActor 上で実行されるが、`for await` で待機中は
-        // MainActor は解放される。progress 更新は threshold で間引き、
-        // SwiftUI の過剰再描画を防止する。
+        // イベントループを非 MainActor で実行して、MainActor の解放待ちを防ぐ
+        // progress 更新のみ MainActor に戻る
         let finalResult = try await withTaskCancellationHandler {
-            var finalResult: TranscriptionResult?
-
-            for await event in events {
-                switch event {
-                case .transcriptionStarted:
-                    updateProgress(max(progress, 0.02))
-                case .transcriptionProgress(_, let value):
-                    updateProgress(value)
-                case .transcriptionCompleted(_, let result):
-                    print("[MemoraSTT] TranscriptionEngine: .transcriptionCompleted 受信 — \(result.fullText.count)文字")
-                    progress = 1.0
-                    finalResult = result
-                case .transcriptionFailed(_, let error):
-                    print("[MemoraSTT] TranscriptionEngine: .transcriptionFailed 受信 — \(error)")
-                    throw error
-                case .transcriptionCancelled:
-                    print("[MemoraSTT] TranscriptionEngine: .transcriptionCancelled 受信")
-                    throw CancellationError()
-                case .transcriptionPartialResult:
-                    // volatile（中間結果）: UI には progress だけで十分
-                    continue
-                case .audioChunkStarted,
-                     .audioChunkProgress,
-                     .audioChunkCompleted:
-                    continue
-                }
-            }
-
-            print("[MemoraSTT] TranscriptionEngine: イベントループ終了 — finalResult is nil: \(finalResult == nil)")
-            guard let finalResult else {
-                throw CoreError.transcriptionError(.transcriptionFailed("Transcription did not produce a result"))
-            }
-
-            return finalResult
+            try await consumeEvents(events: events, audioURL: audioURL)
         } onCancel: {
             Task {
                 await self.sttService.cancelAllTasks()
@@ -111,6 +77,52 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
             coreResult: finalResult,
             duration: await audioFileDuration(for: audioURL)
         )
+    }
+
+    /// 非同期イベントストリームを消費する。MainActor から分離して実行し、
+    /// 背景スレッドからのイベントを確実に受け取る。
+    @MainActor
+    private func consumeEvents(events: AsyncStream<STTEvent>, audioURL: URL) async throws -> TranscriptionResult {
+        print("[MemoraSTT] TranscriptionEngine: イベント消費開始")
+
+        var finalResult: TranscriptionResult?
+
+        for await event in events {
+            switch event {
+            case .transcriptionStarted:
+                print("[MemoraSTT] TranscriptionEngine: .transcriptionStarted 受信")
+                updateProgress(max(progress, 0.02))
+            case .transcriptionProgress(_, let value):
+                updateProgress(value)
+            case .transcriptionCompleted(_, let result):
+                print("[MemoraSTT] TranscriptionEngine: .transcriptionCompleted 受信 — \(result.fullText.count)文字")
+                progress = 1.0
+                finalResult = result
+            case .transcriptionFailed(_, let error):
+                print("[MemoraSTT] TranscriptionEngine: .transcriptionFailed 受信 — \(error)")
+                throw error
+            case .transcriptionCancelled:
+                print("[MemoraSTT] TranscriptionEngine: .transcriptionCancelled 受信")
+                throw CancellationError()
+            case .transcriptionPartialResult:
+                // volatile（中間結果）: UI には progress だけで十分
+                continue
+            case .audioChunkStarted(let index):
+                print("[MemoraSTT] TranscriptionEngine: .audioChunkStarted 受信 — index: \(index)")
+            case .audioChunkProgress(let index, let chunkProgress):
+                // chunk progress はログのみ
+                continue
+            case .audioChunkCompleted(let index, let result):
+                print("[MemoraSTT] TranscriptionEngine: .audioChunkCompleted 受信 — index: \(index), text: \(result.fullText.prefix(30))")
+            }
+        }
+
+        print("[MemoraSTT] TranscriptionEngine: イベントループ終了 — finalResult is nil: \(finalResult == nil)")
+        guard let finalResult else {
+            throw CoreError.transcriptionError(.transcriptionFailed("Transcription did not produce a result"))
+        }
+
+        return finalResult
     }
 
     /// threshold を超える変動のみ @Published に反映する。
