@@ -167,6 +167,26 @@ struct ExportOptionsSheet: View {
                     transcript = nil
                 }
 
+                // Memo を取得
+                let memoText: String? = {
+                    let targetID = audioFile.id
+                    var descriptor = FetchDescriptor<MeetingMemo>(
+                        predicate: #Predicate { $0.audioFileID == targetID }
+                    )
+                    descriptor.fetchLimit = 1
+                    return try? modelContext.fetch(descriptor).first?.markdown
+                }()
+
+                // Todo を取得（同じプロジェクトに紐づくもの）
+                let todoItems: [TodoItem] = {
+                    guard let projectID = audioFile.projectID else { return [] }
+                    let targetID = projectID
+                    let descriptor = FetchDescriptor<TodoItem>(
+                        predicate: #Predicate { $0.projectID == targetID }
+                    )
+                    return (try? modelContext.fetch(descriptor)) ?? []
+                }()
+
                 // エクスポート実行
                 switch exportType {
                 case .transcript:
@@ -193,7 +213,9 @@ struct ExportOptionsSheet: View {
                     url = try exportService.exportAll(
                         transcript: transcript,
                         audioFile: audioFile,
-                        format: exportFormat
+                        format: exportFormat,
+                        memoText: memoText,
+                        todoItems: todoItems
                     )
                 }
 
@@ -248,19 +270,30 @@ struct ExportOptionsSheet: View {
                     transcriptText = ref
                 }
 
-                let page: NotionService.NotionPage
+                // Todo を取得（同じプロジェクトに紐づくもの）
+                let todoItems: [TodoItem] = {
+                    guard let projectID = audioFile.projectID else { return [] }
+                    let targetID = projectID
+                    let descriptor = FetchDescriptor<TodoItem>(
+                        predicate: #Predicate { $0.projectID == targetID }
+                    )
+                    return (try? modelContext.fetch(descriptor)) ?? []
+                }()
+
+                let _: NotionService.NotionPage
 
                 switch notionExportType {
                 case .all:
-                    page = try await service.createPageFromAudioFile(
+                    _ = try await service.createPageFromAudioFile(
                         audioFile: audioFile,
                         transcriptText: transcriptText,
+                        todoItems: todoItems,
                         modelContext: modelContext,
                         token: token,
                         parentPageID: parentPageID
                     )
                 case .summary:
-                    page = try await service.exportSummary(
+                    _ = try await service.exportSummary(
                         audioFile: audioFile,
                         token: token,
                         parentPageID: parentPageID
@@ -273,7 +306,7 @@ struct ExportOptionsSheet: View {
                         }
                         return
                     }
-                    page = try await service.exportTranscript(
+                    _ = try await service.exportTranscript(
                         transcriptText: text,
                         audioFile: audioFile,
                         token: token,

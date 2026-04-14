@@ -8,6 +8,7 @@ final class CalendarEventLink {
     var id: UUID
     var provider: String       // "eventkit" | "google"
     var externalID: String     // EKEvent.calendarItemIdentifier 等
+    var audioFile: AudioFile?
     var title: String
     var startAt: Date
     var endAt: Date

@@ -8,7 +8,11 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
     private let profileStore = SpeakerProfileStore.shared
 
     /// 音声ファイルから話者セグメントを生成
-    func detectSpeakers(audioURL: URL, segments: [TranscriptionSegment]) async -> [TranscriptionSegment] {
+    func detectSpeakers(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        numSpeakers: Int? = nil
+    ) async -> [TranscriptionSegment] {
         guard !segments.isEmpty else { return segments }
 
         do {

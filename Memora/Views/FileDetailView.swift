@@ -7,16 +7,25 @@ struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let audioFile: AudioFile
+    var autoStartTranscription = false
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @State private var viewModel: FileDetailViewModel?
     @State private var selectedTab: FileDetailTab = .summary
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var previewPhotoID: UUID?
     @State private var showAskAI = false
+    @State private var calendarEventLink: CalendarEventLink?
+    @State private var suggestedEvent: EventKitEventWrapper?
+    @State private var isLinkingEvent = false
+
+    /// EKEvent の軽量ラッパー（@State で保持するため）
+    struct EventKitEventWrapper {
+        let id: String
+        let title: String
+        let startDate: Date
+        let endDate: Date
+    }
 
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -28,9 +37,10 @@ struct FileDetailView: View {
 
     var currentAPIKey: String {
         switch currentProvider {
-        case .openai: return apiKeyOpenAI
-        case .gemini: return apiKeyGemini
-        case .deepseek: return apiKeyDeepSeek
+        case .openai: return KeychainService.load(key: .apiKeyOpenAI)
+        case .gemini: return KeychainService.load(key: .apiKeyGemini)
+        case .deepseek: return KeychainService.load(key: .apiKeyDeepSeek)
+        case .local: return ""
         }
     }
 
@@ -45,26 +55,40 @@ struct FileDetailView: View {
         .navigationTitle("詳細")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("閉じる") {
-                    viewModel?.stopPlayback()
-                    dismiss()
+            ToolbarItemGroup(placement: .primaryAction) {
+                // タブごとの context-aware actions
+                switch selectedTab {
+                case .summary:
+                    if viewModel?.summaryResult != nil {
+                        Button(action: { viewModel?.showGenerationFlow = true }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    Button(action: { viewModel?.showShareSheet = true }) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(viewModel?.summaryResult == nil)
+
+                case .transcript:
+                    if viewModel?.transcriptResult != nil {
+                        Button(action: { viewModel?.startTranscription() }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .disabled(viewModel?.isTranscribing == true)
+                    }
+                    Button(action: { viewModel?.showShareSheet = true }) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .disabled(viewModel?.transcriptResult == nil)
+
+                case .memo:
+                    Button(action: { viewModel?.saveMemo() }) {
+                        Image(systemName: "checkmark")
+                    }
+                    .disabled(viewModel?.memoHasUnsavedChanges != true)
                 }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { viewModel?.showShareSheet = true }) {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .disabled(viewModel?.audioURL == nil && viewModel?.transcriptResult == nil)
             }
             ToolbarItem(placement: .secondaryAction) {
-                Button {
-                    showAskAI = true
-                } label: {
-                    Image(systemName: "sparkles")
-                }
-            }
-            ToolbarItem(placement: .destructiveAction) {
                 Button(role: .destructive) {
                     viewModel?.showDeleteAlert = true
                 } label: {
@@ -85,6 +109,11 @@ struct FileDetailView: View {
             vm.loadSavedData()
             selectedTab = preferredInitialTab(for: vm)
             viewModel = vm
+            loadCalendarEventLink()
+
+            if autoStartTranscription && !audioFile.isTranscribed {
+                vm.startTranscription()
+            }
         }
         .onDisappear {
             viewModel?.cleanup()
@@ -111,17 +140,20 @@ struct FileDetailView: View {
 
     @ViewBuilder
     private func mainContent(vm: FileDetailViewModel) -> some View {
-        ScrollView {
-            VStack(spacing: MemoraSpacing.xxl) {
-                headerSection(vm: vm)
-                playerControls(vm: vm)
-                speakerRegistrationCard(vm: vm)
-                tabPicker
-                tabContent(vm: vm)
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: MemoraSpacing.lg) {
+                    headerSection(vm: vm)
+                    playerControls(vm: vm)
+                    tabPicker
+                    tabContent(vm: vm)
+                }
+                .padding(.horizontal, MemoraSpacing.md)
+                .padding(.top, MemoraSpacing.xxl)
+                .padding(.bottom, 80)
             }
-            .padding(.horizontal, MemoraSpacing.md)
-            .padding(.top, MemoraSpacing.xxl)
-            .padding(.bottom, MemoraSpacing.xxxl)
+
+            askAICompactBar
         }
         .sheet(isPresented: Binding(
             get: { vm.showGenerationFlow },
@@ -162,10 +194,15 @@ struct FileDetailView: View {
         )) {
             Button("OK", role: .cancel) {
                 vm.errorMessage = nil
+                vm.recoveryAction = nil
             }
         } message: {
             if let message = vm.errorMessage {
-                Text(message)
+                if let recovery = vm.recoveryAction {
+                    Text("\(message)\n\n\(recovery)")
+                } else {
+                    Text(message)
+                }
             }
         }
         .alert("完了", isPresented: Binding(
@@ -182,35 +219,259 @@ struct FileDetailView: View {
         }
     }
 
+    @FocusState private var isTitleFieldFocused: Bool
+
     private func headerSection(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            Image(systemName: "waveform")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 96, height: 96)
-                .foregroundStyle(MemoraColor.textSecondary)
-
-            Text(audioFile.title)
-                .font(MemoraTypography.title2)
-                .multilineTextAlignment(.center)
-
-            HStack(spacing: MemoraSpacing.xxl) {
-                Label(vm.formatDate(audioFile.createdAt), systemImage: "calendar")
-                Label(vm.formatDuration(audioFile.duration), systemImage: "clock")
+        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+            if vm.isEditingTitle {
+                TextField("タイトル", text: Binding(
+                    get: { vm.titleDraft },
+                    set: { vm.titleDraft = $0 }
+                ))
+                    .font(MemoraTypography.title2)
+                    .fontWeight(.bold)
+                    .focused($isTitleFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit { vm.saveTitle() }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("完了") { vm.saveTitle() }
+                        }
+                    }
+            } else {
+                HStack(spacing: MemoraSpacing.xs) {
+                    Text(audioFile.title)
+                        .font(MemoraTypography.title2)
+                        .fontWeight(.bold)
+                    Image(systemName: "pencil")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { vm.beginEditTitle() }
             }
-            .font(MemoraTypography.subheadline)
-            .foregroundStyle(.secondary)
+
+            // メタ情報: 日時 / 長さ / ソース / プロジェクト
+            HStack(spacing: MemoraSpacing.sm) {
+                Text(vm.formatDate(audioFile.createdAt))
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+
+                if audioFile.duration > 0 {
+                    Text(vm.formatDuration(audioFile.duration))
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+
+                sourceBadge
+
+                if let projectTitle = resolvedProjectTitle {
+                    HStack(spacing: 2) {
+                        Image(systemName: "folder")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                        Text(projectTitle)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+            }
+
+            calendarEventCard
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// projectID からプロジェクト名を解決（キャッシュ付き）
+    private var resolvedProjectTitle: String? {
+        guard let projectID = audioFile.projectID else { return nil }
+        var descriptor = FetchDescriptor<Project>(
+            predicate: #Predicate<Project> { $0.id == projectID }
+        )
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor).first)?.title
+    }
+
+    @ViewBuilder
+    private var sourceBadge: some View {
+        let icon: String = {
+            switch audioFile.sourceType {
+            case .recording: return "mic.fill"
+            case .import: return "square.and.arrow.down"
+            case .plaud: return "waveform"
+            case .google: return "video.fill"
+            }
+        }()
+        Label({
+            switch audioFile.sourceType {
+            case .recording: return "録音"
+            case .import: return "インポート"
+            case .plaud: return "Plaud"
+            case .google: return "Meet"
+            }
+        }(), systemImage: icon)
+            .font(MemoraTypography.caption1)
+            .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Calendar Event Card
+
+    @ViewBuilder
+    private var calendarEventCard: some View {
+        if let link = calendarEventLink {
+            // 紐付済みイベント
+            HStack(spacing: MemoraSpacing.sm) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(MemoraColor.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(link.title)
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(.primary)
+                    Text("\(formatEventDate(link.startAt)) - \(formatEventTime(link.endAt))")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+                Spacer()
+                Button {
+                    unlinkCalendarEvent()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                        .foregroundStyle(MemoraColor.textSecondary)
+                        .font(.caption)
+                }
+            }
+            .padding(MemoraSpacing.sm)
+            .background(MemoraColor.accentBlue.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+        } else if let suggested = suggestedEvent {
+            // 提案イベント
+            HStack(spacing: MemoraSpacing.sm) {
+                Image(systemName: "calendar.badge.plus")
+                    .foregroundStyle(MemoraColor.accentBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(suggested.title)
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(.primary)
+                    Text(formatEventDate(suggested.startDate))
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+                Spacer()
+                Button {
+                    linkSuggestedEvent(suggested)
+                } label: {
+                    if isLinkingEvent {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Text("紐付")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(MemoraColor.accentBlue)
+                            .clipShape(Capsule())
+                    }
+                }
+                .disabled(isLinkingEvent)
+            }
+            .padding(MemoraSpacing.sm)
+            .background(MemoraColor.accentBlue.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+        }
+    }
+
+    // MARK: - Calendar Event Helpers
+
+    private func loadCalendarEventLink() {
+        let service = CalendarService()
+        calendarEventLink = service.fetchLink(for: audioFile, modelContext: modelContext)
+
+        // 紐付がなければ提案を探す
+        if calendarEventLink == nil && service.isAuthorized {
+            if let event = service.findMatchingEvent(for: audioFile) {
+                suggestedEvent = EventKitEventWrapper(
+                    id: event.calendarItemIdentifier,
+                    title: event.title ?? "",
+                    startDate: event.startDate,
+                    endDate: event.endDate
+                )
+            }
+        }
+    }
+
+    private func linkSuggestedEvent(_ wrapper: EventKitEventWrapper) {
+        isLinkingEvent = true
+        let service = CalendarService()
+        // Find the actual EKEvent again
+        if let event = service.findMatchingEvent(for: audioFile) {
+            do {
+                let link = try service.linkEventToAudioFile(
+                    event: event,
+                    audioFile: audioFile,
+                    modelContext: modelContext
+                )
+                calendarEventLink = link
+                suggestedEvent = nil
+            } catch {
+                // Silently fail - not critical
+            }
+        }
+        isLinkingEvent = false
+    }
+
+    private func unlinkCalendarEvent() {
+        let service = CalendarService()
+        do {
+            try service.unlinkEvent(audioFile: audioFile, modelContext: modelContext)
+            calendarEventLink = nil
+            // Re-suggest
+            if service.isAuthorized {
+                if let event = service.findMatchingEvent(for: audioFile) {
+                    suggestedEvent = EventKitEventWrapper(
+                        id: event.calendarItemIdentifier,
+                        title: event.title ?? "",
+                        startDate: event.startDate,
+                        endDate: event.endDate
+                    )
+                }
+            }
+        } catch {
+            // Silently fail
+        }
+    }
+
+    private func formatEventDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func formatEventTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     // MARK: - Player Controls
 
     @ViewBuilder
     private func playerControls(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.xxl) {
+        HStack(spacing: MemoraSpacing.md) {
+            // 再生ボタン
+            Button(action: { vm.togglePlayback() }) {
+                Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.tint)
+                    .frame(width: 40, height: 40)
+            }
+
             // プログレスバー
-            VStack(spacing: 5) {
+            VStack(spacing: 2) {
                 Slider(
                     value: Binding(
                         get: { vm.playbackPosition },
@@ -225,45 +486,24 @@ struct FileDetailView: View {
                         }
                     }
                 )
-                .accentColor(MemoraColor.textSecondary)
 
                 HStack {
                     Text(vm.formatTime(vm.playbackPosition))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
                     Spacer()
-
                     Text(vm.formatTime(vm.audioDuration))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
-            }
-            .padding(.horizontal)
-
-            // 再生ボタン
-            Button(action: { vm.togglePlayback() }) {
-                ZStack {
-                    Circle()
-                        .fill(MemoraColor.divider)
-                        .frame(width: 70, height: 70)
-
-                    Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.white)
-                }
+                .font(MemoraTypography.caption2)
+                .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, MemoraSpacing.xxl)
-        .frame(maxWidth: .infinity)
-        .background(MemoraColor.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+        .padding(.horizontal, MemoraSpacing.sm)
+        .padding(.vertical, MemoraSpacing.xs)
     }
 
     private var tabPicker: some View {
         Picker("表示タブ", selection: $selectedTab) {
             ForEach(FileDetailTab.allCases) { tab in
-                Text(tab.title).tag(tab)
+                Label(tab.title, systemImage: tab.icon).tag(tab)
             }
         }
         .pickerStyle(.segmented)
@@ -282,35 +522,78 @@ struct FileDetailView: View {
     }
 
     private func summaryTab(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            if vm.isSummarizing {
-                progressCard(
-                    title: "要約を生成中",
-                    progress: vm.summarizationProgress,
-                    message: "要点とアクションアイテムを整理しています。"
-                )
-            } else if let result = vm.summaryResult {
-                SummaryContentView(result: result)
-            } else if audioFile.isSummarized {
-                placeholderCard(
-                    icon: "text.quote",
-                    title: "要約を読み込めませんでした",
-                    description: "保存済みデータの取得後に、このタブへ表示されます。"
-                )
-            } else if vm.transcriptResult != nil || audioFile.isTranscribed {
-                placeholderCard(
-                    icon: "sparkles.rectangle.stack",
-                    title: "要約をまだ作成していません",
-                    description: "文字起こしから要約を生成すると、ここに本文と重要ポイントが表示されます。",
-                    buttonTitle: "要約を生成",
-                    buttonAction: { vm.showGenerationFlow = true }
-                )
-            } else {
-                placeholderCard(
-                    icon: "text.quote",
-                    title: "先に文字起こしが必要です",
-                    description: "要約タブは文字起こし結果をもとに作成されます。まず Transcript タブで文字起こしを実行してください。"
-                )
+        ZStack(alignment: .bottom) {
+            VStack(spacing: MemoraSpacing.lg) {
+                if vm.isSummarizing {
+                    progressCard(
+                        title: "要約を生成中",
+                        progress: vm.summarizationProgress,
+                        message: "要点とアクションアイテムを整理しています。"
+                    )
+                } else if let result = vm.summaryResult {
+                    SummaryContentView(result: result)
+
+                    // Summary タブの context-aware actions
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Button {
+                            vm.showGenerationFlow = true
+                        } label: {
+                            Label("再生成", systemImage: "arrow.clockwise")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        Menu {
+                            Button {
+                                vm.showShareSheet = true
+                            } label: {
+                                Label("共有", systemImage: "square.and.arrow.up")
+                            }
+                        } label: {
+                            Label("エクスポート", systemImage: "square.and.arrow.up")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                } else if audioFile.isSummarized {
+                    placeholderCard(
+                        icon: "text.quote",
+                        title: "要約を読み込めませんでした",
+                        description: "保存済みデータの取得後に、このタブへ表示されます。"
+                    )
+                } else if vm.transcriptResult != nil || audioFile.isTranscribed {
+                    placeholderCard(
+                        icon: "sparkles.rectangle.stack",
+                        title: "要約をまだ作成していません",
+                        description: "文字起こしから要約を生成すると、ここに本文と重要ポイントが表示されます。"
+                    )
+                } else {
+                    placeholderCard(
+                        icon: "text.quote",
+                        title: "先に文字起こしが必要です",
+                        description: "要約タブは文字起こし結果をもとに作成されます。まず Transcript タブで文字起こしを実行してください。"
+                    )
+                }
+            }
+            .padding(.bottom, 72)
+
+            // 下部全幅「要約を生成」ボタン
+            if !vm.isSummarizing && vm.summaryResult == nil && !audioFile.isSummarized && (vm.transcriptResult != nil || audioFile.isTranscribed) {
+                Button {
+                    vm.showGenerationFlow = true
+                } label: {
+                    Text("要約を生成")
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, MemoraSpacing.md)
+                        .background(Color.black)
+                        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+                }
+                .padding(.horizontal, MemoraSpacing.md)
+                .padding(.bottom, MemoraSpacing.md)
             }
         }
     }
@@ -324,7 +607,76 @@ struct FileDetailView: View {
                     message: "音声を解析して、話者ごとのテキストを整えています。"
                 )
             } else if let result = vm.transcriptResult {
-                TranscriptContentView(result: result)
+                if vm.isEditingTranscript {
+                    ScrollView {
+                        TextEditor(text: Binding(
+                            get: { vm.transcriptDraft },
+                            set: { vm.transcriptDraft = $0 }
+                        ))
+                            .font(MemoraTypography.body)
+                            .frame(minHeight: 400)
+                            .padding(MemoraSpacing.sm)
+                    }
+
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Button {
+                            vm.saveTranscriptEdit()
+                        } label: {
+                            Label("保存", systemImage: "checkmark")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button {
+                            vm.cancelEditTranscript()
+                        } label: {
+                            Label("キャンセル", systemImage: "xmark")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+                    }
+                } else {
+                    TranscriptContentView(
+                        result: result,
+                        currentPlaybackTime: vm.playbackPosition
+                    ) { segment in
+                        vm.seekToTime(segment.startTime)
+                    }
+
+                    // Transcript タブの context-aware actions
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Button {
+                            vm.startTranscription()
+                        } label: {
+                            Label("再文字起こし", systemImage: "arrow.clockwise")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(vm.isTranscribing)
+
+                        Button {
+                            vm.beginEditTranscript()
+                        } label: {
+                            Label("編集", systemImage: "pencil")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+
+                        if result.segments.count > 1 {
+                            Button {
+                                vm.registerPrimarySpeakerSample()
+                            } label: {
+                                Label("話者登録", systemImage: "person.crop.circle.badge.plus")
+                                    .font(MemoraTypography.caption1)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Spacer()
+                    }
+                }
 
                 if let reason = vm.fallbackReason, !reason.isEmpty {
                     detailCard {
@@ -376,6 +728,9 @@ struct FileDetailView: View {
                     }
                 }
             }
+
+            // 話者登録（Transcript タブ内）
+            speakerRegistrationCard(vm: vm)
         }
     }
 
@@ -383,14 +738,10 @@ struct FileDetailView: View {
         VStack(spacing: MemoraSpacing.lg) {
             detailCard {
                 VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                    // メモヘッダー
                     HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                            Label("Markdown メモ", systemImage: "square.and.pencil")
-                                .font(MemoraTypography.headline)
-                            Text("会議メモ、気づき、補足情報を Markdown で残せます。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("Markdown メモ", systemImage: "square.and.pencil")
+                            .font(MemoraTypography.headline)
 
                         Spacer()
 
@@ -424,16 +775,12 @@ struct FileDetailView: View {
                 }
             }
 
+            // 写真セクション（Memo 文脈に溶け込ませる）
             detailCard {
                 VStack(alignment: .leading, spacing: MemoraSpacing.md) {
                     HStack {
-                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                            Label("添付写真", systemImage: "photo.on.rectangle")
-                                .font(MemoraTypography.headline)
-                            Text("ホワイトボードや資料の写真をメモと一緒に残せます。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("写真", systemImage: "photo.on.rectangle")
+                            .font(MemoraTypography.headline)
 
                         Spacer()
 
@@ -453,12 +800,11 @@ struct FileDetailView: View {
                     }
 
                     if vm.photoAttachments.isEmpty {
-                        EmptyStateView(
-                            icon: "photo.badge.plus",
-                            title: "写真はまだありません",
-                            description: "資料やホワイトボードを追加すると、ここにギャラリー表示されます。"
-                        )
-                        .frame(maxWidth: .infinity)
+                        Text("写真を追加するとメモと一緒に確認できます")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, MemoraSpacing.sm)
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: MemoraSpacing.sm) {
@@ -571,6 +917,39 @@ struct FileDetailView: View {
             )
             .frame(maxWidth: .infinity)
         }
+    }
+
+    // MARK: - AskAI Compact Bar
+
+    private var askAICompactBar: some View {
+        Button {
+            showAskAI = true
+        } label: {
+            HStack(spacing: MemoraSpacing.sm) {
+                Text(currentProvider.rawValue)
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .padding(.horizontal, MemoraSpacing.xs)
+                    .padding(.vertical, 2)
+                    .background(MemoraColor.accentBlue.opacity(0.12))
+                    .clipShape(Capsule())
+
+                Text("Ask AI...")
+                    .font(MemoraTypography.body)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                Image(systemName: "sparkle")
+                    .foregroundStyle(MemoraColor.accentBlue)
+            }
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.vertical, MemoraSpacing.sm)
+            .liquidGlass(cornerRadius: 24, shadowRadius: 8)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, MemoraSpacing.md)
+        .padding(.bottom, MemoraSpacing.sm)
     }
 
     private func detailCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -775,6 +1154,17 @@ private enum FileDetailTab: String, CaseIterable, Identifiable {
             return "Transcript"
         case .memo:
             return "Memo"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .summary:
+            return "text.quote"
+        case .transcript:
+            return "text.alignleft"
+        case .memo:
+            return "square.and.pencil"
         }
     }
 }

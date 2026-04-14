@@ -1,62 +1,68 @@
 import SwiftUI
+import SwiftData
 
-/// 生成フロー選択シート（仕様書 §5.5 FILE-04,05,06）
+/// 生成フロー選択シート（ハーフモーダル + LiquidGlass）
 struct GenerationFlowSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isPresented: Bool
 
     let onStart: (GenerationConfig) -> Void
 
-    @State private var step = 0
-    @State private var config = GenerationConfig()
+    @Query(sort: \CustomSummaryTemplate.createdAt, order: .forward) private var customTemplates: [CustomSummaryTemplate]
+
+    @State private var selectedTemplate: GenerationTemplate = .summary
+    @State private var selectedCustomTemplateID: UUID? = nil
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Step indicator
-                stepIndicator
-                    .padding(.vertical, MemoraSpacing.md)
+                Text("テンプレートを選択")
+                    .font(MemoraTypography.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, MemoraSpacing.lg)
+                    .padding(.top, MemoraSpacing.lg)
+                    .padding(.bottom, MemoraSpacing.sm)
 
-                // Step content
-                Group {
-                    switch step {
-                    case 0: templateStep
-                    case 1: optionsStep
-                    case 2: confirmStep
-                    default: EmptyView()
+                ScrollView {
+                    VStack(spacing: MemoraSpacing.sm) {
+                        ForEach(GenerationTemplate.allCases, id: \.self) { template in
+                            builtInTemplateCard(template)
+                        }
+
+                        if !customTemplates.isEmpty {
+                            ForEach(customTemplates) { template in
+                                customTemplateCard(template)
+                            }
+                        }
                     }
+                    .padding(.horizontal, MemoraSpacing.md)
                 }
-                .frame(maxHeight: .infinity)
 
-                // Bottom buttons
-                HStack {
-                    if step > 0 {
-                        Button("戻る") {
-                            withAnimation { step -= 1 }
-                        }
-                        .foregroundStyle(MemoraColor.textSecondary)
+                Spacer()
+
+                Button {
+                    var config = GenerationConfig()
+                    if let customID = selectedCustomTemplateID,
+                       let custom = customTemplates.first(where: { $0.id == customID }) {
+                        config.customPrompt = custom.prompt
+                        config.customOutputSections = custom.outputSections
                     }
-
-                    Spacer()
-
-                    if step < 2 {
-                        Button("次へ") {
-                            withAnimation { step += 1 }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(MemoraColor.accentBlue)
-                    } else {
-                        Button("生成開始") {
-                            onStart(config)
-                            isPresented = false
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(MemoraColor.accentBlue)
-                    }
+                    config.template = selectedTemplate
+                    onStart(config)
+                    isPresented = false
+                } label: {
+                    Text("生成開始")
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, MemoraSpacing.md)
+                        .background(MemoraColor.accentBlue)
+                        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
                 }
-                .padding()
+                .padding(.horizontal, MemoraSpacing.lg)
+                .padding(.vertical, MemoraSpacing.md)
             }
-            .navigationTitle("生成設定")
+            .navigationTitle("要約を生成")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -64,47 +70,22 @@ struct GenerationFlowSheet: View {
                 }
             }
         }
+        .presentationDetents([.medium])
     }
 
-    // MARK: - Step Indicator
+    // MARK: - Template Card
 
-    private var stepIndicator: some View {
-        HStack(spacing: MemoraSpacing.xxxs) {
-            ForEach(0..<3, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(i <= step ? MemoraColor.accentBlue : MemoraColor.divider)
-                    .frame(height: 3)
-            }
-        }
-        .padding(.horizontal, MemoraSpacing.xl)
-    }
-
-    // MARK: - Step 0: Template Selection
-
-    private var templateStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: MemoraSpacing.md) {
-                Text("テンプレートを選択")
-                    .font(MemoraTypography.headline)
-                    .padding(.horizontal)
-
-                ForEach(GenerationTemplate.allCases, id: \.self) { template in
-                    templateCard(template)
-                }
-            }
-            .padding(.vertical, MemoraSpacing.sm)
-        }
-    }
-
-    private func templateCard(_ template: GenerationTemplate) -> some View {
-        Button {
-            config.template = template
+    private func builtInTemplateCard(_ template: GenerationTemplate) -> some View {
+        let isSelected = selectedCustomTemplateID == nil && selectedTemplate == template
+        return Button {
+            selectedTemplate = template
+            selectedCustomTemplateID = nil
         } label: {
             HStack(spacing: MemoraSpacing.md) {
                 Image(systemName: template.icon)
-                    .font(.system(size: 24))
-                    .foregroundStyle(config.template == template ? MemoraColor.accentBlue : MemoraColor.textSecondary)
-                    .frame(width: 44)
+                    .font(.system(size: 22))
+                    .foregroundStyle(isSelected ? MemoraColor.accentBlue : MemoraColor.textSecondary)
+                    .frame(width: 40)
 
                 VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
                     Text(template.title)
@@ -118,119 +99,59 @@ struct GenerationFlowSheet: View {
 
                 Spacer()
 
-                if config.template == template {
+                if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(MemoraColor.accentBlue)
                 }
             }
             .padding(MemoraSpacing.md)
-            .background(
-                RoundedRectangle(cornerRadius: MemoraRadius.md)
-                    .fill(config.template == template ? MemoraColor.accentBlue.opacity(0.08) : MemoraColor.divider.opacity(0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: MemoraRadius.md)
-                    .stroke(config.template == template ? MemoraColor.accentBlue : Color.clear, lineWidth: 1)
-            )
-            .padding(.horizontal)
         }
+        .buttonStyle(.plain)
+        .liquidGlass(
+            cornerRadius: MemoraRadius.md,
+            opacity: isSelected ? 0.85 : 0.6,
+            shadowRadius: 4
+        )
     }
 
-    // MARK: - Step 1: Options
+    private func customTemplateCard(_ template: CustomSummaryTemplate) -> some View {
+        let isSelected = selectedCustomTemplateID == template.id
+        return Button {
+            selectedCustomTemplateID = template.id
+            selectedTemplate = .summary
+        } label: {
+            HStack(spacing: MemoraSpacing.md) {
+                Image(systemName: "doc.text.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isSelected ? MemoraColor.accentBlue : MemoraColor.textSecondary)
+                    .frame(width: 40)
 
-    private var optionsStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: MemoraSpacing.xl) {
-                // Language
-                VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-                    Text("言語")
-                        .font(MemoraTypography.headline)
+                VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                    Text(template.name)
+                        .font(MemoraTypography.body)
+                        .foregroundStyle(MemoraColor.textPrimary)
 
-                    Picker("言語", selection: $config.language) {
-                        Text("日本語").tag("ja")
-                        Text("English").tag("en")
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(.horizontal)
-
-                // Include speakers
-                if config.template != .summary {
-                    Toggle(isOn: $config.includeSpeakers) {
-                        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                            Text("話者ラベルを含める")
-                                .font(MemoraTypography.body)
-                            Text("文字起こしの話者名を要約に反映します")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.textSecondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-
-                // Auto-create TodoItems
-                Toggle(isOn: $config.autoCreateTodos) {
-                    VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                        Text("アクションアイテムをToDoに追加")
-                            .font(MemoraTypography.body)
-                        Text("抽出されたアクションアイテムを自動的にTodoItemとして作成します")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(MemoraColor.textSecondary)
-                    }
-                }
-                .padding(.horizontal)
-            }
-            .padding(.vertical, MemoraSpacing.sm)
-        }
-    }
-
-    // MARK: - Step 2: Confirm
-
-    private var confirmStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: MemoraSpacing.xl) {
-                Text("生成内容の確認")
-                    .font(MemoraTypography.headline)
-                    .padding(.horizontal)
-
-                confirmRow("テンプレート", value: config.template.title)
-                confirmRow("言語", value: config.language == "ja" ? "日本語" : "English")
-                confirmRow("話者ラベル", value: config.includeSpeakers ? "あり" : "なし")
-                confirmRow("ToDo自動作成", value: config.autoCreateTodos ? "オン" : "オフ")
-
-                VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-                    Text("生成されるセクション")
-                        .font(MemoraTypography.subheadline)
+                    Text(template.prompt)
+                        .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.textSecondary)
-                        .padding(.horizontal)
+                        .lineLimit(2)
+                }
 
-                    ForEach(config.template.outputSections, id: \.self) { section in
-                        HStack(spacing: MemoraSpacing.sm) {
-                            Image(systemName: "checkmark")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.accentGreen)
-                            Text(section)
-                                .font(MemoraTypography.body)
-                        }
-                        .padding(.horizontal, MemoraSpacing.xxl)
-                    }
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(MemoraColor.accentBlue)
                 }
             }
-            .padding(.vertical, MemoraSpacing.sm)
+            .padding(MemoraSpacing.md)
         }
-    }
-
-    private func confirmRow(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(MemoraTypography.body)
-                .foregroundStyle(MemoraColor.textSecondary)
-            Spacer()
-            Text(value)
-                .font(MemoraTypography.body)
-                .foregroundStyle(MemoraColor.textPrimary)
-        }
-        .padding(.horizontal)
+        .buttonStyle(.plain)
+        .liquidGlass(
+            cornerRadius: MemoraRadius.md,
+            opacity: isSelected ? 0.85 : 0.6,
+            shadowRadius: 4
+        )
     }
 }
 
@@ -238,6 +159,8 @@ struct GenerationFlowSheet: View {
 
 struct GenerationConfig {
     var template: GenerationTemplate = .summary
+    var customPrompt: String?
+    var customOutputSections: [String]?
     var language: String = "ja"
     var includeSpeakers: Bool = true
     var autoCreateTodos: Bool = true

@@ -32,7 +32,7 @@ final class MemoryExtractionService {
         let combinedText = buildInputText(transcript: transcript, summary: summary)
         guard !combinedText.isEmpty else { return [] }
 
-        let (_, keyPoints, _) = try await service.summarize(transcript: combinedText)
+        let (_, _, keyPoints, _) = try await service.summarize(transcript: combinedText)
 
         let sourceTag = summary != nil ? "auto:summary" : "auto:transcription"
 

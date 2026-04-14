@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Speech
+import AuthenticationServices
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -9,10 +10,10 @@ struct SettingsView: View {
     @EnvironmentObject private var omiAdapter: OmiAdapter
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = MemoryPrivacyMode.standard.rawValue
+    @State private var apiKeyOpenAI = KeychainService.load(key: .apiKeyOpenAI)
+    @State private var apiKeyGemini = KeychainService.load(key: .apiKeyGemini)
+    @State private var apiKeyDeepSeek = KeychainService.load(key: .apiKeyDeepSeek)
     @State private var showDeleteAlert = false
 
     // Plaud 設定
@@ -29,6 +30,15 @@ struct SettingsView: View {
     @State private var showPlaudStatusAlert: Bool = false
     @State private var isLoggedIn: Bool = false
     @State private var showDebugLog: Bool = false
+    @State private var modelStoreService = ModelStoreService()
+
+    // カスタムテンプレート
+    @Query(sort: \CustomSummaryTemplate.createdAt, order: .forward) private var customTemplates: [CustomSummaryTemplate]
+    @State private var showTemplateEditor = false
+    @State private var editingTemplate: CustomSummaryTemplate?
+    @State private var templateDraftName = ""
+    @State private var templateDraftPrompt = ""
+    @State private var templateDraftSections = ""
 
     // Notion 設定
     @Query private var notionSettingsList: [NotionSettings]
@@ -41,12 +51,24 @@ struct SettingsView: View {
     @State private var selectedNotionPageID: String?
     @State private var showNotionPagePicker: Bool = false
 
+    // Google Meet 設定
+    @Query private var googleSettingsList: [GoogleMeetSettings]
+    @State private var googleClientID: String = ""
+    @State private var googleRedirectURI: String = ""
+    @State private var isGoogleAuthorizing: Bool = false
+    @State private var googleAuthResult: String?
+    @State private var showGoogleMeetImport: Bool = false
+
     var notionSettings: NotionSettings? {
         notionSettingsList.first
     }
 
     var plaudSettings: PlaudSettings? {
         plaudSettingsList.first
+    }
+
+    var googleSettings: GoogleMeetSettings? {
+        googleSettingsList.first
     }
 
     var currentProvider: AIProvider {
@@ -67,7 +89,9 @@ struct SettingsView: View {
                 transcriptionSettingsSection
                 aiProviderSection
                 apiKeySection
+                customTemplateSection
                 notionIntegrationSection
+                googleMeetIntegrationSection
                 memorySettingsSection
                 usageInstructionsSection
                 dataManagementSection
@@ -83,6 +107,7 @@ struct SettingsView: View {
         .onAppear {
             loadPlaudSettings()
             loadNotionSettings()
+            loadGoogleSettings()
         }
         .alert("API キー削除", isPresented: $showDeleteAlert) {
             Button("キャンセル", role: .cancel) {}
@@ -94,6 +119,8 @@ struct SettingsView: View {
                     apiKeyGemini = ""
                 case .deepseek:
                     apiKeyDeepSeek = ""
+                case .local:
+                    break
                 }
             }
         } message: {
@@ -105,6 +132,15 @@ struct SettingsView: View {
             if let status = plaudSyncStatus {
                 Text(status)
             }
+        }
+        .onChange(of: apiKeyOpenAI) { _, newValue in
+            KeychainService.save(key: .apiKeyOpenAI, value: newValue)
+        }
+        .onChange(of: apiKeyGemini) { _, newValue in
+            KeychainService.save(key: .apiKeyGemini, value: newValue)
+        }
+        .onChange(of: apiKeyDeepSeek) { _, newValue in
+            KeychainService.save(key: .apiKeyDeepSeek, value: newValue)
         }
     }
 
@@ -167,9 +203,9 @@ struct SettingsView: View {
                         }
 
                         if SpeechAnalyzerFeatureFlag.isEnabled {
-                            Text("⚠️ SpeechAnalyzer はベータ機能です。クラッシュする場合はオフにしてください。")
+                            Text("SpeechAnalyzer（ベータ）有効。事前診断でデバイス対応を確認後に使用します。問題がある場合は自動的に SFSpeechRecognizer に切り替わります。")
                                 .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.accentRed)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -213,7 +249,11 @@ struct SettingsView: View {
                                 .foregroundStyle(MemoraColor.textSecondary)
                         }
 
-                        if !provider.supportsTranscription {
+                        if provider == .local {
+                            Text(LocalLLMProvider.isAvailable ? "On-Device" : "未対応")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(LocalLLMProvider.isAvailable ? MemoraColor.accentGreen : .secondary)
+                        } else if !provider.supportsTranscription {
                             Text("要約のみ")
                                 .font(MemoraTypography.caption1)
                                 .foregroundStyle(.secondary)
@@ -223,22 +263,41 @@ struct SettingsView: View {
             }
             .pickerStyle(.inline)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("選択中のプロバイダー:")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(.secondary)
+            if currentProvider == .local {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: LocalLLMProvider.isAvailable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(LocalLLMProvider.isAvailable ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                        Text(LocalLLMProvider.isAvailable ? "On-Device LLM 利用可能" : "この端末では On-Device LLM は利用できません")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
 
-                Text(currentProvider.rawValue)
-                    .font(MemoraTypography.subheadline)
-                    .fontWeight(.semibold)
-
-                if currentTranscriptionMode == .api && !currentProvider.supportsTranscription {
-                    Text("※ 選択されたプロバイダーはAPI文字起こしをサポートしていません")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentRed)
+                    if LocalLLMProvider.isAvailable {
+                        Text("iOS 26 Foundation Models を使用します。API キー不要・無料。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    }
                 }
+                .padding(.vertical, MemoraSpacing.xxxs)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("選択中のプロバイダー:")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+
+                    Text(currentProvider.rawValue)
+                        .font(MemoraTypography.subheadline)
+                        .fontWeight(.semibold)
+
+                    if currentTranscriptionMode == .api && !currentProvider.supportsTranscription {
+                        Text("※ 選択されたプロバイダーはAPI文字起こしをサポートしていません")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+                }
+                .padding(.vertical, MemoraSpacing.xxxs)
             }
-            .padding(.vertical, MemoraSpacing.xxxs)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("料金目安（参考）:")
@@ -253,29 +312,71 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var apiKeySection: some View {
-        Section("API キー設定") {
-            SecureField("API キー", text: currentAPIKeyBinding)
-                .textFieldStyle(.plain)
+        if currentProvider.requiresAPIKey {
+            Section("API キー設定") {
+                SecureField("API キー", text: currentAPIKeyBinding)
+                    .textFieldStyle(.plain)
 
-            if !currentAPIKeyBinding.wrappedValue.isEmpty {
-                Text("API キーが設定されています")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentGreen)
-            }
+                if !currentAPIKeyBinding.wrappedValue.isEmpty {
+                    Text("API キーが設定されています")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.accentGreen)
+                }
 
-            if currentTranscriptionMode == .api {
-                Text("API文字起こしまたは要約には API キーが必要です。")
+                if currentTranscriptionMode == .api {
+                    Text("API文字起こしまたは要約には API キーが必要です。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("要約には API キーが必要です。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("API キーはローカルにのみ保存されます。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
-            } else {
-                Text("要約には API キーが必要です。")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(.secondary)
             }
+        }
+    }
 
-            Text("API キーはローカルにのみ保存されます。")
-                .font(MemoraTypography.caption1)
-                .foregroundStyle(.secondary)
+    @ViewBuilder
+    private var customTemplateSection: some View {
+        Section("要約テンプレート") {
+            ForEach(customTemplates) { template in
+                Button {
+                    editingTemplate = template
+                    templateDraftName = template.name
+                    templateDraftPrompt = template.prompt
+                    templateDraftSections = template.outputSections.joined(separator: "\n")
+                    showTemplateEditor = true
+                } label: {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                        Text(template.name)
+                            .font(MemoraTypography.subheadline)
+                            .foregroundStyle(.primary)
+
+                        Text(template.prompt)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+            .onDelete(perform: deleteCustomTemplate)
+
+            Button {
+                templateDraftName = ""
+                templateDraftPrompt = ""
+                templateDraftSections = ""
+                editingTemplate = nil
+                showTemplateEditor = true
+            } label: {
+                Label("テンプレートを追加", systemImage: "plus")
+            }
+        }
+        .sheet(isPresented: $showTemplateEditor) {
+            templateEditorSheet
         }
     }
 
@@ -607,6 +708,76 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Gemma 4 Experimental
+            VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                HStack {
+                    Image(systemName: "flask")
+                        .foregroundStyle(.purple)
+                    Text("Gemma 4 実験プロファイル")
+                        .font(MemoraTypography.subheadline)
+                        .fontWeight(.semibold)
+                }
+
+                if Gemma4DeviceGate.isEligible {
+                    Toggle(isOn: Binding(
+                        get: { Gemma4FeatureFlag.isEnabled },
+                        set: { Gemma4FeatureFlag.isEnabled = $0 }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Gemma 4 プロファイルを有効化")
+                            Text("Local 選択時に Foundation Models を Gemma 4 プロファイル経由で使用します。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if Gemma4FeatureFlag.isEnabled {
+                        HStack(spacing: MemoraSpacing.xs) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(MemoraColor.accentGreen)
+                            Text("Gemma 4 実験プロファイル有効")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentGreen)
+                        }
+
+                        Text(Gemma4DeviceGate.deviceSummary)
+                            .font(MemoraTypography.caption2)
+                            .foregroundStyle(MemoraColor.textTertiary)
+
+                        NavigationLink {
+                            Gemma4BenchmarkView()
+                        } label: {
+                            HStack(spacing: MemoraSpacing.sm) {
+                                Image(systemName: "gauge.with.dots.needle.33percent")
+                                    .foregroundStyle(MemoraColor.accentBlue)
+                                Text("ベンチマークを実行")
+                            }
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: MemoraSpacing.xs) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(MemoraColor.accentRed)
+                            Text("このデバイスでは利用できません")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.accentRed)
+                        }
+
+                        if let reason = Gemma4DeviceGate.ineligibilityReason {
+                            Text(reason)
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(Gemma4DeviceGate.deviceSummary)
+                            .font(MemoraTypography.caption2)
+                            .foregroundStyle(MemoraColor.textTertiary)
+                    }
+                }
+            }
+            .padding(.vertical, MemoraSpacing.xxxs)
+
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
                 set: { newValue in
@@ -630,7 +801,6 @@ struct SettingsView: View {
 
             if plaudSettings?.isEnabled ?? false {
                 if isLoggedIn {
-                    // ログイン済み
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
@@ -680,7 +850,6 @@ struct SettingsView: View {
                         }
                     }
                 } else {
-                    // 未ログイン
                     Picker("API サーバー", selection: $plaudApiServer) {
                         Text("api.plaud.ai").tag("api.plaud.ai")
                         Text("api-euc1.plaud.ai").tag("api-euc1.plaud.ai")
@@ -746,6 +915,122 @@ struct SettingsView: View {
             Text("アプリ初回起動時のパフォーマンスを確認できます")
                 .font(MemoraTypography.caption1)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Google Meet Integration Section
+
+    @ViewBuilder
+    private var googleMeetIntegrationSection: some View {
+        Section {
+            Toggle("Google Meet 連携を有効化", isOn: Binding(
+                get: { googleSettings?.isEnabled ?? false },
+                set: { newValue in
+                    if let settings = googleSettings {
+                        settings.isEnabled = newValue
+                        settings.updatedAt = Date()
+                    } else if newValue {
+                        let newSettings = GoogleMeetSettings()
+                        newSettings.isEnabled = true
+                        newSettings.clientID = googleClientID
+                        newSettings.redirectURIScheme = googleRedirectURI
+                        modelContext.insert(newSettings)
+                    }
+                    try? modelContext.save()
+                }
+            ))
+
+            if googleSettings?.isEnabled == true {
+                TextField("Client ID", text: Binding(
+                    get: { googleClientID },
+                    set: { newValue in
+                        googleClientID = newValue
+                        if let settings = googleSettings {
+                            settings.clientID = newValue
+                            settings.updatedAt = Date()
+                            try? modelContext.save()
+                        }
+                    }
+                ))
+                .textFieldStyle(.plain)
+                .autocapitalization(.none)
+                .font(.system(.body, design: .monospaced))
+
+                TextField("Redirect URI Scheme", text: Binding(
+                    get: { googleRedirectURI },
+                    set: { newValue in
+                        googleRedirectURI = newValue
+                        if let settings = googleSettings {
+                            settings.redirectURIScheme = newValue
+                            settings.updatedAt = Date()
+                            try? modelContext.save()
+                        }
+                    }
+                ))
+                .textFieldStyle(.plain)
+                .autocapitalization(.none)
+                .font(.system(.body, design: .monospaced))
+
+                if googleSettings?.isTokenValid == true {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentGreen)
+                        Text("認証済み")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentGreen)
+                    }
+
+                    if let expiresAt = googleSettings?.tokenExpiresAt {
+                        Text("トークン有効期限: \(formatDate(expiresAt))")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.textSecondary)
+                    }
+
+                    Button {
+                        showGoogleMeetImport = true
+                    } label: {
+                        Label("Meet からインポート", systemImage: "video.badge.plus")
+                            .font(MemoraTypography.subheadline)
+                    }
+
+                    Button(role: .destructive) {
+                        disconnectGoogle()
+                    } label: {
+                        Text("連携を解除")
+                    }
+                } else if !googleClientID.isEmpty && !googleRedirectURI.isEmpty {
+                    Button {
+                        Task { await authorizeGoogle() }
+                    } label: {
+                        HStack {
+                            Text("Google で認証")
+                            if isGoogleAuthorizing {
+                                Spacer()
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                    }
+                    .disabled(isGoogleAuthorizing)
+
+                    if let result = googleAuthResult {
+                        Text(result)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(result.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                    }
+                } else {
+                    Text("Client ID と Redirect URI Scheme を設定してください")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+            }
+        } header: {
+            Text("Google Meet 連携")
+        } footer: {
+            Text("Google Meet の会議録画・文字起こしをインポートします。Google Cloud Console で OAuth 2.0 Client ID を作成し、Redirect URI Scheme（カスタム URL スキーム）を設定してください。")
+        }
+        .sheet(isPresented: $showGoogleMeetImport) {
+            GoogleMeetImportView()
         }
     }
 
@@ -881,6 +1166,41 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Template Editor
+
+    private var templateEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section("テンプレート情報") {
+                    TextField("名前", text: $templateDraftName)
+                    TextField("プロンプト", text: $templateDraftPrompt, axis: .vertical)
+                        .lineLimit(3...8)
+                    TextField("出力セクション（1行に1つ）", text: $templateDraftSections, axis: .vertical)
+                        .lineLimit(2...6)
+                }
+            }
+            .navigationTitle(editingTemplate == nil ? "テンプレート追加" : "テンプレート編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        showTemplateEditor = false
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("保存") {
+                        saveCustomTemplate()
+                        showTemplateEditor = false
+                    }
+                    .disabled(
+                        templateDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        templateDraftPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+        }
+    }
+
     // MARK: - Helper Properties
 
     private var currentAPIKeyBinding: Binding<String> {
@@ -893,6 +1213,8 @@ struct SettingsView: View {
                     return apiKeyGemini
                 case .deepseek:
                     return apiKeyDeepSeek
+                case .local:
+                    return ""
                 }
             },
             set: { newValue in
@@ -903,6 +1225,8 @@ struct SettingsView: View {
                     apiKeyGemini = newValue
                 case .deepseek:
                     apiKeyDeepSeek = newValue
+                case .local:
+                    break
                 }
             }
         )
@@ -936,7 +1260,45 @@ struct SettingsView: View {
             }
             .font(MemoraTypography.caption1)
             .foregroundStyle(.secondary)
+
+        case .local:
+            VStack(alignment: .leading, spacing: 2) {
+                Text("• 無料・オフライン対応")
+                Text("• iOS 26 Foundation Models を使用")
+            }
+            .font(MemoraTypography.caption1)
+            .foregroundStyle(MemoraColor.accentGreen)
         }
+    }
+
+    private func saveCustomTemplate() {
+        if let existing = editingTemplate {
+            existing.name = templateDraftName
+            existing.prompt = templateDraftPrompt
+            existing.outputSections = templateDraftSections
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        } else {
+            let template = CustomSummaryTemplate(
+                name: templateDraftName,
+                prompt: templateDraftPrompt,
+                outputSections: templateDraftSections
+                    .components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+            )
+            modelContext.insert(template)
+        }
+        try? modelContext.save()
+    }
+
+    private func deleteCustomTemplate(at offsets: IndexSet) {
+        for index in offsets {
+            let template = customTemplates[index]
+            modelContext.delete(template)
+        }
+        try? modelContext.save()
     }
 
     private func loadNotionSettings() {
@@ -944,6 +1306,67 @@ struct SettingsView: View {
         notionToken = settings.integrationToken
         notionParentPageID = settings.parentPageID
         selectedNotionPageID = settings.parentPageID.isEmpty ? nil : settings.parentPageID
+    }
+
+    private func loadGoogleSettings() {
+        guard let settings = googleSettings else { return }
+        googleClientID = settings.clientID
+        googleRedirectURI = settings.redirectURIScheme
+    }
+
+    private func authorizeGoogle() async {
+        isGoogleAuthorizing = true
+        googleAuthResult = nil
+
+        do {
+            let authService = GoogleAuthService()
+            let contextProvider = AuthPresentationContextProvider()
+            let response = try await authService.authorize(
+                clientID: googleClientID,
+                redirectURIScheme: googleRedirectURI,
+                contextProvider: contextProvider
+            )
+
+            let settings = googleSettings ?? {
+                let s = GoogleMeetSettings()
+                s.isEnabled = true
+                modelContext.insert(s)
+                return s
+            }()
+
+            settings.clientID = googleClientID
+            settings.redirectURIScheme = googleRedirectURI
+            settings.accessToken = response.accessToken
+            if let refresh = response.refreshToken {
+                settings.refreshToken = refresh
+            }
+            settings.tokenExpiresAt = response.calculatedExpiresAt
+            settings.updatedAt = Date()
+
+            try modelContext.save()
+            googleAuthResult = "認証に成功しました"
+        } catch {
+            googleAuthResult = "エラー: \(error.localizedDescription)"
+        }
+
+        isGoogleAuthorizing = false
+    }
+
+    private func disconnectGoogle() {
+        if let settings = googleSettings {
+            if !settings.accessToken.isEmpty {
+                Task {
+                    let authService = GoogleAuthService()
+                    try? await authService.revokeToken(settings.accessToken)
+                }
+            }
+            settings.accessToken = ""
+            settings.refreshToken = ""
+            settings.tokenExpiresAt = nil
+            settings.updatedAt = Date()
+            try? modelContext.save()
+        }
+        googleAuthResult = nil
     }
 
     private func testNotionConnection() async {
@@ -1650,9 +2073,6 @@ private struct STTDiagnosticsView: View {
     @AppStorage("selectedProvider") private var selectedProvider: String = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
     @AppStorage("speechAnalyzerEnabled") private var speechAnalyzerEnabled: Bool = false
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("sttDiagnosticsLastFallbackReason") private var storedFallbackReason = "未診断"
 
     @State private var snapshot: STTDiagnosticsSnapshot?
@@ -1671,11 +2091,13 @@ private struct STTDiagnosticsView: View {
     private var currentAPIKey: String {
         switch currentProvider {
         case .openai:
-            return apiKeyOpenAI
+            return KeychainService.load(key: .apiKeyOpenAI)
         case .gemini:
-            return apiKeyGemini
+            return KeychainService.load(key: .apiKeyGemini)
         case .deepseek:
-            return apiKeyDeepSeek
+            return KeychainService.load(key: .apiKeyDeepSeek)
+        case .local:
+            return ""
         }
     }
 
@@ -1700,6 +2122,7 @@ private struct STTDiagnosticsView: View {
         List {
             configurationSection
             diagnosticsSection
+            recoverySection
             recentExecutionSection
             fallbackSection
             testSection
@@ -1749,6 +2172,10 @@ private struct STTDiagnosticsView: View {
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.textSecondary)
 
+                    Text("Fallback chain: SpeechAnalyzer → SFSpeechRecognizer → API")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+
                     Text("更新: \(snapshot.generatedAtText)")
                         .font(MemoraTypography.caption2)
                         .foregroundStyle(MemoraColor.textTertiary)
@@ -1772,6 +2199,31 @@ private struct STTDiagnosticsView: View {
                 Text("診断情報はまだありません。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recoverySection: some View {
+        if let category = snapshot?.lastFailureCategory {
+            Section("復旧ヒント") {
+                VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundStyle(.yellow)
+                        Text(category.localizedTitle)
+                            .font(MemoraTypography.subheadline)
+                            .fontWeight(.semibold)
+                    }
+
+                    Text(category.recoveryAction)
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(MemoraSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.yellow.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
             }
         }
     }
@@ -1895,460 +2347,6 @@ private struct STTDiagnosticsView: View {
     }
 }
 
-private enum STTDiagnosticsRunner {
-    static func makeSnapshot(
-        mode: TranscriptionMode,
-        provider: AIProvider,
-        speechAnalyzerEnabled: Bool,
-        apiKeyConfigured: Bool,
-        performFullTest: Bool
-    ) async -> STTDiagnosticsSnapshot {
-        switch mode {
-        case .api:
-            return makeAPISnapshot(provider: provider, apiKeyConfigured: apiKeyConfigured)
-        case .local:
-            return await makeLocalSnapshot(
-                speechAnalyzerEnabled: speechAnalyzerEnabled,
-                performFullTest: performFullTest
-            )
-        }
-    }
-
-    private static func makeAPISnapshot(
-        provider: AIProvider,
-        apiKeyConfigured: Bool
-    ) -> STTDiagnosticsSnapshot {
-        let supportsTranscription = provider.supportsTranscription
-        let backendStatus: STTDiagnosticsTone = supportsTranscription && apiKeyConfigured ? .success : .warning
-        let fallbackReason: String
-
-        if !supportsTranscription {
-            fallbackReason = "選択中の \(provider.rawValue) は API 文字起こし未対応のため、API モードでは開始できません。OpenAI を選択してください。"
-        } else if !apiKeyConfigured {
-            fallbackReason = "API キーが未設定のため、CloudSTTBackend を開始できません。"
-        } else {
-            fallbackReason = "フォールバックは発生していません。現在は \(provider.rawValue) API を使用予定です。"
-        }
-
-        return STTDiagnosticsSnapshot(
-            backendPanel: STTDiagnosticsPanel(
-                title: "Backend Status",
-                badgeText: supportsTranscription ? "API" : "要修正",
-                tone: backendStatus,
-                summary: supportsTranscription ? "\(provider.rawValue) API を使用予定" : "API 文字起こしに未対応",
-                details: [
-                    "文字起こしモード: API",
-                    "選択プロバイダー: \(provider.rawValue)",
-                    "API キー: \(apiKeyConfigured ? "設定済み" : "未設定")"
-                ]
-            ),
-            assetPanel: STTDiagnosticsPanel(
-                title: "Asset Status",
-                badgeText: "N/A",
-                tone: .neutral,
-                summary: "API モードでは SpeechAnalyzer asset は使用しません。",
-                details: [
-                    "ローカルモデル: 未使用",
-                    "SpeechAnalyzer asset: チェック対象外"
-                ]
-            ),
-            fallbackReason: fallbackReason,
-            testSummary: supportsTranscription
-                ? "API backend の設定整合性を確認しました。"
-                : "API backend の選択条件を満たしていないため、設定の修正が必要です。",
-            diagnosticModeLabel: "設定チェック",
-            generatedAt: Date()
-        )
-    }
-
-    private static func makeLocalSnapshot(
-        speechAnalyzerEnabled: Bool,
-        performFullTest: Bool
-    ) async -> STTDiagnosticsSnapshot {
-        let locale = Locale(identifier: "ja_JP")
-        let authorizationStatus = SFSpeechRecognizer.authorizationStatus()
-        let recognizer = SFSpeechRecognizer(locale: locale)
-        let recognizerAvailable = recognizer?.isAvailable ?? false
-
-        #if targetEnvironment(simulator)
-        let simulatorReason = "シミュレータでは SpeechAnalyzer を使わず、SFSpeechRecognizer へフォールバックします。"
-        #else
-        let simulatorReason = ""
-        #endif
-
-        if #available(iOS 26.0, *), speechAnalyzerEnabled {
-            if performFullTest {
-                let result = await SpeechAnalyzerPreflight().run(locale: locale)
-                return makeSpeechAnalyzerSnapshot(
-                    locale: locale,
-                    authorizationStatus: authorizationStatus,
-                    recognizerAvailable: recognizerAvailable,
-                    simulatorReason: simulatorReason,
-                    result: result
-                )
-            }
-
-            let inspection = await inspectSpeechAnalyzer(locale: locale)
-            return makeSpeechAnalyzerSnapshot(
-                locale: locale,
-                authorizationStatus: authorizationStatus,
-                recognizerAvailable: recognizerAvailable,
-                simulatorReason: simulatorReason,
-                inspection: inspection
-            )
-        }
-
-        let fallbackReason: String
-        if !simulatorReason.isEmpty {
-            fallbackReason = simulatorReason
-        } else if speechAnalyzerEnabled {
-            fallbackReason = "現在の OS では SpeechAnalyzer を使えないため、SFSpeechRecognizer を使用します。"
-        } else {
-            fallbackReason = "SpeechAnalyzer ベータ機能が OFF のため、SFSpeechRecognizer を使用します。"
-        }
-
-        let recognizerTone: STTDiagnosticsTone = recognizerAvailable ? .success : .warning
-        return STTDiagnosticsSnapshot(
-            backendPanel: STTDiagnosticsPanel(
-                title: "Backend Status",
-                badgeText: "SpeechRecognizer",
-                tone: recognizerTone,
-                summary: recognizerAvailable
-                    ? "SFSpeechRecognizer を使用予定です。"
-                    : "SFSpeechRecognizer の利用可否を再確認してください。",
-                details: [
-                    "文字起こしモード: ローカル",
-                    "SpeechAnalyzer トグル: \(speechAnalyzerEnabled ? "ON" : "OFF")",
-                    "Speech 権限: \(authorizationStatus.label)",
-                    "SFSpeechRecognizer: \(recognizerAvailable ? "利用可能" : "利用不可")"
-                ]
-            ),
-            assetPanel: STTDiagnosticsPanel(
-                title: "Asset Status",
-                badgeText: "未使用",
-                tone: .neutral,
-                summary: "この構成では SpeechAnalyzer asset を使用しません。",
-                details: [
-                    "SpeechAnalyzer: \(speechAnalyzerEnabled ? "OS 非対応" : "無効")",
-                    "on-device asset: チェック対象外"
-                ]
-            ),
-            fallbackReason: fallbackReason,
-            testSummary: recognizerAvailable
-                ? "SFSpeechRecognizer backend の基本状態を確認しました。"
-                : "SFSpeechRecognizer の権限または availability を見直してください。",
-            diagnosticModeLabel: "設定チェック",
-            generatedAt: Date()
-        )
-    }
-
-    @available(iOS 26.0, *)
-    private static func makeSpeechAnalyzerSnapshot(
-        locale: Locale,
-        authorizationStatus: SFSpeechRecognizerAuthorizationStatus,
-        recognizerAvailable: Bool,
-        simulatorReason: String,
-        inspection: SpeechAnalyzerInspection
-    ) -> STTDiagnosticsSnapshot {
-        let backendTone: STTDiagnosticsTone = inspection.canUseSpeechAnalyzer ? .success : .warning
-        let fallbackReason = inspection.canUseSpeechAnalyzer
-            ? "フォールバックは発生していません。SpeechAnalyzer を優先できます。"
-            : inspection.fallbackReason
-
-        return STTDiagnosticsSnapshot(
-            backendPanel: STTDiagnosticsPanel(
-                title: "Backend Status",
-                badgeText: inspection.canUseSpeechAnalyzer ? "SpeechAnalyzer" : "Fallback",
-                tone: backendTone,
-                summary: inspection.canUseSpeechAnalyzer
-                    ? "SpeechAnalyzer を優先して使用できます。"
-                    : "SpeechAnalyzer 条件を満たさず、SFSpeechRecognizer を使用予定です。",
-                details: [
-                    "文字起こしモード: ローカル",
-                    "SpeechAnalyzer トグル: ON",
-                    "Speech 権限: \(authorizationStatus.label)",
-                    "SFSpeechRecognizer: \(recognizerAvailable ? "利用可能" : "利用不可")"
-                ]
-            ),
-            assetPanel: STTDiagnosticsPanel(
-                title: "Asset Status",
-                badgeText: inspection.assetBadge,
-                tone: inspection.assetTone,
-                summary: inspection.assetSummary,
-                details: inspection.assetDetails
-            ),
-            fallbackReason: simulatorReason.isEmpty ? fallbackReason : simulatorReason,
-            testSummary: inspection.testSummary,
-            diagnosticModeLabel: "高速チェック",
-            generatedAt: Date()
-        )
-    }
-
-    @available(iOS 26.0, *)
-    private static func makeSpeechAnalyzerSnapshot(
-        locale: Locale,
-        authorizationStatus: SFSpeechRecognizerAuthorizationStatus,
-        recognizerAvailable: Bool,
-        simulatorReason: String,
-        result: SpeechAnalyzerPreflightResult
-    ) -> STTDiagnosticsSnapshot {
-        let backendDetails = [
-            "文字起こしモード: ローカル",
-            "SpeechAnalyzer トグル: ON",
-            "Speech 権限: \(authorizationStatus.label)",
-            "SFSpeechRecognizer: \(recognizerAvailable ? "利用可能" : "利用不可")"
-        ]
-
-        switch result {
-        case .ready(let diagnostics):
-            return STTDiagnosticsSnapshot(
-                backendPanel: STTDiagnosticsPanel(
-                    title: "Backend Status",
-                    badgeText: "SpeechAnalyzer",
-                    tone: .success,
-                    summary: "SpeechAnalyzer preflight を通過し、優先使用できます。",
-                    details: backendDetails
-                ),
-                assetPanel: STTDiagnosticsPanel(
-                    title: "Asset Status",
-                    badgeText: diagnostics.assetStatus,
-                    tone: .success,
-                    summary: "SpeechAnalyzer asset と locale の整合性を確認しました。",
-                    details: makeSpeechAnalyzerAssetDetails(
-                        locale: locale,
-                        diagnostics: diagnostics
-                    )
-                ),
-                fallbackReason: simulatorReason.isEmpty
-                    ? "フォールバックは発生していません。SpeechAnalyzer を優先できます。"
-                    : simulatorReason,
-                testSummary: "SpeechAnalyzer preflight を実行し、availability / locale / asset / audio format を確認しました。",
-                diagnosticModeLabel: "preflight 実行",
-                generatedAt: Date()
-            )
-
-        case .unavailable(let reason, let diagnostics):
-            return STTDiagnosticsSnapshot(
-                backendPanel: STTDiagnosticsPanel(
-                    title: "Backend Status",
-                    badgeText: "Fallback",
-                    tone: .warning,
-                    summary: "SpeechAnalyzer preflight が通らないため、SFSpeechRecognizer を使用予定です。",
-                    details: backendDetails
-                ),
-                assetPanel: STTDiagnosticsPanel(
-                    title: "Asset Status",
-                    badgeText: diagnostics.assetStatus == "unknown" ? "未準備" : diagnostics.assetStatus,
-                    tone: .warning,
-                    summary: reason.description,
-                    details: makeSpeechAnalyzerAssetDetails(
-                        locale: locale,
-                        diagnostics: diagnostics
-                    )
-                ),
-                fallbackReason: simulatorReason.isEmpty ? reason.description : simulatorReason,
-                testSummary: "SpeechAnalyzer preflight を実行し、フォールバック条件を確認しました。",
-                diagnosticModeLabel: "preflight 実行",
-                generatedAt: Date()
-            )
-        }
-    }
-
-    @available(iOS 26.0, *)
-    private static func makeSpeechAnalyzerAssetDetails(
-        locale: Locale,
-        diagnostics: SpeechAnalyzerDiagnostics
-    ) -> [String] {
-        [
-            "要求 locale: \(locale.identifier)",
-            "解決 locale: \(diagnostics.supportedLocale?.identifier ?? "なし")",
-            "asset state: \(diagnostics.assetStatus)",
-            "互換 audio format: \(diagnostics.compatibleFormatsDescription)",
-            String(format: "preflight: %.1fms", diagnostics.checkDurationMs)
-        ]
-    }
-
-    @available(iOS 26.0, *)
-    private static func inspectSpeechAnalyzer(locale: Locale) async -> SpeechAnalyzerInspection {
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
-            return SpeechAnalyzerInspection(
-                canUseSpeechAnalyzer: false,
-                fallbackReason: "SpeechAnalyzer が \(locale.identifier) と等価な locale を解決できないため、SFSpeechRecognizer にフォールバックします。",
-                assetBadge: "locale NG",
-                assetTone: .warning,
-                assetSummary: "SpeechAnalyzer locale が未対応です。",
-                assetDetails: [
-                    "要求 locale: \(locale.identifier)",
-                    "supported locale: なし"
-                ],
-                testSummary: "SpeechAnalyzer locale 判定で停止しました。"
-            )
-        }
-
-        let transcriber = SpeechTranscriber(locale: supportedLocale, preset: .transcription)
-        let assetStatus = await AssetInventory.status(forModules: [transcriber])
-        let compatibleFormats = await transcriber.availableCompatibleAudioFormats
-        let formatLine = compatibleFormats.isEmpty
-            ? "互換 audio format: 取得なし"
-            : "互換 audio format: \(compatibleFormats.prefix(2).map { String(describing: $0) }.joined(separator: ", "))"
-
-        if assetStatus == .installed {
-            return SpeechAnalyzerInspection(
-                canUseSpeechAnalyzer: true,
-                fallbackReason: "フォールバックは発生していません。SpeechAnalyzer asset はインストール済みです。",
-                assetBadge: "installed",
-                assetTone: .success,
-                assetSummary: "SpeechAnalyzer asset は利用可能です。",
-                assetDetails: [
-                    "要求 locale: \(locale.identifier)",
-                    "解決 locale: \(supportedLocale.identifier)",
-                    "asset state: \(String(describing: assetStatus))",
-                    formatLine
-                ],
-                testSummary: "現在の asset / locale 状態から SpeechAnalyzer を優先できると判定しました。"
-            )
-        }
-
-        return SpeechAnalyzerInspection(
-            canUseSpeechAnalyzer: false,
-            fallbackReason: "SpeechAnalyzer asset が \(String(describing: assetStatus)) のため、準備完了まで SFSpeechRecognizer にフォールバックします。",
-            assetBadge: String(describing: assetStatus),
-            assetTone: .warning,
-            assetSummary: "SpeechAnalyzer asset はまだ準備完了ではありません。",
-            assetDetails: [
-                "要求 locale: \(locale.identifier)",
-                "解決 locale: \(supportedLocale.identifier)",
-                "asset state: \(String(describing: assetStatus))",
-                formatLine
-            ],
-            testSummary: "現在の asset 状態からフォールバック候補を判定しました。"
-        )
-    }
-}
-
-private struct SpeechAnalyzerInspection {
-    let canUseSpeechAnalyzer: Bool
-    let fallbackReason: String
-    let assetBadge: String
-    let assetTone: STTDiagnosticsTone
-    let assetSummary: String
-    let assetDetails: [String]
-    let testSummary: String
-}
-
-private struct STTDiagnosticsSnapshot {
-    let backendPanel: STTDiagnosticsPanel
-    let assetPanel: STTDiagnosticsPanel
-    let fallbackReason: String
-    let testSummary: String
-    let diagnosticModeLabel: String
-    let generatedAt: Date
-
-    var generatedAtText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd HH:mm:ss"
-        return formatter.string(from: generatedAt)
-    }
-}
-
-private struct STTDiagnosticsPanel {
-    let title: String
-    let badgeText: String
-    let tone: STTDiagnosticsTone
-    let summary: String
-    let details: [String]
-}
-
-private enum STTDiagnosticsTone {
-    case success
-    case warning
-    case neutral
-
-    var iconName: String {
-        switch self {
-        case .success:
-            return "checkmark.circle.fill"
-        case .warning:
-            return "exclamationmark.triangle.fill"
-        case .neutral:
-            return "circle.dashed"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .success:
-            return MemoraColor.accentGreen
-        case .warning:
-            return .orange
-        case .neutral:
-            return MemoraColor.textSecondary
-        }
-    }
-
-    var background: Color {
-        switch self {
-        case .success:
-            return MemoraColor.accentGreen.opacity(0.12)
-        case .warning:
-            return Color.orange.opacity(0.12)
-        case .neutral:
-            return MemoraColor.divider.opacity(0.18)
-        }
-    }
-}
-
-private struct STTDiagnosticsCard: View {
-    let panel: STTDiagnosticsPanel
-
-    init(_ panel: STTDiagnosticsPanel) {
-        self.panel = panel
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(panel.title)
-                        .font(MemoraTypography.subheadline)
-                        .fontWeight(.semibold)
-
-                    Text(panel.summary)
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Label(panel.badgeText, systemImage: panel.tone.iconName)
-                    .font(MemoraTypography.caption1)
-                    .padding(.horizontal, MemoraSpacing.xs)
-                    .padding(.vertical, 6)
-                    .background(panel.tone.background)
-                    .clipShape(Capsule())
-                    .foregroundStyle(panel.tone.tint)
-            }
-
-            ForEach(panel.details, id: \.self) { detail in
-                HStack(alignment: .top, spacing: MemoraSpacing.xs) {
-                    Circle()
-                        .fill(MemoraColor.textTertiary)
-                        .frame(width: 4, height: 4)
-                        .padding(.top, 6)
-
-                    Text(detail)
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(MemoraSpacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MemoraColor.surfaceSecondary)
-        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
-    }
-}
-
 private struct STTLastExecutionCard: View {
     let entry: STTBackendDiagnosticEntry
 
@@ -2405,23 +2403,6 @@ private struct STTLastExecutionCard: View {
             Text(value)
                 .font(MemoraTypography.caption1)
                 .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private extension SFSpeechRecognizerAuthorizationStatus {
-    var label: String {
-        switch self {
-        case .authorized:
-            return "authorized"
-        case .denied:
-            return "denied"
-        case .restricted:
-            return "restricted"
-        case .notDetermined:
-            return "notDetermined"
-        @unknown default:
-            return "unknown"
         }
     }
 }
@@ -2529,4 +2510,113 @@ private struct NotionPagePickerView: View {
     SettingsView()
         .environmentObject(OmiAdapter())
         .environmentObject(BluetoothAudioService())
+}
+
+// MARK: - Google Auth Presentation Context
+
+private final class AuthPresentationContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            return UIWindow()
+        }
+        return window
+    }
+}
+
+// MARK: - Gemma 4 Benchmark View
+
+private struct Gemma4BenchmarkView: View {
+    @StateObject private var runner = Gemma4BenchmarkRunner()
+
+    var body: some View {
+        List {
+            Section("ベンチマーク") {
+                Button {
+                    Task { await runner.runAll() }
+                } label: {
+                    HStack(spacing: MemoraSpacing.sm) {
+                        if runner.isRunning {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "play.fill")
+                                .foregroundStyle(MemoraColor.accentBlue)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(runner.isRunning ? "実行中..." : "ベンチマーク実行")
+                                .font(MemoraTypography.subheadline)
+                                .foregroundStyle(.primary)
+
+                            Text("3 種類のテストでレイテンシを計測")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .disabled(runner.isRunning)
+            }
+
+            if !runner.results.isEmpty {
+                Section("結果") {
+                    ForEach(runner.results) { result in
+                        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+                            HStack {
+                                Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(result.success ? MemoraColor.accentGreen : MemoraColor.accentRed)
+
+                                Text(result.testName)
+                                    .font(MemoraTypography.subheadline)
+
+                                Spacer()
+
+                                if result.success {
+                                    Text(String(format: "%.0fms", result.latencyMs))
+                                        .font(MemoraTypography.caption1)
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(MemoraColor.accentBlue)
+                                }
+                            }
+
+                            if result.success {
+                                HStack(spacing: MemoraSpacing.sm) {
+                                    Label("\(result.tokenCount) tokens", systemImage: "text.word.spacing")
+                                        .font(MemoraTypography.caption2)
+                                        .foregroundStyle(MemoraColor.textSecondary)
+
+                                    Label(String(format: "%.1f tok/s", result.tokensPerSecond), systemImage: "speedometer")
+                                        .font(MemoraTypography.caption2)
+                                        .foregroundStyle(MemoraColor.textSecondary)
+                                }
+                            } else if let error = result.errorMessage {
+                                Text(error)
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(MemoraColor.accentRed)
+                            }
+                        }
+                        .padding(.vertical, MemoraSpacing.xxxs)
+                    }
+                }
+
+                Section("サマリー") {
+                    let successResults = runner.results.filter(\.success)
+                    if !successResults.isEmpty {
+                        let avgLatency = successResults.map(\.latencyMs).reduce(0, +) / Double(successResults.count)
+                        let avgTps = successResults.map(\.tokensPerSecond).reduce(0, +) / Double(successResults.count)
+
+                        LabeledContent("平均レイテンシ", value: String(format: "%.0fms", avgLatency))
+                        LabeledContent("平均スループット", value: String(format: "%.1f tok/s", avgTps))
+                        LabeledContent("成功率", value: "\(successResults.count)/\(runner.results.count)")
+                    } else {
+                        Text("すべてのテストが失敗しました")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Gemma 4 Benchmark")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 }

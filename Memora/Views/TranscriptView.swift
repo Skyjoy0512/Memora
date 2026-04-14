@@ -2,13 +2,13 @@ import SwiftUI
 
 struct TranscriptView: View {
     let result: TranscriptResult
-    @State private var showSegments = true
+    var onSegmentTap: ((SpeakerSegment) -> Void)? = nil
 
     var body: some View {
         ScrollView {
             TranscriptContentView(
                 result: result,
-                showSegments: showSegments
+                onSegmentTap: onSegmentTap
             )
             .padding()
         }
@@ -20,31 +20,29 @@ struct TranscriptView: View {
 struct TranscriptContentView: View {
     let result: TranscriptResult
     var showSegments = true
+    var currentPlaybackTime: TimeInterval = -1
+    var onSegmentTap: ((SpeakerSegment) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xxl) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("文字起こし")
-                    .font(MemoraTypography.headline)
-
-                Text(result.text)
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(.primary)
-                    .lineSpacing(6)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(MemoraColor.divider.opacity(0.05))
-            .cornerRadius(MemoraRadius.md)
-
+        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
             if showSegments && !result.segments.isEmpty {
+                ForEach(result.segments.indices, id: \.self) { index in
+                    let seg = result.segments[index]
+                    SpeakerSegmentView(
+                        segment: seg,
+                        isPlaying: currentPlaybackTime >= seg.startTime && currentPlaybackTime < seg.endTime,
+                        onTap: onSegmentTap
+                    )
+                }
+            } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("話者分離")
+                    Text("文字起こし")
                         .font(MemoraTypography.headline)
 
-                    ForEach(result.segments.indices, id: \.self) { index in
-                        SpeakerSegmentView(segment: result.segments[index])
-                    }
+                    Text(result.text)
+                        .font(MemoraTypography.body)
+                        .foregroundStyle(.primary)
+                        .lineSpacing(6)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -60,27 +58,42 @@ struct TranscriptContentView: View {
 
 struct SpeakerSegmentView: View {
     let segment: SpeakerSegment
+    var isPlaying: Bool = false
+    var onTap: ((SpeakerSegment) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(segment.speakerLabel)
-                    .font(MemoraTypography.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(MemoraColor.textSecondary)
+        Button {
+            onTap?(segment)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: "play.circle")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
-                Spacer()
+                    Text(segment.speakerLabel)
+                        .font(MemoraTypography.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(MemoraColor.textSecondary)
 
-                Text(formatTime(segment.startTime))
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    Spacer()
+
+                    Text(formatTime(segment.startTime))
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+
+                Text(segment.text)
+                    .font(MemoraTypography.body)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            Text(segment.text)
-                .font(MemoraTypography.body)
-                .foregroundStyle(.primary)
+            .padding(.vertical, MemoraSpacing.xs)
+            .padding(.horizontal, MemoraSpacing.sm)
+            .background(isPlaying ? MemoraColor.accentBlue.opacity(0.08) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
         }
-        .padding(.vertical, MemoraSpacing.xs)
+        .buttonStyle(.plain)
     }
 
     private func formatTime(_ time: TimeInterval) -> String {

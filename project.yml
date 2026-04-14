@@ -11,6 +11,9 @@ packages:
   OmiSDK:
     url: https://github.com/BasedHardware/omi
     revision: 07571705531ccf1d3ce2d41f7b8d166a85287693
+  FluidAudio:
+    url: https://github.com/FluidInference/FluidAudio.git
+    revision: 57551cd90e0bbec342766244358bcf08afb05290
 targets:
   Memora:
     type: application
@@ -19,9 +22,12 @@ targets:
     sources:
       - path: Memora
         includes: ["**/*.swift"]
+      - path: Memora/Resources/reference-transcript.txt
+        buildPhase: resources
     dependencies:
       - package: OmiSDK
         product: omi-lib
+      - package: FluidAudio
     settings:
       PRODUCT_NAME: Memora
       PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora

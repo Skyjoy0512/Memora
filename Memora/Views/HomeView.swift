@@ -1,24 +1,39 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = HomeViewModel()
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
-    @Binding var showRecordingFromFAB: Bool
+    @State private var shouldAutoTranscribe = false
     @Binding var pendingOpenedAudioFileID: UUID?
+    @Query private var googleSettingsList: [GoogleMeetSettings]
+    @Query private var projects: [Project]
+
+    // インポート・Meet
+    @State private var showFileImporter = false
+    @State private var showGoogleMeetImport = false
+    @State private var importErrorMessage: String?
 
     // 検索・フィルタリング用
     @State private var searchText = ""
     @State private var showFilterSheet = false
     @State private var showAskAI = false
-    @State private var filterTranscribed: Bool? = nil // nil=すべて, true=済み, false=未済み
-    @State private var filterSummarized: Bool? = nil // nil=すべて, true=済み, false=未済み
-    @State private var filterLifeLog: Bool? = nil // nil=すべて, true=ライフログのみ
-    @State private var selectedTag: String? = nil // タグフィルタ
+    @State private var filterTranscribed: Bool? = nil
+    @State private var filterSummarized: Bool? = nil
+    @State private var filterLifeLog: Bool? = nil
+    @State private var selectedTag: String? = nil
     @State private var sortOption: SortOption = .dateDesc
-    @State private var viewMode: ViewMode = .list // 表示モード
+    @State private var viewMode: ViewMode = .list
+
+    // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
+    @State private var cachedFilteredFiles: [AudioFile] = []
+    @State private var isRefreshing = false
+    @State private var isSelectMode = false
+    @State private var selectedFileIDs: Set<UUID> = []
+    @State private var showMoveToProjectSheet = false
 
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
@@ -28,17 +43,21 @@ struct HomeView: View {
 
     private typealias SortOption = HomeViewModel.SortOption
 
-    init(
-        showRecordingFromFAB: Binding<Bool> = .constant(false),
-        pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil)
-    ) {
-        self._showRecordingFromFAB = showRecordingFromFAB
+    private var importContentTypes: [UTType] {
+        [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
+    }
+
+    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil)) {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
     }
 
-    // フィルタリング・ソート後のファイル一覧
+    // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
     var filteredFiles: [AudioFile] {
-        viewModel.filteredFiles(
+        cachedFilteredFiles
+    }
+
+    private func updateFilteredFiles() {
+        cachedFilteredFiles = viewModel.filteredFiles(
             searchText: searchText,
             filterTranscribed: filterTranscribed,
             filterSummarized: filterSummarized,
@@ -50,132 +69,54 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            Group {
                 if viewModel.audioFiles.isEmpty {
-                    // 空の状態 - 下部の浮遊ボタンから録音導線を誘導
-                    VStack(spacing: MemoraSpacing.xxl) {
-                        Spacer()
-
-                        Image(systemName: "waveform")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundStyle(MemoraColor.textSecondary)
-
-                        Text("Memora")
-                            .font(MemoraTypography.largeTitle)
-
-                        Text("録音ファイル一覧")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(.secondary)
-
-                        Text(recordingHint)
-                            .font(MemoraTypography.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 8)
-
-                        Spacer()
-                    }
-                    .padding(.bottom, 110)
+                    emptyStateView
                 } else {
-                    // ファイル一覧
-                    VStack(spacing: 0) {
-                        // 表示モード選択
-                        Picker("表示モード", selection: $viewMode) {
-                            Text("リスト").tag(ViewMode.list)
-                            Text("タイムライン").tag(ViewMode.timeline)
+                    fileListSection
+                }
+            }
+            .searchable(text: $searchText, placement: .toolbar, prompt: "ファイルを検索")
+            .navigationTitle("Files")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if isSelectMode {
+                        Button("キャンセル") {
+                            isSelectMode = false
+                            selectedFileIDs.removeAll()
                         }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-
-                        // 検索バー
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundStyle(.secondary)
-
-                            TextField("検索", text: $searchText)
-                                .textFieldStyle(.plain)
-
-                            if !searchText.isEmpty {
-                                Button(action: { searchText = "" }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, MemoraSpacing.lg)
-                        .padding(.vertical, MemoraSpacing.xs)
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
-                        .padding(.horizontal)
-
-                        // フィルター・ソートバー
-                        HStack(spacing: 8) {
-                            // フィルターボタン
-                            Button(action: { showFilterSheet = true }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "line.3.horizontal.decrease.circle")
-                                    Text("フィルター")
-                                }
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, MemoraSpacing.lg)
-                                .padding(.vertical, 6)
-                                .background(MemoraColor.divider.opacity(0.1))
-                                .cornerRadius(MemoraRadius.sm)
-                            }
-
-                            Spacer()
-
-                            // ソート選択
-                            Picker("", selection: $sortOption) {
-                                ForEach(SortOption.allCases, id: \.self) { option in
-                                    Text(option.rawValue).tag(option)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .font(MemoraTypography.caption1)
-                        }
-                        .padding(.horizontal)
-
-                        Divider()
-
-                        // ファイル一覧
-                        List {
-                            ForEach(filteredFiles) { file in
-                                AudioFileRow(audioFile: file)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        selectedAudioFile = file
-                                    }
-                            }
-                            .onDelete(perform: deleteAudioFiles)
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    if isSelectMode {
+                        selectModeMenu
+                    } else {
+                        addMenu
+                    }
+                }
+                if hasActiveFilters && !isSelectMode {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("フィルタをクリア") {
+                            clearFilters()
                         }
                     }
                 }
             }
-            .safeAreaPadding(.bottom, 116)
-            .navigationTitle("Files")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showAskAI = true
-                    } label: {
-                        Image(systemName: "sparkles")
-                    }
+            .overlay(alignment: .bottomTrailing) {
+                AskAIFloatingButton {
+                    showAskAI = true
                 }
             }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView { savedAudioFile in
                     viewModel.loadAudioFiles()
                     selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
+                    shouldAutoTranscribe = true
                 }
             }
             .sheet(isPresented: $showAskAI) {
                 AskAIView(scope: .global)
-            }
-            .navigationDestination(item: $selectedAudioFile) { file in
-                FileDetailView(audioFile: file)
             }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
@@ -183,109 +124,526 @@ struct HomeView: View {
                     filterSummarized: $filterSummarized
                 )
             }
+            .navigationDestination(item: $selectedAudioFile) { file in
+                FileDetailView(audioFile: file, autoStartTranscription: shouldAutoTranscribe)
+                    .toolbar(.hidden, for: .tabBar)
+                    .onDisappear { shouldAutoTranscribe = false }
+            }
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: importContentTypes,
+                allowsMultipleSelection: true
+            ) { result in
+                handleImportResult(result)
+            }
+            .sheet(isPresented: $showGoogleMeetImport) {
+                GoogleMeetImportView()
+            }
+            .alert("インポートエラー", isPresented: Binding(
+                get: { importErrorMessage != nil },
+                set: { isPresented in
+                    if !isPresented { importErrorMessage = nil }
+                }
+            )) {
+                Button("OK", role: .cancel) { importErrorMessage = nil }
+            } message: {
+                if let importErrorMessage { Text(importErrorMessage) }
+            }
+            .sheet(isPresented: $showMoveToProjectSheet) {
+                moveToProjectSheet
+            }
             .onAppear {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
-            }
-            .onChange(of: showRecordingFromFAB) { _, newValue in
-                if newValue {
-                    showRecordingView = true
-                    showRecordingFromFAB = false
-                }
             }
             .onChange(of: showRecordingView) { _, isPresented in
                 if !isPresented {
                     viewModel.loadAudioFiles()
+                    updateFilteredFiles()
                     openPendingImportedAudioIfNeeded()
                 }
             }
             .onChange(of: pendingOpenedAudioFileID) { _, _ in
                 viewModel.loadAudioFiles()
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
             }
-            .onChange(of: viewModel.audioFiles.count) { _, _ in
+            .onChange(of: viewModel.audioFiles) { _, _ in
+                updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
+            }
+            .onChange(of: searchText) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterTranscribed) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
+            .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
+        }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ContentUnavailableView(
+            "録音ファイル一覧",
+            systemImage: "waveform",
+            description: Text(recordingHint)
+        )
+    }
+
+    private var selectModeMenu: some View {
+        Menu {
+            Button {
+                if selectedFileIDs.count == filteredFiles.count {
+                    selectedFileIDs.removeAll()
+                } else {
+                    selectedFileIDs = Set(filteredFiles.map(\.id))
+                }
+            } label: {
+                if selectedFileIDs.count == filteredFiles.count {
+                    Label("全て解除", systemImage: "checkmark.circle")
+                } else {
+                    Label("全て選択", systemImage: "checkmark.circle.fill")
+                }
+            }
+        } label: {
+            Text("\(selectedFileIDs.count)")
+                .font(MemoraTypography.caption1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(MemoraColor.accentBlue)
+                .clipShape(Capsule())
+        }
+    }
+
+    private var addMenu: some View {
+        Menu {
+            Button {
+                showRecordingView = true
+            } label: {
+                Label("録音", systemImage: "mic.fill")
+            }
+
+            Button {
+                showFileImporter = true
+            } label: {
+                Label("インポート", systemImage: "square.and.arrow.down")
+            }
+
+            if googleSettingsList.first?.isTokenValid == true {
+                Button {
+                    showGoogleMeetImport = true
+                } label: {
+                    Label("Google Meet", systemImage: "video.fill")
+                }
+            }
+        } label: {
+            Label("追加", systemImage: "plus")
+        }
+    }
+
+    // MARK: - Content Section
+
+    private var projectLookup: [UUID: String] {
+        Dictionary(uniqueKeysWithValues: projects.compactMap { p in
+            p.title.isEmpty ? nil : (p.id, p.title)
+        })
+    }
+
+    private var fileListSection: some View {
+        List(selection: isSelectMode ? $selectedFileIDs : nil) {
+            if hasActiveFilters {
+                activeFilterChips
+            }
+
+            ForEach(filteredFiles) { file in
+                let projectName = file.projectID.flatMap { projectLookup[$0] }
+                if isSelectMode {
+                    AudioFileRow(audioFile: file, projectName: projectName)
+                        .tag(file.id)
+                } else {
+                    AudioFileRow(audioFile: file, projectName: projectName)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedAudioFile = file
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                isSelectMode = true
+                                selectedFileIDs.insert(file.id)
+                            } label: {
+                                Label("選択", systemImage: "checkmark.circle")
+                            }
+                            .tint(.blue)
+                        }
+                }
+            }
+            .onDelete(perform: deleteAudioFiles)
+        }
+        .listStyle(.insetGrouped)
+        .environment(\.editMode, .constant(isSelectMode ? .active : .inactive))
+        .refreshable {
+            isRefreshing = true
+            viewModel.loadAudioFiles()
+            updateFilteredFiles()
+            isRefreshing = false
+        }
+        .overlay(alignment: .bottom) {
+            if isSelectMode && !selectedFileIDs.isEmpty {
+                selectModeToolbar
             }
         }
+    }
+
+    private var selectModeToolbar: some View {
+        HStack(spacing: MemoraSpacing.lg) {
+            Button {
+                showMoveToProjectSheet = true
+            } label: {
+                Label("プロジェクト移動", systemImage: "folder")
+                    .font(MemoraTypography.subheadline)
+            }
+
+            Spacer()
+
+            Button(role: .destructive) {
+                bulkDeleteSelected()
+            } label: {
+                Label("\(selectedFileIDs.count)件削除", systemImage: "trash")
+                    .font(MemoraTypography.subheadline)
+            }
+        }
+        .padding(.horizontal, MemoraSpacing.lg)
+        .padding(.vertical, MemoraSpacing.md)
+        .background(.regularMaterial)
+    }
+
+    private var hasActiveFilters: Bool {
+        filterTranscribed != nil || filterSummarized != nil || filterLifeLog != nil || selectedTag != nil || !searchText.isEmpty
+    }
+
+    private var activeFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: MemoraSpacing.xs) {
+                if let transcribed = filterTranscribed {
+                    FilterChip(title: transcribed ? "文字起こし済" : "未文字起こし", isSelected: true) {
+                        filterTranscribed = nil
+                    }
+                }
+                if let summarized = filterSummarized {
+                    FilterChip(title: summarized ? "要約済" : "未要約", isSelected: true) {
+                        filterSummarized = nil
+                    }
+                }
+                if let lifeLog = filterLifeLog {
+                    FilterChip(title: lifeLog ? "LifeLog" : "非LifeLog", isSelected: true) {
+                        filterLifeLog = nil
+                    }
+                }
+                if let tag = selectedTag {
+                    FilterChip(title: tag, isSelected: true) {
+                        selectedTag = nil
+                    }
+                }
+            }
+            .padding(.horizontal, MemoraSpacing.sm)
+            .padding(.vertical, MemoraSpacing.xxxs)
+        }
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowSeparator(.hidden)
     }
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
 
+    private func bulkDeleteSelected() {
+        let toDelete = filteredFiles.filter { selectedFileIDs.contains($0.id) }
+        for file in toDelete {
+            modelContext.delete(file)
+        }
+        try? modelContext.save()
+        selectedFileIDs.removeAll()
+        isSelectMode = false
+        viewModel.loadAudioFiles()
+        updateFilteredFiles()
+    }
+
+    private func moveSelectedToProject(_ projectID: UUID?) {
+        let toMove = filteredFiles.filter { selectedFileIDs.contains($0.id) }
+        for file in toMove {
+            file.projectID = projectID
+        }
+        try? modelContext.save()
+        selectedFileIDs.removeAll()
+        isSelectMode = false
+    }
+
+    private func clearFilters() {
+        filterTranscribed = nil
+        filterSummarized = nil
+        filterLifeLog = nil
+        selectedTag = nil
+        searchText = ""
+    }
+
     private var recordingHint: String {
-        "右下の追加ボタンから録音を開始"
+        "右下の AskAI またはツールバーの追加ボタンから利用"
     }
 
     private func openPendingImportedAudioIfNeeded() {
         guard let pendingOpenedAudioFileID else { return }
         guard let audioFile = viewModel.audioFile(id: pendingOpenedAudioFileID) else { return }
         selectedAudioFile = audioFile
+        shouldAutoTranscribe = true
         self.pendingOpenedAudioFileID = nil
+    }
+
+    // MARK: - Import
+
+    private func handleImportResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard !urls.isEmpty else { return }
+            let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "aiff", "aac"]
+            let audioURLs = urls.filter { audioExtensions.contains($0.pathExtension.lowercased()) }
+            let otherURLs = urls.filter { !audioExtensions.contains($0.pathExtension.lowercased()) }
+
+            for url in audioURLs {
+                importAudioFile(from: url)
+            }
+            if !otherURLs.isEmpty {
+                importPlaudFiles(otherURLs)
+            }
+        case .failure(let error):
+            importErrorMessage = "ファイルの選択に失敗しました\n\(error.localizedDescription)"
+        }
+    }
+
+    private func importAudioFile(from url: URL) {
+        do {
+            let audioFile = try AudioFileImportService.importAudio(
+                from: url,
+                modelContext: modelContext,
+                requiresSecurityScopedAccess: true
+            )
+            pendingOpenedAudioFileID = audioFile.id
+        } catch {
+            importErrorMessage = "音声ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+        }
+    }
+
+    private func importPlaudFiles(_ urls: [URL]) {
+        var lastImportedID: UUID?
+        for url in urls {
+            let ext = url.pathExtension.lowercased()
+            if ext == "json" {
+                if let file = importPlaudJSON(url: url) { lastImportedID = file.id }
+            } else {
+                if let file = importPlaudText(url: url) { lastImportedID = file.id }
+            }
+        }
+        if let lastImportedID { pendingOpenedAudioFileID = lastImportedID }
+    }
+
+    private func importPlaudJSON(url: URL) -> AudioFile? {
+        do {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            let data = try Data(contentsOf: url)
+            let export = try JSONDecoder().decode(PlaudExportFile.self, from: data)
+            let title = export.title ?? url.deletingPathExtension().lastPathComponent
+            let text = export.transcript?.isEmpty == false ? export.transcript! : (export.summary ?? "")
+            let file = PlaudImportService.importTextOnly(title: title, textContent: text, modelContext: modelContext)
+            if let summary = export.summary, !summary.isEmpty {
+                file.summary = summary
+                file.isSummarized = true
+                try? modelContext.save()
+            }
+            return file
+        } catch {
+            importErrorMessage = "Plaud ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    private func importPlaudText(url: URL) -> AudioFile? {
+        do {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            let text = try String(contentsOf: url, encoding: .utf8)
+            return PlaudImportService.importTextOnly(
+                title: url.deletingPathExtension().lastPathComponent,
+                textContent: text,
+                modelContext: modelContext
+            )
+        } catch {
+            importErrorMessage = "Plaud ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    // MARK: - Move to Project Sheet
+
+    private var moveToProjectSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button {
+                        moveSelectedToProject(nil)
+                        showMoveToProjectSheet = false
+                    } label: {
+                        Label("プロジェクトなし", systemImage: "tray")
+                    }
+                }
+
+                Section("プロジェクト") {
+                    ForEach(projects) { project in
+                        Button {
+                            moveSelectedToProject(project.id)
+                            showMoveToProjectSheet = false
+                        } label: {
+                            Label(project.title, systemImage: "folder")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("プロジェクトに移動")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        showMoveToProjectSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 
 struct AudioFileRow: View {
     let audioFile: AudioFile
+    let projectName: String?
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM/dd HH:mm"
+        return f
+    }()
 
     var body: some View {
-        HStack(spacing: MemoraSpacing.lg) {
-            // アイコン
-            Image(systemName: "waveform")
-                .font(MemoraTypography.title2)
-                .foregroundStyle(MemoraColor.textSecondary)
-                .frame(width: 40, height: 40)
+        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+            // 1行目: タイトル（最も重要な情報を先頭に）
+            Text(audioFile.title)
+                .font(MemoraTypography.body)
+                .foregroundStyle(MemoraColor.textPrimary)
+                .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(audioFile.title)
-                    .font(MemoraTypography.headline)
-                    .foregroundStyle(.primary)
+            // 2行目: 日付 + duration + source
+            HStack(spacing: MemoraSpacing.xs) {
+                Text(formatDate(audioFile.createdAt))
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
-                HStack(spacing: 5) {
-                    Text(formatDate(audioFile.createdAt))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(.secondary)
-
-                    Text("•")
-                        .foregroundStyle(.secondary)
-
+                if audioFile.duration > 0 {
                     Text(formatDuration(audioFile.duration))
                         .font(MemoraTypography.caption1)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                }
+
+                sourceBadge
+
+                Spacer()
+            }
+
+            // 3行目: project + status（ある場合のみ）
+            HStack(spacing: MemoraSpacing.xxs) {
+                if let projectName {
+                    Label(projectName, systemImage: "folder")
+                        .font(MemoraTypography.caption2)
                         .foregroundStyle(.secondary)
                 }
-            }
 
-            Spacer()
+                Spacer()
 
-            if audioFile.isPlaudImport {
-                Text("Plaud")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentBlue)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(MemoraColor.accentBlue.opacity(0.1))
-                    .cornerRadius(4)
-            }
-
-            if audioFile.isTranscribed {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(MemoraColor.textSecondary)
+                if audioFile.isTranscribed {
+                    StatusChip(title: "文字起こし済", color: MemoraColor.accentBlue)
+                }
+                if audioFile.isSummarized {
+                    StatusChip(title: "要約済", color: MemoraColor.accentGreen)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, MemoraSpacing.xs)
     }
 
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd HH:mm"
-        return formatter.string(from: date)
+    @ViewBuilder
+    private var sourceBadge: some View {
+        let icon: String = {
+            switch audioFile.sourceType {
+            case .recording: return "mic.fill"
+            case .import: return "square.and.arrow.down"
+            case .plaud: return "waveform"
+            case .google: return "video.fill"
+            }
+        }()
+        Image(systemName: icon)
+            .font(MemoraTypography.caption2)
+            .foregroundStyle(MemoraColor.textSecondary)
     }
 
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+    private func formatDate(_ date: Date) -> String {
+        Self.dateFormatter.string(from: date)
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+}
+
+private struct StatusChip: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        Text(title)
+            .font(MemoraTypography.caption2)
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+    }
+}
+
+// MARK: - AskAI Floating Button
+
+private struct AskAIFloatingButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: MemoraSpacing.xs) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 14, weight: .medium))
+
+                Text("Ask AI")
+                    .font(MemoraTypography.subheadline)
+                    .fontWeight(.medium)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.vertical, MemoraSpacing.sm)
+            .background(MemoraColor.accentBlue)
+            .clipShape(Capsule())
+        }
+        .padding(.trailing, MemoraSpacing.md)
+        .padding(.bottom, MemoraSpacing.lg)
     }
 }
 

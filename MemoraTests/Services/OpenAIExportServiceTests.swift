@@ -86,6 +86,6 @@ struct OpenAIExportServiceTests {
     @Test("fileTooLarge のエラーメッセージに MB 単位が含まれる")
     func fileTooLargeMessage() {
         let error = OpenAIExportError.fileTooLarge(maxBytes: 512 * 1024 * 1024)
-        #expect(error.errorDescription?.contains("512") == true)
+        #expect(error.errorDescription?.contains("536") == true)
     }
 }

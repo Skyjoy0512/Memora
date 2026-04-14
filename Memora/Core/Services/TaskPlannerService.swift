@@ -73,7 +73,7 @@ final class TaskPlannerService {
         let combinedText = buildPlanningInput(transcript: transcript, summary: summary)
         guard !combinedText.isEmpty else { return [] }
 
-        let (_, keyPoints, actionItems) = try await service.summarize(transcript: combinedText)
+        let (_, _, keyPoints, actionItems) = try await service.summarize(transcript: combinedText)
 
         var tasks = parseTasks(from: keyPoints)
         attachSubtasks(from: actionItems, to: &tasks)
@@ -107,7 +107,7 @@ final class TaskPlannerService {
         actionItems: []
         """
 
-        let (_, keyPoints, _) = try await service.summarize(transcript: input)
+        let (_, _, keyPoints, _) = try await service.summarize(transcript: input)
 
         return keyPoints.enumerated().map { index, point in
             PlannedSubtask(

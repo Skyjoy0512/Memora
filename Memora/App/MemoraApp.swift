@@ -13,6 +13,7 @@ struct MemoraApp: App {
     @State private var hasLoggedStart = false
     @State private var hasStartedInitialLoad = false
     @State private var loadAttemptToken = UUID()
+    @State private var temporaryStoreReason: String?
 
     private static let tempStoreFlagKey = "didUseTemporaryStoreLastSession"
 
@@ -34,7 +35,8 @@ struct MemoraApp: App {
         PlaudSettings.self,
         CalendarEventLink.self,
         GoogleMeetSettings.self,
-        NotionSettings.self
+        NotionSettings.self,
+        CustomSummaryTemplate.self
     ])
 
     var body: some Scene {
@@ -56,6 +58,9 @@ struct MemoraApp: App {
                 }
             }
             .task {
+                // 既存 UserDefaults の API 鍵を Keychain に移行（初回のみ実行）
+                KeychainService.migrateFromUserDefaults()
+
                 // アプリ起動開始を記録
                 if !hasLoggedStart {
                     DebugLogger.shared.markAppStart()
@@ -83,14 +88,38 @@ struct MemoraApp: App {
 
     private var temporaryStoreBanner: some View {
         VStack {
-            HStack(spacing: 8) {
-                Image(systemName: "externaldrive.badge.exclamationmark")
-                Text("一時モードで起動中です。この起動中の変更は保持されません。")
-                    .font(.caption)
+            HStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("一時モードで起動中")
+                        .font(.subheadline.bold())
+                    Text(temporaryStoreReason ?? "このセッションの変更は保存されません。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    Task { await loadModelContainer() }
+                } label: {
+                    Text("再試行")
+                        .font(.caption.bold())
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(.thinMaterial, in: Capsule())
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.orange.opacity(0.3), lineWidth: 1)
+            )
+            .padding(.horizontal, 16)
             .padding(.top, 8)
 
             Spacer()
@@ -226,10 +255,17 @@ struct MemoraApp: App {
             }
         }
 
+        // ストアファイル有無でタイムアウトを適応化
+        // 初回起動（ファイルなし）は DB 新規作成に時間がかかるため長めに設定
+        let storeExists = (try? Self.persistentStoreURL()).flatMap { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        let adaptiveTimeout: UInt64 = storeExists ? 8_000_000_000 : 15_000_000_000
+        let timeoutNanoseconds = useInMemoryStore ? nil as UInt64? : adaptiveTimeout
+        DebugLogger.shared.addLog("ModelContainer", "タイムアウト設定: \(storeExists ? "8s（既存ストア）" : "15s（初回/新規）")", level: .info)
+
         DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 開始")
         let outcome = await Self.awaitModelContainerOutcome(
             from: loadTask,
-            timeoutNanoseconds: useInMemoryStore ? nil : 5_000_000_000
+            timeoutNanoseconds: timeoutNanoseconds
         )
         DebugLogger.shared.markLaunchStep("awaitModelContainerOutcome 完了")
 
@@ -245,6 +281,7 @@ struct MemoraApp: App {
                 await MainActor.run {
                     self.modelContainer = success.container
                     self.isUsingTemporaryStore = useInMemoryStore
+                    self.temporaryStoreReason = useInMemoryStore ? "一時モードで起動しています" : nil
                     self.isLoading = false
                     self.loadingMessage = "データを準備中..."
                 }
@@ -252,6 +289,15 @@ struct MemoraApp: App {
                     DebugLogger.shared.addLog("ModelContainer", "一時ストアで起動 — このセッションの変更は保存されません", level: .warning)
                     UserDefaults.standard.set(true, forKey: Self.tempStoreFlagKey)
                 } else {
+                    // モデル数計測はバックグラウンドで実行（起動をブロックしない）
+                    Task.detached(priority: .utility) {
+                        await Self.logModelCounts(container: success.container)
+                    }
+                    // 完了済み ProcessingJob をクリーンアップ
+                    Task { @MainActor in
+                        let context = ModelContext(success.container)
+                        ProcessingJob.cleanupCompletedJobs(in: context)
+                    }
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
                 }
@@ -272,7 +318,7 @@ struct MemoraApp: App {
             }
         case .timedOut:
             loadTask.cancel()
-            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（5秒）", level: .warning)
+            DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（\(storeExists ? "8秒" : "15秒")）", level: .warning)
             DebugLogger.shared.addLog("ModelContainer", "永続ストアを諦めて一時ストアへフォールバックします", level: .warning)
             DebugLogger.shared.markLaunchStep("タイムアウト → 一時ストアフォールバック開始")
 
@@ -286,6 +332,7 @@ struct MemoraApp: App {
                 await MainActor.run {
                     self.modelContainer = fallbackContainer
                     self.isUsingTemporaryStore = true
+                    self.temporaryStoreReason = "初期化タイムアウトのため一時モードに切り替わりました"
                     self.canResetPersistentStore = true
                     self.errorMessage = nil
                     self.isLoading = false
@@ -306,17 +353,45 @@ struct MemoraApp: App {
     }
 
     nonisolated private static func createModelContainer(resetStore: Bool = false, inMemoryOnly: Bool = false) throws -> ModelContainer {
+        let containerStart = ContinuousClock.now
+
         let configuration: ModelConfiguration
         if inMemoryOnly {
             configuration = ModelConfiguration(isStoredInMemoryOnly: true, allowsSave: true, cloudKitDatabase: .none)
+            DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了（インメモリ）")
         } else {
             let storeURL = try persistentStoreURL()
+            let storeCheckStart = ContinuousClock.now
+
+            // ストア情報を記録
+            DebugLogger.shared.logStoreInfo(url: storeURL)
+
+            let storeCheckElapsed = storeCheckStart.duration(to: ContinuousClock.now)
+            let storeCheckMs = Double(storeCheckElapsed.components.seconds) * 1000.0
+                + Double(storeCheckElapsed.components.attoseconds) / 1_000_000_000_000.0
+            DebugLogger.shared.addLog("ModelContainer", "ストア情報確認 (\(String(format: "%.0f", storeCheckMs))ms)", level: .info)
+
             if resetStore {
                 try removePersistentStore(at: storeURL)
+                DebugLogger.shared.addLog("ModelContainer", "既存ストアを削除して再作成", level: .warning)
             }
             configuration = ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
+            DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了（永続）")
         }
-        return try ModelContainer(for: schema, configurations: [configuration])
+
+        let modelContainerStart = ContinuousClock.now
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let modelContainerElapsed = modelContainerStart.duration(to: ContinuousClock.now)
+        let modelContainerMs = Double(modelContainerElapsed.components.seconds) * 1000.0
+            + Double(modelContainerElapsed.components.attoseconds) / 1_000_000_000.0
+        DebugLogger.shared.addLog("ModelContainer", "ModelContainer 生成 (\(String(format: "%.0f", modelContainerMs))ms)", level: .info)
+
+        let totalElapsed = containerStart.duration(to: ContinuousClock.now)
+        let totalMs = Double(totalElapsed.components.seconds) * 1000.0
+            + Double(totalElapsed.components.attoseconds) / 1_000_000_000.0
+        DebugLogger.shared.addLog("ModelContainer", "createModelContainer 総計 (\(String(format: "%.0f", totalMs))ms)", level: .info)
+
+        return container
     }
 
     nonisolated private static func persistentStoreURL() throws -> URL {
@@ -373,5 +448,39 @@ struct MemoraApp: App {
             group.cancelAll()
             return firstOutcome
         }
+    }
+
+    /// モデル数を計測してログに出力する
+    private static func logModelCounts(container: ModelContainer) async {
+        let countStart = ContinuousClock.now
+
+        let context = ModelContext(container)
+        let counts: [(String, Int)] = [
+            ("AudioFile", (try? context.fetchCount(FetchDescriptor<AudioFile>())) ?? 0),
+            ("Transcript", (try? context.fetchCount(FetchDescriptor<Transcript>())) ?? 0),
+            ("Project", (try? context.fetchCount(FetchDescriptor<Project>())) ?? 0),
+            ("MeetingNote", (try? context.fetchCount(FetchDescriptor<MeetingNote>())) ?? 0),
+            ("MeetingMemo", (try? context.fetchCount(FetchDescriptor<MeetingMemo>())) ?? 0),
+            ("PhotoAttachment", (try? context.fetchCount(FetchDescriptor<PhotoAttachment>())) ?? 0),
+            ("KnowledgeChunk", (try? context.fetchCount(FetchDescriptor<KnowledgeChunk>())) ?? 0),
+            ("AskAISession", (try? context.fetchCount(FetchDescriptor<AskAISession>())) ?? 0),
+            ("AskAIMessage", (try? context.fetchCount(FetchDescriptor<AskAIMessage>())) ?? 0),
+            ("MemoryProfile", (try? context.fetchCount(FetchDescriptor<MemoryProfile>())) ?? 0),
+            ("MemoryFact", (try? context.fetchCount(FetchDescriptor<MemoryFact>())) ?? 0),
+            ("TodoItem", (try? context.fetchCount(FetchDescriptor<TodoItem>())) ?? 0),
+            ("ProcessingJob", (try? context.fetchCount(FetchDescriptor<ProcessingJob>())) ?? 0)
+        ]
+
+        let countElapsed = countStart.duration(to: ContinuousClock.now)
+        let countMs = Double(countElapsed.components.seconds) * 1000.0
+            + Double(countElapsed.components.attoseconds) / 1_000_000_000.0
+
+        var countInfo = "モデル数計測 (\(String(format: "%.0f", countMs))ms): "
+        countInfo += counts.map { "\($0.0)=\($0.1)" }.joined(separator: ", ")
+        DebugLogger.shared.addLog("ModelContainer", countInfo, level: .info)
+
+        // トータルレコード数
+        let totalRecords = counts.reduce(0) { $0 + $1.1 }
+        DebugLogger.shared.addLog("ModelContainer", "総レコード数: \(totalRecords)", level: .info)
     }
 }

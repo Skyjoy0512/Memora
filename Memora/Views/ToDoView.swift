@@ -526,9 +526,6 @@ private struct TaskBreakdownSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
 
     let parentTitle: String
     let parentNotes: String
@@ -568,11 +565,13 @@ private struct TaskBreakdownSheet: View {
     private var currentAPIKey: String {
         switch currentProvider {
         case .openai:
-            return apiKeyOpenAI.trimmingCharacters(in: .whitespacesAndNewlines)
+            return KeychainService.load(key: .apiKeyOpenAI).trimmingCharacters(in: .whitespacesAndNewlines)
         case .gemini:
-            return apiKeyGemini.trimmingCharacters(in: .whitespacesAndNewlines)
+            return KeychainService.load(key: .apiKeyGemini).trimmingCharacters(in: .whitespacesAndNewlines)
         case .deepseek:
-            return apiKeyDeepSeek.trimmingCharacters(in: .whitespacesAndNewlines)
+            return KeychainService.load(key: .apiKeyDeepSeek).trimmingCharacters(in: .whitespacesAndNewlines)
+        case .local:
+            return ""
         }
     }
 

@@ -5,12 +5,11 @@ struct AskAIView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
-    @AppStorage("apiKey_openai") private var apiKeyOpenAI = ""
-    @AppStorage("apiKey_gemini") private var apiKeyGemini = ""
-    @AppStorage("apiKey_deepseek") private var apiKeyDeepSeek = ""
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = "standard"
 
     let scope: ChatScope
+
+    @State private var queryService: KnowledgeQueryService?
 
     @State private var activeScope: ChatScope
     @State private var availableScopes: [AskAIScopeOption] = []
@@ -34,11 +33,13 @@ struct AskAIView: View {
     private var currentAPIKey: String {
         switch currentProvider {
         case .openai:
-            return apiKeyOpenAI
+            return KeychainService.load(key: .apiKeyOpenAI)
         case .gemini:
-            return apiKeyGemini
+            return KeychainService.load(key: .apiKeyGemini)
         case .deepseek:
-            return apiKeyDeepSeek
+            return KeychainService.load(key: .apiKeyDeepSeek)
+        case .local:
+            return "" // Local プロバイダーは API キー不要
         }
     }
 
@@ -90,6 +91,7 @@ struct AskAIView: View {
             }
         }
         .task {
+            queryService = KnowledgeQueryService(modelContext: modelContext, memoryPrivacyMode: memoryPrivacyMode)
             reloadScopeOptions()
             reloadForActiveScope()
         }
@@ -294,7 +296,7 @@ struct AskAIView: View {
     private var thinkingIndicator: some View {
         if isLoading {
             HStack(spacing: MemoraSpacing.sm) {
-                Text("Thinking...")
+                Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
                     .font(MemoraTypography.body)
                     .foregroundStyle(MemoraColor.textSecondary)
                 ThinkingDots()
@@ -351,7 +353,11 @@ struct AskAIView: View {
     }
 
     private func reloadForActiveScope() {
-        sourceBadges = buildContextPack(for: activeScope).sourceBadges
+        if let qs = queryService {
+            sourceBadges = qs.buildContext(for: activeScope).sourceBadges.map {
+                AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)
+            }
+        }
         let scopedSessions = fetchSessions(for: activeScope)
         sessions = scopedSessions
 
@@ -402,10 +408,22 @@ struct AskAIView: View {
 
     @MainActor
     private func generateAIResponse(for userMessage: String, session: AskAISession) async {
-        let service = AIService()
-        service.setProvider(currentProvider)
+        guard let qs = queryService else {
+            let message = AskAIConversationMessage(
+                id: UUID(),
+                role: .assistant,
+                content: "サービスが初期化されていません。画面を開き直してください。",
+                citations: [],
+                createdAt: Date()
+            )
+            isLoading = false
+            messages.append(message)
+            persistMessage(message, sessionID: session.id)
+            return
+        }
 
-        do {
+        // Local プロバイダー以外では API キーをチェック
+        if currentProvider != .local {
             let apiKey = currentAPIKey
             guard !apiKey.isEmpty else {
                 let message = AskAIConversationMessage(
@@ -420,20 +438,53 @@ struct AskAIView: View {
                 persistMessage(message, sessionID: session.id)
                 return
             }
+        } else if !LocalLLMProvider.isAvailable && !Gemma4ExperimentalProvider.isReady {
+            let message = AskAIConversationMessage(
+                id: UUID(),
+                role: .assistant,
+                content: "この端末では On-Device AI が利用できません。設定画面からプロバイダーを変更してください。",
+                citations: [],
+                createdAt: Date()
+            )
+            isLoading = false
+            messages.append(message)
+            persistMessage(message, sessionID: session.id)
+            return
+        }
 
-            try await service.configure(apiKey: apiKey)
+        let service = AIService()
+        service.setProvider(currentProvider)
 
-            let contextPack = buildContextPack(for: activeScope)
-            sourceBadges = contextPack.sourceBadges
+        do {
+            // Local プロバイダーは空文字列で configure する
+            try await service.configure(apiKey: currentAPIKey)
 
-            let prompt = makePrompt(userMessage: userMessage, contextPack: contextPack)
-            let result = try await service.summarize(transcript: prompt)
-            let responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let contextPack = qs.buildContext(for: activeScope, query: userMessage)
+
+            sourceBadges = contextPack.sourceBadges.map {
+                AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)
+            }
+
+            let prompt = qs.makePrompt(userMessage: userMessage, contextPack: contextPack)
+
+            let responseText: String
+            if currentProvider == .local {
+                // Local プロバイダーは generate を直接使用（構造化出力ではなく自由テキスト）
+                responseText = try await service.generate(prompt)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                let result = try await service.summarize(transcript: prompt)
+                responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let citations = Array(contextPack.citations.map {
+                AskAICitation(id: $0.id, title: $0.title, sourceLabel: $0.sourceLabel, excerpt: $0.excerpt)
+            }.prefix(4))
+
             let assistantMessage = AskAIConversationMessage(
                 id: UUID(),
                 role: .assistant,
                 content: responseText.isEmpty ? "回答を生成できませんでした。" : responseText,
-                citations: Array(contextPack.citations.prefix(4)),
+                citations: citations,
                 createdAt: Date()
             )
 
@@ -509,7 +560,11 @@ struct AskAIView: View {
                     createdAt: $0.createdAt
                 )
             }
-        sourceBadges = buildContextPack(for: activeScope).sourceBadges
+        if let qs = queryService {
+            sourceBadges = qs.buildContext(for: activeScope).sourceBadges.map {
+                AskAISourceBadge(id: $0.id, label: $0.label, systemImage: $0.systemImage)
+            }
+        }
         infoMessage = nil
     }
 
@@ -526,304 +581,6 @@ struct AskAIView: View {
         return loaded.filter { session in
             session.scopeType == scopeType(for: scope) && session.scopeID == scopeID(for: scope)
         }
-    }
-
-    private func buildContextPack(for scope: ChatScope) -> AskAIContextPack {
-        switch scope {
-        case .file(let fileId):
-            return buildFileContext(fileID: fileId)
-        case .project(let projectId):
-            return buildProjectContext(projectID: projectId)
-        case .global:
-            return buildGlobalContext()
-        }
-    }
-
-    private func buildFileContext(fileID: UUID) -> AskAIContextPack {
-        guard let file = fetchAudioFile(id: fileID) else {
-            return AskAIContextPack(
-                scopeTitle: "このファイル",
-                promptContext: "",
-                sourceBadges: [],
-                citations: [],
-                instructionHints: memoryInstructionHints()
-            )
-        }
-
-        let transcript = fetchTranscript(for: file.id)?.text
-        let memo = fetchMeetingMemo(for: file.id)?.plainTextCache
-        let sources: [AskAIContextSource] = memoryContextSources() + [
-            makeContextSource(
-                type: "transcript",
-                title: "\(file.title) / Transcript",
-                body: transcript,
-                systemImage: "text.alignleft",
-                shortLabel: "Transcript"
-            ),
-            makeContextSource(
-                type: "summary",
-                title: "\(file.title) / Summary",
-                body: file.summary,
-                systemImage: "text.quote",
-                shortLabel: "Summary"
-            ),
-            makeContextSource(
-                type: "memo",
-                title: "\(file.title) / Memo",
-                body: memo,
-                systemImage: "square.and.pencil",
-                shortLabel: "Memo"
-            ),
-            makeContextSource(
-                type: "reference",
-                title: "\(file.title) / Plaud",
-                body: file.referenceTranscript,
-                systemImage: "doc.text",
-                shortLabel: "Plaud"
-            )
-        ].compactMap { $0 }
-
-        return makeContextPack(scopeTitle: file.title, sources: sources)
-    }
-
-    private func buildProjectContext(projectID: UUID) -> AskAIContextPack {
-        let project = fetchProject(id: projectID)
-        let files = fetchAudioFiles(projectID: projectID).prefix(4)
-        let todos = fetchTodos(projectID: projectID).prefix(4)
-
-        var sources: [AskAIContextSource] = memoryContextSources()
-
-        for file in files {
-            if let summary = file.summary, !summary.isEmpty {
-                sources.append(
-                    AskAIContextSource(
-                        type: "summary",
-                        title: "\(file.title) / Summary",
-                        body: summary,
-                        systemImage: "text.quote",
-                        shortLabel: "Summary"
-                    )
-                )
-            } else if let transcript = fetchTranscript(for: file.id)?.text, !transcript.isEmpty {
-                sources.append(
-                    AskAIContextSource(
-                        type: "transcript",
-                        title: "\(file.title) / Transcript",
-                        body: transcript,
-                        systemImage: "text.alignleft",
-                        shortLabel: "Transcript"
-                    )
-                )
-            }
-
-            if let memo = fetchMeetingMemo(for: file.id)?.plainTextCache, !memo.isEmpty {
-                sources.append(
-                    AskAIContextSource(
-                        type: "memo",
-                        title: "\(file.title) / Memo",
-                        body: memo,
-                        systemImage: "square.and.pencil",
-                        shortLabel: "Memo"
-                    )
-                )
-            }
-        }
-
-        if !todos.isEmpty {
-            let todoText = todos.map { "• \($0.title)" }.joined(separator: "\n")
-            sources.append(
-                AskAIContextSource(
-                    type: "todo",
-                    title: "\(project?.title ?? "Project") / Todo",
-                    body: todoText,
-                    systemImage: "checklist",
-                    shortLabel: "Todo"
-                )
-            )
-        }
-
-        return makeContextPack(scopeTitle: project?.title ?? "このプロジェクト", sources: Array(sources.prefix(6)))
-    }
-
-    private func buildGlobalContext() -> AskAIContextPack {
-        let files = fetchRecentAudioFiles(limit: 5)
-        let todos = fetchTodos(projectID: nil).filter { !$0.isCompleted }.prefix(5)
-
-        var sources: [AskAIContextSource] = memoryContextSources()
-
-        for file in files {
-            if let summary = file.summary, !summary.isEmpty {
-                sources.append(
-                    AskAIContextSource(
-                        type: "summary",
-                        title: "\(file.title) / Summary",
-                        body: summary,
-                        systemImage: "text.quote",
-                        shortLabel: "Summary"
-                    )
-                )
-            } else if let transcript = fetchTranscript(for: file.id)?.text, !transcript.isEmpty {
-                sources.append(
-                    AskAIContextSource(
-                        type: "transcript",
-                        title: "\(file.title) / Transcript",
-                        body: transcript,
-                        systemImage: "text.alignleft",
-                        shortLabel: "Transcript"
-                    )
-                )
-            }
-        }
-
-        if !todos.isEmpty {
-            let todoText = todos.map { "• \($0.title)" }.joined(separator: "\n")
-            sources.append(
-                AskAIContextSource(
-                    type: "todo",
-                    title: "Global / Todo",
-                    body: todoText,
-                    systemImage: "checklist",
-                    shortLabel: "Todo"
-                )
-            )
-        }
-
-        return makeContextPack(scopeTitle: "Memora 全体", sources: Array(sources.prefix(6)))
-    }
-
-    private func makeContextPack(scopeTitle: String, sources: [AskAIContextSource]) -> AskAIContextPack {
-        let limitedSources = sources.prefix(6)
-        let promptContext = limitedSources.map { source in
-            "[\(source.title)]\n\(truncate(source.body, limit: 900))"
-        }.joined(separator: "\n\n")
-
-        let badges = uniqueBadges(from: limitedSources.map {
-            AskAISourceBadge(id: $0.type, label: $0.shortLabel, systemImage: $0.systemImage)
-        })
-
-        let citations = limitedSources.map { source in
-            AskAICitation(
-                id: source.title,
-                title: source.title,
-                sourceLabel: source.shortLabel,
-                excerpt: truncate(source.body, limit: 120)
-            )
-        }
-
-        return AskAIContextPack(
-            scopeTitle: scopeTitle,
-            promptContext: promptContext,
-            sourceBadges: badges,
-            citations: citations,
-            instructionHints: memoryInstructionHints()
-        )
-    }
-
-    private func makePrompt(userMessage: String, contextPack: AskAIContextPack) -> String {
-        let contextBlock = contextPack.promptContext.isEmpty
-            ? "コンテキストはまだありません。一般的な回答ではなく、分からない場合は分からないと答えてください。"
-            : contextPack.promptContext
-        let instructionBlock = contextPack.instructionHints.isEmpty
-            ? ""
-            : "\n追加指示:\n" + contextPack.instructionHints.map { "- \($0)" }.joined(separator: "\n")
-
-        return """
-あなたは Memora の Ask AI アシスタントです。
-必ず日本語で簡潔に答えてください。
-与えられたコンテキストに根拠がある内容だけを優先し、断定できない点は推測だと明示してください。
-\(instructionBlock)
-
-スコープ:
-\(contextPack.scopeTitle)
-
-コンテキスト:
-\(contextBlock)
-
-質問:
-\(userMessage)
-"""
-    }
-
-    private func memoryContextSources() -> [AskAIContextSource] {
-        guard currentMemoryMode != .off else { return [] }
-
-        var sources: [AskAIContextSource] = []
-
-        if let profileSource = makeProfileMemorySource() {
-            sources.append(profileSource)
-        }
-
-        if let factsSource = makeFactsMemorySource() {
-            sources.append(factsSource)
-        }
-
-        return sources
-    }
-
-    private func memoryInstructionHints() -> [String] {
-        guard currentMemoryMode != .off else {
-            return ["memory 設定が完全オフのため、保存済み memory を参照しないでください。"]
-        }
-
-        var hints: [String] = []
-        if currentMemoryMode == .paused {
-            hints.append("新規 memory 保存は停止中ですが、既存の承認済み memory は回答方針に使えます。")
-        }
-        if let preferredLanguage = fetchPrimaryMemoryProfile()?.preferredLanguage,
-           !preferredLanguage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            hints.append("preferred language: \(preferredLanguage)")
-        }
-        if let summaryStyle = fetchPrimaryMemoryProfile()?.summaryStyle,
-           !summaryStyle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            hints.append("summary style: \(summaryStyle)")
-        }
-        if let roleLabel = fetchPrimaryMemoryProfile()?.roleLabel,
-           !roleLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            hints.append("user role: \(roleLabel)")
-        }
-        return hints
-    }
-
-    private func makeProfileMemorySource() -> AskAIContextSource? {
-        guard let profile = fetchPrimaryMemoryProfile() else { return nil }
-
-        let entries = [
-            labeledMemoryLine("summaryStyle", value: profile.summaryStyle),
-            labeledMemoryLine("preferredLanguage", value: profile.preferredLanguage),
-            labeledMemoryLine("roleLabel", value: profile.roleLabel),
-            labeledMemoryLine("glossary", value: profile.glossaryJSON)
-        ].compactMap { $0 }
-
-        guard !entries.isEmpty else { return nil }
-
-        return AskAIContextSource(
-            type: "memory-profile",
-            title: "Approved Memory / Profile",
-            body: entries.joined(separator: "\n"),
-            systemImage: "brain.head.profile",
-            shortLabel: "Memory"
-        )
-    }
-
-    private func makeFactsMemorySource() -> AskAIContextSource? {
-        let activeFacts = fetchActiveMemoryFacts()
-        guard !activeFacts.isEmpty else { return nil }
-
-        let body = activeFacts
-            .prefix(6)
-            .map { fact in
-                let confidence = Int(fact.confidence * 100)
-                return "\(fact.key): \(fact.value) (\(fact.source), \(confidence)%)"
-            }
-            .joined(separator: "\n")
-
-        return AskAIContextSource(
-            type: "memory-facts",
-            title: "Approved Memory / Facts",
-            body: body,
-            systemImage: "brain",
-            shortLabel: "Memory"
-        )
     }
 
     private func makeAvailableScopes(from initialScope: ChatScope) -> [AskAIScopeOption] {
@@ -857,109 +614,9 @@ struct AskAIView: View {
         return (try? modelContext.fetch(descriptor))?.first(where: { $0.id == id })
     }
 
-    private func fetchAudioFiles(projectID: UUID) -> [AudioFile] {
-        let descriptor = FetchDescriptor<AudioFile>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        return ((try? modelContext.fetch(descriptor)) ?? []).filter { $0.projectID == projectID }
-    }
-
-    private func fetchRecentAudioFiles(limit: Int) -> [AudioFile] {
-        let descriptor = FetchDescriptor<AudioFile>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        return Array(((try? modelContext.fetch(descriptor)) ?? []).prefix(limit))
-    }
-
     private func fetchProject(id: UUID) -> Project? {
         let descriptor = FetchDescriptor<Project>()
         return (try? modelContext.fetch(descriptor))?.first(where: { $0.id == id })
-    }
-
-    private func fetchTranscript(for fileID: UUID) -> Transcript? {
-        let descriptor = FetchDescriptor<Transcript>()
-        return (try? modelContext.fetch(descriptor))?.first(where: { $0.audioFileID == fileID })
-    }
-
-    private func fetchMeetingMemo(for fileID: UUID) -> MeetingMemo? {
-        let descriptor = FetchDescriptor<MeetingMemo>()
-        return (try? modelContext.fetch(descriptor))?.first(where: { $0.audioFileID == fileID })
-    }
-
-    private func fetchTodos(projectID: UUID?) -> [TodoItem] {
-        let descriptor = FetchDescriptor<TodoItem>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        let todos = (try? modelContext.fetch(descriptor)) ?? []
-        if let projectID {
-            return todos.filter { $0.projectID == projectID }
-        }
-        return todos
-    }
-
-    private var currentMemoryMode: AskAIMemoryPrivacyMode {
-        AskAIMemoryPrivacyMode(rawValue: memoryPrivacyMode) ?? .standard
-    }
-
-    private func fetchPrimaryMemoryProfile() -> MemoryProfile? {
-        let descriptor = FetchDescriptor<MemoryProfile>(
-            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
-        )
-        return (try? modelContext.fetch(descriptor))?.first
-    }
-
-    private func fetchActiveMemoryFacts() -> [MemoryFact] {
-        guard currentMemoryMode != .off else { return [] }
-
-        let disabledIDs = Set(
-            (UserDefaults.standard.stringArray(forKey: "disabledMemoryFactIDs") ?? [])
-                .compactMap(UUID.init(uuidString:))
-        )
-        let descriptor = FetchDescriptor<MemoryFact>(
-            sortBy: [SortDescriptor(\.confidence, order: .reverse)]
-        )
-
-        return ((try? modelContext.fetch(descriptor)) ?? []).filter { !disabledIDs.contains($0.id) }
-    }
-
-    private func labeledMemoryLine(_ key: String, value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return "\(key): \(trimmed)"
-    }
-
-    private func makeContextSource(
-        type: String,
-        title: String,
-        body: String?,
-        systemImage: String,
-        shortLabel: String
-    ) -> AskAIContextSource? {
-        guard let body else { return nil }
-        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return AskAIContextSource(
-            type: type,
-            title: title,
-            body: trimmed,
-            systemImage: systemImage,
-            shortLabel: shortLabel
-        )
-    }
-
-    private func uniqueBadges(from badges: [AskAISourceBadge]) -> [AskAISourceBadge] {
-        var seen: Set<String> = []
-        return badges.filter { badge in
-            seen.insert(badge.id).inserted
-        }
-    }
-
-    private func truncate(_ text: String, limit: Int) -> String {
-        if text.count <= limit {
-            return text
-        }
-        return String(text.prefix(limit)) + "…"
     }
 
     private func makeSessionTitle(from text: String) -> String {
@@ -1123,24 +780,3 @@ private struct AskAISourceBadge: Hashable, Identifiable {
     let systemImage: String
 }
 
-private struct AskAIContextSource {
-    let type: String
-    let title: String
-    let body: String
-    let systemImage: String
-    let shortLabel: String
-}
-
-private struct AskAIContextPack {
-    let scopeTitle: String
-    let promptContext: String
-    let sourceBadges: [AskAISourceBadge]
-    let citations: [AskAICitation]
-    let instructionHints: [String]
-}
-
-private enum AskAIMemoryPrivacyMode: String {
-    case standard
-    case paused
-    case off
-}

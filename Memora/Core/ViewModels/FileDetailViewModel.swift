@@ -30,9 +30,18 @@ final class FileDetailViewModel {
     var photoAttachments: [PhotoAttachment] = []
     var isImportingPhotos = false
 
+    // MARK: - Title Editing
+    var isEditingTitle = false
+    var titleDraft = ""
+
+    // MARK: - Transcript Editing
+    var isEditingTranscript = false
+    var transcriptDraft = ""
+
     // MARK: - Alerts
     var errorMessage: String?
     var showErrorAlert = false
+    var recoveryAction: String?
     var successMessage: String?
     var showSuccessAlert = false
 
@@ -148,6 +157,20 @@ final class FileDetailViewModel {
         playbackPosition = time
         if audioDuration > 0 {
             audioPlayer.seek(to: time)
+        }
+    }
+
+    func seekToTime(_ time: TimeInterval) {
+        seek(to: time)
+        if !isPlaying, let url = audioURL {
+            do {
+                try audioPlayer.play(url: url)
+                isPlaying = true
+                startPlaybackTimer()
+            } catch {
+                errorMessage = "再生に失敗しました: \(error.localizedDescription)"
+                showErrorAlert = true
+            }
         }
     }
 
@@ -322,8 +345,9 @@ final class FileDetailViewModel {
 
     func cleanup() {
         persistPendingMemoIfNeeded()
-        pipelineObservationTask?.cancel()
-        pipelineObservationTask = nil
+        // pipelineObservationTask はキャンセルしない。
+        // タブ切替・アプリ切替で文字起こしが継続するようにする。
+        // 進捗は isTranscribing フラグで保持され、画面に戻った時に反映される。
         stopPlayback()
         stopProgressTracking()
     }
@@ -362,6 +386,61 @@ final class FileDetailViewModel {
             modelContext.insert(child)
         }
         try? modelContext.save()
+    }
+
+    // MARK: - Title Editing
+
+    func beginEditTitle() {
+        titleDraft = audioFile.title
+        isEditingTitle = true
+    }
+
+    func saveTitle() {
+        let trimmed = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { isEditingTitle = false; return }
+        audioFile.title = trimmed
+        try? modelContext.save()
+        isEditingTitle = false
+    }
+
+    func cancelEditTitle() {
+        isEditingTitle = false
+    }
+
+    // MARK: - Transcript Editing
+
+    func beginEditTranscript() {
+        transcriptDraft = transcriptResult?.text ?? ""
+        isEditingTranscript = true
+    }
+
+    func saveTranscriptEdit() {
+        let trimmed = transcriptDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { isEditingTranscript = false; return }
+
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<Transcript>(
+            predicate: #Predicate { $0.audioFileID == targetID }
+        )
+        descriptor.fetchLimit = 1
+        if let transcript = try? modelContext.fetch(descriptor).first {
+            transcript.text = trimmed
+            try? modelContext.save()
+        }
+
+        // UI に即時反映
+        if let result = transcriptResult {
+            transcriptResult = TranscriptResult(
+                text: trimmed,
+                segments: result.segments,
+                duration: result.duration
+            )
+        }
+        isEditingTranscript = false
+    }
+
+    func cancelEditTranscript() {
+        isEditingTranscript = false
     }
 
     // MARK: - Memo
@@ -717,6 +796,10 @@ final class FileDetailViewModel {
     }
 
     private func userFacingTranscriptionErrorMessage(for error: Error) -> String {
+        // 診断ログから失敗分類を取得
+        let category = STTFailureCategory.classifyLastFailure()
+        recoveryAction = category?.recoveryAction
+
         if let timeoutError = error as? OnDeviceTranscriptionTimeoutError {
             return timeoutError.localizedDescription
         }
@@ -725,6 +808,11 @@ final class FileDetailViewModel {
            case let .transcriptionFailed(message) = transcriptionError,
            message == OnDeviceTranscriptionTimeoutError.message {
             return message
+        }
+
+        // 分類されたカテゴリがあればそちらのタイトルを使う
+        if let category, category != .other {
+            return category.localizedTitle
         }
 
         return "文字起こしエラー: \(error.localizedDescription)"

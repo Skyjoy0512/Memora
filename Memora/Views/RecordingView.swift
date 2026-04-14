@@ -12,6 +12,8 @@ struct RecordingView: View {
     @State private var timer: Timer?
     @State private var selectedProject: Project?
     @State private var showProjectPicker = false
+    @State private var suggestedEventTitle: String?
+    @State private var useEventTitle = false
 
     // プロジェクト一覧
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
@@ -52,6 +54,33 @@ struct RecordingView: View {
             .padding(.top, 8)
 
             Divider()
+
+            // カレンダーイベント提案
+            if let eventTitle = suggestedEventTitle {
+                Button {
+                    useEventTitle.toggle()
+                } label: {
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Image(systemName: useEventTitle ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(useEventTitle ? MemoraColor.accentBlue : MemoraColor.textSecondary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("カレンダーから提案")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(MemoraColor.textSecondary)
+                            Text(eventTitle)
+                                .font(MemoraTypography.subheadline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                    }
+                    .padding(MemoraSpacing.sm)
+                    .background(MemoraColor.accentBlue.opacity(useEventTitle ? 0.1 : 0.05))
+                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+                }
+                .padding(.horizontal)
+                .padding(.top, 4)
+            }
 
             VStack(spacing: 21) {
                 Spacer()
@@ -126,6 +155,7 @@ struct RecordingView: View {
             if selectedProject == nil {
                 selectedProject = initialProject
             }
+            suggestCalendarEvent()
         }
         .onDisappear {
             stopTimer()
@@ -209,9 +239,30 @@ struct RecordingView: View {
     }
 
     private func formatRecordingTitle() -> String {
+        if useEventTitle, let eventTitle = suggestedEventTitle {
+            return eventTitle
+        }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
         return "録音 \(formatter.string(from: Date()))"
+    }
+
+    private func suggestCalendarEvent() {
+        let service = CalendarService()
+        guard service.isAuthorized else { return }
+
+        let today = Date()
+        let events = service.fetchEvents(for: today)
+        let now = Date()
+
+        // 現在時刻と重なるイベントを探す
+        let ongoing = events.filter { event in
+            event.startDate <= now && event.endDate > now
+        }.sorted { $0.startDate < $1.startDate }
+
+        if let event = ongoing.first {
+            suggestedEventTitle = event.title
+        }
     }
 }
 

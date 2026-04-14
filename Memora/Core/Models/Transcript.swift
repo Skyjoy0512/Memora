@@ -5,6 +5,7 @@ import SwiftData
 final class Transcript {
     var id: UUID
     var audioFileID: UUID
+    var audioFile: AudioFile?
     var text: String
     var createdAt: Date
     var speakerLabels: [String] = []

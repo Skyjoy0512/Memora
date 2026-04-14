@@ -15,7 +15,7 @@ private protocol TranscriptionEngineProtocol: Sendable {
     ) async throws
 
     func transcribe(audioURL: URL) async throws -> TranscriptResult
-    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult
+    func transcribe(audioURL: URL, language: String?, referenceSpeakerCount: Int?) async throws -> TranscriptResult
     func cancelActiveTranscription() async
 }
 
@@ -25,6 +25,9 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
     @Published var progress = 0.0
 
     private let sttService: STTServiceProtocol = STTService()
+
+    /// progress 更新の最小差分。これ未満の変動は SwiftUI 再描画をスキップする。
+    private static let progressThreshold: Double = 0.005
 
     func configure(
         apiKey: String,
@@ -46,10 +49,13 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         try await transcribe(audioURL: audioURL, language: nil)
     }
 
-    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult {
+    func transcribe(audioURL: URL, language: String?, referenceSpeakerCount: Int? = nil) async throws -> TranscriptResult {
         DebugLogger.shared.addLog("TranscriptionEngine", "transcribe 開始 — url: \(audioURL.path)", level: .info)
         isTranscribing = true
         progress = 0
+
+        // Plaud 等の参照データから抽出した話者数ヒントを STTService に伝播
+        (sttService as? STTService)?.referenceSpeakerCount = referenceSpeakerCount
 
         defer {
             isTranscribing = false
@@ -57,48 +63,59 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         }
 
         DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 呼び出し", level: .info)
-        let (_, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
-        DebugLogger.shared.addLog("TranscriptionEngine", "sttService.startTranscription 戻り — イベント待機", level: .info)
+        let (rawHandle, events) = try await sttService.startTranscription(audioURL: audioURL, language: language)
+        guard let handle = rawHandle as? STTTaskHandle else {
+            throw CoreError.transcriptionError(.transcriptionFailed("Invalid task handle type"))
+        }
+        DebugLogger.shared.addLog("TranscriptionEngine", "startTranscription 戻り — handle.taskId: \(handle.taskId), progress 監視開始", level: .info)
 
-        let finalResult = try await withTaskCancellationHandler {
-            var finalResult: TranscriptionResult?
-
+        // イベントストリームは progress 更新のみに使用。
+        // 最終結果は handle.result() から直接取得する。
+        // これによりイベントストリームの早期終了（MainActor 競合等）に影響されない。
+        let progressTask = Task { @MainActor [weak self] in
             for await event in events {
+                guard let self else { return }
                 switch event {
                 case .transcriptionStarted:
-                    progress = max(progress, 0.02)
+                    self.updateProgress(max(self.progress, 0.02))
                 case .transcriptionProgress(_, let value):
-                    progress = value
-                case .transcriptionCompleted(_, let result):
-                    progress = 1.0
-                    finalResult = result
+                    self.updateProgress(value)
+                case .transcriptionCompleted:
+                    self.progress = 1.0
                 case .transcriptionFailed(_, let error):
-                    throw error
+                    DebugLogger.shared.addLog("TranscriptionEngine", "progress 監視: .transcriptionFailed — \(error.localizedDescription)", level: .warning)
                 case .transcriptionCancelled:
-                    throw CancellationError()
-                case .transcriptionPartialResult,
-                     .audioChunkStarted,
-                     .audioChunkProgress,
-                     .audioChunkCompleted:
-                    continue
+                    DebugLogger.shared.addLog("TranscriptionEngine", "progress 監視: .transcriptionCancelled", level: .warning)
+                case .transcriptionPartialResult, .audioChunkStarted, .audioChunkProgress, .audioChunkCompleted:
+                    break
                 }
             }
-
-            guard let finalResult else {
-                throw CoreError.transcriptionError(.transcriptionFailed("Transcription did not produce a result"))
-            }
-
-            return finalResult
-        } onCancel: {
-            Task {
-                await self.sttService.cancelAllTasks()
-            }
+            DebugLogger.shared.addLog("TranscriptionEngine", "progress 監視終了", level: .info)
         }
 
+        // handle.result() で直接結果を取得（イベントストリームに依存しない）
+        let result: TranscriptionResult
+        do {
+            result = try await handle.result()
+        } catch {
+            progressTask.cancel()
+            DebugLogger.shared.addLog("TranscriptionEngine", "handle.result() 失敗: \(error.localizedDescription)", level: .error)
+            throw error
+        }
+
+        progressTask.cancel()
+        DebugLogger.shared.addLog("TranscriptionEngine", "handle.result() 成功 — \(result.fullText.count)文字", level: .info)
+
         return TranscriptResult(
-            coreResult: finalResult,
+            coreResult: result,
             duration: await audioFileDuration(for: audioURL)
         )
+    }
+
+    /// threshold を超える変動のみ @Published に反映する。
+    private func updateProgress(_ value: Double) {
+        guard abs(value - progress) >= Self.progressThreshold else { return }
+        progress = value
     }
 
     func cancelActiveTranscription() async {
