@@ -35,7 +35,8 @@ struct MemoraApp: App {
         PlaudSettings.self,
         CalendarEventLink.self,
         GoogleMeetSettings.self,
-        NotionSettings.self
+        NotionSettings.self,
+        CustomSummaryTemplate.self
     ])
 
     var body: some Scene {

@@ -5,17 +5,19 @@ protocol SummarizationEngineProtocol {
     var isSummarizing: Bool { get }
     var progress: Double { get }
 
-    func summarize(transcript: String) async throws -> SummaryResult
-    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment]) async throws -> SummaryResult
+    func summarize(transcript: String, config: GenerationConfig) async throws -> SummaryResult
+    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: GenerationConfig) async throws -> SummaryResult
 }
 
 struct SummaryResult {
+    let suggestedTitle: String?
     let summary: String
     let keyPoints: [String]
     let actionItems: [String]
     let decisions: [String]?
 
-    init(summary: String, keyPoints: [String], actionItems: [String], decisions: [String]? = nil) {
+    init(suggestedTitle: String? = nil, summary: String, keyPoints: [String], actionItems: [String], decisions: [String]? = nil) {
+        self.suggestedTitle = suggestedTitle
         self.summary = summary
         self.keyPoints = keyPoints
         self.actionItems = actionItems
@@ -52,7 +54,7 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         self.aiService = service
     }
 
-    func summarize(transcript: String) async throws -> SummaryResult {
+    func summarize(transcript: String, config: GenerationConfig = GenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
@@ -65,12 +67,24 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         do {
             await MainActor.run { progress = 0.2 }
 
-            let (summary, keyPoints, actionItems) = try await service.summarize(transcript: transcript)
+            let title: String?
+            let summary: String
+            let keyPoints: [String]
+            let actionItems: [String]
+
+            if let customPrompt = config.customPrompt {
+                let prompt = Self.buildCustomPrompt(transcript: transcript, customPrompt: customPrompt)
+                let response = try await service.generate(prompt)
+                (title, summary, keyPoints, actionItems) = try Self.parseJSONResponse(response)
+            } else {
+                (title, summary, keyPoints, actionItems) = try await service.summarize(transcript: transcript)
+            }
 
             await MainActor.run { progress = 0.8 }
 
             // Try to extract decisions from summary context
             let result = SummaryResult(
+                suggestedTitle: title,
                 summary: summary,
                 keyPoints: keyPoints,
                 actionItems: actionItems
@@ -90,7 +104,7 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
         }
     }
 
-    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment]) async throws -> SummaryResult {
+    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: GenerationConfig = GenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
@@ -108,11 +122,23 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
 
             await MainActor.run { progress = 0.2 }
 
-            let (summary, keyPoints, actionItems) = try await service.summarize(transcript: annotatedTranscript)
+            let title: String?
+            let summary: String
+            let keyPoints: [String]
+            let actionItems: [String]
+
+            if let customPrompt = config.customPrompt {
+                let prompt = Self.buildCustomPrompt(transcript: annotatedTranscript, customPrompt: customPrompt)
+                let response = try await service.generate(prompt)
+                (title, summary, keyPoints, actionItems) = try Self.parseJSONResponse(response)
+            } else {
+                (title, summary, keyPoints, actionItems) = try await service.summarize(transcript: annotatedTranscript)
+            }
 
             await MainActor.run { progress = 0.8 }
 
             let result = SummaryResult(
+                suggestedTitle: title,
                 summary: summary,
                 keyPoints: keyPoints,
                 actionItems: actionItems
@@ -172,6 +198,52 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
     }
 
     // MARK: - Private Helpers
+
+    private static func buildCustomPrompt(transcript: String, customPrompt: String) -> String {
+        """
+        以下の transcript に基づいて、ユーザーの指示に従って出力してください。
+
+        ユーザーの指示: \(customPrompt)
+
+        出力は以下のJSON形式のみで返してください（Markdownコードブロックなし）：
+        {
+          "title": "内容を表す簡潔なタイトル（20字以内）",
+          "summary": "要約",
+          "keyPoints": ["ポイント1", "ポイント2"],
+          "actionItems": ["アクションアイテム1", "アクションアイテム2"]
+        }
+
+        Transcript:
+        \(transcript)
+        """
+    }
+
+    private static func parseJSONResponse(_ response: String) throws -> (title: String?, summary: String, keyPoints: [String], actionItems: [String]) {
+        var jsonString = response.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Strip markdown code fences if present
+        if jsonString.hasPrefix("```json") {
+            jsonString = String(jsonString.dropFirst(7))
+        } else if jsonString.hasPrefix("```") {
+            jsonString = String(jsonString.dropFirst(3))
+        }
+        if jsonString.hasSuffix("```") {
+            jsonString = String(jsonString.dropLast(3))
+        }
+        jsonString = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let data = jsonString.data(using: .utf8),
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let summary = json["summary"] as? String else {
+            throw AIError.invalidResponse
+        }
+
+        let title = json["title"] as? String
+        let keyPoints = json["keyPoints"] as? [String] ?? []
+        let actionItems = json["actionItems"] as? [String] ?? []
+
+        return (title, summary, keyPoints, actionItems)
+    }
 
     private func buildAnnotatedTranscript(transcript: String, segments: [SpeakerSegment]) -> String {
         guard !segments.isEmpty else { return transcript }

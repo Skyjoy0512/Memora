@@ -7,6 +7,7 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
+    @State private var shouldAutoTranscribe = false
     @Binding var pendingOpenedAudioFileID: UUID?
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @Query private var projects: [Project]
@@ -29,6 +30,10 @@ struct HomeView: View {
 
     // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
     @State private var cachedFilteredFiles: [AudioFile] = []
+    @State private var isRefreshing = false
+    @State private var isSelectMode = false
+    @State private var selectedFileIDs: Set<UUID> = []
+    @State private var showMoveToProjectSheet = false
 
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
@@ -71,37 +76,26 @@ struct HomeView: View {
                     fileListSection
                 }
             }
-            .searchable(text: $searchText, prompt: "ファイルを検索")
+            .searchable(text: $searchText, placement: .toolbar, prompt: "ファイルを検索")
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button {
-                            showRecordingView = true
-                        } label: {
-                            Label("録音", systemImage: "mic.fill")
+                ToolbarItem(placement: .topBarLeading) {
+                    if isSelectMode {
+                        Button("キャンセル") {
+                            isSelectMode = false
+                            selectedFileIDs.removeAll()
                         }
-
-                        Button {
-                            showFileImporter = true
-                        } label: {
-                            Label("インポート", systemImage: "square.and.arrow.down")
-                        }
-
-                        if googleSettingsList.first?.isTokenValid == true {
-                            Button {
-                                showGoogleMeetImport = true
-                            } label: {
-                                Label("Google Meet", systemImage: "video.fill")
-                            }
-                        }
-                    } label: {
-                        Label("追加", systemImage: "plus")
                     }
                 }
-
-                if hasActiveFilters {
+                ToolbarItem(placement: .primaryAction) {
+                    if isSelectMode {
+                        selectModeMenu
+                    } else {
+                        addMenu
+                    }
+                }
+                if hasActiveFilters && !isSelectMode {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("フィルタをクリア") {
                             clearFilters()
@@ -118,6 +112,7 @@ struct HomeView: View {
                 RecordingView { savedAudioFile in
                     viewModel.loadAudioFiles()
                     selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
+                    shouldAutoTranscribe = true
                 }
             }
             .sheet(isPresented: $showAskAI) {
@@ -130,7 +125,9 @@ struct HomeView: View {
                 )
             }
             .navigationDestination(item: $selectedAudioFile) { file in
-                FileDetailView(audioFile: file)
+                FileDetailView(audioFile: file, autoStartTranscription: shouldAutoTranscribe)
+                    .toolbar(.hidden, for: .tabBar)
+                    .onDisappear { shouldAutoTranscribe = false }
             }
             .fileImporter(
                 isPresented: $showFileImporter,
@@ -151,6 +148,9 @@ struct HomeView: View {
                 Button("OK", role: .cancel) { importErrorMessage = nil }
             } message: {
                 if let importErrorMessage { Text(importErrorMessage) }
+            }
+            .sheet(isPresented: $showMoveToProjectSheet) {
+                moveToProjectSheet
             }
             .onAppear {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
@@ -191,6 +191,58 @@ struct HomeView: View {
         )
     }
 
+    private var selectModeMenu: some View {
+        Menu {
+            Button {
+                if selectedFileIDs.count == filteredFiles.count {
+                    selectedFileIDs.removeAll()
+                } else {
+                    selectedFileIDs = Set(filteredFiles.map(\.id))
+                }
+            } label: {
+                if selectedFileIDs.count == filteredFiles.count {
+                    Label("全て解除", systemImage: "checkmark.circle")
+                } else {
+                    Label("全て選択", systemImage: "checkmark.circle.fill")
+                }
+            }
+        } label: {
+            Text("\(selectedFileIDs.count)")
+                .font(MemoraTypography.caption1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(MemoraColor.accentBlue)
+                .clipShape(Capsule())
+        }
+    }
+
+    private var addMenu: some View {
+        Menu {
+            Button {
+                showRecordingView = true
+            } label: {
+                Label("録音", systemImage: "mic.fill")
+            }
+
+            Button {
+                showFileImporter = true
+            } label: {
+                Label("インポート", systemImage: "square.and.arrow.down")
+            }
+
+            if googleSettingsList.first?.isTokenValid == true {
+                Button {
+                    showGoogleMeetImport = true
+                } label: {
+                    Label("Google Meet", systemImage: "video.fill")
+                }
+            }
+        } label: {
+            Label("追加", systemImage: "plus")
+        }
+    }
+
     // MARK: - Content Section
 
     private var projectLookup: [UUID: String] {
@@ -200,22 +252,71 @@ struct HomeView: View {
     }
 
     private var fileListSection: some View {
-        List {
+        List(selection: isSelectMode ? $selectedFileIDs : nil) {
             if hasActiveFilters {
                 activeFilterChips
             }
 
             ForEach(filteredFiles) { file in
                 let projectName = file.projectID.flatMap { projectLookup[$0] }
-                AudioFileRow(audioFile: file, projectName: projectName)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedAudioFile = file
-                    }
+                if isSelectMode {
+                    AudioFileRow(audioFile: file, projectName: projectName)
+                        .tag(file.id)
+                } else {
+                    AudioFileRow(audioFile: file, projectName: projectName)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedAudioFile = file
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                isSelectMode = true
+                                selectedFileIDs.insert(file.id)
+                            } label: {
+                                Label("選択", systemImage: "checkmark.circle")
+                            }
+                            .tint(.blue)
+                        }
+                }
             }
             .onDelete(perform: deleteAudioFiles)
         }
         .listStyle(.insetGrouped)
+        .environment(\.editMode, .constant(isSelectMode ? .active : .inactive))
+        .refreshable {
+            isRefreshing = true
+            viewModel.loadAudioFiles()
+            updateFilteredFiles()
+            isRefreshing = false
+        }
+        .overlay(alignment: .bottom) {
+            if isSelectMode && !selectedFileIDs.isEmpty {
+                selectModeToolbar
+            }
+        }
+    }
+
+    private var selectModeToolbar: some View {
+        HStack(spacing: MemoraSpacing.lg) {
+            Button {
+                showMoveToProjectSheet = true
+            } label: {
+                Label("プロジェクト移動", systemImage: "folder")
+                    .font(MemoraTypography.subheadline)
+            }
+
+            Spacer()
+
+            Button(role: .destructive) {
+                bulkDeleteSelected()
+            } label: {
+                Label("\(selectedFileIDs.count)件削除", systemImage: "trash")
+                    .font(MemoraTypography.subheadline)
+            }
+        }
+        .padding(.horizontal, MemoraSpacing.lg)
+        .padding(.vertical, MemoraSpacing.md)
+        .background(.regularMaterial)
     }
 
     private var hasActiveFilters: Bool {
@@ -257,6 +358,28 @@ struct HomeView: View {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
 
+    private func bulkDeleteSelected() {
+        let toDelete = filteredFiles.filter { selectedFileIDs.contains($0.id) }
+        for file in toDelete {
+            modelContext.delete(file)
+        }
+        try? modelContext.save()
+        selectedFileIDs.removeAll()
+        isSelectMode = false
+        viewModel.loadAudioFiles()
+        updateFilteredFiles()
+    }
+
+    private func moveSelectedToProject(_ projectID: UUID?) {
+        let toMove = filteredFiles.filter { selectedFileIDs.contains($0.id) }
+        for file in toMove {
+            file.projectID = projectID
+        }
+        try? modelContext.save()
+        selectedFileIDs.removeAll()
+        isSelectMode = false
+    }
+
     private func clearFilters() {
         filterTranscribed = nil
         filterSummarized = nil
@@ -273,6 +396,7 @@ struct HomeView: View {
         guard let pendingOpenedAudioFileID else { return }
         guard let audioFile = viewModel.audioFile(id: pendingOpenedAudioFileID) else { return }
         selectedAudioFile = audioFile
+        shouldAutoTranscribe = true
         self.pendingOpenedAudioFileID = nil
     }
 
@@ -358,6 +482,44 @@ struct HomeView: View {
             importErrorMessage = "Plaud ファイルのインポートに失敗しました\n\(error.localizedDescription)"
             return nil
         }
+    }
+
+    // MARK: - Move to Project Sheet
+
+    private var moveToProjectSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Button {
+                        moveSelectedToProject(nil)
+                        showMoveToProjectSheet = false
+                    } label: {
+                        Label("プロジェクトなし", systemImage: "tray")
+                    }
+                }
+
+                Section("プロジェクト") {
+                    ForEach(projects) { project in
+                        Button {
+                            moveSelectedToProject(project.id)
+                            showMoveToProjectSheet = false
+                        } label: {
+                            Label(project.title, systemImage: "folder")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("プロジェクトに移動")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        showMoveToProjectSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

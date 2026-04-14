@@ -32,6 +32,14 @@ struct SettingsView: View {
     @State private var showDebugLog: Bool = false
     @State private var modelStoreService = ModelStoreService()
 
+    // カスタムテンプレート
+    @Query(sort: \CustomSummaryTemplate.createdAt, order: .forward) private var customTemplates: [CustomSummaryTemplate]
+    @State private var showTemplateEditor = false
+    @State private var editingTemplate: CustomSummaryTemplate?
+    @State private var templateDraftName = ""
+    @State private var templateDraftPrompt = ""
+    @State private var templateDraftSections = ""
+
     // Notion 設定
     @Query private var notionSettingsList: [NotionSettings]
     @State private var notionToken: String = ""
@@ -81,6 +89,7 @@ struct SettingsView: View {
                 transcriptionSettingsSection
                 aiProviderSection
                 apiKeySection
+                customTemplateSection
                 notionIntegrationSection
                 googleMeetIntegrationSection
                 memorySettingsSection
@@ -328,6 +337,46 @@ struct SettingsView: View {
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var customTemplateSection: some View {
+        Section("要約テンプレート") {
+            ForEach(customTemplates) { template in
+                Button {
+                    editingTemplate = template
+                    templateDraftName = template.name
+                    templateDraftPrompt = template.prompt
+                    templateDraftSections = template.outputSections.joined(separator: "\n")
+                    showTemplateEditor = true
+                } label: {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                        Text(template.name)
+                            .font(MemoraTypography.subheadline)
+                            .foregroundStyle(.primary)
+
+                        Text(template.prompt)
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+            .onDelete(perform: deleteCustomTemplate)
+
+            Button {
+                templateDraftName = ""
+                templateDraftPrompt = ""
+                templateDraftSections = ""
+                editingTemplate = nil
+                showTemplateEditor = true
+            } label: {
+                Label("テンプレートを追加", systemImage: "plus")
+            }
+        }
+        .sheet(isPresented: $showTemplateEditor) {
+            templateEditorSheet
         }
     }
 
@@ -1117,6 +1166,41 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Template Editor
+
+    private var templateEditorSheet: some View {
+        NavigationStack {
+            Form {
+                Section("テンプレート情報") {
+                    TextField("名前", text: $templateDraftName)
+                    TextField("プロンプト", text: $templateDraftPrompt, axis: .vertical)
+                        .lineLimit(3...8)
+                    TextField("出力セクション（1行に1つ）", text: $templateDraftSections, axis: .vertical)
+                        .lineLimit(2...6)
+                }
+            }
+            .navigationTitle(editingTemplate == nil ? "テンプレート追加" : "テンプレート編集")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        showTemplateEditor = false
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("保存") {
+                        saveCustomTemplate()
+                        showTemplateEditor = false
+                    }
+                    .disabled(
+                        templateDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        templateDraftPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+        }
+    }
+
     // MARK: - Helper Properties
 
     private var currentAPIKeyBinding: Binding<String> {
@@ -1185,6 +1269,36 @@ struct SettingsView: View {
             .font(MemoraTypography.caption1)
             .foregroundStyle(MemoraColor.accentGreen)
         }
+    }
+
+    private func saveCustomTemplate() {
+        if let existing = editingTemplate {
+            existing.name = templateDraftName
+            existing.prompt = templateDraftPrompt
+            existing.outputSections = templateDraftSections
+                .components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        } else {
+            let template = CustomSummaryTemplate(
+                name: templateDraftName,
+                prompt: templateDraftPrompt,
+                outputSections: templateDraftSections
+                    .components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+            )
+            modelContext.insert(template)
+        }
+        try? modelContext.save()
+    }
+
+    private func deleteCustomTemplate(at offsets: IndexSet) {
+        for index in offsets {
+            let template = customTemplates[index]
+            modelContext.delete(template)
+        }
+        try? modelContext.save()
     }
 
     private func loadNotionSettings() {

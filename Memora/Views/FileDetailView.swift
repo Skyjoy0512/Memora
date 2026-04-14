@@ -7,6 +7,7 @@ struct FileDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let audioFile: AudioFile
+    var autoStartTranscription = false
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("transcriptionMode") private var transcriptionMode: String = "ローカル"
     @State private var viewModel: FileDetailViewModel?
@@ -54,20 +55,7 @@ struct FileDetailView: View {
         .navigationTitle("詳細")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("閉じる") {
-                    viewModel?.stopPlayback()
-                    dismiss()
-                }
-            }
             ToolbarItemGroup(placement: .primaryAction) {
-                // Ask AI は全タブ共通
-                Button {
-                    showAskAI = true
-                } label: {
-                    Image(systemName: "sparkles")
-                }
-
                 // タブごとの context-aware actions
                 switch selectedTab {
                 case .summary:
@@ -122,6 +110,10 @@ struct FileDetailView: View {
             selectedTab = preferredInitialTab(for: vm)
             viewModel = vm
             loadCalendarEventLink()
+
+            if autoStartTranscription && !audioFile.isTranscribed {
+                vm.startTranscription()
+            }
         }
         .onDisappear {
             viewModel?.cleanup()
@@ -148,16 +140,20 @@ struct FileDetailView: View {
 
     @ViewBuilder
     private func mainContent(vm: FileDetailViewModel) -> some View {
-        ScrollView {
-            VStack(spacing: MemoraSpacing.lg) {
-                headerSection(vm: vm)
-                playerControls(vm: vm)
-                tabPicker
-                tabContent(vm: vm)
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: MemoraSpacing.lg) {
+                    headerSection(vm: vm)
+                    playerControls(vm: vm)
+                    tabPicker
+                    tabContent(vm: vm)
+                }
+                .padding(.horizontal, MemoraSpacing.md)
+                .padding(.top, MemoraSpacing.xxl)
+                .padding(.bottom, 80)
             }
-            .padding(.horizontal, MemoraSpacing.md)
-            .padding(.top, MemoraSpacing.xxl)
-            .padding(.bottom, MemoraSpacing.xxxl)
+
+            askAICompactBar
         }
         .sheet(isPresented: Binding(
             get: { vm.showGenerationFlow },
@@ -223,11 +219,38 @@ struct FileDetailView: View {
         }
     }
 
+    @FocusState private var isTitleFieldFocused: Bool
+
     private func headerSection(vm: FileDetailViewModel) -> some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
-            Text(audioFile.title)
-                .font(MemoraTypography.title2)
-                .fontWeight(.bold)
+            if vm.isEditingTitle {
+                TextField("タイトル", text: Binding(
+                    get: { vm.titleDraft },
+                    set: { vm.titleDraft = $0 }
+                ))
+                    .font(MemoraTypography.title2)
+                    .fontWeight(.bold)
+                    .focused($isTitleFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit { vm.saveTitle() }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("完了") { vm.saveTitle() }
+                        }
+                    }
+            } else {
+                HStack(spacing: MemoraSpacing.xs) {
+                    Text(audioFile.title)
+                        .font(MemoraTypography.title2)
+                        .fontWeight(.bold)
+                    Image(systemName: "pencil")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { vm.beginEditTitle() }
+            }
 
             // メタ情報: 日時 / 長さ / ソース / プロジェクト
             HStack(spacing: MemoraSpacing.sm) {
@@ -499,60 +522,78 @@ struct FileDetailView: View {
     }
 
     private func summaryTab(vm: FileDetailViewModel) -> some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            if vm.isSummarizing {
-                progressCard(
-                    title: "要約を生成中",
-                    progress: vm.summarizationProgress,
-                    message: "要点とアクションアイテムを整理しています。"
-                )
-            } else if let result = vm.summaryResult {
-                SummaryContentView(result: result)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: MemoraSpacing.lg) {
+                if vm.isSummarizing {
+                    progressCard(
+                        title: "要約を生成中",
+                        progress: vm.summarizationProgress,
+                        message: "要点とアクションアイテムを整理しています。"
+                    )
+                } else if let result = vm.summaryResult {
+                    SummaryContentView(result: result)
 
-                // Summary タブの context-aware actions
-                HStack(spacing: MemoraSpacing.sm) {
-                    Button {
-                        vm.showGenerationFlow = true
-                    } label: {
-                        Label("再生成", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.caption1)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Spacer()
-
-                    Menu {
+                    // Summary タブの context-aware actions
+                    HStack(spacing: MemoraSpacing.sm) {
                         Button {
-                            vm.showShareSheet = true
+                            vm.showGenerationFlow = true
                         } label: {
-                            Label("共有", systemImage: "square.and.arrow.up")
+                            Label("再生成", systemImage: "arrow.clockwise")
+                                .font(MemoraTypography.caption1)
                         }
-                    } label: {
-                        Label("エクスポート", systemImage: "square.and.arrow.up")
-                            .font(MemoraTypography.caption1)
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        Menu {
+                            Button {
+                                vm.showShareSheet = true
+                            } label: {
+                                Label("共有", systemImage: "square.and.arrow.up")
+                            }
+                        } label: {
+                            Label("エクスポート", systemImage: "square.and.arrow.up")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
+                } else if audioFile.isSummarized {
+                    placeholderCard(
+                        icon: "text.quote",
+                        title: "要約を読み込めませんでした",
+                        description: "保存済みデータの取得後に、このタブへ表示されます。"
+                    )
+                } else if vm.transcriptResult != nil || audioFile.isTranscribed {
+                    placeholderCard(
+                        icon: "sparkles.rectangle.stack",
+                        title: "要約をまだ作成していません",
+                        description: "文字起こしから要約を生成すると、ここに本文と重要ポイントが表示されます。"
+                    )
+                } else {
+                    placeholderCard(
+                        icon: "text.quote",
+                        title: "先に文字起こしが必要です",
+                        description: "要約タブは文字起こし結果をもとに作成されます。まず Transcript タブで文字起こしを実行してください。"
+                    )
                 }
-            } else if audioFile.isSummarized {
-                placeholderCard(
-                    icon: "text.quote",
-                    title: "要約を読み込めませんでした",
-                    description: "保存済みデータの取得後に、このタブへ表示されます。"
-                )
-            } else if vm.transcriptResult != nil || audioFile.isTranscribed {
-                placeholderCard(
-                    icon: "sparkles.rectangle.stack",
-                    title: "要約をまだ作成していません",
-                    description: "文字起こしから要約を生成すると、ここに本文と重要ポイントが表示されます。",
-                    buttonTitle: "要約を生成",
-                    buttonAction: { vm.showGenerationFlow = true }
-                )
-            } else {
-                placeholderCard(
-                    icon: "text.quote",
-                    title: "先に文字起こしが必要です",
-                    description: "要約タブは文字起こし結果をもとに作成されます。まず Transcript タブで文字起こしを実行してください。"
-                )
+            }
+            .padding(.bottom, 72)
+
+            // 下部全幅「要約を生成」ボタン
+            if !vm.isSummarizing && vm.summaryResult == nil && !audioFile.isSummarized && (vm.transcriptResult != nil || audioFile.isTranscribed) {
+                Button {
+                    vm.showGenerationFlow = true
+                } label: {
+                    Text("要約を生成")
+                        .font(MemoraTypography.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, MemoraSpacing.md)
+                        .background(Color.black)
+                        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+                }
+                .padding(.horizontal, MemoraSpacing.md)
+                .padding(.bottom, MemoraSpacing.md)
             }
         }
     }
@@ -566,30 +607,75 @@ struct FileDetailView: View {
                     message: "音声を解析して、話者ごとのテキストを整えています。"
                 )
             } else if let result = vm.transcriptResult {
-                TranscriptContentView(result: result)
-
-                // Transcript タブの context-aware actions
-                HStack(spacing: MemoraSpacing.sm) {
-                    Button {
-                        vm.startTranscription()
-                    } label: {
-                        Label("再文字起こし", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.caption1)
+                if vm.isEditingTranscript {
+                    ScrollView {
+                        TextEditor(text: Binding(
+                            get: { vm.transcriptDraft },
+                            set: { vm.transcriptDraft = $0 }
+                        ))
+                            .font(MemoraTypography.body)
+                            .frame(minHeight: 400)
+                            .padding(MemoraSpacing.sm)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(vm.isTranscribing)
 
-                    if result.segments.count > 1 {
+                    HStack(spacing: MemoraSpacing.sm) {
                         Button {
-                            vm.registerPrimarySpeakerSample()
+                            vm.saveTranscriptEdit()
                         } label: {
-                            Label("話者登録", systemImage: "person.crop.circle.badge.plus")
+                            Label("保存", systemImage: "checkmark")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button {
+                            vm.cancelEditTranscript()
+                        } label: {
+                            Label("キャンセル", systemImage: "xmark")
                                 .font(MemoraTypography.caption1)
                         }
                         .buttonStyle(.bordered)
+
+                        Spacer()
+                    }
+                } else {
+                    TranscriptContentView(
+                        result: result,
+                        currentPlaybackTime: vm.playbackPosition
+                    ) { segment in
+                        vm.seekToTime(segment.startTime)
                     }
 
-                    Spacer()
+                    // Transcript タブの context-aware actions
+                    HStack(spacing: MemoraSpacing.sm) {
+                        Button {
+                            vm.startTranscription()
+                        } label: {
+                            Label("再文字起こし", systemImage: "arrow.clockwise")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(vm.isTranscribing)
+
+                        Button {
+                            vm.beginEditTranscript()
+                        } label: {
+                            Label("編集", systemImage: "pencil")
+                                .font(MemoraTypography.caption1)
+                        }
+                        .buttonStyle(.bordered)
+
+                        if result.segments.count > 1 {
+                            Button {
+                                vm.registerPrimarySpeakerSample()
+                            } label: {
+                                Label("話者登録", systemImage: "person.crop.circle.badge.plus")
+                                    .font(MemoraTypography.caption1)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Spacer()
+                    }
                 }
 
                 if let reason = vm.fallbackReason, !reason.isEmpty {
@@ -831,6 +917,39 @@ struct FileDetailView: View {
             )
             .frame(maxWidth: .infinity)
         }
+    }
+
+    // MARK: - AskAI Compact Bar
+
+    private var askAICompactBar: some View {
+        Button {
+            showAskAI = true
+        } label: {
+            HStack(spacing: MemoraSpacing.sm) {
+                Text(currentProvider.rawValue)
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .padding(.horizontal, MemoraSpacing.xs)
+                    .padding(.vertical, 2)
+                    .background(MemoraColor.accentBlue.opacity(0.12))
+                    .clipShape(Capsule())
+
+                Text("Ask AI...")
+                    .font(MemoraTypography.body)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                Image(systemName: "sparkle")
+                    .foregroundStyle(MemoraColor.accentBlue)
+            }
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.vertical, MemoraSpacing.sm)
+            .liquidGlass(cornerRadius: 24, shadowRadius: 8)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, MemoraSpacing.md)
+        .padding(.bottom, MemoraSpacing.sm)
     }
 
     private func detailCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {

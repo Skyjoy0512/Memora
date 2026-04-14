@@ -133,7 +133,10 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             let resultsTask = Task<[String], Error> {
                 var parts: [String] = []
                 for try await result in transcriber.results {
-                    let text = result.text.description
+                    // result.text は AttributedString 型。
+                    // .description は属性辞書のデバッグ表現 "{}" を付けるため、
+                    // .characters からプレーンテキストを抽出する。
+                    let text = String(result.text.characters)
                     if !text.isEmpty {
                         parts.append(text)
                     }
@@ -533,7 +536,7 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
 protocol AIServiceProtocol {
     func configure(apiKey: String) async throws
     func transcribe(audioURL: URL) async throws -> String
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String])
+    func summarize(transcript: String) async throws -> (title: String?, summary: String, keyPoints: [String], actionItems: [String])
     func generate(_ prompt: String) async throws -> String
 }
 
@@ -638,11 +641,11 @@ final class AIService: AIServiceProtocol, ObservableObject {
         }
     }
 
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
+    func summarize(transcript: String) async throws -> (title: String?, summary: String, keyPoints: [String], actionItems: [String]) {
         // LLMProvider 経由の統一路線（外部注入された provider があればそちらを優先）
         if let llmProvider {
             let result = try await llmProvider.summarize(transcript: transcript)
-            return (result.summary, result.keyPoints, result.actionItems)
+            return (result.title, result.summary, result.keyPoints, result.actionItems)
         }
 
         // フォールバック: LLMProvider 経由で統一呼び出し
@@ -650,7 +653,7 @@ final class AIService: AIServiceProtocol, ObservableObject {
             throw AIError.notConfigured
         }
         let r = try await provider.summarize(transcript: transcript)
-        return (r.summary, r.keyPoints, r.actionItems)
+        return (r.title, r.summary, r.keyPoints, r.actionItems)
     }
 
     /// LLMProvider 経由でテキスト生成（AskAI などで使用）
@@ -715,10 +718,11 @@ final class OpenAIService: LLMProvider {
 
     func summarize(transcript: String) async throws -> LLMProviderSummary {
         let prompt = """
-        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
+        以下の会議 transcript から、タイトル、要約、重要ポイント、アクションアイテムを抽出してください。
         出力は以下のJSON形式で返してください：
 
         {
+          "title": "会議内容を表す簡潔なタイトル（20字以内）",
           "summary": "会議の要約",
           "keyPoints": ["重要ポイント1", "重要ポイント2"],
           "actionItems": ["アクションアイテム1", "アクションアイテム2"]
@@ -772,7 +776,8 @@ final class OpenAIService: LLMProvider {
             throw OpenAIError.decodingError
         }
 
-        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
+        let title = summaryData["title"] as? String
+        return LLMProviderSummary(title: title, summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -818,68 +823,6 @@ final class OpenAIService: LLMProvider {
 
         let result = try JSONDecoder().decode(TranscriptionResponse.self, from: data)
         return result.text
-    }
-
-    func summarize(transcript: String) async throws -> (summary: String, keyPoints: [String], actionItems: [String]) {
-        let prompt = """
-        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
-        出力は以下のJSON形式で返してください：
-
-        {
-          "summary": "会議の要約",
-          "keyPoints": ["重要ポイント1", "重要ポイント2"],
-          "actionItems": ["アクションアイテム1", "アクションアイテム2"]
-        }
-
-        Transcript:
-        \(transcript)
-        """
-
-        let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                ["role": "system", "content": "あなたは会議の文字起こしから要約を作成するアシスタントです。"],
-                ["role": "user", "content": prompt]
-            ],
-            "temperature": 0.3,
-            "max_tokens": 2048
-        ]
-
-        var request = URLRequest(url: URL(string: "\(baseURL)/chat/completions")!)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if let errorString = String(data: data, encoding: .utf8) {
-                throw OpenAIError.apiError(httpResponse.statusCode, errorString)
-            }
-            throw OpenAIError.apiError(httpResponse.statusCode, "Unknown error")
-        }
-
-        let result = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
-
-        guard let content = result.choices.first?.message.content else {
-            throw OpenAIError.decodingError
-        }
-
-        // Parse JSON response
-        guard let data = content.data(using: .utf8),
-              let summaryData = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let summary = summaryData["summary"] as? String,
-              let keyPoints = summaryData["keyPoints"] as? [String],
-              let actionItems = summaryData["actionItems"] as? [String] else {
-            throw OpenAIError.decodingError
-        }
-
-        return (summary, keyPoints, actionItems)
     }
 }
 
@@ -937,10 +880,11 @@ final class GeminiService: LLMProvider {
 
     func summarize(transcript: String) async throws -> LLMProviderSummary {
         let prompt = """
-        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
+        以下の会議 transcript から、タイトル、要約、重要ポイント、アクションアイテムを抽出してください。
         出力は以下のJSON形式で返してください：
 
         {
+          "title": "会議内容を表す簡潔なタイトル（20字以内）",
           "summary": "会議の要約",
           "keyPoints": ["重要ポイント1", "重要ポイント2"],
           "actionItems": ["アクションアイテム1", "アクションアイテム2"]
@@ -997,7 +941,8 @@ final class GeminiService: LLMProvider {
             throw AIError.decodingError
         }
 
-        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
+        let title = summaryData["title"] as? String
+        return LLMProviderSummary(title: title, summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 
     func transcribe(audioURL: URL) async throws -> String {
@@ -1105,10 +1050,11 @@ final class DeepSeekService: LLMProvider {
 
     func summarize(transcript: String) async throws -> LLMProviderSummary {
         let prompt = """
-        以下の会議 transcript から、要約、重要ポイント、アクションアイテムを抽出してください。
+        以下の会議 transcript から、タイトル、要約、重要ポイント、アクションアイテムを抽出してください。
         出力は以下のJSON形式で返してください：
 
         {
+          "title": "会議内容を表す簡潔なタイトル（20字以内）",
           "summary": "会議の要約",
           "keyPoints": ["重要ポイント1", "重要ポイント2"],
           "actionItems": ["アクションアイテム1", "アクションアイテム2"]
@@ -1161,7 +1107,8 @@ final class DeepSeekService: LLMProvider {
             throw AIError.decodingError
         }
 
-        return LLMProviderSummary(summary: summary, keyPoints: keyPoints, actionItems: actionItems)
+        let title = summaryData["title"] as? String
+        return LLMProviderSummary(title: title, summary: summary, keyPoints: keyPoints, actionItems: actionItems)
     }
 }
 

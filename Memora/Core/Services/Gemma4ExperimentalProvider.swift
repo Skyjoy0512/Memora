@@ -244,6 +244,7 @@ final class Gemma4ExperimentalProvider: LLMProvider {
         }
 
         return LLMProviderSummary(
+            title: nil,
             summary: summaryLines.joined(separator: "\n"),
             keyPoints: keyPoints,
             actionItems: actionItems

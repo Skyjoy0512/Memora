@@ -4,7 +4,7 @@
 > 以後、Claude はまずこの文書を読み、次に `CLAUDE.md`、必要なら `docs/transcription-core-boundary.md` を読むこと。  
 > 旧 docs は参考程度とし、この文書と矛盾したら **この文書を優先** する。
 
-最終更新: 2026-04-07
+最終更新: 2026-04-14
 
 ---
 
@@ -141,20 +141,20 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 
 ### Track A — Reliability / Performance（最優先）
 - [x] **A1. SpeechAnalyzer preflight と backend resolver を導入する**
-- [ ] **A2. File transcription pipeline を harden する** → handle.result() フォールバック追加、要実機検証
-- [ ] **A3. 起動時の重さと temporary store fallback を改善する** → logModelCounts 非同期化、adaptive timeout 導入済み
-- [ ] **A4. STT diagnostics と recovery UX を完成させる** → in-flow recovery UX 追加完了
+- [x] **A2. File transcription pipeline を harden する** → 実機検証 OK（2026-04-14）
+- [x] **A3. 起動時の重さと temporary store fallback を改善する** → 実機検証 OK（2026-04-14）
+- [x] **A4. STT diagnostics と recovery UX を完成させる** → 実機検証 OK（2026-04-14）
 
 ### Track B — iOS 26 Design Refresh
-- [ ] **B1. App shell を HIG / Liquid Glass に合わせて再設計する** → ツールバー整理済み
-- [ ] **B2. Home / Project 一覧を content-first に整理する** → タイトル1行目、メタデータ固定順、カード統一
-- [ ] **B3. File Detail を完成形 UI に寄せる** → タブアイコン、context-aware actions、ヘッダー整理完了
+- [x] **B1. App shell を HIG / Liquid Glass に合わせて再設計する** → 実機検証 OK（2026-04-14）
+- [x] **B2. Home / Project 一覧を content-first に整理する** → 実機検証 OK（2026-04-14）
+- [x] **B3. File Detail を完成形 UI に寄せる** → 実機検証 OK（2026-04-14）
 
 ### Track C — Ask AI / Local LLM
-- [ ] **C1. Ask AI を retrieval service ベースへ移行する** → AskAIRetrievalService + query-aware retrieval 実装済み
-- [ ] **C2. `LLMProvider` abstraction と local provider slot を追加する** → protocol + RemoteLLMProvider + LocalLLMProvider stub 完了
-- [ ] **C3. iOS local LLM provider を実装する（documented path から）** → Foundation Models streaming + prewarm 実装完了
-- [ ] **C4. Gemma 4 experimental profile を追加する** → device gate + feature flag 実装完了
+- [x] **C1. Ask AI を retrieval service ベースへ移行する** → 実機検証 OK（2026-04-14）
+- [x] **C2. `LLMProvider` abstraction と local provider slot を追加する** → 実機検証 OK（2026-04-14）
+- [x] **C3. iOS local LLM provider を実装する（documented path から）** → 実機検証 OK（2026-04-14）
+- [x] **C4. Gemma 4 experimental profile を追加する** → 実機検証 OK（2026-04-14）
 
 ### Later / Parking Lot
 - [ ] D1. Notion / external knowledge export

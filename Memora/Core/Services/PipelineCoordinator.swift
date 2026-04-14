@@ -74,11 +74,13 @@ final class PipelineCoordinator {
                     if config.includeSpeakers && !transcriptResult.segments.isEmpty {
                         summaryResult = try await summarizationEngine.summarizeWithSpeakers(
                             transcript: transcriptResult.text,
-                            segments: transcriptResult.segments
+                            segments: transcriptResult.segments,
+                            config: config
                         )
                     } else {
                         summaryResult = try await summarizationEngine.summarize(
-                            transcript: transcriptResult.text
+                            transcript: transcriptResult.text,
+                            config: config
                         )
                     }
 
@@ -89,6 +91,9 @@ final class PipelineCoordinator {
                     continuation.yield(.stepStarted(.extractingMetadata))
 
                     audioFile.isSummarized = true
+                    if let suggestedTitle = summaryResult.suggestedTitle, !suggestedTitle.isEmpty {
+                        audioFile.title = suggestedTitle
+                    }
                     audioFile.summary = summaryResult.summary
                     audioFile.keyPoints = summaryResult.keyPointsText
                     audioFile.actionItems = summaryResult.actionItemsText
@@ -252,11 +257,13 @@ final class PipelineCoordinator {
                     if config.includeSpeakers && !segments.isEmpty {
                         summaryResult = try await summarizationEngine.summarizeWithSpeakers(
                             transcript: transcriptText,
-                            segments: segments
+                            segments: segments,
+                            config: config
                         )
                     } else {
                         summaryResult = try await summarizationEngine.summarize(
-                            transcript: transcriptText
+                            transcript: transcriptText,
+                            config: config
                         )
                     }
 
@@ -267,6 +274,9 @@ final class PipelineCoordinator {
                     continuation.yield(.stepStarted(.extractingMetadata))
 
                     audioFile.isSummarized = true
+                    if let suggestedTitle = summaryResult.suggestedTitle, !suggestedTitle.isEmpty {
+                        audioFile.title = suggestedTitle
+                    }
                     audioFile.summary = summaryResult.summary
                     audioFile.keyPoints = summaryResult.keyPointsText
                     audioFile.actionItems = summaryResult.actionItemsText
@@ -354,10 +364,14 @@ final class PipelineCoordinator {
         var transcriptResult: TranscriptResult?
         var lastError: Error?
 
+        // Plaid 参照データから話者数を取得（AudioFile → docs/ 自動検索の順）
+        let effectiveSpeakerCount = audioFile.referenceSpeakerCount
+            ?? Self.loadReferenceFromDocs(audioFileName: audioFile.title).flatMap { Self.extractSpeakerCount(from: $0) }
+
         while job.canRetry || transcriptResult != nil {
             do {
                 DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し (attempt \(job.retryCount + 1))", level: .info)
-                transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL)
+                transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL, language: nil, referenceSpeakerCount: effectiveSpeakerCount)
                 break
             } catch is CancellationError {
                 throw CancellationError()
@@ -380,6 +394,8 @@ final class PipelineCoordinator {
         }
 
         DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 完了 — text length: \(transcriptResult.text.count)", level: .info)
+        let segmentLabels = Set(transcriptResult.segments.map(\.speakerLabel)).sorted()
+        DebugLogger.shared.addLog("Pipeline", "★ 診断: segments=\(transcriptResult.segments.count), speakers=\(segmentLabels) (\(segmentLabels.count)人)", level: .info)
         continuation.yield(.stepCompleted(.transcribing))
 
         job.updateProgress(0.6, stage: PipelineStep.mergingTranscripts.rawValue)
@@ -402,6 +418,19 @@ final class PipelineCoordinator {
         audioFile.isTranscribed = true
         saveAudioFile(audioFile)
         reindexKnowledge(for: audioFile)
+
+        // PlaudNote 参照データとの比較ログ出力
+        // 1. AudioFile に referenceTranscript が設定されていれば使用
+        // 2. 未設定なら docs/ からファイル名マッチで自動検索（DEBUG のみ）
+        let referenceText = audioFile.referenceTranscript
+            ?? Self.loadReferenceFromDocs(audioFileName: audioFile.title)
+        if let reference = referenceText, !reference.isEmpty {
+            logDiarizationComparison(
+                reference: reference,
+                memoraResult: transcriptResult,
+                audioFileName: audioFile.title
+            )
+        }
 
         continuation.yield(.stepCompleted(.mergingTranscripts))
         return transcriptResult
@@ -434,6 +463,137 @@ final class PipelineCoordinator {
                 level: .warning
             )
         }
+    }
+
+    // MARK: - Reference Data Auto-Loading
+
+    /// 参照テキストを検索: バンドルリソース → docs/ パス（Mac のみ）
+    private static func loadReferenceFromDocs(audioFileName: String) -> String? {
+        // 1. アプリバンドルから "reference-transcript" リソースを検索
+        if let url = Bundle.main.url(forResource: "reference-transcript", withExtension: "txt") {
+            if let content = try? String(contentsOf: url, encoding: .utf8) {
+                print("[Pipeline] 参照データ検出: Bundle resource")
+                return content
+            }
+        }
+
+        #if DEBUG
+        // 2. Mac の docs/ パス（シミュレータ or Mac アプリ向け）
+        let docsPath = "/Users/hashimotokenichi/Desktop/Memora/docs/reference-diarization/plaud"
+        let fm = FileManager.default
+
+        guard let files = try? fm.contentsOfDirectory(atPath: docsPath) else {
+            return nil
+        }
+
+        let normalizedAudio = audioFileName.lowercased()
+        for file in files {
+            guard file.hasSuffix("-transcript.txt") || file.hasSuffix(".txt") else { continue }
+            let normalizedFile = file.lowercased()
+            if normalizedAudio.count >= 5 {
+                let prefix = String(normalizedAudio.prefix(5))
+                if normalizedFile.contains(prefix) {
+                    let fullPath = docsPath + "/" + file
+                    if let content = try? String(contentsOfFile: fullPath, encoding: .utf8) {
+                        print("[Pipeline] 参照データ検出: \(file)")
+                        return content
+                    }
+                }
+            }
+        }
+        #endif
+        return nil
+    }
+
+    /// テキストから話者数を抽出（"Speaker N" パターン）
+    private static func extractSpeakerCount(from text: String) -> Int? {
+        var speakers = Set<String>()
+        for line in text.components(separatedBy: .newlines) {
+            if let range = line.range(of: "Speaker \\d+", options: .regularExpression) {
+                speakers.insert(String(line[range]))
+            }
+        }
+        return speakers.isEmpty ? nil : speakers.count
+    }
+
+    // MARK: - Diarization Comparison Logging
+
+    /// PlaudNote 参照データと Memora の話者分離結果を比較し、コンソールログに出力する。
+    private func logDiarizationComparison(
+        reference: String,
+        memoraResult: TranscriptResult,
+        audioFileName: String
+    ) {
+        let refSpeakers = extractSpeakerSet(from: reference)
+        let memoraSpeakers = Set(memoraResult.segments.map(\.speakerLabel))
+
+        print("═══════════════════════════════════════════")
+        print("[Diarization Comparison] \(audioFileName)")
+        print("  Plaud speakers: \(refSpeakers.sorted()) (\(refSpeakers.count)人)")
+        print("  Memora speakers: \(memoraSpeakers.sorted()) (\(memoraSpeakers.count)人)")
+        print("  Memora segments count: \(memoraResult.segments.count)")
+        if let first = memoraResult.segments.first {
+            print("  First segment label: \(first.speakerLabel), text prefix: \(String(first.text.prefix(30)))")
+        }
+        print("───────────────────────────────────────────")
+
+        // Plaud 側: 話者ごとの発話行数
+        print("  [Plaud] 話者別発話行数:")
+        let refLines = reference.components(separatedBy: .newlines).filter { !$0.isEmpty }
+        var refCounts: [String: Int] = [:]
+        for line in refLines {
+            if let speaker = extractSpeakerFromLine(line) {
+                refCounts[speaker, default: 0] += 1
+            }
+        }
+        for (speaker, count) in refCounts.sorted(by: { $0.key < $1.key }) {
+            print("    \(speaker): \(count)行")
+        }
+
+        // Memora 側: 話者ごとのセグメント数・テキスト長
+        print("  [Memora] 話者別セグメント:")
+        var memoraCounts: [String: (segments: Int, chars: Int)] = [:]
+        for seg in memoraResult.segments {
+            let entry = memoraCounts[seg.speakerLabel, default: (0, 0)]
+            memoraCounts[seg.speakerLabel] = (entry.segments + 1, entry.chars + seg.text.count)
+        }
+        for (speaker, info) in memoraCounts.sorted(by: { $0.key < $1.key }) {
+            print("    \(speaker): \(info.segments)セグメント, \(info.chars)文字")
+        }
+
+        // 差分サマリー
+        let speakerDiff = refSpeakers.count - memoraSpeakers.count
+        if speakerDiff > 0 {
+            print("  ⚠️ Memora が \(speakerDiff)人少なく検出")
+        } else if speakerDiff < 0 {
+            print("  ⚠️ Memora が \(-speakerDiff)人多く検出")
+        } else {
+            print("  ✓ 話者数一致")
+        }
+        print("═══════════════════════════════════════════")
+
+        DebugLogger.shared.addLog("Pipeline", "Diarization比較: Plaud \(refSpeakers.count)人 vs Memora \(memoraSpeakers.count)人", level: .info)
+    }
+
+    /// PlaudNote テキストから話者セットを抽出。
+    /// 対応形式: "Speaker 1:", "00:00:00 Speaker 1", "Speaker 1"
+    private func extractSpeakerSet(from text: String) -> Set<String> {
+        var speakers = Set<String>()
+        for line in text.components(separatedBy: .newlines) {
+            // "Speaker N" または "Speaker N:" を含む行
+            if let range = line.range(of: "Speaker \\d+", options: .regularExpression) {
+                speakers.insert(String(line[range]))
+            }
+        }
+        return speakers
+    }
+
+    /// 1行から話者ラベルを抽出
+    private func extractSpeakerFromLine(_ line: String) -> String? {
+        if let range = line.range(of: "Speaker \\d+", options: .regularExpression) {
+            return String(line[range])
+        }
+        return nil
     }
 
     private func savePlannedTasks(_ plannedTasks: [PlannedTask], sourceFileId: UUID, sourceFileTitle: String) {

@@ -220,6 +220,7 @@ final class LocalLLMProvider: LLMProvider {
         }
 
         return LLMProviderSummary(
+            title: nil,
             summary: summaryLines.joined(separator: "\n"),
             keyPoints: keyPoints,
             actionItems: actionItems

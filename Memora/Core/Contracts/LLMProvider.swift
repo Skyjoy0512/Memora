@@ -47,6 +47,7 @@ extension LLMProvider {
 
 /// 要約結果の共通モデル
 struct LLMProviderSummary: Sendable {
+    let title: String?
     let summary: String
     let keyPoints: [String]
     let actionItems: [String]

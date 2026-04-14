@@ -29,6 +29,9 @@ final class AudioFile {
     // ソース・参照データ
     var sourceTypeRaw: String = SourceType.recording.rawValue
     var referenceTranscript: String?
+    /// Plaud 等の参照データから抽出した話者数。
+    /// FluidAudio のクラスタリングで numSpeakers ヒントとして使用。
+    var referenceSpeakerCount: Int?
 
     // MARK: - Relationships (cascade delete)
 

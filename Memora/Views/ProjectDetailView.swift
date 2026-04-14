@@ -41,6 +41,7 @@ struct ProjectDetailView: View {
         }
         .navigationDestination(item: $selectedAudioFile) { file in
             FileDetailView(audioFile: file)
+                .toolbar(.hidden, for: .tabBar)
         }
         .onAppear {
             viewModel.configure(

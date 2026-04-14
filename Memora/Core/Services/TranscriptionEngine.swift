@@ -15,7 +15,7 @@ private protocol TranscriptionEngineProtocol: Sendable {
     ) async throws
 
     func transcribe(audioURL: URL) async throws -> TranscriptResult
-    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult
+    func transcribe(audioURL: URL, language: String?, referenceSpeakerCount: Int?) async throws -> TranscriptResult
     func cancelActiveTranscription() async
 }
 
@@ -49,10 +49,13 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         try await transcribe(audioURL: audioURL, language: nil)
     }
 
-    func transcribe(audioURL: URL, language: String?) async throws -> TranscriptResult {
+    func transcribe(audioURL: URL, language: String?, referenceSpeakerCount: Int? = nil) async throws -> TranscriptResult {
         DebugLogger.shared.addLog("TranscriptionEngine", "transcribe 開始 — url: \(audioURL.path)", level: .info)
         isTranscribing = true
         progress = 0
+
+        // Plaud 等の参照データから抽出した話者数ヒントを STTService に伝播
+        (sttService as? STTService)?.referenceSpeakerCount = referenceSpeakerCount
 
         defer {
             isTranscribing = false
