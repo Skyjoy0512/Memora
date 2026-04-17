@@ -7,9 +7,9 @@ struct RecordingView: View {
     let initialProject: Project?
     let onRecordingSaved: ((AudioFile) -> Void)?
     @State private var viewModel = RecordingViewModel()
-    @StateObject private var audioRecorder = AudioRecorder()
+    @State private var audioRecorder = AudioRecorder()
     @State private var recordingTime: TimeInterval = 0
-    @State private var timer: Timer?
+    @State private var timerTask: Task<Void, Never>?
     @State private var selectedProject: Project?
     @State private var showProjectPicker = false
     @State private var suggestedEventTitle: String?
@@ -46,7 +46,7 @@ struct RecordingView: View {
                     .padding(.horizontal, 13)
                     .padding(.vertical, 8)
                     .background(MemoraColor.divider.opacity(0.1))
-                    .cornerRadius(MemoraRadius.sm)
+                    .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -92,20 +92,20 @@ struct RecordingView: View {
                         .foregroundStyle(MemoraColor.accentRed)
                         .padding()
                         .background(MemoraColor.accentRed.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                         .padding(.horizontal)
                 }
 
                 // 録音時間表示
                 Text(formatTime(recordingTime))
-                    .font(.system(size: 48, weight: .light, design: .monospaced))
+                    .font(.system(.largeTitle, design: .monospaced).weight(.light))
                     .foregroundStyle(.primary)
 
                 // 波形表示（プレースホルダー）
                 HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
                         Rectangle()
-                            .fill(audioRecorder.isRecording ? MemoraColor.divider : MemoraColor.divider.opacity(0.3))
+                            .fill(audioRecorder.isRecording ? MemoraColor.accentNothing.opacity(0.4) : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
                                 .easeInOut(duration: 0.2)
@@ -123,14 +123,15 @@ struct RecordingView: View {
                 Button(action: toggleRecording) {
                     ZStack {
                         Circle()
-                            .fill(MemoraColor.divider)
+                            .fill(audioRecorder.isRecording ? MemoraColor.accentRed.opacity(0.15) : MemoraColor.accentNothing.opacity(0.15))
                             .frame(width: 70, height: 70)
+                            .nothingGlow(.init(color: audioRecorder.isRecording ? MemoraColor.accentRed.opacity(0.3) : MemoraColor.accentNothingGlow, radius: 20, intensity: 0.4, animated: true))
 
                         if audioRecorder.isRecording {
                             Rectangle()
                                 .fill(.white)
                                 .frame(width: 30, height: 30)
-                                .cornerRadius(4)
+                                .clipShape(.rect(cornerRadius: 4))
                         } else {
                             Circle()
                                 .fill(.white)
@@ -188,7 +189,7 @@ struct RecordingView: View {
                 onRecordingSaved?(savedAudioFile)
                 dismiss()
             } catch {
-                viewModel.errorMessage = "録音停止エラー: \(error.localizedDescription)"
+                viewModel.errorMessage = "録音の停止に失敗しました。もう一度お試しください。"
                 print("録音停止エラー: \(error)")
             }
         } else {
@@ -198,7 +199,7 @@ struct RecordingView: View {
                 try audioRecorder.startRecording()
                 startTimer()
             } catch {
-                viewModel.errorMessage = "録音開始エラー: \(error.localizedDescription)\n\nシミュレータではマイクが使えない場合があります"
+                viewModel.errorMessage = "録音の開始に失敗しました。マイクへのアクセスを確認してください。"
                 print("録音開始エラー: \(error)")
             }
         }
@@ -212,16 +213,17 @@ struct RecordingView: View {
     }
 
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            Task { @MainActor in
+        timerTask = Task { @MainActor in
+            while !Task.isCancelled {
                 syncRecordingTime()
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }
 
     private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+        timerTask?.cancel()
+        timerTask = nil
     }
 
     @MainActor
@@ -238,13 +240,17 @@ struct RecordingView: View {
         return String(format: "%02d:%02d.%01d", minutes, seconds, milliseconds)
     }
 
+    private static let recordingTitleFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return f
+    }()
+
     private func formatRecordingTitle() -> String {
         if useEventTitle, let eventTitle = suggestedEventTitle {
             return eventTitle
         }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-        return "録音 \(formatter.string(from: Date()))"
+        return "録音 \(Self.recordingTitleFormatter.string(from: .now))"
     }
 
     private func suggestCalendarEvent() {

@@ -20,7 +20,7 @@ struct HomeView: View {
     // 検索・フィルタリング用
     @State private var searchText = ""
     @State private var showFilterSheet = false
-    @State private var showAskAI = false
+    @State private var showAddMenu = false
     @State private var filterTranscribed: Bool? = nil
     @State private var filterSummarized: Bool? = nil
     @State private var filterLifeLog: Bool? = nil
@@ -34,6 +34,8 @@ struct HomeView: View {
     @State private var isSelectMode = false
     @State private var selectedFileIDs: Set<UUID> = []
     @State private var showMoveToProjectSheet = false
+    @State private var isSearchActive = false
+    @State private var searchDebounceTask: Task<Void, Never>?
 
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
@@ -69,19 +71,28 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.audioFiles.isEmpty {
-                    emptyStateView
-                } else {
-                    fileListSection
+            VStack(spacing: 0) {
+                if isSearchActive {
+                    searchBar
+                }
+
+                Group {
+                    if viewModel.audioFiles.isEmpty && searchText.isEmpty {
+                        emptyStateView
+                    } else {
+                        fileListSection
+                    }
                 }
             }
-            .searchable(text: $searchText, placement: .toolbar, prompt: "ファイルを検索")
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if isSelectMode {
+                    if isSearchActive {
+                        Button("キャンセル") {
+                            withAnimation { isSearchActive = false; searchText = "" }
+                        }
+                    } else if isSelectMode {
                         Button("キャンセル") {
                             isSelectMode = false
                             selectedFileIDs.removeAll()
@@ -91,8 +102,10 @@ struct HomeView: View {
                 ToolbarItem(placement: .primaryAction) {
                     if isSelectMode {
                         selectModeMenu
-                    } else {
-                        addMenu
+                    } else if !isSearchActive {
+                        Button("検索", systemImage: "magnifyingglass") {
+                            withAnimation { isSearchActive = true }
+                        }
                     }
                 }
                 if hasActiveFilters && !isSelectMode {
@@ -104,8 +117,8 @@ struct HomeView: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                AskAIFloatingButton {
-                    showAskAI = true
+                if !isSelectMode {
+                    addFabWithMenu
                 }
             }
             .navigationDestination(isPresented: $showRecordingView) {
@@ -114,9 +127,6 @@ struct HomeView: View {
                     selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
                     shouldAutoTranscribe = true
                 }
-            }
-            .sheet(isPresented: $showAskAI) {
-                AskAIView(scope: .global)
             }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
@@ -152,7 +162,7 @@ struct HomeView: View {
             .sheet(isPresented: $showMoveToProjectSheet) {
                 moveToProjectSheet
             }
-            .onAppear {
+            .task {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
                 updateFilteredFiles()
@@ -174,11 +184,116 @@ struct HomeView: View {
                 updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
             }
-            .onChange(of: searchText) { _, _ in updateFilteredFiles() }
+            .onChange(of: searchText) { _, _ in
+                searchDebounceTask?.cancel()
+                searchDebounceTask = Task {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    guard !Task.isCancelled else { return }
+                    updateFilteredFiles()
+                }
+            }
             .onChange(of: filterTranscribed) { _, _ in updateFilteredFiles() }
             .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
             .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
+    }
+
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack(spacing: MemoraSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("ファイルを検索", text: $searchText)
+                .textFieldStyle(.plain)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(MemoraSpacing.sm)
+        .glassCard(.default)
+    }
+
+    // MARK: - FAB with Menu
+
+    private var addFabWithMenu: some View {
+        VStack(alignment: .trailing, spacing: MemoraSpacing.sm) {
+            if showAddMenu {
+                addMenuPanel
+            }
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showAddMenu.toggle()
+                }
+            } label: {
+                Image(systemName: showAddMenu ? "xmark" : "plus")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 50, height: 50)
+                    .background(MemoraColor.accentNothing)
+                    .clipShape(Circle())
+                    .nothingGlow(.prominent)
+                    .rotationEffect(.degrees(showAddMenu ? 45 : 0))
+            }
+            .accessibilityLabel(showAddMenu ? "メニューを閉じる" : "新規作成")
+        }
+        .padding(.trailing, MemoraSpacing.md)
+        .padding(.bottom, MemoraSpacing.lg)
+    }
+
+    private var addMenuPanel: some View {
+        VStack(spacing: 0) {
+            Button {
+                showAddMenu = false
+                showRecordingView = true
+            } label: {
+                Label("録音", systemImage: "mic.fill")
+                    .font(MemoraTypography.subheadline)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, MemoraSpacing.md)
+                    .padding(.vertical, MemoraSpacing.sm)
+            }
+
+            Divider().padding(.leading, 44)
+
+            Button {
+                showAddMenu = false
+                showFileImporter = true
+            } label: {
+                Label("インポート", systemImage: "square.and.arrow.down")
+                    .font(MemoraTypography.subheadline)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, MemoraSpacing.md)
+                    .padding(.vertical, MemoraSpacing.sm)
+            }
+
+            if googleSettingsList.first?.isTokenValid == true {
+                Divider().padding(.leading, 44)
+
+                Button {
+                    showAddMenu = false
+                    showGoogleMeetImport = true
+                } label: {
+                    Label("Google Meet", systemImage: "video.fill")
+                        .font(MemoraTypography.subheadline)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, MemoraSpacing.md)
+                        .padding(.vertical, MemoraSpacing.sm)
+                }
+            }
+        }
+        .glassCard(.init(cornerRadius: MemoraRadius.md, glow: false))
     }
 
     // MARK: - Empty State
@@ -212,34 +327,8 @@ struct HomeView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(MemoraColor.accentBlue)
+                .background(MemoraColor.accentNothing)
                 .clipShape(Capsule())
-        }
-    }
-
-    private var addMenu: some View {
-        Menu {
-            Button {
-                showRecordingView = true
-            } label: {
-                Label("録音", systemImage: "mic.fill")
-            }
-
-            Button {
-                showFileImporter = true
-            } label: {
-                Label("インポート", systemImage: "square.and.arrow.down")
-            }
-
-            if googleSettingsList.first?.isTokenValid == true {
-                Button {
-                    showGoogleMeetImport = true
-                } label: {
-                    Label("Google Meet", systemImage: "video.fill")
-                }
-            }
-        } label: {
-            Label("追加", systemImage: "plus")
         }
     }
 
@@ -263,25 +352,29 @@ struct HomeView: View {
                     AudioFileRow(audioFile: file, projectName: projectName)
                         .tag(file.id)
                 } else {
-                    AudioFileRow(audioFile: file, projectName: projectName)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedAudioFile = file
+                    Button {
+                        selectedAudioFile = file
+                    } label: {
+                        AudioFileRow(audioFile: file, projectName: projectName)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityHint("タップして詳細を表示")
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            isSelectMode = true
+                            selectedFileIDs.insert(file.id)
+                        } label: {
+                            Label("選択", systemImage: "checkmark.circle")
                         }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            Button {
-                                isSelectMode = true
-                                selectedFileIDs.insert(file.id)
-                            } label: {
-                                Label("選択", systemImage: "checkmark.circle")
-                            }
-                            .tint(.blue)
-                        }
+                        .tint(.blue)
+                    }
                 }
             }
             .onDelete(perform: deleteAudioFiles)
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, .constant(isSelectMode ? .active : .inactive))
         .refreshable {
             isRefreshing = true
@@ -316,7 +409,7 @@ struct HomeView: View {
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.vertical, MemoraSpacing.md)
-        .background(.regularMaterial)
+        .glassCard(.default)
     }
 
     private var hasActiveFilters: Bool {
@@ -324,7 +417,7 @@ struct HomeView: View {
     }
 
     private var activeFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: MemoraSpacing.xs) {
                 if let transcribed = filterTranscribed {
                     FilterChip(title: transcribed ? "文字起こし済" : "未文字起こし", isSelected: true) {
@@ -417,7 +510,8 @@ struct HomeView: View {
                 importPlaudFiles(otherURLs)
             }
         case .failure(let error):
-            importErrorMessage = "ファイルの選択に失敗しました\n\(error.localizedDescription)"
+            print("[HomeView] File import failed: \(error.localizedDescription)")
+            importErrorMessage = "ファイルの選択に失敗しました。もう一度お試しください。"
         }
     }
 
@@ -430,7 +524,8 @@ struct HomeView: View {
             )
             pendingOpenedAudioFileID = audioFile.id
         } catch {
-            importErrorMessage = "音声ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+            print("[HomeView] Audio file import failed: \(error.localizedDescription)")
+            importErrorMessage = "音声ファイルのインポートに失敗しました。もう一度お試しください。"
         }
     }
 
@@ -463,7 +558,8 @@ struct HomeView: View {
             }
             return file
         } catch {
-            importErrorMessage = "Plaud ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+            print("[HomeView] Plaud JSON import failed: \(error.localizedDescription)")
+            importErrorMessage = "Plaud ファイルのインポートに失敗しました。もう一度お試しください。"
             return nil
         }
     }
@@ -479,7 +575,8 @@ struct HomeView: View {
                 modelContext: modelContext
             )
         } catch {
-            importErrorMessage = "Plaud ファイルのインポートに失敗しました\n\(error.localizedDescription)"
+            print("[HomeView] Plaud text import failed: \(error.localizedDescription)")
+            importErrorMessage = "Plaud ファイルのインポートに失敗しました。もう一度お試しください。"
             return nil
         }
     }
@@ -520,130 +617,6 @@ struct HomeView: View {
             }
         }
         .presentationDetents([.medium])
-    }
-}
-
-struct AudioFileRow: View {
-    let audioFile: AudioFile
-    let projectName: String?
-
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MM/dd HH:mm"
-        return f
-    }()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-            // 1行目: タイトル（最も重要な情報を先頭に）
-            Text(audioFile.title)
-                .font(MemoraTypography.body)
-                .foregroundStyle(MemoraColor.textPrimary)
-                .lineLimit(1)
-
-            // 2行目: 日付 + duration + source
-            HStack(spacing: MemoraSpacing.xs) {
-                Text(formatDate(audioFile.createdAt))
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.textSecondary)
-
-                if audioFile.duration > 0 {
-                    Text(formatDuration(audioFile.duration))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-                }
-
-                sourceBadge
-
-                Spacer()
-            }
-
-            // 3行目: project + status（ある場合のみ）
-            HStack(spacing: MemoraSpacing.xxs) {
-                if let projectName {
-                    Label(projectName, systemImage: "folder")
-                        .font(MemoraTypography.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                if audioFile.isTranscribed {
-                    StatusChip(title: "文字起こし済", color: MemoraColor.accentBlue)
-                }
-                if audioFile.isSummarized {
-                    StatusChip(title: "要約済", color: MemoraColor.accentGreen)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, MemoraSpacing.xs)
-    }
-
-    @ViewBuilder
-    private var sourceBadge: some View {
-        let icon: String = {
-            switch audioFile.sourceType {
-            case .recording: return "mic.fill"
-            case .import: return "square.and.arrow.down"
-            case .plaud: return "waveform"
-            case .google: return "video.fill"
-            }
-        }()
-        Image(systemName: icon)
-            .font(MemoraTypography.caption2)
-            .foregroundStyle(MemoraColor.textSecondary)
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        Self.dateFormatter.string(from: date)
-    }
-
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
-    }
-}
-
-private struct StatusChip: View {
-    let title: String
-    let color: Color
-
-    var body: some View {
-        Text(title)
-            .font(MemoraTypography.caption2)
-            .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.12))
-            .clipShape(Capsule())
-    }
-}
-
-// MARK: - AskAI Floating Button
-
-private struct AskAIFloatingButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: MemoraSpacing.xs) {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 14, weight: .medium))
-
-                Text("Ask AI")
-                    .font(MemoraTypography.subheadline)
-                    .fontWeight(.medium)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, MemoraSpacing.md)
-            .padding(.vertical, MemoraSpacing.sm)
-            .background(MemoraColor.accentBlue)
-            .clipShape(Capsule())
-        }
-        .padding(.trailing, MemoraSpacing.md)
-        .padding(.bottom, MemoraSpacing.lg)
     }
 }
 

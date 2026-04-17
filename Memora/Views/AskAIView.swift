@@ -104,8 +104,9 @@ struct AskAIView: View {
         VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
             HStack(alignment: .top, spacing: MemoraSpacing.sm) {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .foregroundStyle(MemoraColor.accentBlue)
-                    .font(.system(size: 20))
+                    .foregroundStyle(MemoraColor.accentNothing)
+                    .font(.title3)
+                    .nothingGlow(.subtle)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scopeDescription)
@@ -121,15 +122,15 @@ struct AskAIView: View {
 
                 Text(currentProvider.rawValue)
                     .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentBlue)
+                    .foregroundStyle(MemoraColor.accentNothing)
                     .padding(.horizontal, MemoraSpacing.xs)
                     .padding(.vertical, 4)
-                    .background(MemoraColor.accentBlue.opacity(0.12))
+                    .background(MemoraColor.accentNothingSubtle)
                     .clipShape(Capsule())
             }
 
             if !sourceBadges.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
+                ScrollView(.horizontal) {
                     HStack(spacing: MemoraSpacing.xs) {
                         ForEach(sourceBadges) { badge in
                             Label(badge.label, systemImage: badge.systemImage)
@@ -157,7 +158,7 @@ struct AskAIView: View {
     }
 
     private var scopeSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        ScrollView(.horizontal) {
             HStack(spacing: MemoraSpacing.xs) {
                 ForEach(availableScopes) { option in
                     Button {
@@ -196,7 +197,7 @@ struct AskAIView: View {
             }
             .padding(.horizontal, MemoraSpacing.lg)
 
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: MemoraSpacing.xs) {
                     Button {
                         startNewSession()
@@ -252,6 +253,7 @@ struct AskAIView: View {
                 }
                 .padding(.bottom, MemoraSpacing.md)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
                 withAnimation {
                     proxy.scrollTo("bottom", anchor: .bottom)
@@ -316,6 +318,7 @@ struct AskAIView: View {
                 .font(MemoraTypography.body)
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
+                .submitLabel(.send)
                 .onSubmit {
                     sendMessage(inputText)
                 }
@@ -332,7 +335,7 @@ struct AskAIView: View {
                 sendMessage(inputText)
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 24))
+                    .font(.title2)
                     .foregroundStyle(sendButtonColor)
             }
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
@@ -340,12 +343,13 @@ struct AskAIView: View {
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.vertical, MemoraSpacing.md)
         .background(MemoraColor.surfaceSecondary)
+        .glassCard(.init(cornerRadius: 0, accentTint: false, glow: false, dotMatrix: false))
     }
 
     private var sendButtonColor: Color {
         inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading
             ? MemoraColor.textTertiary
-            : MemoraColor.accentPrimary
+            : MemoraColor.accentNothing
     }
 
     private func reloadScopeOptions() {
@@ -392,7 +396,7 @@ struct AskAIView: View {
             role: .user,
             content: trimmed,
             citations: [],
-            createdAt: Date()
+            createdAt: .now
         )
         messages.append(userMessage)
         persistMessage(userMessage, sessionID: session.id)
@@ -414,7 +418,7 @@ struct AskAIView: View {
                 role: .assistant,
                 content: "サービスが初期化されていません。画面を開き直してください。",
                 citations: [],
-                createdAt: Date()
+                createdAt: .now
             )
             isLoading = false
             messages.append(message)
@@ -431,7 +435,7 @@ struct AskAIView: View {
                     role: .assistant,
                     content: "APIキーが設定されていません。設定画面からAPIキーを設定してください。",
                     citations: [],
-                    createdAt: Date()
+                    createdAt: .now
                 )
                 isLoading = false
                 messages.append(message)
@@ -444,7 +448,7 @@ struct AskAIView: View {
                 role: .assistant,
                 content: "この端末では On-Device AI が利用できません。設定画面からプロバイダーを変更してください。",
                 citations: [],
-                createdAt: Date()
+                createdAt: .now
             )
             isLoading = false
             messages.append(message)
@@ -485,7 +489,7 @@ struct AskAIView: View {
                 role: .assistant,
                 content: responseText.isEmpty ? "回答を生成できませんでした。" : responseText,
                 citations: citations,
-                createdAt: Date()
+                createdAt: .now
             )
 
             session.updatedAt = Date()
@@ -494,12 +498,13 @@ struct AskAIView: View {
             persistMessage(assistantMessage, sessionID: session.id)
             try? modelContext.save()
         } catch {
+            print("[AskAIView] AI response generation failed: \(error.localizedDescription)")
             let message = AskAIConversationMessage(
                 id: UUID(),
                 role: .assistant,
-                content: "エラーが発生しました: \(error.localizedDescription)",
+                content: "回答の生成に失敗しました。もう一度お試しください。",
                 citations: [],
-                createdAt: Date()
+                createdAt: .now
             )
             isLoading = false
             messages.append(message)
@@ -610,13 +615,19 @@ struct AskAIView: View {
     }
 
     private func fetchAudioFile(id: UUID) -> AudioFile? {
-        let descriptor = FetchDescriptor<AudioFile>()
-        return (try? modelContext.fetch(descriptor))?.first(where: { $0.id == id })
+        var descriptor = FetchDescriptor<AudioFile>(
+            predicate: #Predicate<AudioFile> { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func fetchProject(id: UUID) -> Project? {
-        let descriptor = FetchDescriptor<Project>()
-        return (try? modelContext.fetch(descriptor))?.first(where: { $0.id == id })
+        var descriptor = FetchDescriptor<Project>(
+            predicate: #Predicate<Project> { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first
     }
 
     private func makeSessionTitle(from text: String) -> String {
@@ -669,114 +680,4 @@ struct AskAIView: View {
     }
 }
 
-private struct MessageBubbleView: View {
-    let message: AskAIConversationMessage
-
-    private var isUser: Bool {
-        message.role == .user
-    }
-
-    var body: some View {
-        HStack(alignment: .bottom) {
-            if !isUser { Spacer(minLength: 0) }
-
-            VStack(alignment: isUser ? .trailing : .leading, spacing: MemoraSpacing.xs) {
-                Text(message.content)
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(isUser ? .white : MemoraColor.textPrimary)
-                    .lineSpacing(4)
-                    .padding(MemoraSpacing.md)
-                    .background(isUser ? MemoraColor.accentPrimary : MemoraColor.surfaceSecondary)
-                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
-
-                if !message.citations.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: MemoraSpacing.xs) {
-                            ForEach(message.citations) { citation in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(citation.sourceLabel)
-                                        .font(MemoraTypography.caption2)
-                                        .foregroundStyle(MemoraColor.accentBlue)
-                                    Text(citation.title)
-                                        .font(MemoraTypography.caption2)
-                                        .foregroundStyle(MemoraColor.textSecondary)
-                                        .lineLimit(1)
-                                }
-                                .padding(.horizontal, MemoraSpacing.xs)
-                                .padding(.vertical, 6)
-                                .background(MemoraColor.divider.opacity(0.08))
-                                .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: isUser ? 300 : .infinity, alignment: isUser ? .trailing : .leading)
-
-            if isUser { Spacer(minLength: 0) }
-        }
-        .padding(.horizontal, MemoraSpacing.lg)
-    }
-}
-
-private struct ThinkingDots: View {
-    @State private var dotCount = 0
-    @State private var timer: Timer?
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { index in
-                Circle()
-                    .fill(index == dotCount ? MemoraColor.accentBlue : MemoraColor.divider)
-                    .frame(width: 8, height: 8)
-            }
-        }
-        .onAppear {
-            timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-                dotCount = (dotCount + 1) % 3
-            }
-        }
-        .onDisappear {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-}
-
-private struct AskAIScopeOption: Identifiable, Hashable {
-    let scope: ChatScope
-    let title: String
-
-    var id: String {
-        switch scope {
-        case .file(let fileId):
-            return "file-\(fileId.uuidString)"
-        case .project(let projectId):
-            return "project-\(projectId.uuidString)"
-        case .global:
-            return "global"
-        }
-    }
-}
-
-private struct AskAIConversationMessage: Identifiable, Hashable {
-    let id: UUID
-    let role: AskAIMessageRole
-    let content: String
-    let citations: [AskAICitation]
-    let createdAt: Date
-}
-
-private struct AskAICitation: Codable, Hashable, Identifiable {
-    let id: String
-    let title: String
-    let sourceLabel: String
-    let excerpt: String
-}
-
-private struct AskAISourceBadge: Hashable, Identifiable {
-    let id: String
-    let label: String
-    let systemImage: String
-}
 
