@@ -15,13 +15,26 @@ struct ToastOverlay: View {
             switch self {
             case .error: return MemoraColor.accentRed
             case .success: return MemoraColor.accentGreen
-            case .info: return MemoraColor.accentBlue
+            case .info: return MemoraColor.accentNothing
+            }
+        }
+
+        var accentColor: Color {
+            switch self {
+            case .error: return MemoraColor.accentRed
+            case .success: return MemoraColor.accentGreen
+            case .info: return MemoraColor.accentNothing
             }
         }
     }
 
     var body: some View {
         HStack(spacing: MemoraSpacing.sm) {
+            Rectangle()
+                .fill(style.accentColor)
+                .frame(width: 3)
+                .clipShape(UnevenRoundedRectangle(topLeadingRadius: 13, bottomLeadingRadius: 13))
+
             Image(systemName: icon)
                 .font(MemoraTypography.body)
                 .foregroundStyle(style.iconColor)
@@ -43,7 +56,7 @@ struct ToastOverlay: View {
         }
         .padding(.horizontal, MemoraSpacing.md)
         .padding(.vertical, MemoraSpacing.sm)
-        .liquidGlass(cornerRadius: MemoraRadius.md)
+        .glassCard(.default)
         .padding(.horizontal, MemoraSpacing.md)
     }
 }

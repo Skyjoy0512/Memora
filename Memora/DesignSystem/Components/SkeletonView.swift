@@ -7,15 +7,15 @@ struct SkeletonView: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(MemoraColor.divider)
+            .fill(Color(hex: "E8E8EA"))
             .frame(height: height)
-            .overlay(
+            .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             stops: [
                                 .init(color: .clear, location: 0),
-                                .init(color: .white.opacity(0.4), location: 0.5),
+                                .init(color: MemoraColor.accentNothingSubtle, location: 0.5),
                                 .init(color: .clear, location: 1)
                             ],
                             startPoint: .leading,
@@ -23,7 +23,7 @@ struct SkeletonView: View {
                         )
                     )
                     .offset(x: isAnimating ? 300 : -300)
-            )
+            }
             .clipped()
             .onAppear {
                 withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {

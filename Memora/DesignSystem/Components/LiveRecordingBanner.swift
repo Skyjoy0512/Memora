@@ -10,11 +10,17 @@ struct LiveRecordingBanner: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: MemoraSpacing.sm) {
-                // Recording indicator
+                // Recording indicator with glow
                 Circle()
                     .fill(MemoraColor.accentRed)
                     .frame(width: 6, height: 6)
                     .opacity(isBlinking ? 1.0 : 0.3)
+                    .nothingGlow(.init(
+                        color: MemoraColor.accentRed.opacity(0.4),
+                        radius: 8,
+                        intensity: 0.5,
+                        animated: true
+                    ))
 
                 // Duration
                 Text(formatDuration(duration))
@@ -37,7 +43,7 @@ struct LiveRecordingBanner: View {
             .padding(.horizontal, MemoraSpacing.md)
             .padding(.vertical, MemoraSpacing.sm)
             .frame(height: 52)
-            .liquidGlass(cornerRadius: MemoraRadius.md)
+            .glassCard(.default)
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
@@ -55,22 +61,27 @@ struct LiveRecordingBanner: View {
 
 private struct WaveformIndicator: View {
     @State private var levels: [CGFloat] = Array(repeating: 0.3, count: 20)
+    @State private var displayLink: Timer?
 
     var body: some View {
         HStack(spacing: 1) {
             ForEach(0..<levels.count, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(MemoraColor.textTertiary)
+                    .fill(MemoraColor.accentNothing.opacity(0.3))
                     .frame(width: 2, height: 12 * levels[i])
             }
         }
         .frame(width: 60)
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            displayLink = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 for i in 0..<levels.count {
                     levels[i] = CGFloat.random(in: 0.2...1.0)
                 }
             }
+        }
+        .onDisappear {
+            displayLink?.invalidate()
+            displayLink = nil
         }
     }
 }

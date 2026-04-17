@@ -11,6 +11,14 @@ enum MemoraSpacing {
     static let xxl: CGFloat  = 32
     static let xxxl: CGFloat = 40
     static let xxxxl: CGFloat = 56
+
+    // Golden Ratio Scale
+    static let phi1: CGFloat = 5
+    static let phi2: CGFloat = 8
+    static let phi3: CGFloat = 13
+    static let phi4: CGFloat = 21
+    static let phi5: CGFloat = 34
+    static let phi6: CGFloat = 55
 }
 
 enum MemoraRadius {

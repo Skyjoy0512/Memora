@@ -10,16 +10,17 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: MemoraSpacing.lg) {
             Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundStyle(MemoraColor.textTertiary)
+                .font(.system(.largeTitle))
+                .foregroundStyle(MemoraColor.accentNothing.opacity(0.6))
+                .nothingGlow(.subtle)
 
             VStack(spacing: MemoraSpacing.xs) {
                 Text(title)
-                    .font(MemoraTypography.title3)
+                    .font(MemoraTypography.title2)
                     .foregroundStyle(MemoraColor.textPrimary)
 
                 Text(description)
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.footnote)
                     .foregroundStyle(MemoraColor.textSecondary)
                     .multilineTextAlignment(.center)
             }

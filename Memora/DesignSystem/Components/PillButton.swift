@@ -8,25 +8,51 @@ struct PillButton: View {
     enum Style {
         case primary
         case outline
+        case glass
     }
 
     var body: some View {
         Button(action: action) {
             Text(title)
                 .font(MemoraTypography.headline)
-                .foregroundStyle(style == .primary ? .white : MemoraColor.accentPrimary)
+                .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
-                .background(
-                    style == .primary
-                        ? MemoraColor.accentPrimary
-                        : Color.clear
-                )
-                .overlay(
+                .background(background)
+                .overlay {
                     Capsule()
-                        .stroke(style == .primary ? Color.clear : MemoraColor.accentPrimary, lineWidth: 1)
-                )
+                        .stroke(strokeColor, lineWidth: 1)
+                }
                 .clipShape(Capsule())
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch style {
+        case .primary: return .white
+        case .outline: return MemoraColor.accentPrimary
+        case .glass: return MemoraColor.textPrimary
+        }
+    }
+
+    private var background: some View {
+        Group {
+            switch style {
+            case .primary:
+                MemoraColor.accentPrimary
+            case .outline:
+                Color.clear
+            case .glass:
+                Color.clear
+            }
+        }
+    }
+
+    private var strokeColor: Color {
+        switch style {
+        case .primary: return Color.clear
+        case .outline: return MemoraColor.accentNothing
+        case .glass: return Color.clear
         }
     }
 }
