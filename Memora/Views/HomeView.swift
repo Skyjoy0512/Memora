@@ -201,24 +201,10 @@ struct HomeView: View {
     // MARK: - Search Bar
 
     private var searchBar: some View {
-        HStack(spacing: MemoraSpacing.sm) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
-            TextField("ファイルを検索", text: $searchText)
-                .textFieldStyle(.plain)
-
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(MemoraSpacing.sm)
-        .glassCard(.default)
+        NothingSearchBar(text: $searchText, placeholder: "ファイルを検索")
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.top, MemoraSpacing.xs)
+            .padding(.bottom, MemoraSpacing.xxxs)
     }
 
     // MARK: - FAB with Menu
@@ -299,11 +285,17 @@ struct HomeView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        ContentUnavailableView(
-            "録音ファイル一覧",
-            systemImage: "waveform",
-            description: Text(recordingHint)
-        )
+        VStack(spacing: MemoraSpacing.xxxl) {
+            Spacer()
+
+            EmptyStateView(
+                icon: "waveform",
+                title: "録音ファイル一覧",
+                description: recordingHint
+            )
+
+            Spacer()
+        }
     }
 
     private var selectModeMenu: some View {
@@ -420,22 +412,22 @@ struct HomeView: View {
         ScrollView(.horizontal) {
             HStack(spacing: MemoraSpacing.xs) {
                 if let transcribed = filterTranscribed {
-                    FilterChip(title: transcribed ? "文字起こし済" : "未文字起こし", isSelected: true) {
+                    NothingFilterChip(title: transcribed ? "文字起こし済" : "未文字起こし") {
                         filterTranscribed = nil
                     }
                 }
                 if let summarized = filterSummarized {
-                    FilterChip(title: summarized ? "要約済" : "未要約", isSelected: true) {
+                    NothingFilterChip(title: summarized ? "要約済" : "未要約") {
                         filterSummarized = nil
                     }
                 }
                 if let lifeLog = filterLifeLog {
-                    FilterChip(title: lifeLog ? "LifeLog" : "非LifeLog", isSelected: true) {
+                    NothingFilterChip(title: lifeLog ? "LifeLog" : "非LifeLog") {
                         filterLifeLog = nil
                     }
                 }
                 if let tag = selectedTag {
-                    FilterChip(title: tag, isSelected: true) {
+                    NothingFilterChip(title: tag) {
                         selectedTag = nil
                     }
                 }
@@ -617,6 +609,32 @@ struct HomeView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Nothing Filter Chip
+
+struct NothingFilterChip: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: MemoraSpacing.xxxs) {
+                Text(title)
+                    .font(MemoraTypography.phiCaption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(.horizontal, MemoraSpacing.sm)
+            .padding(.vertical, 6)
+            .background(MemoraColor.accentNothing)
+            .clipShape(Capsule())
+        }
     }
 }
 

@@ -24,10 +24,14 @@ struct STTDiagnosticsSnapshot {
     let generatedAt: Date
     let lastFailureCategory: STTFailureCategory?
 
+    private static let generatedAtFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd HH:mm:ss"
+        return f
+    }()
+
     var generatedAtText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd HH:mm:ss"
-        return formatter.string(from: generatedAt)
+        Self.generatedAtFormatter.string(from: generatedAt)
     }
 }
 

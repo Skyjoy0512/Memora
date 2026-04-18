@@ -9,6 +9,7 @@ struct PillButton: View {
         case primary
         case outline
         case glass
+        case nothing
     }
 
     var body: some View {
@@ -17,13 +18,19 @@ struct PillButton: View {
                 .font(MemoraTypography.headline)
                 .foregroundStyle(foregroundColor)
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                .frame(height: MemoraSize.buttonHeight)
                 .background(background)
                 .overlay {
                     Capsule()
                         .stroke(strokeColor, lineWidth: 1)
                 }
                 .clipShape(Capsule())
+                .if(style == .nothing) { view in
+                    view.nothingGlow(.prominent)
+                }
+                .if(style == .glass) { view in
+                    view.glassCard(.init(cornerRadius: MemoraSize.buttonHeight / 2, glow: false))
+                }
         }
     }
 
@@ -32,6 +39,7 @@ struct PillButton: View {
         case .primary: return .white
         case .outline: return MemoraColor.accentPrimary
         case .glass: return MemoraColor.textPrimary
+        case .nothing: return .white
         }
     }
 
@@ -44,6 +52,8 @@ struct PillButton: View {
                 Color.clear
             case .glass:
                 Color.clear
+            case .nothing:
+                MemoraColor.accentNothing
             }
         }
     }
@@ -53,6 +63,7 @@ struct PillButton: View {
         case .primary: return Color.clear
         case .outline: return MemoraColor.accentNothing
         case .glass: return Color.clear
+        case .nothing: return Color.clear
         }
     }
 }

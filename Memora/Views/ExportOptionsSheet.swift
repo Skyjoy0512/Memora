@@ -59,11 +59,11 @@ struct ExportOptionsSheet: View {
                     Button(action: export) {
                         Label("エクスポート", systemImage: "square.and.arrow.down")
                             .font(MemoraTypography.headline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MemoraColor.textPrimary)
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.md)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
                 }
 
@@ -74,7 +74,7 @@ struct ExportOptionsSheet: View {
                         .foregroundStyle(MemoraColor.accentRed)
                         .padding()
                         .background(MemoraColor.accentRed.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                 }
 
                 // Notion エクスポート（設定済みの場合のみ表示）
@@ -109,7 +109,7 @@ struct ExportOptionsSheet: View {
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(MemoraColor.accentBlue)
-                                    .cornerRadius(MemoraRadius.md)
+                                    .clipShape(.rect(cornerRadius: MemoraRadius.md))
                             }
                         }
 
@@ -119,7 +119,7 @@ struct ExportOptionsSheet: View {
                                 .foregroundStyle(message.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed)
                                 .padding()
                                 .background((message.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed).opacity(0.1))
-                                .cornerRadius(MemoraRadius.sm)
+                                .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                         }
                     }
                 }
@@ -219,14 +219,14 @@ struct ExportOptionsSheet: View {
                     )
                 }
 
-                // 共有シートを表示
+                // 共有シートを表示（UIActivityViewController は UIKit のため
+                // activeWindowScene 経由で rootViewController を取得）
                 await MainActor.run {
                     let activityVC = UIActivityViewController(
                         activityItems: [url],
                         applicationActivities: nil
                     )
-                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let rootViewController = scene.windows.first?.rootViewController {
+                    if let rootViewController = UIApplication.shared.activeWindowScene?.windows.first?.rootViewController {
                         rootViewController.present(activityVC, animated: true)
                     }
                     dismiss()

@@ -1,112 +1,122 @@
 import SwiftUI
 
 struct DeviceConnectionView: View {
-    @EnvironmentObject private var omiAdapter: OmiAdapter
+    @Environment(OmiAdapter.self) private var omiAdapter
 
     var body: some View {
         VStack(spacing: MemoraSpacing.xxl) {
             Spacer()
 
             if omiAdapter.isConnected {
-                VStack(spacing: MemoraRadius.md) {
+                VStack(spacing: MemoraSpacing.md) {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
                         .frame(width: 60, height: 60)
                         .foregroundStyle(MemoraColor.accentGreen)
+                        .nothingGlow(.prominent)
 
                     Text("デバイスに接続されています")
-                        .font(MemoraTypography.headline)
+                        .font(MemoraTypography.phiTitle)
 
                     if let deviceName = omiAdapter.connectedDeviceName {
                         Text(deviceName)
-                            .font(MemoraTypography.subheadline)
+                            .font(MemoraTypography.phiBody)
                             .foregroundStyle(.secondary)
                     }
 
                     if let statusMessage = omiAdapter.statusMessage {
                         Text(statusMessage)
-                            .font(MemoraTypography.subheadline)
+                            .font(MemoraTypography.phiCaption)
                             .foregroundStyle(.secondary)
                     }
 
                     Text("状態: \(omiAdapter.connectionState.description)")
-                        .font(MemoraTypography.caption1)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
 
                     Button(action: { omiAdapter.disconnect() }) {
                         Text("セッション終了")
-                            .font(MemoraTypography.headline)
+                            .font(MemoraTypography.phiSubhead)
                             .foregroundStyle(.white)
-                            .padding()
+                            .padding(.vertical, MemoraSpacing.sm)
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.accentRed)
-                            .cornerRadius(MemoraRadius.md)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top, MemoraSpacing.sm)
 
                     Text(omiAdapter.sessionTerminationDescription)
-                        .font(MemoraTypography.caption1)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                 }
+                .padding(MemoraSpacing.md)
+                .glassCard(.default)
+                .padding(.horizontal, MemoraSpacing.md)
             } else if let errorMessage = omiAdapter.errorMessage {
                 VStack(spacing: MemoraSpacing.xxl) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .resizable()
                         .frame(width: 60, height: 60)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(MemoraColor.accentNothing)
+                        .nothingGlow(.prominent)
 
                     Text("接続を開始できませんでした")
-                        .font(MemoraTypography.headline)
+                        .font(MemoraTypography.phiTitle)
 
                     Text(errorMessage)
-                        .font(MemoraTypography.caption1)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
                     Button(action: { omiAdapter.startScan() }) {
                         Label("再接続", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.headline)
+                            .font(MemoraTypography.phiSubhead)
                             .foregroundStyle(.white)
-                            .padding()
+                            .padding(.vertical, MemoraSpacing.sm)
                             .frame(maxWidth: .infinity)
-                            .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.md)
+                            .background(MemoraColor.accentNothing)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
-                    .padding()
+                    .padding(.horizontal)
                 }
+                .padding(MemoraSpacing.md)
+                .glassCard(.default)
+                .padding(.horizontal, MemoraSpacing.md)
             } else if !omiAdapter.discoveredDevices.isEmpty {
-                VStack(spacing: MemoraSpacing.xs) {
-                    Text("発見したデバイス")
-                        .font(MemoraTypography.headline)
+                VStack(spacing: MemoraSpacing.sm) {
+                    GlassSectionHeader(title: "発見したデバイス", icon: "antenna.radiowaves.left.and.right")
+                        .padding(.horizontal, MemoraSpacing.md)
 
                     if omiAdapter.isScanning {
                         HStack(spacing: MemoraSpacing.xs) {
                             ProgressView()
-                                .tint(MemoraColor.textSecondary)
+                                .tint(MemoraColor.accentNothing)
 
                             Text("引き続き検索中...")
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.phiCaption)
                                 .foregroundStyle(.secondary)
                         }
+                        .padding(.horizontal, MemoraSpacing.md)
                     }
 
                     ForEach(omiAdapter.discoveredDevices) { device in
                         Button(action: { omiAdapter.connect(to: device) }) {
-                            HStack(spacing: MemoraRadius.md) {
+                            HStack(spacing: MemoraSpacing.md) {
                                 Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .foregroundStyle(MemoraColor.textSecondary)
+                                    .foregroundStyle(MemoraColor.accentNothing)
                                     .frame(width: 40, height: 40)
 
-                                VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
+                                VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
                                     Text(device.stableDisplayName)
-                                        .font(MemoraTypography.subheadline)
+                                        .font(MemoraTypography.phiBody)
                                         .foregroundStyle(.primary)
 
                                     Text(device.subtitle)
-                                        .font(MemoraTypography.caption1)
+                                        .font(MemoraTypography.phiCaption)
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -115,20 +125,21 @@ struct DeviceConnectionView: View {
                                 Image(systemName: "chevron.right")
                                     .foregroundStyle(.secondary)
                             }
-                            .padding()
+                            .padding(MemoraSpacing.md)
                         }
-                        .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
+                        .buttonStyle(.plain)
+                        .glassCard(.default)
+                        .padding(.horizontal, MemoraSpacing.md)
                     }
-                    .padding(.horizontal)
                 }
             } else if omiAdapter.isScanning {
                 VStack(spacing: MemoraSpacing.xxl) {
                     ProgressView()
-                        .tint(MemoraColor.textSecondary)
+                        .tint(MemoraColor.accentNothing)
+                        .scaleEffect(1.2)
 
                     Text("デバイスを検索中...")
-                        .font(MemoraTypography.headline)
+                        .font(MemoraTypography.phiTitle)
                 }
             } else {
                 VStack(spacing: MemoraSpacing.xxl) {
@@ -140,29 +151,30 @@ struct DeviceConnectionView: View {
                         .foregroundStyle(MemoraColor.textSecondary)
 
                     Text("デバイスが見つかりませんでした")
-                        .font(MemoraTypography.headline)
+                        .font(MemoraTypography.phiTitle)
                         .foregroundStyle(.secondary)
 
                     Button(action: { omiAdapter.startScan() }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.headline)
+                            .font(MemoraTypography.phiSubhead)
                             .foregroundStyle(.white)
-                            .padding()
+                            .padding(.vertical, MemoraSpacing.sm)
                             .frame(maxWidth: .infinity)
-                            .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.md)
+                            .background(MemoraColor.accentNothing)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
-                    .padding()
+                    .padding(.horizontal)
 
                     Spacer()
                 }
             }
         }
         .padding()
+        .nothingTheme(showDotMatrix: true)
     }
 }
 
 #Preview {
     DeviceConnectionView()
-        .environmentObject(OmiAdapter())
+        .environment(OmiAdapter())
 }

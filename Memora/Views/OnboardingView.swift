@@ -16,7 +16,8 @@ struct OnboardingView: View {
                     Button("スキップ") {
                         completeOnboarding()
                     }
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .font(MemoraTypography.phiBody)
+                    .foregroundStyle(.white.opacity(0.6))
                     .padding(MemoraSpacing.md)
                 }
             }
@@ -30,37 +31,30 @@ struct OnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
-            // Page indicator
-            HStack(spacing: MemoraSpacing.xs) {
-                ForEach(0..<totalPages, id: \.self) { i in
-                    Circle()
-                        .fill(i == currentPage ? MemoraColor.accentPrimary : MemoraColor.divider)
-                        .frame(width: 8, height: 8)
-                        .animation(.easeInOut(duration: 0.3), value: currentPage)
-                }
-            }
+            // Page indicator (NothingPageIndicator)
+            NothingPageIndicator(
+                totalPages: totalPages,
+                currentPage: $currentPage
+            )
             .padding(.vertical, MemoraSpacing.md)
 
-            // Bottom button
-            Button {
-                if currentPage < totalPages - 1 {
-                    withAnimation { currentPage += 1 }
-                } else {
-                    completeOnboarding()
-                }
-            } label: {
-                Text(currentPage < totalPages - 1 ? "次へ" : "始める")
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(MemoraColor.accentPrimary)
-                    .clipShape(Capsule())
-            }
+            // Bottom CTA button (PillButton .nothing style)
+            PillButton(
+                title: currentPage < totalPages - 1 ? "次へ" : "始める",
+                action: {
+                    if currentPage < totalPages - 1 {
+                        withAnimation { currentPage += 1 }
+                    } else {
+                        completeOnboarding()
+                    }
+                },
+                style: .nothing
+            )
             .padding(.horizontal, MemoraSpacing.xl)
             .padding(.bottom, MemoraSpacing.xl)
         }
-        .background(MemoraColor.surfacePrimary)
+        .background(Color.black)
+        .nothingDotMatrix(.prominent)
     }
 
     // MARK: - Page Content
@@ -70,26 +64,33 @@ struct OnboardingView: View {
         VStack(spacing: MemoraSpacing.xxl) {
             Spacer()
 
-            // Icon
+            // Icon: large 200pt circle with glassCard + accentNothing border + glow
             ZStack {
                 Circle()
-                    .fill(MemoraColor.accentBlue.opacity(0.1))
-                    .frame(width: 160, height: 160)
+                    .fill(Color.clear)
+                    .frame(width: 200, height: 200)
+                    .glassCard(.init(cornerRadius: 100, accentTint: true, glow: true))
+                    .overlay {
+                        Circle()
+                            .stroke(MemoraColor.accentNothing, lineWidth: 2)
+                            .frame(width: 200, height: 200)
+                    }
+                    .nothingGlow(.prominent)
 
                 Image(systemName: pageInfo(page).icon)
-                    .font(.system(size: 60))
-                    .foregroundStyle(MemoraColor.accentBlue)
+                    .font(.system(size: 60, weight: .light))
+                    .foregroundStyle(MemoraColor.accentNothing)
             }
 
             // Text
             VStack(spacing: MemoraSpacing.sm) {
                 Text(pageInfo(page).title)
-                    .font(MemoraTypography.title1)
-                    .foregroundStyle(MemoraColor.textPrimary)
+                    .font(MemoraTypography.phiDisplay)
+                    .foregroundStyle(.white)
 
                 Text(pageInfo(page).description)
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .font(MemoraTypography.phiBody)
+                    .foregroundStyle(.white.opacity(0.6))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, MemoraSpacing.xxl)
             }

@@ -17,7 +17,8 @@ struct FABMenu: View {
             if isExpanded {
                 Color.black.opacity(0.3)
                     .ignoresSafeArea()
-                    .accessibilityHint("メニューを閉じる")
+                    .accessibilityLabel("メニュー背景")
+                    .accessibilityHint("メニューを閉じるにはタップしてください")
                     .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { isExpanded = false } }
             }
 
@@ -45,7 +46,8 @@ struct FABMenu: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint(item.label)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(item.label)
                     .opacity(isExpanded ? 1 : 0)
                     .offset(y: isExpanded ? 0 : 10)
                     .animation(
@@ -74,7 +76,8 @@ struct FABMenu: View {
                     }
             }
             .buttonStyle(.plain)
-            .accessibilityHint("アクションメニューを開く")
+            .accessibilityLabel("アクションメニュー")
+            .accessibilityHint(isExpanded ? "メニューを閉じる" : "録音やインポートなどのアクションを開く")
         }
     }
 }

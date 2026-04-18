@@ -39,6 +39,8 @@ struct MemoraApp: App {
         CustomSummaryTemplate.self
     ])
 
+    nonisolated private static let migrationPlan = MemoraMigrationPlan.self
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -115,10 +117,10 @@ struct MemoraApp: App {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
+            .overlay {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(.orange.opacity(0.3), lineWidth: 1)
-            )
+            }
             .padding(.horizontal, 16)
             .padding(.top, 8)
 
@@ -380,7 +382,7 @@ struct MemoraApp: App {
         }
 
         let modelContainerStart = ContinuousClock.now
-        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let container = try ModelContainer(for: schema, migrationPlan: migrationPlan, configurations: [configuration])
         let modelContainerElapsed = modelContainerStart.duration(to: ContinuousClock.now)
         let modelContainerMs = Double(modelContainerElapsed.components.seconds) * 1000.0
             + Double(modelContainerElapsed.components.attoseconds) / 1_000_000_000.0
@@ -440,7 +442,7 @@ struct MemoraApp: App {
                 .completed(await loadTask.value)
             }
             group.addTask {
-                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                try? await Task.sleep(for: .seconds(Double(timeoutNanoseconds) / 1_000_000_000))
                 return .timedOut
             }
 

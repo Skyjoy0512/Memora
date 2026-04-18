@@ -1,273 +1,17 @@
 import SwiftUI
 import SwiftData
 
-struct ToDoView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \TodoItem.createdAt, order: .reverse)
-    private var allTodos: [TodoItem]
-    @Query(filter: #Predicate<TodoItem> { !$0.isCompleted },
-           sort: \TodoItem.createdAt,
-           order: .reverse)
-    private var incompleteTodos: [TodoItem]
-
-    @Query(filter: #Predicate<TodoItem> { $0.isCompleted },
-           sort: \TodoItem.completedAt,
-           order: .reverse)
-    private var completedTodos: [TodoItem]
-
-    @State private var showAddSheet = false
-    @State private var editingTodo: TodoItem?
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if incompleteTodos.isEmpty && completedTodos.isEmpty {
-                    emptyState
-                } else {
-                    todoList
-                }
-            }
-            .navigationTitle("ToDo")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showAddSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(MemoraTypography.body)
-                            .foregroundStyle(MemoraColor.accentBlue)
-                    }
-                }
-            }
-            .sheet(isPresented: $showAddSheet) {
-                TodoEditSheet(mode: .create)
-            }
-            .sheet(item: $editingTodo) { todo in
-                TodoEditSheet(mode: .edit(todo))
-            }
-        }
-    }
-
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: MemoraSpacing.xxxl) {
-            Spacer()
-
-            EmptyStateView(
-                icon: "checklist",
-                title: "ToDoはまだありません",
-                description: "議事録から自動で抽出されます",
-                buttonTitle: "手動で追加",
-                buttonAction: { showAddSheet = true }
-            )
-
-            Spacer()
-        }
-    }
-
-    // MARK: - Todo List
-
-    private var todoList: some View {
-        List {
-            if !incompleteTodos.isEmpty {
-                Section {
-                    ForEach(incompleteTodos) { todo in
-                        TodoRowView(
-                            todo: todo,
-                            parentTitle: parentTitle(for: todo)
-                        )
-                            .onTapGesture { editingTodo = todo }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                deleteButton(todo)
-                            }
-                            .swipeActions(edge: .leading) {
-                                completeButton(todo)
-                            }
-                    }
-                } header: {
-                    Text("未完了")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-                }
-            }
-
-            if !completedTodos.isEmpty {
-                Section {
-                    ForEach(completedTodos) { todo in
-                        TodoRowView(
-                            todo: todo,
-                            parentTitle: parentTitle(for: todo)
-                        )
-                            .onTapGesture { editingTodo = todo }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                deleteButton(todo)
-                            }
-                    }
-                } header: {
-                    Text("完了済み")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-    }
-
-    // MARK: - Swipe Actions
-
-    private func completeButton(_ todo: TodoItem) -> some View {
-        Button {
-            withAnimation {
-                todo.isCompleted.toggle()
-                todo.completedAt = todo.isCompleted ? Date() : nil
-            }
-        } label: {
-            Label(todo.isCompleted ? "未完了に戻す" : "完了",
-                  systemImage: todo.isCompleted ? "xmark.circle" : "checkmark.circle")
-        }
-        .tint(todo.isCompleted ? MemoraColor.textSecondary : MemoraColor.accentGreen)
-    }
-
-    private func deleteButton(_ todo: TodoItem) -> some View {
-        Button(role: .destructive) {
-            withAnimation {
-                modelContext.delete(todo)
-                try? modelContext.save()
-            }
-        } label: {
-            Label("削除", systemImage: "trash")
-        }
-    }
-
-    private func parentTitle(for todo: TodoItem) -> String? {
-        guard let parentID = todo.parentID else {
-            return TaskBreakdownMetadata.parentTitle(from: todo.notes)
-        }
-
-        return allTodos.first(where: { $0.id == parentID })?.title
-            ?? TaskBreakdownMetadata.parentTitle(from: todo.notes)
-    }
-}
-
-// MARK: - Todo Row
-
-private struct TodoRowView: View {
-    let todo: TodoItem
-    let parentTitle: String?
-
-    var body: some View {
-        HStack(spacing: MemoraSpacing.sm) {
-            // Check circle
-            Button {
-                withAnimation {
-                    todo.isCompleted.toggle()
-                    todo.completedAt = todo.isCompleted ? Date() : nil
-                }
-            } label: {
-                Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(todo.isCompleted ? MemoraColor.accentGreen : MemoraColor.textTertiary)
-            }
-            .buttonStyle(.plain)
-
-            // Content
-            VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                Text(todo.title)
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(todo.isCompleted ? MemoraColor.textTertiary : MemoraColor.textPrimary)
-                    .strikethrough(todo.isCompleted)
-
-                if let parentTitle, !parentTitle.isEmpty {
-                    Label("親: \(parentTitle)", systemImage: "arrow.turn.down.right")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentBlue)
-                }
-
-                if !todo.isCompleted {
-                    HStack(spacing: MemoraSpacing.xs) {
-                        if let assignee = todo.assignee, !assignee.isEmpty {
-                            Label(assignee, systemImage: "person.crop.circle")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.textSecondary)
-                        }
-
-                        if let speaker = todo.speaker, !speaker.isEmpty {
-                            Label(speaker, systemImage: "person.fill")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.textSecondary)
-                        }
-
-                        if let dueDate = todo.dueDate {
-                            Label(dueDateString(dueDate), systemImage: "calendar")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(isOverdue(dueDate) ? MemoraColor.accentRed : MemoraColor.textSecondary)
-                        }
-
-                        if let priority = Priority(rawValue: todo.priority) {
-                            priorityDot(priority)
-                        }
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, MemoraSpacing.xxxs)
-        .contentShape(Rectangle())
-    }
-
-    // MARK: - Helpers
-
-    private func dueDateString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        if Calendar.current.isDateInToday(date) { return "今日" }
-        if Calendar.current.isDateInTomorrow(date) { return "明日" }
-        formatter.dateStyle = .short
-        return formatter.string(from: date)
-    }
-
-    private func isOverdue(_ date: Date) -> Bool {
-        date < Date() && !todo.isCompleted
-    }
-
-    @ViewBuilder
-    private func priorityDot(_ priority: Priority) -> some View {
-        switch priority {
-        case .high:
-            Circle().fill(MemoraColor.accentRed).frame(width: 8, height: 8)
-        case .medium:
-            Circle().fill(MemoraColor.accentBlue).frame(width: 8, height: 8)
-        case .low:
-            Circle().fill(MemoraColor.textTertiary).frame(width: 8, height: 8)
-        }
-    }
-}
-
-// MARK: - Priority
-
-private enum Priority: String, CaseIterable {
-    case high = "high"
-    case medium = "medium"
-    case low = "low"
-
-    var label: String {
-        switch self {
-        case .high: return "高"
-        case .medium: return "中"
-        case .low: return "低"
-        }
-    }
-}
-
 // MARK: - Todo Edit Sheet
 
 struct TodoEditSheet: View {
     enum Mode {
         case create
         case edit(TodoItem)
+
+        var isEdit: Bool {
+            if case .edit = self { return true }
+            return false
+        }
     }
 
     let mode: Mode
@@ -432,6 +176,8 @@ struct TodoEditSheet: View {
         }
     }
 
+    // MARK: - Actions
+
     private func loadIfEditing() {
         guard case .edit(let todo) = mode else { return }
         title = todo.title
@@ -522,7 +268,9 @@ struct TodoEditSheet: View {
     }
 }
 
-private struct TaskBreakdownSheet: View {
+// MARK: - Task Breakdown Sheet
+
+struct TaskBreakdownSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
@@ -660,7 +408,7 @@ private struct TaskBreakdownSheet: View {
                             .pickerStyle(.segmented)
 
                             if !draft.citations.isEmpty {
-                                ScrollView(.horizontal, showsIndicators: false) {
+                                ScrollView(.horizontal) {
                                     HStack(spacing: MemoraSpacing.xs) {
                                         ForEach(draft.citations, id: \.self) { citation in
                                             Text(citation)
@@ -673,6 +421,7 @@ private struct TaskBreakdownSheet: View {
                                         }
                                     }
                                 }
+                                .scrollIndicators(.hidden)
                             }
                         }
                         .padding(.vertical, MemoraSpacing.xxxs)
@@ -801,11 +550,15 @@ private struct TaskBreakdownSheet: View {
         return sections.joined(separator: "\n\n")
     }
 
+    private static let dueDateLabelFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateStyle = .medium
+        return f
+    }()
+
     private func dueDateLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
+        Self.dueDateLabelFormatter.string(from: date)
     }
 
     private func normalizedOptional(_ value: String) -> String? {
@@ -814,7 +567,9 @@ private struct TaskBreakdownSheet: View {
     }
 }
 
-private struct TaskBreakdownApplyResult {
+// MARK: - Task Breakdown Helpers
+
+struct TaskBreakdownApplyResult {
     let parentTitle: String
     let drafts: [TaskBreakdownDraft]
     let assignee: String
@@ -826,7 +581,7 @@ private struct TaskBreakdownApplyResult {
     }
 }
 
-private struct TaskBreakdownDraft: Identifiable, Hashable {
+struct TaskBreakdownDraft: Identifiable, Hashable {
     let id: UUID
     var title: String
     var rationale: String?
@@ -910,7 +665,7 @@ private struct TaskBreakdownDraft: Identifiable, Hashable {
     }
 }
 
-private enum TaskBreakdownMetadata {
+enum TaskBreakdownMetadata {
     static let parentMarker = "[Parent]"
     static let rationaleMarker = "[Rationale]"
     static let citationsMarker = "[Citations]"
@@ -939,18 +694,6 @@ private enum TaskBreakdownMetadata {
     }
 }
 
-extension TodoEditSheet.Mode {
-    var isEdit: Bool {
-        if case .edit = self { return true }
-        return false
-    }
-}
-
-// MARK: - TodoItem Identifiable conformance
+// MARK: - Identifiable
 
 extension TodoItem: Identifiable {}
-
-#Preview {
-    ToDoView()
-        .modelContainer(for: [TodoItem.self, Project.self], inMemory: true)
-}

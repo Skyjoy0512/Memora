@@ -47,7 +47,7 @@ struct TranscriptContentView: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(MemoraColor.divider.opacity(0.05))
-                .cornerRadius(MemoraRadius.md)
+                .clipShape(.rect(cornerRadius: MemoraRadius.md))
             }
 
             Spacer()

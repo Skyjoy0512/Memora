@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 import Observation
 import PhotosUI
-import UIKit
 
 struct ProjectDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -43,7 +42,7 @@ struct ProjectDetailView: View {
             FileDetailView(audioFile: file)
                 .toolbar(.hidden, for: .tabBar)
         }
-        .onAppear {
+        .task {
             viewModel.configure(
                 modelContext: modelContext,
                 audioFileRepository: AudioFileRepository(modelContext: modelContext)
@@ -112,11 +111,11 @@ struct ProjectDetailView: View {
                 Button(action: { showRecordingView = true }) {
                     Label("録音を開始", systemImage: "mic.circle.fill")
                         .font(MemoraTypography.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(MemoraColor.textPrimary)
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(MemoraColor.divider)
-                        .cornerRadius(MemoraRadius.sm)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                 }
                 .padding(.horizontal)
 
@@ -135,11 +134,13 @@ struct ProjectDetailView: View {
 
             Section("録音") {
                 ForEach(viewModel.projectFiles) { file in
-                    AudioFileRow(audioFile: file, projectName: project.title)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedAudioFile = file
-                        }
+                    Button {
+                        selectedAudioFile = file
+                    } label: {
+                        AudioFileRow(audioFile: file, projectName: project.title)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("ファイル詳細を開く")
                 }
                 .onDelete(perform: deleteAudioFiles)
             }
@@ -237,7 +238,7 @@ struct ProjectDetailView: View {
                     )
                     .frame(maxWidth: .infinity)
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    ScrollView(.horizontal) {
                         HStack(spacing: MemoraSpacing.sm) {
                             ForEach(viewModel.photoAttachments, id: \.id) { attachment in
                                 Button {
@@ -260,6 +261,7 @@ struct ProjectDetailView: View {
                         }
                         .padding(.vertical, MemoraSpacing.xxs)
                     }
+                    .scrollIndicators(.hidden)
                 }
             }
             .padding(.vertical, MemoraSpacing.xxxs)
@@ -371,7 +373,8 @@ final class ProjectDetailViewModel {
             projectFiles = try audioFileRepository.fetchByProject(projectID)
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = error.localizedDescription
+            lastErrorMessage = "ファイルの読み込みに失敗しました。もう一度お試しください。"
+            print("ファイル読み込みエラー: \(error.localizedDescription)")
         }
     }
 
@@ -390,7 +393,8 @@ final class ProjectDetailViewModel {
             projectFiles.removeAll(where: { $0.id == file.id })
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = error.localizedDescription
+            lastErrorMessage = "ファイルの削除に失敗しました。もう一度お試しください。"
+            print("ファイル削除エラー: \(error.localizedDescription)")
         }
     }
 
@@ -425,7 +429,8 @@ final class ProjectDetailViewModel {
             try modelContext.save()
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "写真の追加に失敗しました: \(error.localizedDescription)"
+            lastErrorMessage = "写真の追加に失敗しました。もう一度お試しください。"
+            print("写真追加エラー: \(error.localizedDescription)")
         }
     }
 
@@ -437,7 +442,8 @@ final class ProjectDetailViewModel {
             try modelContext.save()
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "キャプションの保存に失敗しました: \(error.localizedDescription)"
+            lastErrorMessage = "キャプションの保存に失敗しました。もう一度お試しください。"
+            print("キャプション保存エラー: \(error.localizedDescription)")
         }
     }
 
@@ -453,7 +459,8 @@ final class ProjectDetailViewModel {
             removeFileIfNeeded(at: attachment.thumbnailPath)
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "写真の削除に失敗しました: \(error.localizedDescription)"
+            lastErrorMessage = "写真の削除に失敗しました。もう一度お試しください。"
+            print("写真削除エラー: \(error.localizedDescription)")
         }
     }
 
@@ -478,7 +485,8 @@ final class ProjectDetailViewModel {
             try modelContext.save()
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "写真の並び替えに失敗しました: \(error.localizedDescription)"
+            lastErrorMessage = "写真の並び替えに失敗しました。もう一度お試しください。"
+            print("写真並び替えエラー: \(error.localizedDescription)")
             loadPhotoAttachments(projectID: attachment.ownerID)
         }
     }

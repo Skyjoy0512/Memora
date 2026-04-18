@@ -14,6 +14,7 @@ struct RecordingView: View {
     @State private var showProjectPicker = false
     @State private var suggestedEventTitle: String?
     @State private var useEventTitle = false
+    @State private var pulseRecording = false
 
     // プロジェクト一覧
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
@@ -28,84 +29,90 @@ struct RecordingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // プロジェクト選択
+            // プロジェクト選択 (glassCard background)
             HStack {
                 Text("プロジェクト:")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.phiCaption)
+                    .foregroundStyle(.white.opacity(0.6))
 
                 Button(action: { showProjectPicker = true }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: MemoraSpacing.xs) {
                         Text(selectedProject?.title ?? "未選択")
-                            .foregroundStyle(.primary)
+                            .font(MemoraTypography.phiBody)
+                            .foregroundStyle(.white)
 
                         Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(MemoraTypography.phiCaption)
+                            .foregroundStyle(.white.opacity(0.5))
                     }
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 8)
-                    .background(MemoraColor.divider.opacity(0.1))
-                    .clipShape(.rect(cornerRadius: MemoraRadius.sm))
+                    .padding(.horizontal, MemoraSpacing.md)
+                    .padding(.vertical, MemoraSpacing.sm)
+                    .glassCard(.init(cornerRadius: MemoraRadius.md, accentTint: false, glow: false))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding()
-            .padding(.top, 8)
+            .padding(.horizontal, MemoraSpacing.lg)
+            .padding(.top, MemoraSpacing.md)
+            .padding(.bottom, MemoraSpacing.sm)
 
-            Divider()
-
-            // カレンダーイベント提案
+            // カレンダーイベント提案 (accentNothing checkbox)
             if let eventTitle = suggestedEventTitle {
                 Button {
                     useEventTitle.toggle()
                 } label: {
                     HStack(spacing: MemoraSpacing.sm) {
                         Image(systemName: useEventTitle ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(useEventTitle ? MemoraColor.accentBlue : MemoraColor.textSecondary)
+                            .font(.body)
+                            .foregroundStyle(useEventTitle ? MemoraColor.accentNothing : .white.opacity(0.4))
                         VStack(alignment: .leading, spacing: 2) {
                             Text("カレンダーから提案")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(MemoraColor.textSecondary)
+                                .font(MemoraTypography.phiCaption)
+                                .foregroundStyle(.white.opacity(0.5))
                             Text(eventTitle)
-                                .font(MemoraTypography.subheadline)
-                                .foregroundStyle(.primary)
+                                .font(MemoraTypography.phiBody)
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
                         }
                         Spacer()
                     }
                     .padding(MemoraSpacing.sm)
-                    .background(MemoraColor.accentBlue.opacity(useEventTitle ? 0.1 : 0.05))
+                    .background(
+                        MemoraColor.accentNothing.opacity(useEventTitle ? 0.15 : 0.06)
+                    )
                     .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
                 }
-                .padding(.horizontal)
-                .padding(.top, 4)
+                .padding(.horizontal, MemoraSpacing.lg)
+                .padding(.top, MemoraSpacing.xs)
             }
 
-            VStack(spacing: 21) {
+            VStack(spacing: MemoraSpacing.phi4) {
                 Spacer()
 
                 // エラーメッセージ表示
                 if let error = viewModel.errorMessage {
                     Text(error)
-                        .font(.caption)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(MemoraColor.accentRed)
-                        .padding()
-                        .background(MemoraColor.accentRed.opacity(0.1))
-                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
-                        .padding(.horizontal)
+                        .padding(MemoraSpacing.sm)
+                        .background(MemoraColor.accentRed.opacity(0.15))
+                        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
+                        .padding(.horizontal, MemoraSpacing.lg)
                 }
 
                 // 録音時間表示
                 Text(formatTime(recordingTime))
-                    .font(.system(.largeTitle, design: .monospaced).weight(.light))
-                    .foregroundStyle(.primary)
+                    .font(MemoraTypography.phiDisplay)
+                    .foregroundStyle(.white)
+                    .monospacedDigit()
+                    .if(audioRecorder.isRecording) { view in
+                        view.nothingGlow(.prominent)
+                    }
 
-                // 波形表示（プレースホルダー）
+                // 波形表示
                 HStack(spacing: 5) {
                     ForEach(0..<20, id: \.self) { index in
-                        Rectangle()
-                            .fill(audioRecorder.isRecording ? MemoraColor.accentNothing.opacity(0.4) : MemoraColor.divider.opacity(0.3))
+                        RoundedRectangle(cornerRadius: MemoraRadius.sm)
+                            .fill(audioRecorder.isRecording ? MemoraColor.accentNothing : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
                                 .easeInOut(duration: 0.2)
@@ -122,16 +129,23 @@ struct RecordingView: View {
                 // 録音ボタン
                 Button(action: toggleRecording) {
                     ZStack {
+                        // 80pt outer ring with accentNothing + prominent glow
                         Circle()
-                            .fill(audioRecorder.isRecording ? MemoraColor.accentRed.opacity(0.15) : MemoraColor.accentNothing.opacity(0.15))
-                            .frame(width: 70, height: 70)
-                            .nothingGlow(.init(color: audioRecorder.isRecording ? MemoraColor.accentRed.opacity(0.3) : MemoraColor.accentNothingGlow, radius: 20, intensity: 0.4, animated: true))
+                            .stroke(MemoraColor.accentNothing, lineWidth: 3)
+                            .frame(width: 80, height: 80)
+                            .nothingGlow(.init(
+                                color: MemoraColor.accentNothingGlow,
+                                radius: 24,
+                                intensity: pulseRecording ? 0.6 : 0.3,
+                                animated: true
+                            ))
+                            .scaleEffect(pulseRecording ? 1.05 : 1.0)
 
+                        // Inner button
                         if audioRecorder.isRecording {
-                            Rectangle()
-                                .fill(.white)
+                            RoundedRectangle(cornerRadius: MemoraRadius.sm)
+                                .fill(MemoraColor.accentRed)
                                 .frame(width: 30, height: 30)
-                                .clipShape(.rect(cornerRadius: 4))
                         } else {
                             Circle()
                                 .fill(.white)
@@ -142,6 +156,7 @@ struct RecordingView: View {
                 .padding(.bottom, MemoraSpacing.xxxl)
             }
         }
+        .background(MemoraColor.accentPrimary)
         .navigationTitle("録音")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -149,6 +164,7 @@ struct RecordingView: View {
                 Button("キャンセル") {
                     cancelRecording()
                 }
+                .foregroundStyle(.white.opacity(0.7))
             }
         }
         .onAppear {
@@ -160,6 +176,11 @@ struct RecordingView: View {
         }
         .onDisappear {
             stopTimer()
+        }
+        .onChange(of: audioRecorder.isRecording) { _, isRecording in
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulseRecording = isRecording
+            }
         }
         .sheet(isPresented: $showProjectPicker) {
             ProjectPickerSheet(

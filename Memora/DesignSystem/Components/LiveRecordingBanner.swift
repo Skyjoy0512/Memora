@@ -6,6 +6,7 @@ struct LiveRecordingBanner: View {
     let onStop: () -> Void
 
     @State private var isBlinking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
@@ -14,7 +15,7 @@ struct LiveRecordingBanner: View {
                 Circle()
                     .fill(MemoraColor.accentRed)
                     .frame(width: 6, height: 6)
-                    .opacity(isBlinking ? 1.0 : 0.3)
+                    .opacity(reduceMotion ? 1.0 : (isBlinking ? 1.0 : 0.3))
                     .nothingGlow(.init(
                         color: MemoraColor.accentRed.opacity(0.4),
                         radius: 8,
@@ -39,6 +40,8 @@ struct LiveRecordingBanner: View {
                         .font(MemoraTypography.body)
                         .foregroundStyle(MemoraColor.accentRed)
                 }
+                .accessibilityLabel("録音を停止")
+                .minimumTapTarget()
             }
             .padding(.horizontal, MemoraSpacing.md)
             .padding(.vertical, MemoraSpacing.sm)
@@ -46,10 +49,14 @@ struct LiveRecordingBanner: View {
             .glassCard(.default)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                isBlinking = true
+            if !reduceMotion {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    isBlinking = true
+                }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("録音中 \(formatDuration(duration))")
     }
 
     private func formatDuration(_ interval: TimeInterval) -> String {

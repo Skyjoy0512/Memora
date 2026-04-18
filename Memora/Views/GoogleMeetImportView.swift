@@ -224,10 +224,14 @@ struct GoogleMeetImportView: View {
         }
     }
 
+    private static let importDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd HH:mm"
+        f.locale = Locale(identifier: "ja_JP")
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd HH:mm"
-        formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: date)
+        Self.importDateFormatter.string(from: date)
     }
 }

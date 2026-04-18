@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// 生成フロー選択シート（ハーフモーダル + LiquidGlass）
+/// 生成フロー選択シート（ハーフモーダル + Nothing Style + Liquid Glass）
 struct GenerationFlowSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isPresented: Bool
@@ -17,7 +17,7 @@ struct GenerationFlowSheet: View {
         NavigationStack {
             VStack(spacing: 0) {
                 Text("テンプレートを選択")
-                    .font(MemoraTypography.headline)
+                    .font(MemoraTypography.phiTitle)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, MemoraSpacing.lg)
                     .padding(.top, MemoraSpacing.lg)
@@ -40,7 +40,7 @@ struct GenerationFlowSheet: View {
 
                 Spacer()
 
-                Button {
+                PillButton(title: "生成開始", action: {
                     var config = GenerationConfig()
                     if let customID = selectedCustomTemplateID,
                        let custom = customTemplates.first(where: { $0.id == customID }) {
@@ -50,15 +50,7 @@ struct GenerationFlowSheet: View {
                     config.template = selectedTemplate
                     onStart(config)
                     isPresented = false
-                } label: {
-                    Text("生成開始")
-                        .font(MemoraTypography.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, MemoraSpacing.md)
-                        .background(MemoraColor.accentBlue)
-                        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
-                }
+                }, style: .nothing)
                 .padding(.horizontal, MemoraSpacing.lg)
                 .padding(.vertical, MemoraSpacing.md)
             }
@@ -71,6 +63,7 @@ struct GenerationFlowSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .nothingTheme(showDotMatrix: true)
     }
 
     // MARK: - Template Card
@@ -81,37 +74,41 @@ struct GenerationFlowSheet: View {
             selectedTemplate = template
             selectedCustomTemplateID = nil
         } label: {
-            HStack(spacing: MemoraSpacing.md) {
-                Image(systemName: template.icon)
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? MemoraColor.accentBlue : MemoraColor.textSecondary)
-                    .frame(width: 40)
+            HStack(spacing: 0) {
+                // Left-edge accent bar
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isSelected ? MemoraColor.accentNothing : Color.clear)
+                    .frame(width: 4)
+                    .padding(.vertical, MemoraSpacing.sm)
 
-                VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                    Text(template.title)
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(MemoraColor.textPrimary)
+                HStack(spacing: MemoraSpacing.md) {
+                    Image(systemName: template.icon)
+                        .font(MemoraTypography.phiSubhead)
+                        .foregroundStyle(isSelected ? MemoraColor.accentNothing : MemoraColor.textSecondary)
+                        .frame(width: 40)
 
-                    Text(template.description)
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
+                    VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                        Text(template.title)
+                            .font(MemoraTypography.phiBody)
+                            .foregroundStyle(MemoraColor.textPrimary)
+
+                        Text(template.description)
+                            .font(MemoraTypography.phiCaption)
+                            .foregroundStyle(MemoraColor.textSecondary)
+                    }
+
+                    Spacer()
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentNothing)
+                    }
                 }
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(MemoraColor.accentBlue)
-                }
+                .padding(MemoraSpacing.md)
             }
-            .padding(MemoraSpacing.md)
         }
         .buttonStyle(.plain)
-        .liquidGlass(
-            cornerRadius: MemoraRadius.md,
-            opacity: isSelected ? 0.85 : 0.6,
-            shadowRadius: 4
-        )
+        .glassCard(.default)
     }
 
     private func customTemplateCard(_ template: CustomSummaryTemplate) -> some View {
@@ -120,38 +117,42 @@ struct GenerationFlowSheet: View {
             selectedCustomTemplateID = template.id
             selectedTemplate = .summary
         } label: {
-            HStack(spacing: MemoraSpacing.md) {
-                Image(systemName: "doc.text.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? MemoraColor.accentBlue : MemoraColor.textSecondary)
-                    .frame(width: 40)
+            HStack(spacing: 0) {
+                // Left-edge accent bar
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isSelected ? MemoraColor.accentNothing : Color.clear)
+                    .frame(width: 4)
+                    .padding(.vertical, MemoraSpacing.sm)
 
-                VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-                    Text(template.name)
-                        .font(MemoraTypography.body)
-                        .foregroundStyle(MemoraColor.textPrimary)
+                HStack(spacing: MemoraSpacing.md) {
+                    Image(systemName: "doc.text.fill")
+                        .font(MemoraTypography.phiSubhead)
+                        .foregroundStyle(isSelected ? MemoraColor.accentNothing : MemoraColor.textSecondary)
+                        .frame(width: 40)
 
-                    Text(template.prompt)
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+                        Text(template.name)
+                            .font(MemoraTypography.phiBody)
+                            .foregroundStyle(MemoraColor.textPrimary)
+
+                        Text(template.prompt)
+                            .font(MemoraTypography.phiCaption)
+                            .foregroundStyle(MemoraColor.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(MemoraColor.accentNothing)
+                    }
                 }
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(MemoraColor.accentBlue)
-                }
+                .padding(MemoraSpacing.md)
             }
-            .padding(MemoraSpacing.md)
         }
         .buttonStyle(.plain)
-        .liquidGlass(
-            cornerRadius: MemoraRadius.md,
-            opacity: isSelected ? 0.85 : 0.6,
-            shadowRadius: 4
-        )
+        .glassCard(.default)
     }
 }
 

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct DebugLogView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var logger = DebugLogger.shared
+    private var logger = DebugLogger.shared
 
     @State private var filterText = ""
     @State private var selectedLevel: LogLevel? = nil
@@ -100,10 +100,10 @@ struct DebugLogView: View {
             }
             .padding(MemoraSpacing.xs)
             .background(MemoraColor.divider.opacity(0.1))
-            .cornerRadius(MemoraRadius.sm)
+            .clipShape(.rect(cornerRadius: MemoraRadius.sm))
 
             // レベルフィルター
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal) {
                 HStack(spacing: MemoraSpacing.xs) {
                     FilterChip(title: "STT", isSelected: showSTTOnly) {
                         showSTTOnly.toggle()
@@ -121,6 +121,7 @@ struct DebugLogView: View {
                 }
                 .padding(.horizontal, MemoraSpacing.xxs)
             }
+            .scrollIndicators(.hidden)
         }
         .padding()
     }
@@ -221,10 +222,14 @@ struct LogEntryView: View {
         }
     }
 
+    private static let logTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f
+    }()
+
     private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
+        Self.logTimeFormatter.string(from: date)
     }
 }
 
