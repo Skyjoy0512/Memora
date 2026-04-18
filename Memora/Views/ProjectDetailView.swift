@@ -97,27 +97,19 @@ struct ProjectDetailView: View {
 
                 Image(systemName: "folder")
                     .resizable()
-                    .frame(width: 60, height: 60)
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .frame(width: MemoraSize.iconLarge, height: MemoraSize.iconLarge)
+                    .foregroundStyle(MemoraColor.accentNothing)
 
                 Text(project.title)
-                    .font(.title)
-                    .fontWeight(.bold)
+                    .font(MemoraTypography.phiHeadline)
+                    .foregroundStyle(MemoraColor.textPrimary)
 
                 Text("まだファイルがありません")
-                    .font(MemoraTypography.headline)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.phiBody)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
-                Button(action: { showRecordingView = true }) {
-                    Label("録音を開始", systemImage: "mic.circle.fill")
-                        .font(MemoraTypography.headline)
-                        .foregroundStyle(MemoraColor.textPrimary)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(MemoraColor.divider)
-                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
-                }
-                .padding(.horizontal)
+                PillButton(title: "録音を開始", action: { showRecordingView = true }, style: .nothing)
+                    .padding(.horizontal, MemoraSpacing.md)
 
                 Text("録音を開始してファイルを追加しましょう")
                     .font(MemoraTypography.caption1)
@@ -132,7 +124,7 @@ struct ProjectDetailView: View {
         List {
             projectPhotoSection
 
-            Section("録音") {
+            Section {
                 ForEach(viewModel.projectFiles) { file in
                     Button {
                         selectedAudioFile = file
@@ -140,11 +132,16 @@ struct ProjectDetailView: View {
                         AudioFileRow(audioFile: file, projectName: project.title)
                     }
                     .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .accessibilityHint("ファイル詳細を開く")
                 }
                 .onDelete(perform: deleteAudioFiles)
+            } header: {
+                GlassSectionHeader(title: "録音", icon: "waveform")
             }
         }
+        .scrollContentBackground(.hidden)
     }
 
     @ToolbarContentBuilder

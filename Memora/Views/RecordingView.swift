@@ -109,7 +109,7 @@ struct RecordingView: View {
                     }
 
                 // 波形表示
-                HStack(spacing: 5) {
+                HStack(spacing: MemoraSpacing.xxxs) {
                     ForEach(0..<20, id: \.self) { index in
                         RoundedRectangle(cornerRadius: MemoraRadius.sm)
                             .fill(audioRecorder.isRecording ? MemoraColor.accentNothing : MemoraColor.divider.opacity(0.3))

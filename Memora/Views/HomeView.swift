@@ -242,7 +242,7 @@ struct HomeView: View {
                 showRecordingView = true
             } label: {
                 Label("録音", systemImage: "mic.fill")
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.phiBody)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, MemoraSpacing.md)
@@ -256,7 +256,7 @@ struct HomeView: View {
                 showFileImporter = true
             } label: {
                 Label("インポート", systemImage: "square.and.arrow.down")
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.phiBody)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, MemoraSpacing.md)
@@ -271,7 +271,7 @@ struct HomeView: View {
                     showGoogleMeetImport = true
                 } label: {
                     Label("Google Meet", systemImage: "video.fill")
-                        .font(MemoraTypography.subheadline)
+                        .font(MemoraTypography.phiBody)
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, MemoraSpacing.md)
@@ -343,6 +343,8 @@ struct HomeView: View {
                 if isSelectMode {
                     AudioFileRow(audioFile: file, projectName: projectName)
                         .tag(file.id)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 } else {
                     Button {
                         selectedAudioFile = file
@@ -352,6 +354,8 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     .accessibilityHint("タップして詳細を表示")
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button {
                             isSelectMode = true
@@ -359,13 +363,14 @@ struct HomeView: View {
                         } label: {
                             Label("選択", systemImage: "checkmark.circle")
                         }
-                        .tint(.blue)
+                        .tint(MemoraColor.accentNothing)
                     }
                 }
             }
             .onDelete(perform: deleteAudioFiles)
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, .constant(isSelectMode ? .active : .inactive))
         .refreshable {
@@ -387,7 +392,7 @@ struct HomeView: View {
                 showMoveToProjectSheet = true
             } label: {
                 Label("プロジェクト移動", systemImage: "folder")
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.phiBody)
             }
 
             Spacer()
@@ -396,7 +401,7 @@ struct HomeView: View {
                 bulkDeleteSelected()
             } label: {
                 Label("\(selectedFileIDs.count)件削除", systemImage: "trash")
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.phiBody)
             }
         }
         .padding(.horizontal, MemoraSpacing.lg)

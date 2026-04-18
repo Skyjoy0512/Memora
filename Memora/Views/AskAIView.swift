@@ -110,21 +110,21 @@ struct AskAIView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scopeDescription)
-                        .font(MemoraTypography.body)
+                        .font(MemoraTypography.phiBody)
                         .foregroundStyle(MemoraColor.textPrimary)
 
                     Text(currentSession?.title ?? "新しい会話")
-                        .font(MemoraTypography.caption1)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Text(currentProvider.rawValue)
-                    .font(MemoraTypography.caption1)
+                    .font(MemoraTypography.phiCaption)
                     .foregroundStyle(MemoraColor.accentNothing)
-                    .padding(.horizontal, MemoraSpacing.xs)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, MemoraSpacing.sm)
+                    .padding(.vertical, MemoraSpacing.xxxs)
                     .background(MemoraColor.accentNothingSubtle)
                     .clipShape(Capsule())
             }
@@ -134,12 +134,11 @@ struct AskAIView: View {
                     HStack(spacing: MemoraSpacing.xs) {
                         ForEach(sourceBadges) { badge in
                             Label(badge.label, systemImage: badge.systemImage)
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.phiCaption)
                                 .foregroundStyle(MemoraColor.textSecondary)
-                                .padding(.horizontal, MemoraSpacing.xs)
-                                .padding(.vertical, 4)
-                                .background(MemoraColor.divider.opacity(0.08))
-                                .clipShape(Capsule())
+                                .padding(.horizontal, MemoraSpacing.sm)
+                                .padding(.vertical, MemoraSpacing.xxxs)
+                                .glassCard(.init(cornerRadius: MemoraRadius.pill, accentTint: false, glow: false))
                         }
                     }
                 }
@@ -147,14 +146,15 @@ struct AskAIView: View {
 
             if let infoMessage {
                 Text(infoMessage)
-                    .font(MemoraTypography.caption1)
+                    .font(MemoraTypography.phiCaption)
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.top, MemoraSpacing.md)
         .padding(.bottom, MemoraSpacing.sm)
-        .background(MemoraColor.divider.opacity(0.03))
+        .glassCard(.init(cornerRadius: 0, accentTint: false, glow: false))
+        .nothingDotMatrix()
     }
 
     private var scopeSelector: some View {
@@ -165,12 +165,16 @@ struct AskAIView: View {
                         activeScope = option.scope
                     } label: {
                         Text(option.title)
-                            .font(MemoraTypography.caption1)
+                            .font(MemoraTypography.phiCaption)
                             .foregroundStyle(activeScopeKey == option.id ? .white : MemoraColor.textPrimary)
                             .padding(.horizontal, MemoraSpacing.md)
-                            .padding(.vertical, 8)
-                            .background(activeScopeKey == option.id ? MemoraColor.accentPrimary : MemoraColor.divider.opacity(0.08))
+                            .padding(.vertical, MemoraSpacing.xxs)
+                            .background(activeScopeKey == option.id ? MemoraColor.accentNothing : Color.clear)
                             .clipShape(Capsule())
+                            .overlay {
+                                Capsule()
+                                    .stroke(activeScopeKey == option.id ? Color.clear : MemoraColor.divider, lineWidth: 0.5)
+                            }
                     }
                     .buttonStyle(.plain)
                 }
@@ -184,14 +188,14 @@ struct AskAIView: View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
             HStack {
                 Text("Session")
-                    .font(MemoraTypography.caption1)
+                    .font(MemoraTypography.phiCaption)
                     .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if !sessions.isEmpty {
                     Text("\(sessions.count)件")
-                        .font(MemoraTypography.caption2)
+                        .font(MemoraTypography.phiCaption)
                         .foregroundStyle(MemoraColor.textTertiary)
                 }
             }
@@ -203,11 +207,11 @@ struct AskAIView: View {
                         startNewSession()
                     } label: {
                         Label("新規チャット", systemImage: "plus")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(MemoraColor.accentBlue)
+                            .font(MemoraTypography.phiCaption)
+                            .foregroundStyle(MemoraColor.accentNothing)
                             .padding(.horizontal, MemoraSpacing.sm)
-                            .padding(.vertical, 8)
-                            .background(MemoraColor.accentBlue.opacity(0.1))
+                            .padding(.vertical, MemoraSpacing.xxs)
+                            .background(MemoraColor.accentNothingSubtle)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -218,13 +222,17 @@ struct AskAIView: View {
                             loadMessages(for: session)
                         } label: {
                             Text(session.title)
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.phiCaption)
                                 .foregroundStyle(activeSessionID == session.id ? .white : MemoraColor.textPrimary)
                                 .lineLimit(1)
                                 .padding(.horizontal, MemoraSpacing.sm)
-                                .padding(.vertical, 8)
-                                .background(activeSessionID == session.id ? MemoraColor.accentPrimary : MemoraColor.divider.opacity(0.08))
+                                .padding(.vertical, MemoraSpacing.xxs)
+                                .background(activeSessionID == session.id ? MemoraColor.accentNothing : Color.clear)
                                 .clipShape(Capsule())
+                                .overlay {
+                                    Capsule()
+                                        .stroke(activeSessionID == session.id ? Color.clear : MemoraColor.divider, lineWidth: 0.5)
+                                }
                         }
                         .buttonStyle(.plain)
                     }
@@ -276,16 +284,15 @@ struct AskAIView: View {
                 } label: {
                     HStack(spacing: MemoraSpacing.xs) {
                         Image(systemName: "lightbulb")
-                            .foregroundStyle(MemoraColor.accentBlue)
+                            .foregroundStyle(MemoraColor.accentNothing)
                         Text(text)
-                            .font(MemoraTypography.subheadline)
+                            .font(MemoraTypography.phiBody)
                             .foregroundStyle(MemoraColor.textPrimary)
                             .lineLimit(2)
                     }
                     .padding(MemoraSpacing.md)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MemoraColor.divider.opacity(0.05))
-                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+                    .glassCard(.default)
                 }
                 .buttonStyle(.plain)
             }
@@ -299,7 +306,7 @@ struct AskAIView: View {
         if isLoading {
             HStack(spacing: MemoraSpacing.sm) {
                 Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
-                    .font(MemoraTypography.body)
+                    .font(MemoraTypography.phiBody)
                     .foregroundStyle(MemoraColor.textSecondary)
                 ThinkingDots()
                 Spacer()
@@ -315,7 +322,7 @@ struct AskAIView: View {
                 .foregroundStyle(MemoraColor.textTertiary)
 
             TextField("質問を入力...", text: $inputText, axis: .vertical)
-                .font(MemoraTypography.body)
+                .font(MemoraTypography.phiBody)
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .submitLabel(.send)
@@ -324,7 +331,7 @@ struct AskAIView: View {
                 }
 
             Text(currentProvider.rawValue)
-                .font(MemoraTypography.caption2)
+                .font(MemoraTypography.phiCaption)
                 .foregroundStyle(MemoraColor.textSecondary)
                 .padding(.horizontal, MemoraSpacing.xs)
                 .padding(.vertical, 6)
@@ -335,14 +342,13 @@ struct AskAIView: View {
                 sendMessage(inputText)
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
+                    .font(.system(size: 28))
                     .foregroundStyle(sendButtonColor)
             }
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.vertical, MemoraSpacing.md)
-        .background(MemoraColor.surfaceSecondary)
         .glassCard(.init(cornerRadius: 0, accentTint: false, glow: false, dotMatrix: false))
     }
 
@@ -679,5 +685,3 @@ struct AskAIView: View {
         }
     }
 }
-
-

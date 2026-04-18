@@ -72,12 +72,13 @@ struct SummaryTab: View {
                     showGenerationFlow.wrappedValue = true
                 } label: {
                     Text("要約を生成")
-                        .font(MemoraTypography.headline)
+                        .font(MemoraTypography.phiSubhead)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, MemoraSpacing.md)
-                        .background { MemoraColor.accentPrimary }
+                        .background(MemoraColor.accentNothing)
                         .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
+                        .nothingGlow(.prominent)
                 }
                 .padding(.horizontal, MemoraSpacing.md)
                 .padding(.bottom, MemoraSpacing.md)
@@ -94,7 +95,7 @@ struct SummaryTab: View {
                     .font(MemoraTypography.headline)
 
                 ProgressView(value: progress)
-                    .tint(MemoraColor.textSecondary)
+                    .tint(MemoraColor.accentNothing)
 
                 Text("\(Int(progress * 100))%  \(message)")
                     .font(MemoraTypography.caption1)

@@ -39,14 +39,14 @@ struct TodoRowView: View {
             // Content
             VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
                 Text(todo.title)
-                    .font(MemoraTypography.body)
+                    .font(MemoraTypography.phiBody)
                     .foregroundStyle(todo.isCompleted ? MemoraColor.textTertiary : MemoraColor.textPrimary)
                     .strikethrough(todo.isCompleted)
 
                 if let parentTitle, !parentTitle.isEmpty {
                     Label("親: \(parentTitle)", systemImage: "arrow.turn.down.right")
                         .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentBlue)
+                        .foregroundStyle(MemoraColor.accentNothing)
                 }
 
                 if !todo.isCompleted {

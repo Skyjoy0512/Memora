@@ -216,7 +216,7 @@ struct FileDetailView: View {
         NothingTabPicker(
             selection: $selectedTab,
             options: FileDetailTab.allCases.map { tab in
-                NothingTabPicker<NothingTabOption<FileDetailTab>>.NothingTabOption(
+                NothingTabPicker<FileDetailTab>.NothingTabOption(
                     value: tab,
                     label: tab.title,
                     icon: tab.icon
@@ -224,9 +224,6 @@ struct FileDetailView: View {
             }
         )
     }
-
-    // Type alias for cleaner syntax
-    private typealias NothingTabOption<T> = NothingTabPicker<T>.NothingTabOption
 
     // MARK: - Tab Content
 

@@ -68,7 +68,7 @@ struct ProjectsView: View {
                     }
                 }
             }
-            .navigationTitle("Projects")
+            .navigationTitle("プロジェクト")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

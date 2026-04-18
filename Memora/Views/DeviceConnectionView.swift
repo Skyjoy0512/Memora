@@ -34,17 +34,8 @@ struct DeviceConnectionView: View {
                         .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { omiAdapter.disconnect() }) {
-                        Text("セッション終了")
-                            .font(MemoraTypography.phiSubhead)
-                            .foregroundStyle(.white)
-                            .padding(.vertical, MemoraSpacing.sm)
-                            .frame(maxWidth: .infinity)
-                            .background(MemoraColor.accentRed)
-                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, MemoraSpacing.sm)
+                    PillButton(title: "セッション終了", action: { omiAdapter.disconnect() }, style: .outline)
+                        .padding(.horizontal)
 
                     Text(omiAdapter.sessionTerminationDescription)
                         .font(MemoraTypography.phiCaption)
@@ -72,16 +63,8 @@ struct DeviceConnectionView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    Button(action: { omiAdapter.startScan() }) {
-                        Label("再接続", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.phiSubhead)
-                            .foregroundStyle(.white)
-                            .padding(.vertical, MemoraSpacing.sm)
-                            .frame(maxWidth: .infinity)
-                            .background(MemoraColor.accentNothing)
-                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
-                    }
-                    .padding(.horizontal)
+                    PillButton(title: "再接続", action: { omiAdapter.startScan() }, style: .nothing)
+                        .padding(.horizontal)
                 }
                 .padding(MemoraSpacing.md)
                 .glassCard(.default)
@@ -154,16 +137,8 @@ struct DeviceConnectionView: View {
                         .font(MemoraTypography.phiTitle)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { omiAdapter.startScan() }) {
-                        Label("再スキャン", systemImage: "arrow.clockwise")
-                            .font(MemoraTypography.phiSubhead)
-                            .foregroundStyle(.white)
-                            .padding(.vertical, MemoraSpacing.sm)
-                            .frame(maxWidth: .infinity)
-                            .background(MemoraColor.accentNothing)
-                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
-                    }
-                    .padding(.horizontal)
+                    PillButton(title: "再スキャン", action: { omiAdapter.startScan() }, style: .nothing)
+                        .padding(.horizontal)
 
                     Spacer()
                 }
