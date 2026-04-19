@@ -36,6 +36,7 @@ struct HomeView: View {
     @State private var selectedFileIDs: Set<UUID> = []
     @State private var showMoveToProjectSheet = false
     @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var isInitialLoading = true
 
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
@@ -73,7 +74,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.audioFiles.isEmpty && searchText.isEmpty {
+                if isInitialLoading {
+                    skeletonListView
+                } else if viewModel.audioFiles.isEmpty && searchText.isEmpty {
                     emptyStateView
                 } else {
                     fileListSection
@@ -154,6 +157,7 @@ struct HomeView: View {
                 viewModel.loadAudioFiles()
                 updateFilteredFiles()
                 openPendingImportedAudioIfNeeded()
+                isInitialLoading = false
             }
             .onChange(of: showRecordingView) { _, isPresented in
                 if !isPresented {
@@ -183,6 +187,17 @@ struct HomeView: View {
             .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
             .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
+    }
+
+    // MARK: - Skeleton Loading
+
+    private var skeletonListView: some View {
+        List {
+            ForEach(0..<5, id: \.self) { _ in
+                SkeletonAudioFileRow()
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 
     // MARK: - Empty State
