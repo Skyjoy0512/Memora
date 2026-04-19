@@ -53,6 +53,20 @@ final class HomeViewModel {
         selectedTag: String?,
         sortOption: SortOption
     ) -> [AudioFile] {
+        let hash = [
+            searchText,
+            filterTranscribed?.description,
+            filterSummarized?.description,
+            filterLifeLog?.description,
+            selectedTag,
+            sortOption.rawValue,
+            "\\(audioFiles.count)"
+        ].joined(separator: "|").hashValue
+
+        if !filterCacheInvalidated && hash == cachedFilterHash {
+            return cachedFilteredResult
+        }
+
         var files = audioFiles
 
         if !searchText.isEmpty {
@@ -86,6 +100,9 @@ final class HomeViewModel {
             files.sort { $0.title.localizedStandardCompare($1.title) == .orderedDescending }
         }
 
+        cachedFilteredResult = files
+        cachedFilterHash = hash
+        filterCacheInvalidated = false
         return files
     }
 
