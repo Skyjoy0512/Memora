@@ -1,12 +1,20 @@
 import Foundation
+import Observation
 import os.log
 
 /// デバッグログサービス
-final class DebugLogger: ObservableObject {
+@Observable
+final class DebugLogger {
     static let shared = DebugLogger()
 
+    private static let iso8601Formatter: Foundation.ISO8601DateFormatter = {
+        let f = Foundation.ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.memora.Memora", category: "Performance")
-    @Published var logs: [DebugLogEntry] = []
+    var logs: [DebugLogEntry] = []
     private var appStartTime: Date?
 
     private init() {
@@ -81,7 +89,7 @@ final class DebugLogger: ObservableObject {
 
         for log in logs {
             let levelStr = "[\(log.level.rawValue.uppercased())]"
-            let timeStr = ISO8601DateFormatter().string(from: log.timestamp)
+            let timeStr = Self.iso8601Formatter.string(from: log.timestamp)
             content += "\(timeStr) \(levelStr) \(log.category): \(log.message)\n"
         }
 
@@ -89,6 +97,63 @@ final class DebugLogger: ObservableObject {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("memora_debug_\(Int(Date().timeIntervalSince1970)).txt")
         try? data.write(to: url)
         return url
+    }
+
+    /// ストアファイルの情報を記録する
+    func logStoreInfo(url: URL) {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let fileSize = attributes?[.size] as? Int64 ?? 0
+        let creationDate = attributes?[.creationDate] as? Date
+        let modificationDate = attributes?[.modificationDate] as? Date
+
+        var info = "ストアファイル情報: "
+        info += "サイズ=\(formatBytes(fileSize))"
+        if let creationDate {
+            info += ", 作成=\(Self.iso8601Formatter.string(from: creationDate))"
+        }
+        if let modificationDate {
+            info += ", 更新=\(Self.iso8601Formatter.string(from: modificationDate))"
+        }
+
+        addLog("StoreInfo", info, level: .info)
+
+        // WAL/SHM ファイルも確認
+        let shmPath = url.path + "-shm"
+        let walPath = url.path + "-wal"
+
+        let shmExists = FileManager.default.fileExists(atPath: shmPath)
+        let walExists = FileManager.default.fileExists(atPath: walPath)
+
+        if shmExists || walExists {
+            var sidecarInfo = "Sidecar ファイル: "
+            var sidecarDetails: [String] = []
+            if shmExists, let shmSize = try? FileManager.default.attributesOfItem(atPath: shmPath)[.size] as? Int64 {
+                sidecarDetails.append("SHM=\(formatBytes(shmSize))")
+            }
+            if walExists, let walSize = try? FileManager.default.attributesOfItem(atPath: walPath)[.size] as? Int64 {
+                sidecarDetails.append("WAL=\(formatBytes(walSize))")
+            }
+            sidecarInfo += sidecarDetails.joined(separator: ", ")
+            addLog("StoreInfo", sidecarInfo, level: .info)
+        }
+    }
+
+    /// バイト数を人間可読な形式に変換
+    private func formatBytes(_ bytes: Int64) -> String {
+        let kb = 1024.0
+        let mb = kb * 1024
+        let gb = mb * 1024
+        let bytesF = Double(bytes)
+
+        if bytesF >= gb {
+            return String(format: "%.2f GB", bytesF / gb)
+        } else if bytesF >= mb {
+            return String(format: "%.2f MB", bytesF / mb)
+        } else if bytesF >= kb {
+            return String(format: "%.2f KB", bytesF / kb)
+        } else {
+            return "\(bytes) B"
+        }
     }
 
     private func saveLogs() {

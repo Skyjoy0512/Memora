@@ -1,22 +1,24 @@
 import Foundation
+import Observation
 
 #if canImport(omi_lib)
 import omi_lib
 #endif
 
 @MainActor
-final class OmiAdapter: ObservableObject {
+@Observable
+final class OmiAdapter {
     typealias AudioImportHandler = @Sendable (URL, String?) async throws -> OmiImportedAudio
 
-    @Published private(set) var discoveredDevices: [OmiDeviceDescriptor] = []
-    @Published private(set) var isScanning = false
-    @Published private(set) var isConnected = false
-    @Published private(set) var isImportingAudio = false
-    @Published private(set) var connectionState: OmiConnectionState = sdkAvailable ? .disconnected : .unavailable
-    @Published private(set) var previewTranscript = ""
-    @Published private(set) var lastImportedAudio: OmiImportedAudio?
-    @Published var errorMessage: String?
-    @Published var statusMessage: String?
+    private(set) var discoveredDevices: [OmiDeviceDescriptor] = []
+    private(set) var isScanning = false
+    private(set) var isConnected = false
+    private(set) var isImportingAudio = false
+    private(set) var connectionState: OmiConnectionState = sdkAvailable ? .disconnected : .unavailable
+    private(set) var previewTranscript = ""
+    private(set) var lastImportedAudio: OmiImportedAudio?
+    var errorMessage: String?
+    var statusMessage: String?
 
     static let sdkAvailable: Bool = {
         #if canImport(omi_lib)
@@ -238,10 +240,14 @@ final class OmiAdapter: ObservableObject {
     }
     #endif
 
+    private static let omiDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f
+    }()
+
     private func omiImportTitle(for descriptor: OmiDeviceDescriptor) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        return "\(descriptor.stableDisplayName) \(formatter.string(from: Date()))"
+        "\(descriptor.stableDisplayName) \(Self.omiDateFormatter.string(from: Date()))"
     }
 }

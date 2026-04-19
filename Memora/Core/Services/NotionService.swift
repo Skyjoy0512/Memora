@@ -3,8 +3,13 @@ import SwiftData
 
 /// Notion REST API クライアント。
 /// Internal Integration Token を使用してページ作成・ブロック追加を行う。
-@MainActor
 final class NotionService {
+
+    private static let notionDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd HH:mm"
+        return f
+    }()
 
     // MARK: - Error
 
@@ -97,12 +102,12 @@ final class NotionService {
 
     // MARK: - Properties
 
-    private let session: URLSession
+    private let networkClient: NetworkClient
     private let apiVersion = "2022-06-28"
     private let baseURL = "https://api.notion.com/v1"
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(networkClient: NetworkClient = .init()) {
+        self.networkClient = networkClient
     }
 
     // MARK: - Connection Test
@@ -110,8 +115,22 @@ final class NotionService {
     /// トークンの有効性を確認する。
     func testConnection(token: String) async throws -> NotionUser {
         let url = URL(string: "\(baseURL)/users/me")!
-        let data = try await authenticatedGET(url: url, token: token)
-        return try JSONDecoder().decode(NotionUser.self, from: data)
+
+        do {
+            return try await networkClient.get(
+                url: url,
+                headers: [
+                    "Authorization": "Bearer \(token)",
+                    "Notion-Version": apiVersion,
+                    "Content-Type": "application/json"
+                ],
+                responseType: NotionUser.self
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        } catch {
+            throw NotionError.decodingError(error)
+        }
     }
 
     // MARK: - Search
@@ -120,30 +139,51 @@ final class NotionService {
     func searchPages(token: String, query: String = "") async throws -> [NotionSearchResult] {
         let url = URL(string: "\(baseURL)/search")!
 
-        var body: [String: Any] = [:]
-        if !query.isEmpty {
-            body["query"] = query
-        }
-        body["page_size"] = 20
+        struct SearchRequest: Codable {
+            let query: String?
+            let pageSize: Int
 
-        let data = try await authenticatedPOST(url: url, token: token, body: body)
-        let response = try JSONDecoder().decode(NotionSearchResponse.self, from: data)
-        return response.results ?? []
+            enum CodingKeys: String, CodingKey {
+                case query
+                case pageSize = "page_size"
+            }
+        }
+
+        let searchRequest = SearchRequest(
+            query: query.isEmpty ? nil : query,
+            pageSize: 20
+        )
+
+        do {
+            let response: NotionSearchResponse = try await networkClient.postJSON(
+                url: url,
+                headers: [
+                    "Authorization": "Bearer \(token)",
+                    "Notion-Version": apiVersion
+                ],
+                body: searchRequest,
+                responseType: NotionSearchResponse.self
+            )
+            return response.results ?? []
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        } catch {
+            throw NotionError.decodingError(error)
+        }
     }
 
     // MARK: - Create Page (Full Export)
 
-    /// AudioFile から Notion ページを作成（要約 + 文字起こし全文）。
+    /// AudioFile から Notion ページを作成（要約 + 文字起こし全文 + タスク）。
     func createPageFromAudioFile(
         audioFile: AudioFile,
         transcriptText: String?,
+        todoItems: [TodoItem] = [],
         modelContext: ModelContext,
         token: String,
         parentPageID: String
     ) async throws -> NotionPage {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy/MM/dd HH:mm"
-        let dateString = dateFormatter.string(from: audioFile.createdAt)
+        let dateString = Self.notionDateFormatter.string(from: audioFile.createdAt)
 
         let title = "\(audioFile.title) — \(dateString)"
 
@@ -170,6 +210,15 @@ final class NotionService {
             blocks.append(headingBlock(text: "Action Items", level: 2))
             for item in actionItems.split(separator: "\n", omittingEmptySubsequences: true) {
                 blocks.append(toDoBlock(text: String(item), checked: false))
+            }
+            blocks.append(dividerBlock())
+        }
+
+        // Tasks (from TodoItem)
+        if !todoItems.isEmpty {
+            blocks.append(headingBlock(text: "Tasks", level: 2))
+            for todo in todoItems {
+                blocks.append(toDoBlock(text: todo.title, checked: todo.isCompleted))
             }
             blocks.append(dividerBlock())
         }
@@ -207,9 +256,7 @@ final class NotionService {
         token: String,
         parentPageID: String
     ) async throws -> NotionPage {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy/MM/dd HH:mm"
-        let title = "\(audioFile.title) (Summary) — \(dateFormatter.string(from: audioFile.createdAt))"
+        let title = "\(audioFile.title) (Summary) — \(Self.notionDateFormatter.string(from: audioFile.createdAt))"
 
         var blocks: [[String: Any]] = []
 
@@ -249,9 +296,7 @@ final class NotionService {
         token: String,
         parentPageID: String
     ) async throws -> NotionPage {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy/MM/dd HH:mm"
-        let title = "\(audioFile.title) (Transcript) — \(dateFormatter.string(from: audioFile.createdAt))"
+        let title = "\(audioFile.title) (Transcript) — \(Self.notionDateFormatter.string(from: audioFile.createdAt))"
 
         let blocks: [[String: Any]] = [
             toggleBlock(
@@ -278,7 +323,28 @@ final class NotionService {
     ) async throws -> NotionPage {
         let url = URL(string: "\(baseURL)/pages")!
 
-        let body: [String: Any] = [
+        struct PageRequest: Encodable {
+            let parent: [String: String]
+            let properties: [String: [[String: String]]]
+            let children: [[String: Any]]
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(parent, forKey: .parent)
+                try container.encode(properties, forKey: .properties)
+
+                // children は Any 型を含むため、手動エンコード
+                let childrenData = try JSONSerialization.data(withJSONObject: children)
+                let childrenString = String(data: childrenData, encoding: .utf8) ?? "[]"
+                try container.encode(childrenString, forKey: .children)
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case parent, properties, children
+            }
+        }
+
+        let pageRequest: [String: Any] = [
             "parent": ["page_id": parentPageID],
             "properties": [
                 "title": [
@@ -288,8 +354,23 @@ final class NotionService {
             "children": blocks
         ]
 
-        let data = try await authenticatedPOST(url: url, token: token, body: body)
-        return try JSONDecoder().decode(NotionPage.self, from: data)
+        do {
+            let requestData = try JSONSerialization.data(withJSONObject: pageRequest)
+            return try await networkClient.post(
+                url: url,
+                headers: [
+                    "Authorization": "Bearer \(token)",
+                    "Notion-Version": apiVersion,
+                    "Content-Type": "application/json"
+                ],
+                body: requestData,
+                responseType: NotionPage.self
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        } catch {
+            throw NotionError.decodingError(error)
+        }
     }
 
     // MARK: - Private: Block Builders
@@ -385,58 +466,23 @@ final class NotionService {
         return memo?.markdown
     }
 
-    // MARK: - Private: HTTP
+    // MARK: - Private: Helpers
 
-    private func authenticatedGET(url: URL, token: String) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(apiVersion, forHTTPHeaderField: "Notion-Version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NotionError.networkError(URLError(.badServerResponse))
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            return data
-        case 401:
-            throw NotionError.invalidToken
-        case 404:
-            throw NotionError.pageNotFound
+    private func mapNetworkError(_ error: NetworkError) -> NotionError {
+        switch error {
+        case .httpError(let code, _):
+            switch code {
+            case 401:
+                return .invalidToken
+            case 404:
+                return .pageNotFound
+            default:
+                return .serverError(code, nil)
+            }
+        case .noConnection, .timedOut:
+            return .networkError(error)
         default:
-            let message = String(data: data, encoding: .utf8)
-            throw NotionError.serverError(httpResponse.statusCode, message)
-        }
-    }
-
-    private func authenticatedPOST(url: URL, token: String, body: [String: Any]) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue(apiVersion, forHTTPHeaderField: "Notion-Version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NotionError.networkError(URLError(.badServerResponse))
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            return data
-        case 401:
-            throw NotionError.invalidToken
-        case 404:
-            throw NotionError.pageNotFound
-        default:
-            let message = String(data: data, encoding: .utf8)
-            throw NotionError.serverError(httpResponse.statusCode, message)
+            return .networkError(error)
         }
     }
 }

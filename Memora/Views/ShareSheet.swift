@@ -1,6 +1,20 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - UIApplication Helper
+
+/// UIKit コンポーネント（UIActivityViewController, ASWebAuthenticationSession など）の
+/// 表示には UIWindowScene への参照が必須。SwiftUI の @Environment(\.scenePhase) では
+/// この参照を取得できないため、UIApplication.shared 経由で取得する。
+extension UIApplication {
+    /// 接続中のシーンから最初の UIWindowScene を返す。
+    /// UIActivityViewController / ASWebAuthenticationSession の
+    /// presentation context 取得に使用する。
+    var activeWindowScene: UIWindowScene? {
+        connectedScenes.first as? UIWindowScene
+    }
+}
+
 struct ShareSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -22,7 +36,7 @@ struct ShareSheet: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                 }
                 .foregroundStyle(.primary)
 
@@ -32,7 +46,7 @@ struct ShareSheet: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(MemoraColor.divider.opacity(0.1))
-                            .cornerRadius(MemoraRadius.sm)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                     }
                     .foregroundStyle(.primary)
                 }
@@ -43,7 +57,7 @@ struct ShareSheet: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(MemoraColor.divider.opacity(0.1))
-                            .cornerRadius(MemoraRadius.sm)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                     }
                     .foregroundStyle(.primary)
                 }
@@ -66,18 +80,18 @@ struct ShareSheet: View {
         }
     }
 
+    // UIActivityViewController は UIKit コンポーネントのため
+    // UIWindowScene 経由で rootViewController を取得する必要がある
     private func shareText(_ text: String) {
         let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = scene.windows.first?.rootViewController {
+        if let rootViewController = UIApplication.shared.activeWindowScene?.windows.first?.rootViewController {
             rootViewController.present(activityVC, animated: true)
         }
     }
 
     private func shareURL(_ url: URL) {
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = scene.windows.first?.rootViewController {
+        if let rootViewController = UIApplication.shared.activeWindowScene?.windows.first?.rootViewController {
             rootViewController.present(activityVC, animated: true)
         }
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RealtimeTranscriptionView: View {
-    @EnvironmentObject private var omiAdapter: OmiAdapter
+    @Environment(OmiAdapter.self) private var omiAdapter
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +24,7 @@ struct RealtimeTranscriptionView: View {
                         .frame(maxHeight: 220)
                         .padding()
                         .background(MemoraColor.divider.opacity(0.1))
-                        .cornerRadius(MemoraRadius.md)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     } else {
                         Text("live transcript は preview 用です。final transcript は取り込んだ音声を Memora の STT pipeline で確定します。")
                             .font(MemoraTypography.caption1)
@@ -56,11 +56,11 @@ struct RealtimeTranscriptionView: View {
                     Button(action: { omiAdapter.startScan() }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
                             .font(MemoraTypography.headline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MemoraColor.textPrimary)
                             .padding()
                             .frame(maxWidth: .infinity)
                             .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.md)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
                     .padding()
 
@@ -80,5 +80,5 @@ struct RealtimeTranscriptionView: View {
 
 #Preview {
     RealtimeTranscriptionView()
-        .environmentObject(OmiAdapter())
+        .environment(OmiAdapter())
 }

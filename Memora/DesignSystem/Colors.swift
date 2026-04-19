@@ -47,6 +47,21 @@ enum MemoraColor {
     // Dividers
     static let divider = Color(hex: "E5E5EA")
 
+    // Accent (iOS system blue)
+    static let accentNothing       = Color(hex: "007AFF")
+    static let accentNothingGlow   = Color(hex: "007AFF").opacity(0.35)
+    static let accentNothingSubtle = Color(hex: "007AFF").opacity(0.08)
+
+    // Glass
+    static let glassBorder    = Color.white.opacity(0.18)
+    static let glassHighlight = Color.white.opacity(0.25)
+    static let glassShadow    = Color.black.opacity(0.06)
+    static let glassTint      = Color(hex: "007AFF").opacity(0.04)
+
+    // Dot Matrix
+    static let dotMatrixPrimary = Color(hex: "1C1C1E").opacity(0.06)
+    static let dotMatrixAccent  = Color(hex: "007AFF").opacity(0.12)
+
     // Shadows
     static let shadowLight  = Color.black.opacity(0.04)
     static let shadowMedium = Color.black.opacity(0.08)

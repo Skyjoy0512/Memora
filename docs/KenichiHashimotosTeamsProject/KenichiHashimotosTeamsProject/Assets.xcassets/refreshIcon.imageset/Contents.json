@@ -1,0 +1,18 @@
+{
+  "images": [
+    {
+      "filename": "refreshIcon.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "refreshIcon.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "locofy",
+    "version": 1
+  }
+}

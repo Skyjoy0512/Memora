@@ -11,7 +11,6 @@ struct KnowledgeChunkDraft {
     let rankHint: Double
 }
 
-@MainActor
 final class KnowledgeIndexingService {
     private let modelContext: ModelContext
 

@@ -26,6 +26,9 @@ enum PlaudImportService {
 
         if let transcript = metadata?.transcript, !transcript.isEmpty {
             audioFile.referenceTranscript = transcript
+            if let count = extractSpeakerCount(from: transcript) {
+                audioFile.referenceSpeakerCount = count
+            }
         }
         if let summary = metadata?.summary, !summary.isEmpty {
             audioFile.summary = summary
@@ -66,7 +69,22 @@ enum PlaudImportService {
     ) {
         audioFile.referenceTranscript = text
         audioFile.sourceTypeRaw = SourceType.plaud.rawValue
+        if let count = extractSpeakerCount(from: text) {
+            audioFile.referenceSpeakerCount = count
+        }
         try? modelContext.save()
+    }
+
+    /// Plaud テキストから話者数を抽出する。
+    /// 対応形式: "Speaker 1:", "00:00:00 Speaker 1", "Speaker 1"
+    static func extractSpeakerCount(from text: String) -> Int? {
+        var speakers = Set<String>()
+        for line in text.components(separatedBy: .newlines) {
+            if let range = line.range(of: "Speaker \\d+", options: .regularExpression) {
+                speakers.insert(String(line[range]))
+            }
+        }
+        return speakers.isEmpty ? nil : speakers.count
     }
 
     // MARK: - Private

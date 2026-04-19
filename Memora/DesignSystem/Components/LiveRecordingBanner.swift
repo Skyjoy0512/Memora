@@ -6,15 +6,16 @@ struct LiveRecordingBanner: View {
     let onStop: () -> Void
 
     @State private var isBlinking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: MemoraSpacing.sm) {
-                // Recording indicator
+                // Recording indicator with glow
                 Circle()
                     .fill(MemoraColor.accentRed)
                     .frame(width: 6, height: 6)
-                    .opacity(isBlinking ? 1.0 : 0.3)
+                    .opacity(reduceMotion ? 1.0 : (isBlinking ? 1.0 : 0.3))
 
                 // Duration
                 Text(formatDuration(duration))
@@ -33,17 +34,31 @@ struct LiveRecordingBanner: View {
                         .font(MemoraTypography.body)
                         .foregroundStyle(MemoraColor.accentRed)
                 }
+                .accessibilityLabel("録音を停止")
+                .minimumTapTarget()
             }
             .padding(.horizontal, MemoraSpacing.md)
             .padding(.vertical, MemoraSpacing.sm)
             .frame(height: 52)
-            .liquidGlass(cornerRadius: MemoraRadius.md)
+            .background(
+                MemoraColor.surfaceSecondary,
+                in: RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                isBlinking = true
+            if !reduceMotion {
+                withAnimation(.easeInOut(duration: MemoraAnimation.slowDuration).repeatForever(autoreverses: true)) {
+                    isBlinking = true
+                }
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("録音中 \(formatDuration(duration))")
     }
 
     private func formatDuration(_ interval: TimeInterval) -> String {
@@ -55,22 +70,27 @@ struct LiveRecordingBanner: View {
 
 private struct WaveformIndicator: View {
     @State private var levels: [CGFloat] = Array(repeating: 0.3, count: 20)
+    @State private var displayLink: Timer?
 
     var body: some View {
         HStack(spacing: 1) {
             ForEach(0..<levels.count, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(MemoraColor.textTertiary)
+                    .fill(MemoraColor.accentNothing.opacity(0.3))
                     .frame(width: 2, height: 12 * levels[i])
             }
         }
         .frame(width: 60)
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            displayLink = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
                 for i in 0..<levels.count {
                     levels[i] = CGFloat.random(in: 0.2...1.0)
                 }
             }
+        }
+        .onDisappear {
+            displayLink?.invalidate()
+            displayLink = nil
         }
     }
 }

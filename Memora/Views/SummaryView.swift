@@ -30,8 +30,8 @@ struct SummaryView: View {
                     onDismiss: { showCopiedToast = false }
                 )
                 .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.easeInOut, value: showCopiedToast)
+                .transition(MemoraTransition.slideUp)
+                .animation(.easeInOut(duration: MemoraAnimation.standardDuration), value: showCopiedToast)
             }
         }
     }
@@ -110,7 +110,7 @@ struct SummaryContentView: View {
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
+        .clipShape(.rect(cornerRadius: MemoraRadius.md))
     }
 
     private var keyPointsCard: some View {
@@ -135,7 +135,7 @@ struct SummaryContentView: View {
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
+        .clipShape(.rect(cornerRadius: MemoraRadius.md))
     }
 
     private func decisionsCard(_ decisions: [String]) -> some View {
@@ -159,7 +159,7 @@ struct SummaryContentView: View {
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
+        .clipShape(.rect(cornerRadius: MemoraRadius.md))
     }
 
     private var actionItemsCard: some View {
@@ -183,7 +183,7 @@ struct SummaryContentView: View {
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MemoraColor.divider.opacity(0.05))
-        .cornerRadius(MemoraRadius.md)
+        .clipShape(.rect(cornerRadius: MemoraRadius.md))
     }
 }
 

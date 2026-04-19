@@ -8,27 +8,29 @@ struct EmptyStateView: View {
     var buttonAction: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: MemoraSpacing.lg) {
+        VStack(spacing: MemoraSpacing.phi4) {
             Image(systemName: icon)
-                .font(.system(size: 48))
-                .foregroundStyle(MemoraColor.textTertiary)
+                .font(.system(size: 36))
+                .foregroundStyle(MemoraColor.accentNothing)
+                .frame(width: 100, height: 100)
+                .background(MemoraColor.accentNothingSubtle, in: Circle())
 
-            VStack(spacing: MemoraSpacing.xs) {
+            VStack(spacing: MemoraSpacing.phi2) {
                 Text(title)
-                    .font(MemoraTypography.title3)
+                    .font(MemoraTypography.phiTitle)
                     .foregroundStyle(MemoraColor.textPrimary)
 
                 Text(description)
-                    .font(MemoraTypography.subheadline)
+                    .font(MemoraTypography.phiBody)
                     .foregroundStyle(MemoraColor.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
             if let buttonTitle, let buttonAction {
-                PillButton(title: buttonTitle, action: buttonAction)
+                PillButton(title: buttonTitle, action: buttonAction, style: .primary)
                     .padding(.horizontal, MemoraSpacing.xl)
             }
         }
-        .padding(MemoraSpacing.xl)
+        .padding(MemoraSpacing.xxl)
     }
 }

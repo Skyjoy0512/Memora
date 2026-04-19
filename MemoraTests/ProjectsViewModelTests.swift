@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import Memora
 
 @MainActor
@@ -125,6 +126,15 @@ private final class MockProjectRepository: ProjectRepositoryProtocol {
 @MainActor
 struct ProjectDetailViewModelTests {
 
+    /// in-memory ModelContext をテスト用に作成する。
+    /// 注: ホストアプリと同じスキーマを含むと EXC_BREAKPOINT が起きる可能性があるため、
+    /// AudioFile のみを登録した最小スキーマを使用する。
+    private func makeTestContext() -> ModelContext {
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try! ModelContainer(for: AudioFile.self, configurations: config)
+        return ModelContext(container)
+    }
+
     @Test("loadProjectFiles が指定プロジェクトのファイルを保持する")
     func loadProjectFiles() {
         let targetProjectID = UUID()
@@ -134,7 +144,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [first, second, other])
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: makeTestContext(), audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: targetProjectID)
 
         #expect(viewModel.projectFiles.map(\.id) == [second.id, first.id])
@@ -146,7 +156,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [], fetchError: NSError(domain: "Test", code: 1))
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: makeTestContext(), audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: UUID())
 
         #expect(viewModel.projectFiles.isEmpty)
@@ -161,7 +171,7 @@ struct ProjectDetailViewModelTests {
         let repository = MockProjectDetailAudioFileRepository(files: [first, second])
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: makeTestContext(), audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: projectID)
         viewModel.deleteAudioFiles(at: IndexSet(integer: 0), from: [second, first])
 
@@ -181,7 +191,7 @@ struct ProjectDetailViewModelTests {
         )
         let viewModel = ProjectDetailViewModel()
 
-        viewModel.configure(audioFileRepository: repository)
+        viewModel.configure(modelContext: makeTestContext(), audioFileRepository: repository)
         viewModel.loadProjectFiles(projectID: projectID)
         viewModel.deleteAudioFiles(at: IndexSet(integer: 0), from: [second, first])
 

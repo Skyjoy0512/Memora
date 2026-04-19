@@ -6,20 +6,34 @@ struct LiquidGlassModifier: ViewModifier {
     var shadowRadius: CGFloat = 12
 
     func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            ios26Body(content)
+        } else {
+            ios17Body(content)
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func ios26Body(_ content: Content) -> some View {
+        content
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+    }
+
+    private func ios17Body(_ content: Content) -> some View {
         content
             .background(
                 .ultraThinMaterial,
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             )
-            .overlay(
+            .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.white.opacity(opacity))
                     .blendMode(.overlay)
-            )
-            .overlay(
+            }
+            .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
-            )
+                    .stroke(MemoraColor.glassBorder, lineWidth: 0.5)
+            }
             .shadow(color: MemoraColor.shadowMedium, radius: shadowRadius, x: 0, y: 4)
     }
 }

@@ -43,7 +43,7 @@ struct CreateProjectView: View {
                 }
             }
         }
-        .onAppear {
+        .task {
             viewModel.configure(projectRepository: ProjectRepository(modelContext: modelContext))
         }
     }

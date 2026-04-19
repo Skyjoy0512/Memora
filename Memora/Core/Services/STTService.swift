@@ -1,6 +1,7 @@
 import Foundation
 @preconcurrency import AVFoundation
 import Speech
+import UIKit
 
 // Core transcription boundary. Changes require explicit STT approval and regression checks.
 
@@ -16,13 +17,28 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     private var resultTask: Task<TranscriptionResult, Error>?
     private var running = true
 
+    deinit {
+        let stillRunning: Bool
+        lock.lock()
+        stillRunning = running
+        lock.unlock()
+        if stillRunning {
+            print("[MemoraSTT] STTTaskHandle.deinit — ⚠️ まだ running=true のまま解放: taskId=\(taskId), url=\(audioURL.lastPathComponent)")
+        } else {
+            print("[MemoraSTT] STTTaskHandle.deinit — 正常解放: taskId=\(taskId)")
+        }
+    }
+
     init(audioURL: URL, language: String?) {
         self.id = UUID().uuidString
         self.audioURL = audioURL
         self.language = language
 
         var storedContinuation: AsyncStream<STTEvent>.Continuation?
-        self.streamStorage = AsyncStream { continuation in
+        // .unbounded バッファリングでイベントドロップを防止
+        self.streamStorage = AsyncStream(
+            bufferingPolicy: .unbounded
+        ) { continuation in
             storedContinuation = continuation
         }
         self.continuation = storedContinuation
@@ -145,16 +161,13 @@ private final class STTBackendExecutor {
     private let configuration: STTExecutionConfiguration
     private let stateLock = NSLock()
     private var recognitionTask: SFSpeechRecognitionTask?
-    private let diarizationService: SpeakerDiarizationProtocol
 
     init(
         taskId: String,
-        configuration: STTExecutionConfiguration,
-        diarizationService: SpeakerDiarizationProtocol
+        configuration: STTExecutionConfiguration
     ) {
         self.taskId = taskId
         self.configuration = configuration
-        self.diarizationService = diarizationService
     }
 
     func transcribe(
@@ -192,7 +205,11 @@ private final class STTBackendExecutor {
     ) async throws -> TranscriptionResult {
         let locale = localeForRecognition(language: language)
         let transcriptionStart = ContinuousClock.now
+        DebugLogger.shared.addLog("STTBackend", "transcribeLocally 開始 — locale: \(locale.identifier), file: \(audioURL.lastPathComponent)", level: .info)
 
+        // SpeechAnalyzer (iOS 26) を優先使用。
+        // 高レベルAPI analyzeSequence(from:) で MP3/M4A を直接処理。
+        // 失敗時は SFSpeechRecognizer にフォールバック。
         #if !targetEnvironment(simulator)
         if #available(iOS 26.0, *) {
             let preflight = SpeechAnalyzerPreflight()
@@ -200,7 +217,7 @@ private final class STTBackendExecutor {
 
             switch result {
             case .ready(let diag):
-                print("[MemoraSTT] SpeechAnalyzer preflight passed — \(diag.summary)")
+                DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer preflight passed — \(diag.summary)", level: .info)
                 do {
                     let transcription = try await transcribeWithSpeechAnalyzerWithTimeout(
                         audioURL: audioURL,
@@ -223,7 +240,7 @@ private final class STTBackendExecutor {
                     ))
                     return transcription
                 } catch {
-                    print("[MemoraSTT] SpeechAnalyzer runtime fallback: \(error.localizedDescription)")
+                    DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer runtime fallback: \(error.localizedDescription)", level: .warning)
                     STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
                         taskId: taskId,
                         backend: .speechAnalyzer,
@@ -237,7 +254,7 @@ private final class STTBackendExecutor {
                 }
 
             case .unavailable(let reason, let diag):
-                print("[MemoraSTT] SpeechAnalyzer preflight failed — \(reason.description)")
+                DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer preflight failed — \(reason.description)", level: .warning)
                 STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
                     taskId: taskId,
                     backend: .sfSpeechRecognizer,
@@ -252,34 +269,73 @@ private final class STTBackendExecutor {
         }
         #endif
 
-        print("[MemoraSTT] SFSpeechRecognizer パスを使用")
-        let transcription = try await transcribeWithSpeechRecognizer(
-            audioURL: audioURL,
-            locale: locale,
-            progress: progress,
-            partialResult: partialResult
-        )
-        let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
-        let ms = Double(elapsed.components.seconds) * 1000.0
-            + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
-        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
-            taskId: taskId,
-            backend: .sfSpeechRecognizer,
-            locale: locale.identifier,
-            assetState: nil,
-            audioFormat: nil,
-            fallbackReason: nil,
-            processingTimeMs: ms,
-            recordedAt: Date()
-        ))
-        return transcription
+        print("[MemoraSTT] SFSpeechRecognizer パスを使用（on-device → server フォールバック付き）")
+        DebugLogger.shared.addLog("STTBackend", "SFSpeechRecognizer パス開始 — on-device優先", level: .info)
+        do {
+            let transcription = try await transcribeWithSpeechRecognizerWithTimeout(
+                audioURL: audioURL,
+                locale: locale,
+                progress: progress,
+                partialResult: partialResult
+            )
+            let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+            let ms = Double(elapsed.components.seconds) * 1000.0
+                + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: nil,
+                processingTimeMs: ms,
+                recordedAt: Date()
+            ))
+            return transcription
+        } catch {
+            // on-device がタイムアウト・モデル未ダウンロード・その他エラーのいずれでも
+            // server recognition にフォールバックする
+            DebugLogger.shared.addLog("STTBackend", "on-device 認識失敗 — server recognition でリトライ: \(error.localizedDescription)", level: .warning)
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: "on-device failed (\(error.localizedDescription)), retrying with server",
+                processingTimeMs: nil,
+                recordedAt: Date()
+            ))
+            let transcription = try await transcribeWithSpeechRecognizerWithTimeout(
+                audioURL: audioURL,
+                locale: locale,
+                progress: progress,
+                partialResult: partialResult,
+                forceOnDevice: false
+            )
+            let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
+            let ms = Double(elapsed.components.seconds) * 1000.0
+                + Double(elapsed.components.attoseconds) / 1_000_000_000_000.0
+            STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                taskId: taskId,
+                backend: .sfSpeechRecognizer,
+                locale: locale.identifier,
+                assetState: nil,
+                audioFormat: nil,
+                fallbackReason: "server recognition (on-device failed)",
+                processingTimeMs: ms,
+                recordedAt: Date()
+            ))
+            return transcription
+        }
     }
 
     private func transcribeWithSpeechRecognizer(
         audioURL: URL,
         locale: Locale,
         progress: @escaping @Sendable (Double) -> Void,
-        partialResult: @escaping @Sendable (String) -> Void
+        partialResult: @escaping @Sendable (String) -> Void,
+        forceOnDevice: Bool = true
     ) async throws -> TranscriptionResult {
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             print("[MemoraSTT] SFSpeechRecognizer 利用不可 — locale: \(locale.identifier)")
@@ -287,40 +343,47 @@ private final class STTBackendExecutor {
         }
 
         let request = SFSpeechURLRecognitionRequest(url: audioURL)
-        request.shouldReportPartialResults = false
-        request.requiresOnDeviceRecognition = true
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = forceOnDevice
         if #available(iOS 16.0, *) {
             request.addsPunctuation = true
         }
 
-        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: true")
+        print("[MemoraSTT] SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: \(forceOnDevice)")
+        DebugLogger.shared.addLog("STTBackend", "SFSpeechRecognizer 開始 — locale: \(locale.identifier), onDevice: \(forceOnDevice)", level: .info)
         progress(0.2)
 
-        let recognitionResult = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation {
-                (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
-                let callbackLock = NSLock()
-                var didResume = false
+        // DispatchWorkItem ベースのタイムアウト: withCheckedThrowingContinuation は
+        // Task キャンセルに対応しないため、タイマーで直接 continuation を resume する
+        let timeoutSeconds: TimeInterval = forceOnDevice ? 30 : 60
 
-                let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                    if let result {
-                        partialResult(result.bestTranscription.formattedString)
-                    }
+        let recognitionResult = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<SFSpeechRecognitionResult, Error>) in
+            let callbackLock = NSLock()
+            var didResume = false
 
-                    if let error {
-                        callbackLock.lock()
-                        let shouldResume = !didResume
-                        didResume = true
-                        callbackLock.unlock()
+            // タイムアウトタイマー: 指定秒数内に結果が来なければ continuation を resume
+            let timeoutWorkItem = DispatchWorkItem(qos: .userInitiated) { [weak self] in
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                guard shouldResume else { return }
+                print("[MemoraSTT] SFSpeechRecognizer タイムアウト (\(timeoutSeconds)s) — onDevice: \(forceOnDevice)")
+                DebugLogger.shared.addLog("STTBackend", "SFSpeechRecognizer タイムアウト (\(timeoutSeconds)s) — onDevice: \(forceOnDevice)", level: .warning)
+                self?.clearRecognitionTask()
+                continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
+            }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + timeoutSeconds,
+                execute: timeoutWorkItem
+            )
 
-                        guard shouldResume else { return }
-                        self?.clearRecognitionTask()
-                        continuation.resume(throwing: error)
-                        return
-                    }
+            let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                // 成功またはエラー時はタイマーをキャンセル
+                timeoutWorkItem.cancel()
 
-                    guard let result, result.isFinal else { return }
-
+                if let error {
                     callbackLock.lock()
                     let shouldResume = !didResume
                     didResume = true
@@ -328,16 +391,34 @@ private final class STTBackendExecutor {
 
                     guard shouldResume else { return }
                     self?.clearRecognitionTask()
-                    continuation.resume(returning: result)
+                    continuation.resume(throwing: error)
+                    return
                 }
 
-                self.storeRecognitionTask(task)
+                guard let result else { return }
+
+                // volatile（中間結果）
+                if !result.isFinal {
+                    partialResult(result.bestTranscription.formattedString)
+                    return
+                }
+
+                // final（確定結果）
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+
+                guard shouldResume else { return }
+                self?.clearRecognitionTask()
+                continuation.resume(returning: result)
             }
-        } onCancel: {
-            self.cancelRecognitionTask()
+
+            self.storeRecognitionTask(task)
         }
 
         progress(0.92)
+        DebugLogger.shared.addLog("STTBackend", "SFSpeechRecognizer 認識完了 — \(recognitionResult.bestTranscription.segments.count)セグメント", level: .info)
 
         let baseSegments = recognitionResult.bestTranscription.segments.enumerated().map { index, segment in
             TranscriptionSegment(
@@ -349,15 +430,32 @@ private final class STTBackendExecutor {
             )
         }
 
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
-            audioURL: audioURL,
-            segments: baseSegments
-        )
+        // 話者分離はチャンク単位ではなく、マージ後に全体ファイルで一括実行するため
+        // ここではセグメントをそのまま返す
 
         return TranscriptionResult(
             fullText: recognitionResult.bestTranscription.formattedString,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
-            segments: segmentsWithSpeakers
+            segments: baseSegments
+        )
+    }
+
+    /// SFSpeechRecognizer に60秒タイムアウトを追加したラッパー。
+    /// コールバックが永久に返らない iOS バグを防止する。
+    private func transcribeWithSpeechRecognizerWithTimeout(
+        audioURL: URL,
+        locale: Locale,
+        progress: @escaping @Sendable (Double) -> Void,
+        partialResult: @escaping @Sendable (String) -> Void,
+        forceOnDevice: Bool = true
+    ) async throws -> TranscriptionResult {
+        // タイムアウトは transcribeWithSpeechRecognizer 内の DispatchWorkItem で処理
+        try await transcribeWithSpeechRecognizer(
+            audioURL: audioURL,
+            locale: locale,
+            progress: progress,
+            partialResult: partialResult,
+            forceOnDevice: forceOnDevice
         )
     }
 
@@ -368,8 +466,15 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        try await withThrowingTaskGroup(of: TranscriptionResult.self) { group in
-            group.addTask {
+        // continuation + DispatchWorkItem でタイムアウトを実装。
+        // withThrowingTaskGroup は全子タスク完了を待つため、
+        // detectSpeakers が非協力的だとタイムアウトが効かない。
+        try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<TranscriptionResult, Error>) in
+            let callbackLock = NSLock()
+            var didResume = false
+
+            let transcriptionTask = Task {
                 try await self.transcribeWithSpeechAnalyzer(
                     audioURL: audioURL,
                     locale: locale,
@@ -378,17 +483,45 @@ private final class STTBackendExecutor {
                 )
             }
 
-            group.addTask {
-                try await Task.sleep(nanoseconds: 120_000_000_000)
-                throw OnDeviceTranscriptionTimeoutError()
+            // 60秒タイムアウト
+            let timeoutWorkItem = DispatchWorkItem(qos: .userInitiated) {
+                callbackLock.lock()
+                let shouldResume = !didResume
+                didResume = true
+                callbackLock.unlock()
+                if shouldResume {
+                    transcriptionTask.cancel()
+                    DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer 60秒タイムアウト", level: .warning)
+                    continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
+                }
             }
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(
+                deadline: .now() + 60,
+                execute: timeoutWorkItem
+            )
 
-            guard let result = try await group.next() else {
-                group.cancelAll()
-                throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer produced no result"))
+            Task {
+                do {
+                    let result = try await transcriptionTask.value
+                    timeoutWorkItem.cancel()
+                    callbackLock.lock()
+                    let shouldResume = !didResume
+                    didResume = true
+                    callbackLock.unlock()
+                    if shouldResume {
+                        continuation.resume(returning: result)
+                    }
+                } catch {
+                    timeoutWorkItem.cancel()
+                    callbackLock.lock()
+                    let shouldResume = !didResume
+                    didResume = true
+                    callbackLock.unlock()
+                    if shouldResume {
+                        continuation.resume(throwing: error)
+                    }
+                }
             }
-            group.cancelAll()
-            return result
         }
     }
 
@@ -399,25 +532,29 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        let service = SpeechAnalyzerService26()
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer 開始")
+        DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer transcribe 開始 — \(audioURL.lastPathComponent)", level: .info)
+        let service = SpeechAnalyzerService26(locale: locale)
 
         progress(0.2)
         let text = try await service.transcribe(audioURL: audioURL)
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: SpeechAnalyzerService26 完了 — \(text.count)文字")
+        DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer transcribe 完了 — \(text.count)文字", level: .info)
         partialResult(text)
         progress(0.92)
 
         let duration = await audioFileDuration(for: audioURL)
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: duration=\(duration)s")
+        DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer duration=\(String(format: "%.1f", duration))s, セグメント生成完了", level: .info)
         let baseSegments = makeFallbackSegments(from: text, duration: duration)
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
-            audioURL: audioURL,
-            segments: baseSegments
-        )
 
-        return TranscriptionResult(
+        let result = TranscriptionResult(
             fullText: text,
             language: STTLanguageNormalizer.baseLanguageCode(for: locale.identifier),
-            segments: segmentsWithSpeakers
+            segments: baseSegments
         )
+        print("[MemoraSTT] transcribeWithSpeechAnalyzer: TranscriptionResult 生成完了")
+        return result
     }
 
     private func transcribeRemotely(
@@ -430,6 +567,7 @@ private final class STTBackendExecutor {
         }
 
         print("[MemoraSTT] API パス開始 — provider: \(configuration.provider.rawValue)")
+        DebugLogger.shared.addLog("STTBackend", "API パス開始 — provider: \(configuration.provider.rawValue)", level: .info)
         let remoteStart = ContinuousClock.now
 
         let service = AIService()
@@ -442,13 +580,10 @@ private final class STTBackendExecutor {
         progress(0.92)
 
         print("[MemoraSTT] API パス完了 — text length: \(text.count)")
+        DebugLogger.shared.addLog("STTBackend", "API パス完了 — \(text.count)文字", level: .info)
 
         let duration = await audioFileDuration(for: audioURL)
         let baseSegments = makeFallbackSegments(from: text, duration: duration)
-        let segmentsWithSpeakers = await diarizationService.detectSpeakers(
-            audioURL: audioURL,
-            segments: baseSegments
-        )
 
         let elapsed = remoteStart.duration(to: ContinuousClock.now)
         let ms = Double(elapsed.components.seconds) * 1000.0
@@ -467,7 +602,7 @@ private final class STTBackendExecutor {
         return TranscriptionResult(
             fullText: text,
             language: language.map(STTLanguageNormalizer.baseLanguageCode(for:)) ?? "ja",
-            segments: segmentsWithSpeakers
+            segments: baseSegments
         )
     }
 
@@ -550,10 +685,20 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
     private var activeTasks: [String: STTTaskHandle] = [:]
     private var configuration = STTExecutionConfiguration.localDefault
+    private var backgroundTaskIdentifiers: [String: UIBackgroundTaskIdentifier] = [:]
+    /// Plaud 等の参照データから抽出した話者数ヒント。
+    /// 文字起こし時の話者分離で numSpeakers として使用。
+    var referenceSpeakerCount: Int?
 
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
-    private let diarizationService: SpeakerDiarizationProtocol = SpeakerDiarizationService()
+    private let diarizationService: SpeakerDiarizationProtocol = {
+        if #available(macOS 14.0, iOS 17.0, *) {
+            return FluidAudioDiarizationService()
+        } else {
+            return SpeakerDiarizationService()
+        }
+    }()
 
     init(
         readiness: STTReadinessProtocol = STTReadiness(),
@@ -590,6 +735,25 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
         let handle = STTTaskHandle(audioURL: audioURL, language: language)
         store(handle: handle)
+        DebugLogger.shared.addLog("STTService", "startTranscription — handle 作成: \(handle.taskId), mode: \(configuration.transcriptionMode.rawValue)", level: .info)
+
+        // バックグラウンドタスクを登録: アプリがバックグラウンドに移行しても文字起こしを継続
+        // 画面自動ロックを防止: 文字起こし中は画面を点灯したままにする
+        let bgId = await MainActor.run {
+            UIApplication.shared.isIdleTimerDisabled = true
+            return UIApplication.shared.beginBackgroundTask(
+                withName: "MemoraSTT-\(handle.taskId)"
+            ) { [weak self] in
+                // 有効期限切れ時: タスクをキャンセル
+                self?.endBackgroundTask(taskId: handle.taskId)
+            }
+        }
+        if bgId != .invalid {
+            stateLock.lock()
+            backgroundTaskIdentifiers[handle.taskId] = bgId
+            stateLock.unlock()
+            DebugLogger.shared.addLog("STTService", "beginBackgroundTask 登録: \(handle.taskId)", level: .info)
+        }
 
         let task = Task(priority: .userInitiated) { [weak self] () throws -> TranscriptionResult in
             guard let self else {
@@ -601,8 +765,17 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         handle.attach(task: task)
 
         Task { [weak self] in
-            _ = try? await task.value
+            do {
+                _ = try await task.value
+            } catch {
+                print("[MemoraSTT] バックグラウンドタスクエラー: \(error.localizedDescription)")
+            }
             self?.removeTask(taskId: handle.taskId)
+            self?.endBackgroundTask(taskId: handle.taskId)
+            // 画面自動ロックを再開
+            await MainActor.run {
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
         }
 
         return (handle, handle.events)
@@ -629,8 +802,14 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         let chunker = chunkerFactory()
         var preparedChunks: [AudioChunk] = []
 
+        print("[MemoraSTT] runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)")
+        DebugLogger.shared.addLog("STTService", "runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)", level: .info)
+
         do {
+            print("[MemoraSTT] runTask: .transcriptionStarted を yield")
+            DebugLogger.shared.addLog("STTService", "yield .transcriptionStarted", level: .info)
             handle.yield(.transcriptionStarted(taskId: handle.taskId))
+            print("[MemoraSTT] runTask: .transcriptionProgress(0.02) を yield")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
 
             preparedChunks = try await chunker.analyzeAndChunk(fileURL: handle.audioURL) { completed, total in
@@ -644,24 +823,28 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
 
-            defer {
-                Task {
-                    await chunker.cleanup(chunks: preparedChunks)
-                }
-            }
-
+            print("[MemoraSTT] runTask: チャンク数 \(preparedChunks.count)")
+            DebugLogger.shared.addLog("STTService", "チャンク数: \(preparedChunks.count)", level: .info)
             var chunkResults: [TranscriptionResult] = []
             let totalChunks = max(preparedChunks.count, 1)
+
+            // Live Activity 開始（Dynamic Island / ロック画面に進捗表示）
+            await MainActor.run {
+                TranscriptionLiveActivity.start(
+                    fileName: handle.audioURL.lastPathComponent,
+                    totalChunks: totalChunks
+                )
+            }
 
             for (index, chunk) in preparedChunks.enumerated() {
                 try Task.checkCancellation()
 
+                DebugLogger.shared.addLog("STTService", "chunk \(index)/\(preparedChunks.count) 開始 — \(chunk.url.lastPathComponent)", level: .info)
                 handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
 
                 let engine = STTBackendExecutor(
                     taskId: "\(handle.taskId)-chunk-\(chunk.index)",
-                    configuration: configuration,
-                    diarizationService: diarizationService
+                    configuration: configuration
                 )
                 let result = try await engine.transcribe(
                     audioURL: chunk.url,
@@ -681,8 +864,20 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     }
                 )
 
+                print("[MemoraSTT] runTask: chunk \(index) 完了 — text: \(result.fullText.prefix(40))")
+                DebugLogger.shared.addLog("STTService", "chunk \(index) 完了 — \(result.fullText.count)文字", level: .info)
                 chunkResults.append(result)
                 handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
+
+                // Live Activity 進捗更新
+                let overallProgress = 0.12 + (0.78 * Double(index + 1) / Double(totalChunks))
+                await MainActor.run {
+                    TranscriptionLiveActivity.update(
+                        progress: overallProgress,
+                        currentChunk: index + 1,
+                        totalChunks: totalChunks
+                    )
+                }
             }
 
             let mergedResult = merge(
@@ -690,22 +885,60 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 results: chunkResults,
                 preferredLanguage: handle.language
             )
+            print("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
+            DebugLogger.shared.addLog("STTService", "merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント", level: .info)
+
+            // 話者分離: マージ後に全体ファイルで一括実行（チャンク単位より精度が高い）
+            handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.92))
+            let finalSegments = await detectSpeakersWithTimeout(
+                audioURL: handle.audioURL,
+                segments: mergedResult.segments,
+                numSpeakers: referenceSpeakerCount
+            )
+            let finalResult = TranscriptionResult(
+                fullText: mergedResult.fullText,
+                language: mergedResult.language,
+                segments: finalSegments
+            )
+
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 1.0))
-            handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: mergedResult))
+            print("[MemoraSTT] runTask: .transcriptionCompleted を yield — \(finalResult.fullText.count)文字")
+            handle.yield(.transcriptionCompleted(taskId: handle.taskId, result: finalResult))
+            print("[MemoraSTT] runTask: .transcriptionCompleted yield 完了")
+            DebugLogger.shared.addLog("STTService", "yield .transcriptionCompleted — finish() 呼び出し", level: .info)
             handle.finish()
-            return mergedResult
+            // Live Activity 終了（成功）
+            await MainActor.run {
+                TranscriptionLiveActivity.finish(
+                    success: true,
+                    characterCount: finalResult.fullText.count
+                )
+            }
+            print("[MemoraSTT] runTask: finish() 完了")
+            // 成功時: 一時ファイルを同期待ちで削除
+            await chunker.cleanup(chunks: preparedChunks)
+            return finalResult
         } catch is CancellationError {
+            DebugLogger.shared.addLog("STTService", "runTask cancelled — taskId: \(handle.taskId)", level: .warning)
             handle.yield(.transcriptionCancelled(taskId: handle.taskId))
             handle.finish()
+            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await chunker.cleanup(chunks: preparedChunks)
             throw CancellationError()
         } catch let coreError as CoreError {
+            DebugLogger.shared.addLog("STTService", "runTask CoreError — taskId: \(handle.taskId): \(coreError.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
             handle.finish()
+            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await chunker.cleanup(chunks: preparedChunks)
             throw coreError
         } catch {
             let mappedError = STTErrorMapper.mapToCoreError(error)
+            DebugLogger.shared.addLog("STTService", "runTask error — taskId: \(handle.taskId): \(error.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: mappedError))
             handle.finish()
+            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await chunker.cleanup(chunks: preparedChunks)
             throw mappedError
         }
     }
@@ -775,5 +1008,77 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         stateLock.lock()
         activeTasks.removeValue(forKey: taskId)
         stateLock.unlock()
+    }
+
+    private func endBackgroundTask(taskId: String) {
+        stateLock.lock()
+        let bgId = backgroundTaskIdentifiers.removeValue(forKey: taskId)
+        stateLock.unlock()
+        if let bgId, bgId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgId)
+            DebugLogger.shared.addLog("STTService", "endBackgroundTask: \(taskId)", level: .info)
+        }
+    }
+
+    /// FluidAudio（CoreML / ANE）による全体ファイル話者分離。
+    /// 指定秒数でタイムアウトし、フォールバックとして元セグメントを返す。
+    private func detectSpeakersWithTimeout(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        numSpeakers: Int? = nil,
+        timeout: TimeInterval = 300
+    ) async -> [TranscriptionSegment] {
+        DebugLogger.shared.addLog("STTService", "全体ファイル話者分離開始 — \(segments.count)セグメント, numSpeakers: \(numSpeakers?.description ?? "auto"), timeout: \(timeout)s", level: .info)
+        let result = await withTimeout(seconds: timeout) {
+            await self.diarizationService.detectSpeakers(audioURL: audioURL, segments: segments, numSpeakers: numSpeakers)
+        }
+        switch result {
+        case .success(let speakers):
+            DebugLogger.shared.addLog("STTService", "全体ファイル話者分離完了 — \(speakers.count)セグメント", level: .info)
+            return speakers
+        case .timedOut:
+            DebugLogger.shared.addLog("STTService", "全体ファイル話者分離タイムアウト (\(timeout)s)", level: .warning)
+            return segments
+        }
+    }
+
+    private func withTimeout<T>(
+        seconds: TimeInterval,
+        operation: @escaping () async -> T
+    ) async -> TimeoutResult<T> {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var completed = false
+
+            let task = Task {
+                let result = await operation()
+                lock.lock()
+                guard !completed else {
+                    lock.unlock()
+                    return
+                }
+                completed = true
+                lock.unlock()
+                continuation.resume(returning: .success(result))
+            }
+
+            _ = Task {
+                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                lock.lock()
+                guard !completed else {
+                    lock.unlock()
+                    return
+                }
+                completed = true
+                lock.unlock()
+                task.cancel()
+                continuation.resume(returning: .timedOut)
+            }
+        }
+    }
+
+    private enum TimeoutResult<T> {
+        case success(T)
+        case timedOut
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import Observation
 
 struct RecordingResult: Sendable {
     let fileID: UUID
@@ -22,9 +23,10 @@ protocol AudioRecorderProtocol: Sendable {
 }
 
 @MainActor
-final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
-    @Published var isRecording = false
-    @Published var recordingTime: TimeInterval = 0
+@Observable
+final class AudioRecorder: NSObject, AudioRecorderProtocol {
+    var isRecording = false
+    var recordingTime: TimeInterval = 0
 
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
@@ -33,13 +35,15 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol, ObservableObject {
     private var meteringTimer: Timer?
 
     nonisolated deinit {
-        meteringTimer?.invalidate()
-        meteringTimer = nil
+        MainActor.assumeIsolated {
+            meteringTimer?.invalidate()
+            meteringTimer = nil
 
-        for continuation in levelContinuations.values {
-            continuation.finish()
+            for continuation in levelContinuations.values {
+                continuation.finish()
+            }
+            levelContinuations.removeAll()
         }
-        levelContinuations.removeAll()
     }
 
     func startRecording() throws {

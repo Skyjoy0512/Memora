@@ -12,6 +12,7 @@ final class PhotoAttachment {
     var id: UUID
     var ownerTypeRaw: String
     var ownerID: UUID
+    var audioFile: AudioFile?
     var sortOrder: Int
     var localPath: String
     var thumbnailPath: String?

@@ -5,6 +5,7 @@ import SwiftData
 public final class ProcessingJob {
     public var id: UUID
     var audioFileID: UUID
+    var audioFile: AudioFile?
     var jobType: String
     var status: String
     var progress: Double = 0
@@ -23,7 +24,7 @@ public final class ProcessingJob {
         self.status = "pending"
         self.stage = "none"
         self.retryCount = 0
-        self.maxRetries = 1
+        self.maxRetries = 2
         self.createdAt = Date()
     }
 
@@ -54,5 +55,31 @@ public final class ProcessingJob {
 
     var canRetry: Bool {
         retryCount < maxRetries
+    }
+
+    func incrementRetry() {
+        retryCount += 1
+        status = "pending"
+        stage = "none"
+        error = nil
+        startedAt = nil
+        completedAt = nil
+        progress = 0
+    }
+
+    // MARK: - Cleanup
+
+    /// 完了済みまたは失敗した ProcessingJob を一括削除する
+    @MainActor
+    static func cleanupCompletedJobs(in context: ModelContext) {
+        let descriptor = FetchDescriptor<ProcessingJob>(
+            predicate: #Predicate { $0.status == "completed" || $0.status == "failed" }
+        )
+        if let jobs = try? context.fetch(descriptor) {
+            for job in jobs {
+                context.delete(job)
+            }
+            try? context.save()
+        }
     }
 }

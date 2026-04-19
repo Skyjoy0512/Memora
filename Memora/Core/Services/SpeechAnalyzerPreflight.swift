@@ -81,7 +81,8 @@ final class SpeechAnalyzerPreflight: Sendable {
 
         // Step 1: Feature flag
         guard featureEnabled else {
-            unavailableReason = .featureFlagOff
+            let reason = SpeechAnalyzerUnavailableReason.featureFlagOff
+            unavailableReason = reason
             let diag = makeDiagnostics(
                 isAvailable: isAvailable,
                 featureEnabled: featureEnabled,
@@ -89,15 +90,16 @@ final class SpeechAnalyzerPreflight: Sendable {
                 supportedLocale: nil,
                 assetStatus: assetStatusDescription,
                 formats: compatibleFormats,
-                reason: unavailableReason!,
+                reason: reason,
                 start: start
             )
-            return .unavailable(reason: .featureFlagOff, diagnostics: diag)
+            return .unavailable(reason: reason, diagnostics: diag)
         }
 
         // Step 2: Availability
         guard isAvailable else {
-            unavailableReason = .notAvailable
+            let reason = SpeechAnalyzerUnavailableReason.notAvailable
+            unavailableReason = reason
             let diag = makeDiagnostics(
                 isAvailable: isAvailable,
                 featureEnabled: featureEnabled,
@@ -105,17 +107,18 @@ final class SpeechAnalyzerPreflight: Sendable {
                 supportedLocale: nil,
                 assetStatus: assetStatusDescription,
                 formats: compatibleFormats,
-                reason: unavailableReason!,
+                reason: reason,
                 start: start
             )
-            return .unavailable(reason: .notAvailable, diagnostics: diag)
+            return .unavailable(reason: reason, diagnostics: diag)
         }
 
         // Step 3: Locale equivalence
         let resolvedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale)
         supportedLocale = resolvedLocale
         guard let resolvedLocale else {
-            unavailableReason = .localeNotSupported(requestedLocale: locale.identifier)
+            let reason = SpeechAnalyzerUnavailableReason.localeNotSupported(requestedLocale: locale.identifier)
+            unavailableReason = reason
             let diag = makeDiagnostics(
                 isAvailable: isAvailable,
                 featureEnabled: featureEnabled,
@@ -123,10 +126,10 @@ final class SpeechAnalyzerPreflight: Sendable {
                 supportedLocale: nil,
                 assetStatus: assetStatusDescription,
                 formats: compatibleFormats,
-                reason: unavailableReason!,
+                reason: reason,
                 start: start
             )
-            return .unavailable(reason: unavailableReason!, diagnostics: diag)
+            return .unavailable(reason: reason, diagnostics: diag)
         }
 
         // Step 4: Asset status
@@ -144,7 +147,8 @@ final class SpeechAnalyzerPreflight: Sendable {
                     assetStatusDescription = String(describing: finalStatus)
 
                     if finalStatus != .installed {
-                        unavailableReason = .assetsNotReady(statusDescription: assetStatusDescription)
+                        let reason = SpeechAnalyzerUnavailableReason.assetsNotReady(statusDescription: assetStatusDescription)
+                        unavailableReason = reason
                         let diag = makeDiagnostics(
                             isAvailable: isAvailable,
                             featureEnabled: featureEnabled,
@@ -152,14 +156,15 @@ final class SpeechAnalyzerPreflight: Sendable {
                             supportedLocale: resolvedLocale,
                             assetStatus: assetStatusDescription,
                             formats: compatibleFormats,
-                            reason: unavailableReason!,
+                            reason: reason,
                             start: start
                         )
-                        return .unavailable(reason: unavailableReason!, diagnostics: diag)
+                        return .unavailable(reason: reason, diagnostics: diag)
                     }
                 }
             } catch {
-                unavailableReason = .assetsNotReady(statusDescription: error.localizedDescription)
+                let reason = SpeechAnalyzerUnavailableReason.assetsNotReady(statusDescription: error.localizedDescription)
+                unavailableReason = reason
                 let diag = makeDiagnostics(
                     isAvailable: isAvailable,
                     featureEnabled: featureEnabled,
@@ -167,10 +172,10 @@ final class SpeechAnalyzerPreflight: Sendable {
                     supportedLocale: resolvedLocale,
                     assetStatus: assetStatusDescription,
                     formats: compatibleFormats,
-                    reason: unavailableReason!,
+                    reason: reason,
                     start: start
                 )
-                return .unavailable(reason: unavailableReason!, diagnostics: diag)
+                return .unavailable(reason: reason, diagnostics: diag)
             }
         }
 

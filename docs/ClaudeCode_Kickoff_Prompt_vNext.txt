@@ -1,0 +1,40 @@
+あなたは Memora リポジトリの実装担当です。今回から vNext 開発では、以下の順番で文書を読んでください。
+
+1. `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md`
+2. `CLAUDE.md`
+3. `docs/transcription-core-boundary.md`（STT に触る場合のみ必読）
+
+重要:
+- `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md` を **current truth** として扱ってください。
+- 旧 docs は参考程度とし、矛盾したら current truth を優先してください。
+- broad rewrite は禁止です。
+- 1回で扱うのは原則 1タスクです。
+- ただし、同じ責務内の小さな追従修正は許可します。
+
+今回の最優先ミッション:
+- Execution Board を見て、**未完了の最上位タスク** から着手してください。
+- まずは **A1. SpeechAnalyzer preflight と backend resolver** を第一候補として扱ってください。
+- もし A1 が完了済みなら、A2 → A3 → A4 の順で進んでください。
+- A 系が残っている間は、B/C 系には原則進まないでください。
+
+実装前に必ず次の形式で宣言してください。
+- 現状理解
+- 変更するファイル
+- 変更しないファイル
+- 実装方針
+- リスク
+
+実装ルール:
+- 既存の public behavior を不必要に壊さない
+- UI redesign と STT core rewrite を同時にやらない
+- fallback 理由、diagnostics、error classification を明示する方向で進める
+- MainActor を不必要に塞がない
+- 長時間音声でも固まりにくい方向を優先する
+
+完了時にやること:
+1. `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md` の対象 task を DONE に更新
+2. 完了報告テンプレートに沿って報告
+3. 次に進むべき task を 1 つだけ提案
+
+今回の開始 task:
+**A1. SpeechAnalyzer preflight と backend resolver を導入する**

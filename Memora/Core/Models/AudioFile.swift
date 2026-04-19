@@ -29,6 +29,26 @@ final class AudioFile {
     // ソース・参照データ
     var sourceTypeRaw: String = SourceType.recording.rawValue
     var referenceTranscript: String?
+    /// Plaud 等の参照データから抽出した話者数。
+    /// FluidAudio のクラスタリングで numSpeakers ヒントとして使用。
+    var referenceSpeakerCount: Int?
+
+    // MARK: - Relationships (cascade delete)
+
+    @Relationship(deleteRule: .cascade, inverse: \Transcript.audioFile)
+    var transcripts: [Transcript] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \ProcessingJob.audioFile)
+    var processingJobs: [ProcessingJob] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \PhotoAttachment.audioFile)
+    var photoAttachments: [PhotoAttachment] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \KnowledgeChunk.audioFile)
+    var knowledgeChunks: [KnowledgeChunk] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \CalendarEventLink.audioFile)
+    var calendarEventLinks: [CalendarEventLink] = []
 
     var sourceType: SourceType {
         get { SourceType(rawValue: sourceTypeRaw) ?? .recording }

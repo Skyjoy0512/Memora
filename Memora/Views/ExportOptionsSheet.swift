@@ -59,11 +59,11 @@ struct ExportOptionsSheet: View {
                     Button(action: export) {
                         Label("エクスポート", systemImage: "square.and.arrow.down")
                             .font(MemoraTypography.headline)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(MemoraColor.textPrimary)
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(MemoraColor.divider)
-                            .cornerRadius(MemoraRadius.md)
+                            .clipShape(.rect(cornerRadius: MemoraRadius.md))
                     }
                 }
 
@@ -74,7 +74,7 @@ struct ExportOptionsSheet: View {
                         .foregroundStyle(MemoraColor.accentRed)
                         .padding()
                         .background(MemoraColor.accentRed.opacity(0.1))
-                        .cornerRadius(MemoraRadius.sm)
+                        .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                 }
 
                 // Notion エクスポート（設定済みの場合のみ表示）
@@ -109,7 +109,7 @@ struct ExportOptionsSheet: View {
                                     .frame(maxWidth: .infinity)
                                     .padding()
                                     .background(MemoraColor.accentBlue)
-                                    .cornerRadius(MemoraRadius.md)
+                                    .clipShape(.rect(cornerRadius: MemoraRadius.md))
                             }
                         }
 
@@ -119,7 +119,7 @@ struct ExportOptionsSheet: View {
                                 .foregroundStyle(message.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed)
                                 .padding()
                                 .background((message.contains("成功") ? MemoraColor.accentGreen : MemoraColor.accentRed).opacity(0.1))
-                                .cornerRadius(MemoraRadius.sm)
+                                .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                         }
                     }
                 }
@@ -167,6 +167,26 @@ struct ExportOptionsSheet: View {
                     transcript = nil
                 }
 
+                // Memo を取得
+                let memoText: String? = {
+                    let targetID = audioFile.id
+                    var descriptor = FetchDescriptor<MeetingMemo>(
+                        predicate: #Predicate { $0.audioFileID == targetID }
+                    )
+                    descriptor.fetchLimit = 1
+                    return try? modelContext.fetch(descriptor).first?.markdown
+                }()
+
+                // Todo を取得（同じプロジェクトに紐づくもの）
+                let todoItems: [TodoItem] = {
+                    guard let projectID = audioFile.projectID else { return [] }
+                    let targetID = projectID
+                    let descriptor = FetchDescriptor<TodoItem>(
+                        predicate: #Predicate { $0.projectID == targetID }
+                    )
+                    return (try? modelContext.fetch(descriptor)) ?? []
+                }()
+
                 // エクスポート実行
                 switch exportType {
                 case .transcript:
@@ -193,18 +213,20 @@ struct ExportOptionsSheet: View {
                     url = try exportService.exportAll(
                         transcript: transcript,
                         audioFile: audioFile,
-                        format: exportFormat
+                        format: exportFormat,
+                        memoText: memoText,
+                        todoItems: todoItems
                     )
                 }
 
-                // 共有シートを表示
+                // 共有シートを表示（UIActivityViewController は UIKit のため
+                // activeWindowScene 経由で rootViewController を取得）
                 await MainActor.run {
                     let activityVC = UIActivityViewController(
                         activityItems: [url],
                         applicationActivities: nil
                     )
-                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let rootViewController = scene.windows.first?.rootViewController {
+                    if let rootViewController = UIApplication.shared.activeWindowScene?.windows.first?.rootViewController {
                         rootViewController.present(activityVC, animated: true)
                     }
                     dismiss()
@@ -248,19 +270,30 @@ struct ExportOptionsSheet: View {
                     transcriptText = ref
                 }
 
-                let page: NotionService.NotionPage
+                // Todo を取得（同じプロジェクトに紐づくもの）
+                let todoItems: [TodoItem] = {
+                    guard let projectID = audioFile.projectID else { return [] }
+                    let targetID = projectID
+                    let descriptor = FetchDescriptor<TodoItem>(
+                        predicate: #Predicate { $0.projectID == targetID }
+                    )
+                    return (try? modelContext.fetch(descriptor)) ?? []
+                }()
+
+                let _: NotionService.NotionPage
 
                 switch notionExportType {
                 case .all:
-                    page = try await service.createPageFromAudioFile(
+                    _ = try await service.createPageFromAudioFile(
                         audioFile: audioFile,
                         transcriptText: transcriptText,
+                        todoItems: todoItems,
                         modelContext: modelContext,
                         token: token,
                         parentPageID: parentPageID
                     )
                 case .summary:
-                    page = try await service.exportSummary(
+                    _ = try await service.exportSummary(
                         audioFile: audioFile,
                         token: token,
                         parentPageID: parentPageID
@@ -273,7 +306,7 @@ struct ExportOptionsSheet: View {
                         }
                         return
                     }
-                    page = try await service.exportTranscript(
+                    _ = try await service.exportTranscript(
                         transcriptText: text,
                         audioFile: audioFile,
                         token: token,

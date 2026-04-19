@@ -10,13 +10,11 @@ import Foundation
 final class OpenAIFileClient {
     private let apiKey: String
     private let baseURL = "https://api.openai.com/v1"
-    private let session: URLSession
+    private let networkClient: NetworkClient
 
-    init(apiKey: String) {
+    init(apiKey: String, networkClient: NetworkClient = .init()) {
         self.apiKey = apiKey
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 120
-        self.session = URLSession(configuration: configuration)
+        self.networkClient = networkClient
     }
 
     // MARK: - Upload
@@ -26,34 +24,22 @@ final class OpenAIFileClient {
         filename: String,
         purpose: OpenAIFilePurpose
     ) async throws -> OpenAIFileUploadResult {
-        let boundary = "Boundary-\(UUID().uuidString)"
+        let url = URL(string: "\(baseURL)/files")!
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/files")!)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        var formData = NetworkClient.MultipartFormData()
+        formData.add(name: "purpose", value: purpose.rawValue)
+        formData.add(name: "file", filename: filename, mimeType: "application/octet-stream", data: data)
 
-        var body = Data()
-
-        // purpose パラメータ
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"purpose\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(purpose.rawValue)\r\n".data(using: .utf8)!)
-
-        // file パラメータ
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n".data(using: .utf8)!)
-
-        // Close boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-        request.httpBody = body
-
-        let (responseData, response) = try await session.data(for: request)
-        return try handleResponse(responseData, response)
+        do {
+            return try await networkClient.postMultipart(
+                url: url,
+                headers: ["Authorization": "Bearer \(apiKey)"],
+                formData: formData,
+                responseType: OpenAIFileObjectResponse.self
+            ).toUploadResult()
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        }
     }
 
     // MARK: - List
@@ -64,91 +50,75 @@ final class OpenAIFileClient {
             urlStr += "?purpose=\(purpose.rawValue)"
         }
 
-        var request = URLRequest(url: URL(string: urlStr)!)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
+        guard let url = URL(string: urlStr) else {
             throw OpenAIExportError.invalidResponse
         }
 
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw mapError(statusCode: httpResponse.statusCode, data: data)
+        do {
+            let listResponse: OpenAIFileListResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(apiKey)"],
+                responseType: OpenAIFileListResponse.self
+            )
+            return listResponse.data.map { $0.toUploadResult() }
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         }
-
-        let listResponse = try JSONDecoder().decode(OpenAIFileListResponse.self, from: data)
-        return listResponse.data.map { $0.toUploadResult() }
     }
 
     // MARK: - Retrieve
 
     func retrieveFile(fileId: String) async throws -> OpenAIFileUploadResult {
-        var request = URLRequest(url: URL(string: "\(baseURL)/files/\(fileId)")!)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let url = URL(string: "\(baseURL)/files/\(fileId)")!
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIExportError.invalidResponse
+        do {
+            let fileResponse: OpenAIFileObjectResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(apiKey)"],
+                responseType: OpenAIFileObjectResponse.self
+            )
+            return fileResponse.toUploadResult()
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw mapError(statusCode: httpResponse.statusCode, data: data)
-        }
-
-        let fileResponse = try JSONDecoder().decode(OpenAIFileObjectResponse.self, from: data)
-        return fileResponse.toUploadResult()
     }
 
     // MARK: - Delete
 
     func deleteFile(fileId: String) async throws -> Bool {
-        var request = URLRequest(url: URL(string: "\(baseURL)/files/\(fileId)")!)
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        let url = URL(string: "\(baseURL)/files/\(fileId)")!
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIExportError.invalidResponse
+        do {
+            let deleteResponse: OpenAIFileDeleteResponse = try await networkClient.post(
+                url: url,
+                headers: ["Authorization": "Bearer \(apiKey)"],
+                body: nil,
+                responseType: OpenAIFileDeleteResponse.self
+            )
+            return deleteResponse.deleted
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw mapError(statusCode: httpResponse.statusCode, data: data)
-        }
-
-        let deleteResponse = try JSONDecoder().decode(OpenAIFileDeleteResponse.self, from: data)
-        return deleteResponse.deleted
     }
 
     // MARK: - Error Handling
 
-    private func handleResponse(_ data: Data, _ response: URLResponse) throws -> OpenAIFileUploadResult {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIExportError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw mapError(statusCode: httpResponse.statusCode, data: data)
-        }
-
-        let fileResponse = try JSONDecoder().decode(OpenAIFileObjectResponse.self, from: data)
-        return fileResponse.toUploadResult()
-    }
-
-    private func mapError(statusCode: Int, data: Data) -> OpenAIExportError {
-        let message = if let str = String(data: data, encoding: .utf8) { str } else { "Unknown error" }
-
-        switch statusCode {
-        case 401:
-            return .apiKeyMissing
-        case 429:
-            return .rateLimitExceeded
+    private func mapNetworkError(_ error: NetworkError) -> OpenAIExportError {
+        switch error {
+        case .httpError(let code, _):
+            switch code {
+            case 401:
+                return .apiKeyMissing
+            case 429:
+                return .rateLimitExceeded
+            default:
+                let message = "HTTP error: \(code)"
+                return .apiError(statusCode: code, message: message)
+            }
+        case .noConnection, .timedOut:
+            return .apiError(statusCode: -1, message: error.localizedDescription ?? "Network error")
         default:
-            return .apiError(statusCode: statusCode, message: message)
+            return .apiError(statusCode: -1, message: error.localizedDescription ?? "Unknown error")
         }
     }
 }

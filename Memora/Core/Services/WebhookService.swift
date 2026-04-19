@@ -94,16 +94,16 @@ struct AnyCodable: Codable {
 
 /// Webhook サービス
 final class WebhookService {
-    private let session: URLSession
-    private let iso8601Formatter: ISO8601DateFormatter
+    private let networkClient: NetworkClient
 
-    init() {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        self.session = URLSession(configuration: config)
+    private static let iso8601Formatter: Foundation.ISO8601DateFormatter = {
+        let f = Foundation.ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
 
-        self.iso8601Formatter = ISO8601DateFormatter()
-        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    init(networkClient: NetworkClient = .init()) {
+        self.networkClient = networkClient
     }
 
     /// Webhook を送信
@@ -124,30 +124,33 @@ final class WebhookService {
         // ペイロードを構築
         let payload = WebhookPayload(
             event: eventType.rawValue,
-            timestamp: iso8601Formatter.string(from: Date()),
+            timestamp: Self.iso8601Formatter.string(from: Date()),
             data: data.mapValues { AnyCodable($0) }
         )
 
         // JSON にエンコード
         let jsonData = try JSONEncoder().encode(payload)
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = jsonData
 
-        // 送信
-        let (responseData, response) = try await session.data(for: request)
+        do {
+            let responseData = try await networkClient.post(
+                url: url,
+                headers: ["Content-Type": "application/json"],
+                body: jsonData
+            )
 
-        // ステータスコードを確認
-        if let httpResponse = response as? HTTPURLResponse {
-            guard (200...299).contains(httpResponse.statusCode) else {
-                throw WebhookError.httpError(statusCode: httpResponse.statusCode)
+            // レスポンスをログ
+            if let responseString = String(data: responseData, encoding: .utf8) {
+                print("Webhook レスポンス: \(responseString)")
             }
-        }
-
-        // レスポンスをログ
-        if let responseString = String(data: responseData, encoding: .utf8) {
-            print("Webhook レスポンス: \(responseString)")
+        } catch let networkError as NetworkError {
+            switch networkError {
+            case .httpError(let code, _):
+                throw WebhookError.httpError(statusCode: code)
+            case .invalidURL:
+                throw WebhookError.invalidURL
+            default:
+                throw WebhookError.networkError(networkError)
+            }
         }
     }
 }

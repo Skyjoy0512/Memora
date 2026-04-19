@@ -57,14 +57,16 @@ final class GoogleMeetService {
             let meetingCode: String?
         }
 
+        private static let iso8601Formatter = Foundation.ISO8601DateFormatter()
+
         var startDate: Date? {
             guard let startTime else { return nil }
-            return ISO8601DateFormatter().date(from: startTime)
+            return Self.iso8601Formatter.date(from: startTime)
         }
 
         var endDate: Date? {
             guard let endTime else { return nil }
-            return ISO8601DateFormatter().date(from: endTime)
+            return Self.iso8601Formatter.date(from: endTime)
         }
     }
 
@@ -111,10 +113,10 @@ final class GoogleMeetService {
 
     // MARK: - Properties
 
-    private let session: URLSession
+    private let networkClient: NetworkClient
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(networkClient: NetworkClient = .init()) {
+        self.networkClient = networkClient
     }
 
     // MARK: - Conference Records
@@ -139,10 +141,23 @@ final class GoogleMeetService {
                 components?.queryItems?.append(URLQueryItem(name: "pageToken", value: pageToken))
             }
 
-            let data = try await authenticatedGET(url: components!.url!, token: token)
-            let response = try JSONDecoder().decode(ConferenceRecordListResponse.self, from: data)
-            allRecords += response.conferenceRecords ?? []
-            pageToken = response.nextPageToken
+            guard let requestURL = components?.url else {
+                throw MeetError.networkError(URLError(.badURL))
+            }
+
+            do {
+                let response: ConferenceRecordListResponse = try await networkClient.get(
+                    url: requestURL,
+                    headers: ["Authorization": "Bearer \(token)"],
+                    responseType: ConferenceRecordListResponse.self
+                )
+                allRecords += response.conferenceRecords ?? []
+                pageToken = response.nextPageToken
+            } catch let networkError as NetworkError {
+                throw mapNetworkError(networkError)
+            } catch {
+                throw MeetError.decodingError(error)
+            }
         } while pageToken != nil
 
         return allRecords
@@ -156,9 +171,19 @@ final class GoogleMeetService {
         token: String
     ) async throws -> [Transcript] {
         let url = URL(string: "https://meet.googleapis.com/v2/\(conferenceName)/transcripts")!
-        let data = try await authenticatedGET(url: url, token: token)
-        let response = try JSONDecoder().decode(TranscriptListResponse.self, from: data)
-        return response.transcripts ?? []
+
+        do {
+            let response: TranscriptListResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"],
+                responseType: TranscriptListResponse.self
+            )
+            return response.transcripts ?? []
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        } catch {
+            throw MeetError.decodingError(error)
+        }
     }
 
     /// 文字起こしエントリ（全文）を取得する。
@@ -176,10 +201,23 @@ final class GoogleMeetService {
                 components?.queryItems = [URLQueryItem(name: "pageToken", value: pageToken)]
             }
 
-            let data = try await authenticatedGET(url: components!.url!, token: token)
-            let response = try JSONDecoder().decode(TranscriptEntryListResponse.self, from: data)
-            allEntries += response.transcriptEntries ?? []
-            pageToken = response.nextPageToken
+            guard let requestURL = components?.url else {
+                throw MeetError.networkError(URLError(.badURL))
+            }
+
+            do {
+                let response: TranscriptEntryListResponse = try await networkClient.get(
+                    url: requestURL,
+                    headers: ["Authorization": "Bearer \(token)"],
+                    responseType: TranscriptEntryListResponse.self
+                )
+                allEntries += response.transcriptEntries ?? []
+                pageToken = response.nextPageToken
+            } catch let networkError as NetworkError {
+                throw mapNetworkError(networkError)
+            } catch {
+                throw MeetError.decodingError(error)
+            }
         } while pageToken != nil
 
         return allEntries
@@ -193,9 +231,19 @@ final class GoogleMeetService {
         token: String
     ) async throws -> [Recording] {
         let url = URL(string: "https://meet.googleapis.com/v2/\(conferenceName)/recordings")!
-        let data = try await authenticatedGET(url: url, token: token)
-        let response = try JSONDecoder().decode(RecordingListResponse.self, from: data)
-        return response.recordings ?? []
+
+        do {
+            let response: RecordingListResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"],
+                responseType: RecordingListResponse.self
+            )
+            return response.recordings ?? []
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        } catch {
+            throw MeetError.decodingError(error)
+        }
     }
 
     /// Google Drive API で録画ファイルをダウンロードする。
@@ -206,22 +254,26 @@ final class GoogleMeetService {
         let urlString = "https://www.googleapis.com/download/drive/v3/files/\(driveFileID)?alt=media"
         let url = URL(string: urlString)!
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let data = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"]
+            )
 
-        let (data, response) = try await session.data(for: request)
+            // 一時ファイルに保存
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("google_meet_\(driveFileID).mp4")
+            try data.write(to: tempURL)
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
+            return tempURL
+        } catch let networkError as NetworkError {
+            if case .httpError(let code, _) = networkError, code == 404 {
+                throw MeetError.noRecordingAvailable
+            }
+            throw MeetError.downloadFailed
+        } catch {
             throw MeetError.downloadFailed
         }
-
-        // 一時ファイルに保存
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("google_meet_\(driveFileID).mp4")
-        try data.write(to: tempURL)
-
-        return tempURL
     }
 
     // MARK: - Full Import
@@ -334,24 +386,19 @@ final class GoogleMeetService {
             .joined(separator: "\n")
     }
 
-    private func authenticatedGET(url: URL, token: String) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw MeetError.networkError(URLError(.badServerResponse))
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            return data
-        case 401:
-            throw MeetError.tokenExpired
+    private func mapNetworkError(_ error: NetworkError) -> MeetError {
+        switch error {
+        case .httpError(let code, _):
+            switch code {
+            case 401:
+                return .tokenExpired
+            default:
+                return .serverError(code, nil)
+            }
+        case .noConnection, .timedOut:
+            return .networkError(error)
         default:
-            let message = String(data: data, encoding: .utf8)
-            throw MeetError.serverError(httpResponse.statusCode, message)
+            return .networkError(error)
         }
     }
 }

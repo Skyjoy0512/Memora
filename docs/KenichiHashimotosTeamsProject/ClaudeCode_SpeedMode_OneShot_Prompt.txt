@@ -1,0 +1,36 @@
+あなたは Memora リポジトリの実装担当です。今回から、細かい旧計画書ではなく、以下の3つを最優先の current truth として扱ってください。
+
+1. `CLAUDE.md`
+2. `docs/Memora_Product_North_Star.md`
+3. `docs/Memora_Speed_Plan.md`
+
+実行ルール:
+- まず現在の codebase を確認し、この3文書と矛盾がないか見る
+- 旧 docs は、そのファイルに直接関係する場合だけ参考にする
+- broad rewrite をしない
+- 1セッション = 1PR
+- 最小差分で、意味のある前進を作る
+- 変更前に「現状理解 / 変更ファイル / 変更しないファイル / 実装方針」を宣言する
+- 進捗報告と完了報告は日本語で行う
+
+優先順位:
+- 最優先は STT crash / transcription reliability
+- それが落ち着いたら AskAI usable
+- その次が personal memory + task decomposition
+- その次が Notion / ChatGPT などへの export
+- online meeting / Apple Watch / sign in / paywall は後ろ
+
+今回のセッションでやること:
+- `docs/Memora_Speed_Plan.md` の最上位で未完了の Epic から、1つの意味ある成果物を選んで実装する
+- もし transcription crash がまだ再現しうるなら、他を差し置いて Epic A を優先する
+- 実装後、次にやるべき Epic を明記する
+- 必要なら `docs/Memora_Speed_Plan.md` の Status を更新する
+
+出力フォーマット:
+1. 現状理解
+2. 今回やる範囲
+3. 変更ファイル
+4. 実装
+5. テスト / 確認
+6. 残課題
+7. 次にやるべきこと

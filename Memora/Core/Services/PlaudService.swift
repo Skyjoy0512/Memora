@@ -2,6 +2,9 @@ import Foundation
 
 /// Plaud デバイス連携サービス（Plaud Toolkit 互換 API）
 final class PlaudService {
+
+    private static let plaudISO8601Formatter = Foundation.ISO8601DateFormatter()
+
     // MARK: - Types
 
     enum PlaudError: LocalizedError {
@@ -41,11 +44,11 @@ final class PlaudService {
 
     // MARK: - Properties
 
-    private let session: URLSession
+    private let networkClient: NetworkClient
     private let decoder: JSONDecoder
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(networkClient: NetworkClient = .init()) {
+        self.networkClient = networkClient
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
@@ -53,8 +56,7 @@ final class PlaudService {
             let dateString = try container.decode(String.self)
 
             // ISO8601 形式を試す
-            let isoFormatter = ISO8601DateFormatter()
-            if let date = isoFormatter.date(from: dateString) {
+            if let date = Self.plaudISO8601Formatter.date(from: dateString) {
                 return date
             }
 
@@ -75,36 +77,22 @@ final class PlaudService {
 
     /// ログイン（メールアドレス + パスワード）
     func login(apiServer: String, email: String, password: String) async throws -> PlaudAuthResponse {
-        let request = try buildAuthRequest(
-            serverURL: apiServer,
-            path: "/api/auth/login",
-            method: "POST",
-            body: [
-                "email": email,
-                "password": password
-            ]
-        )
+        let url = try buildURL(serverURL: apiServer, path: "/api/auth/login")
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
+        struct LoginRequest: Codable {
+            let email: String
+            let password: String
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401, 403:
-            throw PlaudError.invalidCredentials
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
-        }
+        let loginRequest = LoginRequest(email: email, password: password)
 
         do {
-            let authResponse = try decoder.decode(PlaudAuthResponse.self, from: data)
+            let authResponse: PlaudAuthResponse = try await networkClient.postJSON(
+                url: url,
+                headers: ["Content-Type": "application/json"],
+                body: loginRequest,
+                responseType: PlaudAuthResponse.self
+            )
 
             // トークン有効期限を設定（デフォルト 300 日）
             if let expiresIn = authResponse.expiresIn {
@@ -115,42 +103,52 @@ final class PlaudService {
             }
 
             return authResponse
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw PlaudError.decodingError(error)
         }
     }
 
+    private func mapNetworkError(_ error: NetworkError) -> PlaudError {
+        switch error {
+        case .httpError(let code, _):
+            switch code {
+            case 401, 403:
+                return .invalidCredentials
+            case 404:
+                return .noAudioFile
+            case 400...499:
+                return .authenticationFailed
+            default:
+                return .serverError(code, nil)
+            }
+        case .invalidURL:
+            return .invalidURL
+        case .noConnection, .timedOut:
+            return .networkError(error)
+        default:
+            return .networkError(error)
+        }
+    }
+
     /// トークンリフレッシュ
     func refreshToken(apiServer: String, refreshToken: String) async throws -> PlaudAuthResponse {
-        let request = try buildAuthRequest(
-            serverURL: apiServer,
-            path: "/api/auth/refresh",
-            method: "POST",
-            body: [
-                "refreshToken": refreshToken
-            ]
-        )
+        let url = try buildURL(serverURL: apiServer, path: "/api/auth/refresh")
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
+        struct RefreshRequest: Codable {
+            let refreshToken: String
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401, 403:
-            throw PlaudError.tokenExpired
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
-        }
+        let refreshRequest = RefreshRequest(refreshToken: refreshToken)
 
         do {
-            let authResponse = try decoder.decode(PlaudAuthResponse.self, from: data)
+            let authResponse: PlaudAuthResponse = try await networkClient.postJSON(
+                url: url,
+                headers: ["Content-Type": "application/json"],
+                body: refreshRequest,
+                responseType: PlaudAuthResponse.self
+            )
 
             // トークン有効期限を設定
             if let expiresIn = authResponse.expiresIn {
@@ -161,6 +159,8 @@ final class PlaudService {
             }
 
             return authResponse
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw PlaudError.decodingError(error)
         }
@@ -168,27 +168,16 @@ final class PlaudService {
 
     /// ユーザー情報を取得
     func getUserInfo(apiServer: String, token: String) async throws -> PlaudUserInfo {
-        let request = try buildRequest(serverURL: apiServer, token: token, path: "/api/user/info")
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401, 403:
-            throw PlaudError.tokenExpired
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
-        }
+        let url = try buildURL(serverURL: apiServer, path: "/api/user/info")
 
         do {
-            return try decoder.decode(PlaudUserInfo.self, from: data)
+            return try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"],
+                responseType: PlaudUserInfo.self
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw PlaudError.decodingError(error)
         }
@@ -198,50 +187,33 @@ final class PlaudService {
 
     /// 接続テスト
     func testConnection(apiServer: String, token: String) async throws -> Bool {
-        let request = try buildRequest(serverURL: apiServer, token: token, path: "/api/recordings")
-        let (data, response) = try await session.data(for: request)
+        let url = try buildURL(serverURL: apiServer, path: "/api/recordings")
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
+        do {
+            let _: PlaudRecordingListResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"],
+                responseType: PlaudRecordingListResponse.self
+            )
             return true
-        case 401, 403:
-            throw PlaudError.tokenExpired
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         }
     }
 
     /// 録音データを同期
     func syncRecordings(apiServer: String, token: String) async throws -> [PlaudRecording] {
-        let request = try buildRequest(serverURL: apiServer, token: token, path: "/api/recordings")
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401, 403:
-            throw PlaudError.tokenExpired
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
-        }
+        let url = try buildURL(serverURL: apiServer, path: "/api/recordings")
 
         do {
-            let result = try decoder.decode(PlaudRecordingListResponse.self, from: data)
+            let result: PlaudRecordingListResponse = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"],
+                responseType: PlaudRecordingListResponse.self
+            )
             return result.recordings
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw PlaudError.decodingError(error)
         }
@@ -285,43 +257,29 @@ final class PlaudService {
         token: String,
         recordingId: String
     ) async throws -> URL {
-        let request = try buildRequest(serverURL: apiServer, token: token, path: "/api/recordings/\(recordingId)/audio")
-        let (data, response) = try await session.data(for: request)
+        let url = try buildURL(serverURL: apiServer, path: "/api/recordings/\(recordingId)/audio")
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PlaudError.invalidResponse
-        }
-
-        switch httpResponse.statusCode {
-        case 200...299:
-            break
-        case 401, 403:
-            throw PlaudError.tokenExpired
-        case 404:
-            throw PlaudError.noAudioFile
-        case 400...499:
-            throw PlaudError.authenticationFailed
-        default:
-            let errorMessage = String(data: data, encoding: .utf8)
-            throw PlaudError.serverError(httpResponse.statusCode, errorMessage)
+        let data: Data
+        do {
+            data = try await networkClient.get(
+                url: url,
+                headers: ["Authorization": "Bearer \(token)"]
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         }
 
         // 一時ファイルに保存
         let filename = "plaud_recording_\(recordingId).m4a"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        try data.write(to: url)
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+        try data.write(to: fileURL)
 
-        return url
+        return fileURL
     }
 
     // MARK: - Private Helpers
 
-    private func buildAuthRequest(
-        serverURL: String,
-        path: String,
-        method: String,
-        body: [String: Any]
-    ) throws -> URLRequest {
+    private func buildURL(serverURL: String, path: String) throws -> URL {
         // URL を正規化（末尾のスラッシュ処理）
         var normalizedServer = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
         if normalizedServer.hasSuffix("/") {
@@ -339,39 +297,7 @@ final class PlaudService {
             throw PlaudError.invalidURL
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        // JSON ボディを設定
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        return request
-    }
-
-    private func buildRequest(serverURL: String, token: String, path: String) throws -> URLRequest {
-        // URL を正規化（末尾のスラッシュ処理）
-        var normalizedServer = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if normalizedServer.hasSuffix("/") {
-            normalizedServer.removeLast()
-        }
-
-        var normalizedPath = path
-        if !normalizedPath.hasPrefix("/") {
-            normalizedPath = "/" + normalizedPath
-        }
-
-        let urlString = "\(normalizedServer)\(normalizedPath)"
-
-        guard let url = URL(string: urlString) else {
-            throw PlaudError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        return request
+        return url
     }
 }
 
