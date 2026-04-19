@@ -116,7 +116,7 @@ struct RecordingView: View {
                             .fill(audioRecorder.isRecording ? MemoraColor.accentNothing : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
-                                .easeInOut(duration: 0.2)
+                                reduceMotion ? nil : .easeInOut(duration: 0.2)
                                     .repeatForever(autoreverses: true)
                                     .delay(Double(index) * 0.02),
                                 value: audioRecorder.isRecording
