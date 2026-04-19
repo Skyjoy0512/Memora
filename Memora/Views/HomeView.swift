@@ -348,6 +348,7 @@ struct HomeView: View {
             modelContext.delete(file)
         }
         try? modelContext.save()
+        MemoraHaptics.warning()
         selectedFileIDs.removeAll()
         isSelectMode = false
         viewModel.loadAudioFiles()

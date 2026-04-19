@@ -212,19 +212,23 @@ struct RecordingView: View {
                     return
                 }
 
+                MemoraHaptics.success()
                 onRecordingSaved?(savedAudioFile)
                 dismiss()
             } catch {
+                MemoraHaptics.error()
                 viewModel.errorMessage = "録音の停止に失敗しました。もう一度お試しください。"
                 print("録音停止エラー: \(error)")
             }
         } else {
             // 録音開始
+            MemoraHaptics.medium()
             viewModel.startRecording()
             do {
                 try audioRecorder.startRecording()
                 startTimer()
             } catch {
+                MemoraHaptics.error()
                 viewModel.errorMessage = "録音の開始に失敗しました。マイクへのアクセスを確認してください。"
                 print("録音開始エラー: \(error)")
             }
