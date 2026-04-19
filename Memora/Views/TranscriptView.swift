@@ -26,8 +26,7 @@ struct TranscriptContentView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
             if showSegments && !result.segments.isEmpty {
-                ForEach(result.segments.indices, id: \.self) { index in
-                    let seg = result.segments[index]
+                ForEach(Array(result.segments.enumerated()), id: \.offset) { index, seg in
                     SpeakerSegmentView(
                         segment: seg,
                         isPlaying: currentPlaybackTime >= seg.startTime && currentPlaybackTime < seg.endTime,

@@ -1,6 +1,65 @@
 import SwiftUI
+import UIKit
 
-// MARK: - Color Hex Extension
+// MARK: - Adaptive Color Helper
+
+/// Light/Dark モードに自動適応する Color を生成する。
+/// iOS 17+ の `UIColor { traitCollection }` パターンを利用。
+private func adaptiveColor(light: String, dark: String) -> Color {
+    Color(uiColor: UIColor { traitCollection in
+        let hex = traitCollection.userInterfaceStyle == .dark ? dark : light
+        return UIColor(hexString: hex)
+    })
+}
+
+/// オパシティ付きの Adaptive Color。
+private func adaptiveColor(
+    light: String, lightAlpha: Double,
+    dark: String, darkAlpha: Double
+) -> Color {
+    Color(uiColor: UIColor { traitCollection in
+        let isDark = traitCollection.userInterfaceStyle == .dark
+        let hex = isDark ? dark : light
+        let alpha = isDark ? darkAlpha : lightAlpha
+        return UIColor(hexString: hex).withAlphaComponent(alpha)
+    })
+}
+
+/// シングルカラー + オパシティの Adaptive Color。
+private func adaptiveAlpha(_ base: String, light: Double, dark: Double) -> Color {
+    Color(uiColor: UIColor { traitCollection in
+        let alpha = traitCollection.userInterfaceStyle == .dark ? dark : light
+        return UIColor(hexString: base).withAlphaComponent(alpha)
+    })
+}
+
+// MARK: - UIColor Hex Extension
+
+private extension UIColor {
+    convenience init(hexString: String) {
+        let hex = hexString.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a: UInt64, r: UInt64, g: UInt64, b: UInt64
+        switch hex.count {
+        case 6:
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            red: CGFloat(r) / 255,
+            green: CGFloat(g) / 255,
+            blue: CGFloat(b) / 255,
+            alpha: CGFloat(a) / 255
+        )
+    }
+}
+
+// MARK: - Color Hex Extension（後方互換）
+
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -25,44 +84,54 @@ extension Color {
     }
 }
 
-// MARK: - Memora Color Tokens
+// MARK: - Memora Color Tokens（Light/Dark Adaptive）
+
 enum MemoraColor {
     // Backgrounds
-    static let surfacePrimary   = Color(hex: "F5F5F7")
-    static let surfaceSecondary = Color(hex: "FFFFFF")
-    static let surfaceElevated  = Color(hex: "FFFFFF").opacity(0.72)
-    static let surfaceGlass     = Color(hex: "FFFFFF").opacity(0.48)
+    static let surfacePrimary   = adaptiveColor(light: "F5F5F7", dark: "1C1C1E")
+    static let surfaceSecondary = adaptiveColor(light: "FFFFFF", dark: "2C2C2E")
+    static let surfaceElevated  = adaptiveColor(light: "FFFFFF", dark: "3A3A3C")
+    static let surfaceGlass     = adaptiveAlpha("FFFFFF", light: 0.48, dark: 0.12)
 
     // Text
-    static let textPrimary   = Color(hex: "1C1C1E")
-    static let textSecondary = Color(hex: "8E8E93")
-    static let textTertiary  = Color(hex: "AEAEB2")
+    static let textPrimary   = adaptiveColor(light: "1C1C1E", dark: "F5F5F7")
+    static let textSecondary = adaptiveColor(light: "8E8E93", dark: "98989D")
+    static let textTertiary  = adaptiveColor(light: "AEAEB2", dark: "636366")
 
     // Accents
-    static let accentPrimary = Color(hex: "1C1C1E")
-    static let accentBlue    = Color(hex: "007AFF")
-    static let accentRed     = Color(hex: "FF3B30")
-    static let accentGreen   = Color(hex: "34C759")
+    static let accentPrimary = adaptiveColor(light: "1C1C1E", dark: "F5F5F7")
+    static let accentBlue    = adaptiveColor(light: "007AFF", dark: "0A84FF")
+    static let accentRed     = adaptiveColor(light: "FF3B30", dark: "FF453A")
+    static let accentGreen   = adaptiveColor(light: "34C759", dark: "30D158")
 
     // Dividers
-    static let divider = Color(hex: "E5E5EA")
+    static let divider = adaptiveColor(light: "E5E5EA", dark: "38383A")
 
     // Accent (iOS system blue)
-    static let accentNothing       = Color(hex: "007AFF")
-    static let accentNothingGlow   = Color(hex: "007AFF").opacity(0.35)
-    static let accentNothingSubtle = Color(hex: "007AFF").opacity(0.08)
+    static let accentNothing       = adaptiveColor(light: "007AFF", dark: "0A84FF")
+    static let accentNothingGlow   = adaptiveAlpha("007AFF", light: 0.35, dark: 0.25)
+    static let accentNothingSubtle = adaptiveAlpha("007AFF", light: 0.08, dark: 0.15)
 
     // Glass
-    static let glassBorder    = Color.white.opacity(0.18)
-    static let glassHighlight = Color.white.opacity(0.25)
-    static let glassShadow    = Color.black.opacity(0.06)
-    static let glassTint      = Color(hex: "007AFF").opacity(0.04)
+    static let glassBorder    = adaptiveAlpha("FFFFFF", light: 0.18, dark: 0.10)
+    static let glassHighlight = adaptiveAlpha("FFFFFF", light: 0.25, dark: 0.08)
+    static let glassShadow    = adaptiveAlpha("000000", light: 0.06, dark: 0.20)
+    static let glassTint      = adaptiveColor(
+        light: "007AFF", lightAlpha: 0.04,
+        dark: "0A84FF", darkAlpha: 0.08
+    )
 
     // Dot Matrix
-    static let dotMatrixPrimary = Color(hex: "1C1C1E").opacity(0.06)
-    static let dotMatrixAccent  = Color(hex: "007AFF").opacity(0.12)
+    static let dotMatrixPrimary = adaptiveAlpha("1C1C1E", light: 0.06, dark: 0.06)
+    static let dotMatrixAccent  = adaptiveColor(
+        light: "007AFF", lightAlpha: 0.12,
+        dark: "0A84FF", darkAlpha: 0.15
+    )
 
     // Shadows
-    static let shadowLight  = Color.black.opacity(0.04)
-    static let shadowMedium = Color.black.opacity(0.08)
+    static let shadowLight  = adaptiveAlpha("000000", light: 0.04, dark: 0.20)
+    static let shadowMedium = adaptiveAlpha("000000", light: 0.08, dark: 0.30)
+
+    // Skeleton
+    static let skeletonShimmer = adaptiveColor(light: "E8E8EA", dark: "3A3A3C")
 }

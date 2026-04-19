@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var bluetoothService = BluetoothAudioService()
     @State private var omiAdapter = OmiAdapter()
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBluetoothConfigured = false
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @State private var selectedTab: Int = 0
@@ -48,8 +49,8 @@ struct ContentView: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: isTabBarHidden)
-        .animation(.easeInOut(duration: 0.25), value: selectedTab)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isTabBarHidden)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: selectedTab)
         .nothingTheme(showDotMatrix: true)
         .environment(bluetoothService)
         .environment(omiAdapter)
@@ -84,7 +85,7 @@ struct ContentView: View {
 
     private var fabButton: some View {
         Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.35, dampingFraction: 0.7)) {
                 isFABExpanded.toggle()
             }
         } label: {
@@ -102,7 +103,7 @@ struct ContentView: View {
     private var fabMenu: some View {
         VStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
                 selectedTab = 0
@@ -118,7 +119,7 @@ struct ContentView: View {
             Divider().padding(.leading, 44)
 
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
                 selectedTab = 0

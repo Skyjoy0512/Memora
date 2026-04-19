@@ -116,7 +116,7 @@ struct RecordingView: View {
                             .fill(audioRecorder.isRecording ? MemoraColor.accentNothing : MemoraColor.divider.opacity(0.3))
                             .frame(width: 4, height: audioRecorder.isRecording ? CGFloat.random(in: 10...50) : 20)
                             .animation(
-                                .easeInOut(duration: 0.2)
+                                reduceMotion ? nil : .easeInOut(duration: 0.2)
                                     .repeatForever(autoreverses: true)
                                     .delay(Double(index) * 0.02),
                                 value: audioRecorder.isRecording
@@ -212,19 +212,23 @@ struct RecordingView: View {
                     return
                 }
 
+                MemoraHaptics.success()
                 onRecordingSaved?(savedAudioFile)
                 dismiss()
             } catch {
+                MemoraHaptics.error()
                 viewModel.errorMessage = "録音の停止に失敗しました。もう一度お試しください。"
                 print("録音停止エラー: \(error)")
             }
         } else {
             // 録音開始
+            MemoraHaptics.medium()
             viewModel.startRecording()
             do {
                 try audioRecorder.startRecording()
                 startTimer()
             } catch {
+                MemoraHaptics.error()
                 viewModel.errorMessage = "録音の開始に失敗しました。マイクへのアクセスを確認してください。"
                 print("録音開始エラー: \(error)")
             }

@@ -36,6 +36,7 @@ struct HomeView: View {
     @State private var selectedFileIDs: Set<UUID> = []
     @State private var showMoveToProjectSheet = false
     @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var isInitialLoading = true
 
     enum ViewMode: String, CaseIterable {
         case list = "リスト"
@@ -73,7 +74,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.audioFiles.isEmpty && searchText.isEmpty {
+                if isInitialLoading {
+                    skeletonListView
+                } else if viewModel.audioFiles.isEmpty && searchText.isEmpty {
                     emptyStateView
                 } else {
                     fileListSection
@@ -153,7 +156,9 @@ struct HomeView: View {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
+                isInitialLoading = false
             }
             .onChange(of: showRecordingView) { _, isPresented in
                 if !isPresented {
@@ -169,6 +174,7 @@ struct HomeView: View {
             }
             .onChange(of: viewModel.audioFiles) { _, _ in
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
             }
             .onChange(of: searchText) { _, _ in
@@ -183,6 +189,17 @@ struct HomeView: View {
             .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
             .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
+    }
+
+    // MARK: - Skeleton Loading
+
+    private var skeletonListView: some View {
+        List {
+            ForEach(0..<5, id: \.self) { _ in
+                SkeletonAudioFileRow()
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 
     // MARK: - Empty State
@@ -229,8 +246,10 @@ struct HomeView: View {
 
     // MARK: - Content Section
 
-    private var projectLookup: [UUID: String] {
-        Dictionary(uniqueKeysWithValues: projects.compactMap { p in
+    @State private var projectLookup: [UUID: String] = [:]
+
+    private func updateProjectLookup() {
+        projectLookup = Dictionary(uniqueKeysWithValues: projects.compactMap { p in
             p.title.isEmpty ? nil : (p.id, p.title)
         })
     }
@@ -348,6 +367,7 @@ struct HomeView: View {
             modelContext.delete(file)
         }
         try? modelContext.save()
+        MemoraHaptics.warning()
         selectedFileIDs.removeAll()
         isSelectMode = false
         viewModel.loadAudioFiles()
