@@ -410,7 +410,7 @@ struct TaskBreakdownSheet: View {
                             if !draft.citations.isEmpty {
                                 ScrollView(.horizontal) {
                                     HStack(spacing: MemoraSpacing.xs) {
-                                        ForEach(draft.citations, id: \.self) { citation in
+                                        ForEach(Array(draft.citations.enumerated()), id: \.offset) { _, citation in
                                             Text(citation)
                                                 .font(MemoraTypography.caption2)
                                                 .foregroundStyle(MemoraColor.textSecondary)

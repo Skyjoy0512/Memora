@@ -8,7 +8,7 @@ struct SkeletonView: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(hex: "E8E8EA"))
+            .fill(MemoraColor.skeletonShimmer)
             .frame(height: height)
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
