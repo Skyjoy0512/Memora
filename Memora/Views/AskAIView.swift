@@ -287,7 +287,7 @@ struct AskAIView: View {
 
     private var suggestionsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: MemoraSpacing.sm) {
-            ForEach(suggestions, id: \.self) { text in
+            ForEach(Array(suggestions.enumerated()), id: \.offset) { _, text in
                 Button {
                     inputText = text
                     sendMessage(text)

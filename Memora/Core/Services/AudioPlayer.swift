@@ -29,15 +29,17 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
     private var audioPlayer: AVAudioPlayer?
     private var loadedURL: URL?
     private var progressContinuations: [UUID: AsyncStream<TimeInterval>.Continuation] = [:]
-    private nonisolated(unsafe) var progressTimer: Timer?
+    private var progressTask: Task<Void, Never>?
 
     override init() {
         super.init()
     }
 
     deinit {
-        progressTimer?.invalidate()
-        progressTimer = nil
+        let task = progressTask
+        Task { @MainActor in
+            task?.cancel()
+        }
     }
 
     func load(url: URL) async throws {
@@ -68,6 +70,12 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
         isPlaying = false
         stopProgressTimer()
         yieldProgress(currentTime)
+    }
+
+    func cleanup() {
+        stop()
+        stopProgressTimer()
+        progressContinuations.removeAll()
     }
 
     func seek(to time: TimeInterval) {
@@ -132,12 +140,19 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
 
     private func startProgressTimer() {
         stopProgressTimer()
-        progressTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(handleProgressTimer), userInfo: nil, repeats: true)
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, let player = self.audioPlayer, player.isPlaying else { break }
+                self.currentTime = player.currentTime
+                self.yieldProgress(player.currentTime)
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
     }
 
     private func stopProgressTimer() {
-        progressTimer?.invalidate()
-        progressTimer = nil
+        progressTask?.cancel()
+        progressTask = nil
     }
 
     private func pauseCore() {
@@ -159,9 +174,6 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
         }
     }
 
-    @objc
-    private func handleProgressTimer() {
-        guard let player = audioPlayer else { return }
         currentTime = player.currentTime
         yieldProgress(currentTime)
     }
