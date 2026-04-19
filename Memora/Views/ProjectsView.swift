@@ -8,6 +8,7 @@ struct ProjectsView: View {
     @State private var selectedProject: Project?
     @Query private var audioFiles: [AudioFile]
     @Binding var isTabBarHidden: Bool
+    @State private var isInitialLoading = true
 
     init(isTabBarHidden: Binding<Bool> = .constant(false)) {
         self._isTabBarHidden = isTabBarHidden
@@ -27,7 +28,17 @@ struct ProjectsView: View {
                         .padding(.top, MemoraSpacing.sm)
                 }
 
-                if viewModel.projects.isEmpty {
+                if isInitialLoading {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: MemoraSpacing.md) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                SkeletonProjectCard()
+                            }
+                        }
+                        .padding(.horizontal, MemoraSpacing.md)
+                        .padding(.top, MemoraSpacing.sm)
+                    }
+                } else if viewModel.projects.isEmpty {
                     // 空の状態
                     VStack(spacing: MemoraSpacing.xxl) {
                         Spacer()
@@ -99,6 +110,7 @@ struct ProjectsView: View {
         .task {
             viewModel.configure(projectRepository: ProjectRepository(modelContext: modelContext))
             viewModel.loadProjects()
+            isInitialLoading = false
         }
         .onChange(of: selectedProject?.id) { _, projectID in
             if projectID == nil {

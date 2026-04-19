@@ -899,16 +899,14 @@ final class FileDetailViewModel {
     }
 
     private func normalizedJPEGData(from image: UIImage, compressionQuality: CGFloat) -> Data? {
-        let format = UIGraphicsImageRendererFormat.default()
-        format.scale = 1
-        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
-        let renderedImage = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
-        }
-        return renderedImage.jpegData(compressionQuality: compressionQuality)
+        downsampledJPEGData(from: image, maxDimension: 2048, quality: compressionQuality)
     }
 
     private func thumbnailJPEGData(from image: UIImage, maxDimension: CGFloat = 320) -> Data? {
+        downsampledJPEGData(from: image, maxDimension: maxDimension, quality: 0.72)
+    }
+
+    private func downsampledJPEGData(from image: UIImage, maxDimension: CGFloat, quality: CGFloat) -> Data? {
         let longestEdge = max(image.size.width, image.size.height)
         guard longestEdge > 0 else { return nil }
 
@@ -917,10 +915,10 @@ final class FileDetailViewModel {
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = 1
         let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
-        let thumbnail = renderer.image { _ in
+        let rendered = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
-        return thumbnail.jpegData(compressionQuality: 0.72)
+        return rendered.jpegData(compressionQuality: quality)
     }
 
     private func removeFileIfNeeded(at path: String?) {
