@@ -78,8 +78,8 @@ final class FileDetailViewModel {
     private(set) var lastFailedJob: ProcessingJob?
 
     // Timers
-    private var playbackTimer: Timer?
-    private var progressTimer: Timer?
+    private var playbackTask: Task<Void, Never>?
+    private var progressTask: Task<Void, Never>?
     private var pipelineObservationTask: Task<Void, Never>?
 
     init(
@@ -584,45 +584,47 @@ final class FileDetailViewModel {
     // MARK: - Private Helpers
 
     private func startPlaybackTimer() {
-        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor [weak self] in
+        playbackTask?.cancel()
+        playbackTask = Task { [weak self] in
+            while !Task.isCancelled {
                 guard let self else { return }
                 self.playbackPosition = self.audioPlayer.currentTime
                 self.isPlaying = self.audioPlayer.isPlaying
 
                 if !self.audioPlayer.isPlaying {
-                    self.playbackTimer?.invalidate()
-                    self.playbackTimer = nil
                     self.playbackPosition = 0
+                    return
                 }
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }
 
     private func startTranscriptionProgressTracking() {
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor [weak self] in
+        progressTask?.cancel()
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
                 guard let self else { return }
                 self.transcriptionProgress = self.pipelineCoordinator.currentTranscriptionProgress
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }
 
     private func startSummarizationProgressTracking() {
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor [weak self] in
+        progressTask?.cancel()
+        progressTask = Task { [weak self] in
+            while !Task.isCancelled {
                 guard let self else { return }
                 self.summarizationProgress = self.pipelineCoordinator.currentSummarizationProgress
+                try? await Task.sleep(for: .milliseconds(100))
             }
         }
     }
 
     private func stopProgressTracking() {
-        progressTimer?.invalidate()
-        progressTimer = nil
+        progressTask?.cancel()
+        progressTask = nil
     }
 
     private func loadSavedMemo() {

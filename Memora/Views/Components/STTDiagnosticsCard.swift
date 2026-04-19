@@ -84,7 +84,7 @@ struct STTDiagnosticsCard: View {
                     .foregroundStyle(panel.tone.tint)
             }
 
-            ForEach(panel.details, id: \.self) { detail in
+            ForEach(Array(panel.details.enumerated()), id: \.offset) { _, detail in
                 HStack(alignment: .top, spacing: MemoraSpacing.xs) {
                     Circle()
                         .fill(MemoraColor.textTertiary)

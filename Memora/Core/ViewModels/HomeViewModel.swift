@@ -14,8 +14,14 @@ final class HomeViewModel {
     @ObservationIgnored
     private var audioFileRepository: AudioFileRepositoryProtocol?
 
-    var audioFiles: [AudioFile] = []
+    var audioFiles: [AudioFile] = [] {
+        didSet { filterCacheInvalidated = true }
+    }
     var lastErrorMessage: String?
+
+    @ObservationIgnored private var filterCacheInvalidated = true
+    @ObservationIgnored private var cachedFilterHash: Int = 0
+    @ObservationIgnored private var cachedFilteredResult: [AudioFile] = []
 
     func configure(audioFileRepository: AudioFileRepositoryProtocol?) {
         guard self.audioFileRepository == nil else { return }
@@ -53,6 +59,20 @@ final class HomeViewModel {
         selectedTag: String?,
         sortOption: SortOption
     ) -> [AudioFile] {
+        let hash = [
+            searchText,
+            filterTranscribed?.description,
+            filterSummarized?.description,
+            filterLifeLog?.description,
+            selectedTag,
+            sortOption.rawValue,
+            "\(audioFiles.count)"
+        ].joined(separator: "|").hashValue
+
+        if !filterCacheInvalidated && hash == cachedFilterHash {
+            return cachedFilteredResult
+        }
+
         var files = audioFiles
 
         if !searchText.isEmpty {
@@ -86,6 +106,9 @@ final class HomeViewModel {
             files.sort { $0.title.localizedStandardCompare($1.title) == .orderedDescending }
         }
 
+        cachedFilteredResult = files
+        cachedFilterHash = hash
+        filterCacheInvalidated = false
         return files
     }
 
