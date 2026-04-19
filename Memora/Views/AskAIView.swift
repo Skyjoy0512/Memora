@@ -355,6 +355,7 @@ struct AskAIView: View {
                     .font(.system(size: 28))
                     .foregroundStyle(sendButtonColor)
             }
+            .accessibilityLabel("送信")
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
         }
         .padding(.horizontal, MemoraSpacing.lg)
