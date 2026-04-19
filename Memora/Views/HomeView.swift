@@ -153,6 +153,7 @@ struct HomeView: View {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
             }
             .onChange(of: showRecordingView) { _, isPresented in
@@ -169,6 +170,7 @@ struct HomeView: View {
             }
             .onChange(of: viewModel.audioFiles) { _, _ in
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
             }
             .onChange(of: searchText) { _, _ in
@@ -229,8 +231,10 @@ struct HomeView: View {
 
     // MARK: - Content Section
 
-    private var projectLookup: [UUID: String] {
-        Dictionary(uniqueKeysWithValues: projects.compactMap { p in
+    @State private var projectLookup: [UUID: String] = [:]
+
+    private func updateProjectLookup() {
+        projectLookup = Dictionary(uniqueKeysWithValues: projects.compactMap { p in
             p.title.isEmpty ? nil : (p.id, p.title)
         })
     }
