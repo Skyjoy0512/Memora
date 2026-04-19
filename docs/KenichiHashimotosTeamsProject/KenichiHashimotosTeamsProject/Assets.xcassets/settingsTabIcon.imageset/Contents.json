@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "settingsTabIcon.svg",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "locofy",
+    "version": 1
+  }
+}

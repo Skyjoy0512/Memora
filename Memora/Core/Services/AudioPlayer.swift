@@ -1,5 +1,6 @@
 import Foundation
 @preconcurrency import AVFoundation
+import Observation
 
 @MainActor
 protocol AudioPlayerProtocol: Sendable {
@@ -19,10 +20,11 @@ protocol AudioPlayerProtocol: Sendable {
 }
 
 @MainActor
-final class AudioPlayer: NSObject, AudioPlayerProtocol, ObservableObject {
-    @Published var isPlaying = false
-    @Published var currentTime: TimeInterval = 0
-    @Published var duration: TimeInterval = 0
+@Observable
+final class AudioPlayer: NSObject, AudioPlayerProtocol {
+    var isPlaying = false
+    var currentTime: TimeInterval = 0
+    var duration: TimeInterval = 0
 
     private var audioPlayer: AVAudioPlayer?
     private var loadedURL: URL?

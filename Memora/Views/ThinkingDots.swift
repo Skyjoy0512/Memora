@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ThinkingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var activeDot = -1
     @State private var animationTask: Task<Void, Never>?
 
@@ -12,7 +13,7 @@ struct ThinkingDots: View {
                     .frame(width: activeDot == index ? 12 : 10, height: activeDot == index ? 12 : 10)
                     .scaleEffect(activeDot == index ? 1.3 : 1.0)
                     .nothingGlow(activeDot == index ? .subtle : .init(color: .clear, radius: 0, intensity: 0, animated: false))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: activeDot)
+                    .animation(reduceMotion ? nil : MemoraAnimation.springBouncy, value: activeDot)
             }
         }
         .accessibilityHidden(true)
@@ -22,7 +23,7 @@ struct ThinkingDots: View {
                     for i in 0..<3 {
                         try? await Task.sleep(for: .milliseconds(300))
                         guard !Task.isCancelled else { return }
-                        withAnimation { activeDot = i }
+                        MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springBouncy) { activeDot = i }
                     }
                 }
             }

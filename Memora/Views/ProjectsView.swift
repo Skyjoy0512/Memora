@@ -7,6 +7,11 @@ struct ProjectsView: View {
     @State private var showCreateProjectView = false
     @State private var selectedProject: Project?
     @Query private var audioFiles: [AudioFile]
+    @Binding var isTabBarHidden: Bool
+
+    init(isTabBarHidden: Binding<Bool> = .constant(false)) {
+        self._isTabBarHidden = isTabBarHidden
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: MemoraSpacing.md),
@@ -86,6 +91,9 @@ struct ProjectsView: View {
         }
         .navigationDestination(item: $selectedProject) { project in
             ProjectDetailView(project: project)
+                .toolbar(.hidden, for: .tabBar)
+                .onAppear { isTabBarHidden = true }
+                .onDisappear { isTabBarHidden = false }
         }
         .task {
             viewModel.configure(projectRepository: ProjectRepository(modelContext: modelContext))

@@ -1,0 +1,13 @@
+{
+  "images": [
+    {
+      "filename": "cap.svg",
+      "idiom": "universal",
+      "scale": "1x"
+    }
+  ],
+  "info": {
+    "author": "locofy",
+    "version": 1
+  }
+}

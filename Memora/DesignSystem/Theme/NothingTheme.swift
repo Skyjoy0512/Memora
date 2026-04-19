@@ -6,9 +6,6 @@ struct NothingThemeModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(MemoraColor.surfacePrimary)
-            .if(showDotMatrix) { view in
-                view.nothingDotMatrix()
-            }
     }
 }
 

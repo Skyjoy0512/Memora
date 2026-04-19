@@ -16,51 +16,19 @@ struct FileDetailHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
-            if vm.isEditingTitle {
-                TextField("タイトル", text: $vm.titleDraft)
-                    .font(MemoraTypography.phiHeadline)
-                    .focused($isTitleFieldFocused)
-                    .submitLabel(.done)
-                    .onSubmit { vm.saveTitle() }
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("完了") { vm.saveTitle() }
-                        }
-                    }
-            } else {
-                Button {
-                    vm.beginEditTitle()
-                } label: {
-                    HStack(spacing: MemoraSpacing.xs) {
-                        Text(audioFile.title)
-                            .font(MemoraTypography.phiHeadline)
-                        Image(systemName: "pencil")
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("タップしてタイトルを編集")
-            }
-
-            // メタ情報: date / duration / source with AccentDotIndicator separators
+            // メタ情報: date / duration (top)
             HStack(spacing: MemoraSpacing.sm) {
                 Text(vm.formatDate(audioFile.createdAt))
                     .font(MemoraTypography.phiCaption)
                     .foregroundStyle(.secondary)
 
-                AccentDotIndicator(color: MemoraColor.divider, size: 4)
-
                 if audioFile.duration > 0 {
+                    AccentDotIndicator(color: MemoraColor.divider, size: 4)
+
                     Text(vm.formatDuration(audioFile.duration))
                         .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
-
-                    AccentDotIndicator(color: MemoraColor.divider, size: 4)
                 }
-
-                sourceBadge
 
                 if let projectTitle = cachedProjectTitle {
                     AccentDotIndicator(color: MemoraColor.divider, size: 4)
@@ -77,6 +45,32 @@ struct FileDetailHeader: View {
                 }
 
                 Spacer()
+            }
+
+            // タイトル (bottom)
+            if vm.isEditingTitle {
+                TextField("タイトル", text: $vm.titleDraft)
+                    .font(MemoraTypography.phiHeadline)
+                    .focused($isTitleFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit { vm.saveTitle() }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("完了") { vm.saveTitle() }
+                        }
+                    }
+            } else {
+                Button {
+                    vm.beginEditTitle()
+                } label: {
+                    Text(audioFile.title)
+                        .font(MemoraTypography.phiHeadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(3)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("タップしてタイトルを編集")
             }
 
             calendarEventCard

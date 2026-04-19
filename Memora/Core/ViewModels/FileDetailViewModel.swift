@@ -323,10 +323,14 @@ final class FileDetailViewModel {
 
     // MARK: - Format Helpers
 
+    private static let fileDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return f
+    }()
+
     func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-        return formatter.string(from: date)
+        Self.fileDateFormatter.string(from: date)
     }
 
     func formatDuration(_ duration: TimeInterval) -> String {

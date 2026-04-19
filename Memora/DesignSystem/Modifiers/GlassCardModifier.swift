@@ -18,27 +18,6 @@ struct GlassCardModifier: ViewModifier {
     let config: GlassCardConfiguration
 
     func body(content: Content) -> some View {
-        content
-            .modifier(AdaptiveGlassModifier(cornerRadius: config.cornerRadius))
-            .if(config.accentTint) { view in
-                view.overlay {
-                    RoundedRectangle(cornerRadius: config.cornerRadius, style: .continuous)
-                        .fill(MemoraColor.glassTint)
-                }
-            }
-            .if(config.glow) { view in
-                view.nothingGlow(.subtle)
-            }
-            .if(config.dotMatrix) { view in
-                view.nothingDotMatrix()
-            }
-    }
-}
-
-private struct AdaptiveGlassModifier: ViewModifier {
-    var cornerRadius: CGFloat
-
-    func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             ios26Body(content)
         } else {
@@ -49,25 +28,20 @@ private struct AdaptiveGlassModifier: ViewModifier {
     @available(iOS 26.0, *)
     private func ios26Body(_ content: Content) -> some View {
         content
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+            .glassEffect(.regular, in: .rect(cornerRadius: config.cornerRadius))
     }
 
     private func ios17Body(_ content: Content) -> some View {
         content
             .background(
-                .ultraThinMaterial,
-                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                MemoraColor.surfaceSecondary,
+                in: RoundedRectangle(cornerRadius: config.cornerRadius, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.white.opacity(0.15))
-                    .blendMode(.overlay)
+                RoundedRectangle(cornerRadius: config.cornerRadius, style: .continuous)
+                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(MemoraColor.glassBorder, lineWidth: 0.5)
-            }
-            .shadow(color: MemoraColor.glassShadow, radius: 8, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
     }
 }
 

@@ -63,10 +63,10 @@ final class GoogleAuthService {
     // MARK: - Properties
 
     private var session: ASWebAuthenticationSession?
-    private let urlSession: URLSession
+    private let networkClient: NetworkClient
 
-    init(urlSession: URLSession = .shared) {
-        self.urlSession = urlSession
+    init(networkClient: NetworkClient = .init()) {
+        self.networkClient = networkClient
     }
 
     // MARK: - Authorize
@@ -137,27 +137,40 @@ final class GoogleAuthService {
         clientID: String,
         refreshToken: String
     ) async throws -> TokenResponse {
-        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let url = URL(string: "https://oauth2.googleapis.com/token")!
 
-        let body = [
-            "client_id": clientID,
-            "refresh_token": refreshToken,
-            "grant_type": "refresh_token"
-        ]
-        request.httpBody = body.map { "\($0)=\($1)" }.joined(separator: "&").data(using: .utf8)
+        struct RefreshRequest: Encodable {
+            let clientId: String
+            let refreshToken: String
+            let grantType: String
 
-        let (data, response) = try await urlSession.data(for: request)
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                let bodyString = "client_id=\(clientId)&refresh_token=\(refreshToken)&grant_type=\(grantType)"
+                try container.encode(bodyString)
+            }
 
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw GoogleAuthError.tokenRefreshFailed(message)
+            func toFormData() -> Data {
+                let bodyString = "client_id=\(clientId)&refresh_token=\(refreshToken)&grant_type=\(grantType)"
+                return bodyString.data(using: .utf8) ?? Data()
+            }
         }
 
+        let refreshRequest = RefreshRequest(
+            clientId: clientID,
+            refreshToken: refreshToken,
+            grantType: "refresh_token"
+        )
+
         do {
-            return try JSONDecoder().decode(TokenResponse.self, from: data)
+            return try await networkClient.post(
+                url: url,
+                headers: ["Content-Type": "application/x-www-form-urlencoded"],
+                body: refreshRequest.toFormData(),
+                responseType: TokenResponse.self
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw GoogleAuthError.tokenRefreshFailed(error.localizedDescription)
         }
@@ -167,12 +180,19 @@ final class GoogleAuthService {
 
     /// トークンを失効させる。
     func revokeToken(_ token: String) async throws {
-        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/revoke")!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = "token=\(token)".data(using: .utf8)
+        let url = URL(string: "https://oauth2.googleapis.com/revoke")!
 
-        _ = try await urlSession.data(for: request)
+        let body = "token=\(token)".data(using: .utf8)
+
+        do {
+            _ = try await networkClient.post(
+                url: url,
+                headers: ["Content-Type": "application/x-www-form-urlencoded"],
+                body: body
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
+        }
     }
 
     // MARK: - Private
@@ -205,30 +225,37 @@ final class GoogleAuthService {
         clientID: String,
         redirectURL: URL
     ) async throws -> TokenResponse {
-        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let url = URL(string: "https://oauth2.googleapis.com/token")!
 
         let body = [
-            "code": code,
-            "client_id": clientID,
-            "redirect_uri": redirectURL.absoluteString,
-            "grant_type": "authorization_code"
-        ]
-        request.httpBody = body.map { "\($0)=\($1)" }.joined(separator: "&").data(using: .utf8)
+            "code=\(code)",
+            "client_id=\(clientID)",
+            "redirect_uri=\(redirectURL.absoluteString)",
+            "grant_type=authorization_code"
+        ].joined(separator: "&")
 
-        let (data, response) = try await urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw GoogleAuthError.tokenExchangeFailed(message)
-        }
+        let bodyData = body.data(using: .utf8)
 
         do {
-            return try JSONDecoder().decode(TokenResponse.self, from: data)
+            return try await networkClient.post(
+                url: url,
+                headers: ["Content-Type": "application/x-www-form-urlencoded"],
+                body: bodyData,
+                responseType: TokenResponse.self
+            )
+        } catch let networkError as NetworkError {
+            throw mapNetworkError(networkError)
         } catch {
             throw GoogleAuthError.tokenExchangeFailed(error.localizedDescription)
+        }
+    }
+
+    private func mapNetworkError(_ error: NetworkError) -> GoogleAuthError {
+        switch error {
+        case .noConnection, .timedOut:
+            return .networkError(error)
+        default:
+            return .networkError(error)
         }
     }
 }

@@ -5,6 +5,7 @@ import SwiftData
 
 struct ToDoView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \TodoItem.createdAt, order: .reverse)
     private var allTodos: [TodoItem]
     @Query(filter: #Predicate<TodoItem> { !$0.isCompleted },
@@ -83,7 +84,7 @@ struct ToDoView: View {
                                 todo: todo,
                                 parentTitle: parentTitle(for: todo),
                                 onComplete: {
-                                    withAnimation {
+                                    MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
                                         todo.isCompleted.toggle()
                                         todo.completedAt = todo.isCompleted ? Date() : nil
                                     }
@@ -119,7 +120,7 @@ struct ToDoView: View {
                                 todo: todo,
                                 parentTitle: parentTitle(for: todo),
                                 onComplete: {
-                                    withAnimation {
+                                    MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
                                         todo.isCompleted.toggle()
                                         todo.completedAt = todo.isCompleted ? Date() : nil
                                     }
@@ -150,7 +151,7 @@ struct ToDoView: View {
 
     private func completeButton(_ todo: TodoItem) -> some View {
         Button {
-            withAnimation {
+            MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
                 todo.isCompleted.toggle()
                 todo.completedAt = todo.isCompleted ? Date() : nil
             }
@@ -163,7 +164,7 @@ struct ToDoView: View {
 
     private func deleteButton(_ todo: TodoItem) -> some View {
         Button(role: .destructive) {
-            withAnimation {
+            MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
                 modelContext.delete(todo)
                 try? modelContext.save()
             }

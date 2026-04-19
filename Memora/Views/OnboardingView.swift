@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     @State private var currentPage = 0
@@ -43,12 +44,12 @@ struct OnboardingView: View {
                 title: currentPage < totalPages - 1 ? "次へ" : "始める",
                 action: {
                     if currentPage < totalPages - 1 {
-                        withAnimation { currentPage += 1 }
+                        MemoraAnimation.animate(reduceMotion) { currentPage += 1 }
                     } else {
                         completeOnboarding()
                     }
                 },
-                style: .nothing
+                style: .primary
             )
             .padding(.horizontal, MemoraSpacing.xl)
             .padding(.bottom, MemoraSpacing.xl)

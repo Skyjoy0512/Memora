@@ -4,6 +4,7 @@ import SwiftData
 struct AskAIView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = "standard"
 
@@ -21,10 +22,15 @@ struct AskAIView: View {
     @State private var infoMessage: String?
     @State private var sourceBadges: [AskAISourceBadge] = []
 
-    init(scope: ChatScope) {
+    init(scope: ChatScope, initialMessage: String? = nil) {
         self.scope = scope
         _activeScope = State(initialValue: scope)
+        if let msg = initialMessage, !msg.isEmpty {
+            _pendingMessage = State(initialValue: msg)
+        }
     }
+
+    @State private var pendingMessage: String?
 
     private var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
@@ -94,6 +100,10 @@ struct AskAIView: View {
             queryService = KnowledgeQueryService(modelContext: modelContext, memoryPrivacyMode: memoryPrivacyMode)
             reloadScopeOptions()
             reloadForActiveScope()
+            if let msg = pendingMessage {
+                pendingMessage = nil
+                sendMessage(msg)
+            }
         }
         .onChange(of: activeScopeKey) { _, _ in
             reloadForActiveScope()
@@ -263,12 +273,12 @@ struct AskAIView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
-                withAnimation {
+                MemoraAnimation.animate(reduceMotion) {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }
             .onChange(of: isLoading) { _, _ in
-                withAnimation {
+                MemoraAnimation.animate(reduceMotion) {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             }

@@ -51,7 +51,11 @@ final class PipelineCoordinator {
             let task = Task { @MainActor in
                 let job = ProcessingJob(audioFileID: audioFile.id, jobType: "full")
                 modelContext.insert(job)
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    DebugLogger.shared.addLog("Pipeline", "Failed to save job: \(error.localizedDescription)", level: .error)
+                }
 
                 do {
                     let transcriptResult = try await executeTranscription(
@@ -147,10 +151,18 @@ final class PipelineCoordinator {
 
                 } catch is CancellationError {
                     job.markFailed("Cancelled", stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after cancellation: \(error.localizedDescription)", level: .error)
+                    }
                 } catch {
                     job.markFailed(error.localizedDescription, stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after error: \(error.localizedDescription)", level: .error)
+                    }
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
@@ -180,7 +192,11 @@ final class PipelineCoordinator {
             let task = Task { @MainActor in
                 let job = ProcessingJob(audioFileID: audioFile.id, jobType: "transcription")
                 modelContext.insert(job)
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    DebugLogger.shared.addLog("Pipeline", "Failed to save job: \(error.localizedDescription)", level: .error)
+                }
 
                 do {
                     let transcriptResult = try await executeTranscription(
@@ -209,10 +225,18 @@ final class PipelineCoordinator {
                     continuation.yield(.completed)
                 } catch is CancellationError {
                     job.markFailed("Cancelled", stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after cancellation: \(error.localizedDescription)", level: .error)
+                    }
                 } catch {
                     job.markFailed(error.localizedDescription, stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after error: \(error.localizedDescription)", level: .error)
+                    }
                     continuation.yield(.failed(step: .transcribing, error: CoreError.transcriptionError(.transcriptionFailed(error.localizedDescription))))
                 }
 
@@ -244,7 +268,11 @@ final class PipelineCoordinator {
                 let job = ProcessingJob(audioFileID: audioFile.id, jobType: "summary")
                 job.markStarted(stage: PipelineStep.generatingSummary.rawValue)
                 modelContext.insert(job)
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    DebugLogger.shared.addLog("Pipeline", "Failed to save job: \(error.localizedDescription)", level: .error)
+                }
 
                 do {
                     // Configure
@@ -318,10 +346,18 @@ final class PipelineCoordinator {
 
                 } catch is CancellationError {
                     job.markFailed("Cancelled", stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after cancellation: \(error.localizedDescription)", level: .error)
+                    }
                 } catch {
                     job.markFailed(error.localizedDescription, stage: job.stage)
-                    try? modelContext.save()
+                    do {
+                        try modelContext.save()
+                    } catch {
+                        DebugLogger.shared.addLog("Pipeline", "Failed to save job after error: \(error.localizedDescription)", level: .error)
+                    }
                     continuation.yield(.failed(step: .generatingSummary, error: CoreError.summaryError(.generationFailed(error.localizedDescription))))
                 }
 
@@ -413,7 +449,11 @@ final class PipelineCoordinator {
                 text: segment.text
             )
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            DebugLogger.shared.addLog("Pipeline", "Failed to save transcript: \(error.localizedDescription)", level: .error)
+        }
 
         audioFile.isTranscribed = true
         saveAudioFile(audioFile)
@@ -617,7 +657,11 @@ final class PipelineCoordinator {
                 modelContext.insert(child)
             }
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            DebugLogger.shared.addLog("Pipeline", "Failed to save planned tasks: \(error.localizedDescription)", level: .error)
+        }
     }
 
     private func sendWebhooks(
@@ -629,36 +673,49 @@ final class PipelineCoordinator {
         let settings: WebhookSettings?
 
         let descriptor = FetchDescriptor<WebhookSettings>()
-        settings = try? modelContext.fetch(descriptor).first
+        do {
+            settings = try modelContext.fetch(descriptor).first
+        } catch {
+            DebugLogger.shared.addLog("Pipeline", "Failed to fetch webhook settings: \(error.localizedDescription)", level: .warning)
+            return
+        }
 
         guard let settings else { return }
 
         if let transcriptResult {
-            try? await webhookService.sendWebhook(
-                eventType: .transcriptionCompleted,
-                data: [
-                    "audioFileId": audioFile.id.uuidString,
-                    "title": audioFile.title,
-                    "duration": audioFile.duration,
-                    "transcript": transcriptResult.text,
-                    "segments": transcriptResult.segments.count
-                ],
-                settings: settings
-            )
+            do {
+                try await webhookService.sendWebhook(
+                    eventType: .transcriptionCompleted,
+                    data: [
+                        "audioFileId": audioFile.id.uuidString,
+                        "title": audioFile.title,
+                        "duration": audioFile.duration,
+                        "transcript": transcriptResult.text,
+                        "segments": transcriptResult.segments.count
+                    ],
+                    settings: settings
+                )
+            } catch {
+                DebugLogger.shared.addLog("Pipeline", "Failed to send transcription webhook: \(error.localizedDescription)", level: .warning)
+            }
         }
 
         if let summaryResult {
-            try? await webhookService.sendWebhook(
-                eventType: .summarizationCompleted,
-                data: [
-                    "audioFileId": audioFile.id.uuidString,
-                    "title": audioFile.title,
+            do {
+                try await webhookService.sendWebhook(
+                    eventType: .summarizationCompleted,
+                    data: [
+                        "audioFileId": audioFile.id.uuidString,
+                        "title": audioFile.title,
                     "summary": summaryResult.summary,
                     "keyPoints": summaryResult.keyPoints,
                     "actionItems": summaryResult.actionItems
                 ],
                 settings: settings
             )
+            } catch {
+                DebugLogger.shared.addLog("Pipeline", "Failed to send summary webhook: \(error.localizedDescription)", level: .warning)
+            }
         }
     }
 }

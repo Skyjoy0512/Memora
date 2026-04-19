@@ -105,7 +105,7 @@ struct TodoRowView: View {
     private func priorityDot(_ priority: Priority) -> some View {
         switch priority {
         case .high:
-            AccentDotIndicator(color: MemoraColor.accentNothing, size: 8, glowing: true)
+            AccentDotIndicator(color: MemoraColor.accentNothing, size: 8, glowing: false)
         case .medium:
             Circle().fill(MemoraColor.accentBlue).frame(width: 8, height: 8)
         case .low:

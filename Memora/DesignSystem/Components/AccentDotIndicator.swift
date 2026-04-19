@@ -9,8 +9,5 @@ struct AccentDotIndicator: View {
         Circle()
             .fill(color)
             .frame(width: size, height: size)
-            .if(glowing) { view in
-                view.nothingGlow(.subtle)
-            }
     }
 }

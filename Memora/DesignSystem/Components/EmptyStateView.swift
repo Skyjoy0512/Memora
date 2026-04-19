@@ -13,7 +13,7 @@ struct EmptyStateView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(MemoraColor.accentNothing)
                 .frame(width: 100, height: 100)
-                .nothingCard(.prominent)
+                .background(MemoraColor.accentNothingSubtle, in: Circle())
 
             VStack(spacing: MemoraSpacing.phi2) {
                 Text(title)
@@ -27,7 +27,7 @@ struct EmptyStateView: View {
             }
 
             if let buttonTitle, let buttonAction {
-                PillButton(title: buttonTitle, action: buttonAction, style: .nothing)
+                PillButton(title: buttonTitle, action: buttonAction, style: .primary)
                     .padding(.horizontal, MemoraSpacing.xl)
             }
         }

@@ -1,21 +1,24 @@
 import Foundation
 @preconcurrency import CoreBluetooth
-import Combine
 import AVFoundation
+import Observation
 
 /// Generic BLE 音声サービス
 /// 開発者向けの experimental path として BLE の通知受信を検証する
-final class BluetoothAudioService: NSObject, ObservableObject {
-    @Published var isConnected = false
-    @Published var isScanning = false
-    @Published var isRecording = false
-    @Published var discoveredDevices: [BluetoothDevice] = []
-    @Published var errorMessage: String?
-    @Published var discoveredServices: [CBUUID] = []
-    @Published var discoveredCharacteristics: [CBUUID] = []
-    @Published var recordingDuration: TimeInterval = 0
-    @Published var connectionState: ConnectionState = .disconnected
-    @Published var disconnectReason: String?
+@Observable
+final class BluetoothAudioService: NSObject {
+    var isConnected = false
+    var isScanning = false
+    var isRecording = false
+    var discoveredDevices: [BluetoothDevice] = []
+    var errorMessage: String?
+    var discoveredServices: [CBUUID] = []
+    var discoveredCharacteristics: [CBUUID] = []
+    var recordingDuration: TimeInterval = 0
+    var connectionState: ConnectionState = .disconnected
+    var disconnectReason: String?
+
+    private static let iso8601Formatter = Foundation.ISO8601DateFormatter()
 
     private var centralManager: CBCentralManager!
     private var isCentralManagerInitialized = false
@@ -182,7 +185,7 @@ final class BluetoothAudioService: NSObject, ObservableObject {
 
         // ドキュメントフォルダに保存
         let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = Self.iso8601Formatter.string(from: Date())
         let filename = "bluetooth_recording_\(timestamp).wav"
         let destinationUrl = documentsDir.appendingPathComponent(filename)
 
@@ -313,7 +316,8 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
             peripheral.delegate = self
 
             // 接続後、少し待ってからサービスを探索（安定性向上）
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self else { return }
                 self.connectionState = .discoveringServices
                 if self.selectedDeviceType != .unknown {
                     print("   ヒューリスティック種別: \(self.selectedDeviceType)")

@@ -63,7 +63,7 @@ struct DeviceConnectionView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    PillButton(title: "再接続", action: { omiAdapter.startScan() }, style: .nothing)
+                    PillButton(title: "再接続", action: { omiAdapter.startScan() }, style: .primary)
                         .padding(.horizontal)
                 }
                 .padding(MemoraSpacing.md)
@@ -137,7 +137,7 @@ struct DeviceConnectionView: View {
                         .font(MemoraTypography.phiTitle)
                         .foregroundStyle(.secondary)
 
-                    PillButton(title: "再スキャン", action: { omiAdapter.startScan() }, style: .nothing)
+                    PillButton(title: "再スキャン", action: { omiAdapter.startScan() }, style: .primary)
                         .padding(.horizontal)
 
                     Spacer()

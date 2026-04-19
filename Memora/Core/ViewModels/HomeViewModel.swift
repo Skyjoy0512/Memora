@@ -56,7 +56,7 @@ final class HomeViewModel {
         var files = audioFiles
 
         if !searchText.isEmpty {
-            files = files.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+            files = files.filter { $0.title.localizedStandardContains(searchText) }
         }
 
         if let filterTranscribed {

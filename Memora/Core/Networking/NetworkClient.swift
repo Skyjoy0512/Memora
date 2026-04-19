@@ -10,7 +10,7 @@ import Foundation
 
 // MARK: - Network Error
 
-enum NetworkError: LocalizedError, Equatable {
+enum NetworkError: LocalizedError {
     case invalidURL
     case invalidResponse
     case httpError(statusCode: Int, data: Data)

@@ -4,11 +4,13 @@ import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var viewModel = HomeViewModel()
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @State private var shouldAutoTranscribe = false
     @Binding var pendingOpenedAudioFileID: UUID?
+    @Binding var isTabBarHidden: Bool
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @Query private var projects: [Project]
 
@@ -20,7 +22,6 @@ struct HomeView: View {
     // 検索・フィルタリング用
     @State private var searchText = ""
     @State private var showFilterSheet = false
-    @State private var showAddMenu = false
     @State private var filterTranscribed: Bool? = nil
     @State private var filterSummarized: Bool? = nil
     @State private var filterLifeLog: Bool? = nil
@@ -34,7 +35,6 @@ struct HomeView: View {
     @State private var isSelectMode = false
     @State private var selectedFileIDs: Set<UUID> = []
     @State private var showMoveToProjectSheet = false
-    @State private var isSearchActive = false
     @State private var searchDebounceTask: Task<Void, Never>?
 
     enum ViewMode: String, CaseIterable {
@@ -49,8 +49,9 @@ struct HomeView: View {
         [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
     }
 
-    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil)) {
+    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false)) {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
+        self._isTabBarHidden = isTabBarHidden
     }
 
     // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
@@ -71,41 +72,28 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if isSearchActive {
-                    searchBar
-                }
-
-                Group {
-                    if viewModel.audioFiles.isEmpty && searchText.isEmpty {
-                        emptyStateView
-                    } else {
-                        fileListSection
-                    }
+            Group {
+                if viewModel.audioFiles.isEmpty && searchText.isEmpty {
+                    emptyStateView
+                } else {
+                    fileListSection
                 }
             }
             .navigationTitle("Files")
             .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "ファイルを検索")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if isSearchActive {
-                        Button("キャンセル") {
-                            withAnimation { isSearchActive = false; searchText = "" }
-                        }
-                    } else if isSelectMode {
+                    if isSelectMode {
                         Button("キャンセル") {
                             isSelectMode = false
                             selectedFileIDs.removeAll()
                         }
                     }
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     if isSelectMode {
                         selectModeMenu
-                    } else if !isSearchActive {
-                        Button("検索", systemImage: "magnifyingglass") {
-                            withAnimation { isSearchActive = true }
-                        }
                     }
                 }
                 if hasActiveFilters && !isSelectMode {
@@ -116,17 +104,15 @@ struct HomeView: View {
                     }
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                if !isSelectMode {
-                    addFabWithMenu
-                }
-            }
             .navigationDestination(isPresented: $showRecordingView) {
                 RecordingView { savedAudioFile in
                     viewModel.loadAudioFiles()
                     selectedAudioFile = viewModel.audioFile(id: savedAudioFile.id)
                     shouldAutoTranscribe = true
                 }
+                .toolbar(.hidden, for: .tabBar)
+                .onAppear { isTabBarHidden = true }
+                .onDisappear { isTabBarHidden = false }
             }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
@@ -137,7 +123,8 @@ struct HomeView: View {
             .navigationDestination(item: $selectedAudioFile) { file in
                 FileDetailView(audioFile: file, autoStartTranscription: shouldAutoTranscribe)
                     .toolbar(.hidden, for: .tabBar)
-                    .onDisappear { shouldAutoTranscribe = false }
+                    .onAppear { isTabBarHidden = true }
+                    .onDisappear { isTabBarHidden = false; shouldAutoTranscribe = false }
             }
             .fileImporter(
                 isPresented: $showFileImporter,
@@ -198,90 +185,6 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        NothingSearchBar(text: $searchText, placeholder: "ファイルを検索")
-            .padding(.horizontal, MemoraSpacing.md)
-            .padding(.top, MemoraSpacing.xs)
-            .padding(.bottom, MemoraSpacing.xxxs)
-    }
-
-    // MARK: - FAB with Menu
-
-    private var addFabWithMenu: some View {
-        VStack(alignment: .trailing, spacing: MemoraSpacing.sm) {
-            if showAddMenu {
-                addMenuPanel
-            }
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showAddMenu.toggle()
-                }
-            } label: {
-                Image(systemName: showAddMenu ? "xmark" : "plus")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 50, height: 50)
-                    .background(MemoraColor.accentNothing)
-                    .clipShape(Circle())
-                    .nothingGlow(.prominent)
-                    .rotationEffect(.degrees(showAddMenu ? 45 : 0))
-            }
-            .accessibilityLabel(showAddMenu ? "メニューを閉じる" : "新規作成")
-        }
-        .padding(.trailing, MemoraSpacing.md)
-        .padding(.bottom, MemoraSpacing.lg)
-    }
-
-    private var addMenuPanel: some View {
-        VStack(spacing: 0) {
-            Button {
-                showAddMenu = false
-                showRecordingView = true
-            } label: {
-                Label("録音", systemImage: "mic.fill")
-                    .font(MemoraTypography.phiBody)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, MemoraSpacing.md)
-                    .padding(.vertical, MemoraSpacing.sm)
-            }
-
-            Divider().padding(.leading, 44)
-
-            Button {
-                showAddMenu = false
-                showFileImporter = true
-            } label: {
-                Label("インポート", systemImage: "square.and.arrow.down")
-                    .font(MemoraTypography.phiBody)
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, MemoraSpacing.md)
-                    .padding(.vertical, MemoraSpacing.sm)
-            }
-
-            if googleSettingsList.first?.isTokenValid == true {
-                Divider().padding(.leading, 44)
-
-                Button {
-                    showAddMenu = false
-                    showGoogleMeetImport = true
-                } label: {
-                    Label("Google Meet", systemImage: "video.fill")
-                        .font(MemoraTypography.phiBody)
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, MemoraSpacing.md)
-                        .padding(.vertical, MemoraSpacing.sm)
-                }
-            }
-        }
-        .glassCard(.init(cornerRadius: MemoraRadius.md, glow: false))
-    }
-
     // MARK: - Empty State
 
     private var emptyStateView: some View {
@@ -339,23 +242,15 @@ struct HomeView: View {
             }
 
             ForEach(filteredFiles) { file in
-                let projectName = file.projectID.flatMap { projectLookup[$0] }
                 if isSelectMode {
-                    AudioFileRow(audioFile: file, projectName: projectName)
+                    AudioFileRow(audioFile: file, projectName: nil, showActions: false)
                         .tag(file.id)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
                 } else {
                     Button {
                         selectedAudioFile = file
                     } label: {
-                        AudioFileRow(audioFile: file, projectName: projectName)
+                        AudioFileRow(audioFile: file, projectName: nil, showActions: false)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityHint("タップして詳細を表示")
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button {
                             isSelectMode = true
@@ -370,7 +265,6 @@ struct HomeView: View {
             .onDelete(perform: deleteAudioFiles)
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
         .environment(\.editMode, .constant(isSelectMode ? .active : .inactive))
         .refreshable {

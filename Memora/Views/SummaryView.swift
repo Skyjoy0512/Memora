@@ -30,8 +30,8 @@ struct SummaryView: View {
                     onDismiss: { showCopiedToast = false }
                 )
                 .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.easeInOut, value: showCopiedToast)
+                .transition(MemoraTransition.slideUp)
+                .animation(.easeInOut(duration: MemoraAnimation.standardDuration), value: showCopiedToast)
             }
         }
     }

@@ -1,12 +1,20 @@
 import Foundation
+import Observation
 import os.log
 
 /// デバッグログサービス
-final class DebugLogger: ObservableObject {
+@Observable
+final class DebugLogger {
     static let shared = DebugLogger()
 
+    private static let iso8601Formatter: Foundation.ISO8601DateFormatter = {
+        let f = Foundation.ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.memora.Memora", category: "Performance")
-    @Published var logs: [DebugLogEntry] = []
+    var logs: [DebugLogEntry] = []
     private var appStartTime: Date?
 
     private init() {
@@ -81,7 +89,7 @@ final class DebugLogger: ObservableObject {
 
         for log in logs {
             let levelStr = "[\(log.level.rawValue.uppercased())]"
-            let timeStr = ISO8601DateFormatter().string(from: log.timestamp)
+            let timeStr = Self.iso8601Formatter.string(from: log.timestamp)
             content += "\(timeStr) \(levelStr) \(log.category): \(log.message)\n"
         }
 
@@ -101,10 +109,10 @@ final class DebugLogger: ObservableObject {
         var info = "ストアファイル情報: "
         info += "サイズ=\(formatBytes(fileSize))"
         if let creationDate {
-            info += ", 作成=\(ISO8601DateFormatter().string(from: creationDate))"
+            info += ", 作成=\(Self.iso8601Formatter.string(from: creationDate))"
         }
         if let modificationDate {
-            info += ", 更新=\(ISO8601DateFormatter().string(from: modificationDate))"
+            info += ", 更新=\(Self.iso8601Formatter.string(from: modificationDate))"
         }
 
         addLog("StoreInfo", info, level: .info)

@@ -100,6 +100,7 @@
 		8375E72353D31B6559872467 /* NotionIntegrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D29E695672907D45D929D22 /* NotionIntegrationSection.swift */; };
 		856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */; };
 		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
+		85FEAA20061453D62AB6BA2B /* ExpandableGlassEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */; };
 		8723075A229518276BA46013 /* FeatureDependencySurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */; };
 		87AAFF280720E9CF570F19F9 /* TaskPlannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBD0F5F237593A207E44875 /* TaskPlannerService.swift */; };
 		87C15F2C40E94991DFC7B758 /* SettingsBindings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2BE99C7A1DDBDB30ED1E1E /* SettingsBindings.swift */; };
@@ -152,6 +153,7 @@
 		C28FD411BD694CB1CC2AF178 /* DebugSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C340C8192D4540C247F7FB22 /* DebugSection.swift */; };
 		C2A359EBDA11B49EDAF60492 /* SpeakerDiarizationProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFE7F54AAF47D88CE6CFC6A /* SpeakerDiarizationProtocol.swift */; };
 		C5997B50D2631671D3608529 /* SummarizationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21AB562D6232BB8A00C6224 /* SummarizationEngineTests.swift */; };
+		C61E4EBD1DAA01AD2183E1FA /* MorphingTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D9A792A288ECDE9A90107F8 /* MorphingTabBar.swift */; };
 		C70BF10CBC56522326FDE98F /* KnowledgeQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */; };
 		CAA8912BEAD313DE50481F84 /* MemoryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2ECDB306E7A48E122A6B63 /* MemoryProfile.swift */; };
 		CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA39BD91FCB01D63A19ECAEA /* TodoItemRepositoryTests.swift */; };
@@ -280,6 +282,7 @@
 		74128D7D550FF22B353C8B5A /* LocalLLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMProvider.swift; sourceTree = "<group>"; };
 		75CE8A1CA959283232B76817 /* TodoEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoEditSheet.swift; sourceTree = "<group>"; };
 		7691401262A0B113E3DDF25A /* MinimumTapTargetModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimumTapTargetModifier.swift; sourceTree = "<group>"; };
+		76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableGlassEffect.swift; sourceTree = "<group>"; };
 		7795022F2D8E7E0A7FF8BB28 /* STTDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTDiagnosticsView.swift; sourceTree = "<group>"; };
 		77AA1A0B9035D2D276212DD1 /* SkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
 		78A39563D755711D640B86DA /* PlaudService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudService.swift; sourceTree = "<group>"; };
@@ -296,6 +299,7 @@
 		844995F52A29BEBC35A2F097 /* FileDetailTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailTab.swift; sourceTree = "<group>"; };
 		855C85865B09046C10B73313 /* OpenAIExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIExportServiceTests.swift; sourceTree = "<group>"; };
 		870629046CE7C04AC6AB8A7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		8D9A792A288ECDE9A90107F8 /* MorphingTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MorphingTabBar.swift; sourceTree = "<group>"; };
 		900CA65A1AEAFFE663D8173B /* TranscriptTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTab.swift; sourceTree = "<group>"; };
 		90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceConnectionView.swift; sourceTree = "<group>"; };
 		949CE2F0FBD00A67C0BA2D5B /* AudioFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileTests.swift; sourceTree = "<group>"; };
@@ -599,10 +603,12 @@
 			children = (
 				658714683985B095771C3321 /* AccentDotIndicator.swift */,
 				C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */,
+				76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */,
 				19286A2C8501408A34BE2FFE /* FABMenu.swift */,
 				CEC644CDA461B640802896FA /* GlassSectionHeader.swift */,
 				0670AAEC136AC56AB7E46D3F /* LiquidGlassModifier.swift */,
 				3388E1E83B6A07D7DCDB7727 /* LiveRecordingBanner.swift */,
+				8D9A792A288ECDE9A90107F8 /* MorphingTabBar.swift */,
 				637F3E5522CE07D04F211270 /* NothingCardContainer.swift */,
 				1B7EF07C363D3474D1C444E1 /* NothingPageIndicator.swift */,
 				EE71BE38BEE421FE1D24B4CD /* NothingSearchBar.swift */,
@@ -963,6 +969,7 @@
 				1A5CFB7D947BA70E0BD6DB75 /* DeviceConnectionSection.swift in Sources */,
 				DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */,
 				AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */,
+				85FEAA20061453D62AB6BA2B /* ExpandableGlassEffect.swift in Sources */,
 				1B95C29B25AE5C7169C244D4 /* ExportOptionsSheet.swift in Sources */,
 				38FE2784E0967E5E330984CA /* ExportService.swift in Sources */,
 				A979D543A59F91F4D062DAA0 /* FABMenu.swift in Sources */,
@@ -1010,6 +1017,7 @@
 				FBF86A4C6D16D6A729D1A569 /* MessageBubbleView.swift in Sources */,
 				236394904F91C3DAED9488CF /* MinimumTapTargetModifier.swift in Sources */,
 				4376A83B27208632BEF8E2A4 /* ModelStoreService.swift in Sources */,
+				C61E4EBD1DAA01AD2183E1FA /* MorphingTabBar.swift in Sources */,
 				F40EF5E236569CF32F4F592D /* NetworkClient.swift in Sources */,
 				9DD59903F92DDF7C0834F2ED /* NothingCardContainer.swift in Sources */,
 				7C8353E619EB1248FD827F65 /* NothingDotMatrixModifier.swift in Sources */,

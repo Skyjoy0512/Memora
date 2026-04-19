@@ -72,7 +72,7 @@ struct GoogleMeetSection: View {
                             .foregroundStyle(MemoraColor.accentGreen)
                     }
 
-                    if let expiresAt = googleSettings?.tokenExpiresAt {
+                    if let expiresAt = KeychainService.loadDate(key: .googleMeetTokenExpiresAt) {
                         Text("トークン有効期限: \(formatDate(expiresAt))")
                             .font(MemoraTypography.caption1)
                             .foregroundStyle(MemoraColor.textSecondary)
@@ -150,11 +150,11 @@ struct GoogleMeetSection: View {
 
             settings.clientID = state.googleClientID
             settings.redirectURIScheme = state.googleRedirectURI
-            settings.accessToken = response.accessToken
+            KeychainService.save(key: .googleMeetAccessToken, value: response.accessToken)
             if let refresh = response.refreshToken {
-                settings.refreshToken = refresh
+                KeychainService.save(key: .googleMeetRefreshToken, value: refresh)
             }
-            settings.tokenExpiresAt = response.calculatedExpiresAt
+            KeychainService.saveDate(key: .googleMeetTokenExpiresAt, value: response.calculatedExpiresAt)
             settings.updatedAt = Date()
 
             try modelContext.save()
@@ -169,15 +169,16 @@ struct GoogleMeetSection: View {
 
     private func disconnectGoogle() {
         if let settings = googleSettings {
-            if !settings.accessToken.isEmpty {
+            let accessToken = KeychainService.load(key: .googleMeetAccessToken)
+            if !accessToken.isEmpty {
                 Task {
                     let authService = GoogleAuthService()
-                    try? await authService.revokeToken(settings.accessToken)
+                    try? await authService.revokeToken(accessToken)
                 }
             }
-            settings.accessToken = ""
-            settings.refreshToken = ""
-            settings.tokenExpiresAt = nil
+            KeychainService.delete(key: .googleMeetAccessToken)
+            KeychainService.delete(key: .googleMeetRefreshToken)
+            KeychainService.saveDate(key: .googleMeetTokenExpiresAt, value: nil)
             settings.updatedAt = Date()
             try? modelContext.save()
         }

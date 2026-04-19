@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FABMenu: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isExpanded: Bool
     let items: [FABItem]
 
@@ -19,7 +20,7 @@ struct FABMenu: View {
                     .ignoresSafeArea()
                     .accessibilityLabel("メニュー背景")
                     .accessibilityHint("メニューを閉じるにはタップしてください")
-                    .onTapGesture { withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { isExpanded = false } }
+                    .onTapGesture { MemoraAnimation.animate(reduceMotion) { isExpanded = false } }
             }
 
             // Sub items
@@ -27,7 +28,7 @@ struct FABMenu: View {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     Button {
                         item.action()
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) { isExpanded = false }
+                        MemoraAnimation.animate(reduceMotion) { isExpanded = false }
                     } label: {
                         HStack(spacing: MemoraSpacing.sm) {
                             Text(item.label)
@@ -37,7 +38,6 @@ struct FABMenu: View {
                             Circle()
                                 .fill(MemoraColor.accentNothing)
                                 .frame(width: 44, height: 44)
-                                .nothingGlow(.subtle)
                                 .overlay {
                                     Image(systemName: item.icon)
                                         .font(MemoraTypography.body)
@@ -51,7 +51,7 @@ struct FABMenu: View {
                     .opacity(isExpanded ? 1 : 0)
                     .offset(y: isExpanded ? 0 : 10)
                     .animation(
-                        .spring(response: 0.35, dampingFraction: 0.75),
+                        reduceMotion ? nil : MemoraAnimation.springDefault,
                         value: isExpanded
                     )
                 }
@@ -60,14 +60,13 @@ struct FABMenu: View {
 
             // Main FAB
             Button {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                MemoraAnimation.animate(reduceMotion) {
                     isExpanded.toggle()
                 }
             } label: {
                 Circle()
                     .fill(MemoraColor.accentPrimary)
                     .frame(width: 56, height: 56)
-                    .nothingGlow(.prominent)
                     .overlay {
                         Image(systemName: "plus")
                             .font(MemoraTypography.title2)

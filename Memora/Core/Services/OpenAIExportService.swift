@@ -358,16 +358,33 @@ final class OpenAIExportService {
 
     // MARK: - Date Formatting
 
+    private static let openAIDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return f
+    }()
+
+    private static let openAIHeaderDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let openAIISO8601Formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .iso8601)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-        return formatter.string(from: date)
+        Self.openAIDateFormatter.string(from: date)
     }
 
     private func formatDateForHeader(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        Self.openAIHeaderDateFormatter.string(from: date)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -377,12 +394,7 @@ final class OpenAIExportService {
     }
 
     private func iso8601String(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-        return formatter.string(from: date)
+        Self.openAIISO8601Formatter.string(from: date)
     }
 
     private func makeSegmentsArray(transcript: Transcript) -> [[String: Any]] {

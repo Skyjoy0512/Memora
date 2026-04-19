@@ -299,6 +299,8 @@ struct MemoraApp: App {
                     Task { @MainActor in
                         let context = ModelContext(success.container)
                         ProcessingJob.cleanupCompletedJobs(in: context)
+                        // SwiftData に平文保存されている認証情報を Keychain に移行
+                        KeychainService.migrateCredentialsFromSwiftData(context: context)
                     }
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()

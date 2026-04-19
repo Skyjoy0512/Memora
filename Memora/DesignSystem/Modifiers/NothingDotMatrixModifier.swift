@@ -19,10 +19,11 @@ struct NothingDotMatrixModifier: ViewModifier {
     let config: NothingDotMatrixConfiguration
 
     func body(content: Content) -> some View {
-        content.overlay {
-            DotMatrixGrid(config: config)
-                .allowsHitTesting(false)
-        }
+        content
+            .overlay {
+                DotMatrixGrid(config: config)
+                    .allowsHitTesting(false)
+            }
     }
 }
 

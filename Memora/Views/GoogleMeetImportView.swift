@@ -4,6 +4,7 @@ import SwiftData
 struct GoogleMeetImportView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var googleSettingsList: [GoogleMeetSettings]
 
     @State private var conferences: [GoogleMeetService.ConferenceRecord] = []
@@ -143,7 +144,7 @@ struct GoogleMeetImportView: View {
             .shadow(radius: 4)
             .padding(.bottom, MemoraSpacing.xl)
         }
-        .animation(.easeInOut, value: importResult)
+        .animation(reduceMotion ? nil : .easeInOut(duration: MemoraAnimation.standardDuration), value: importResult)
     }
 
     // MARK: - Functions
@@ -157,7 +158,7 @@ struct GoogleMeetImportView: View {
         isLoading = true
         errorMessage = nil
 
-        var token = settings.accessToken
+        var token = KeychainService.load(key: .googleMeetAccessToken)
 
         // トークンリフレッシュが必要な場合
         if settings.shouldRefreshToken {
@@ -165,14 +166,14 @@ struct GoogleMeetImportView: View {
                 let authService = GoogleAuthService()
                 let response = try await authService.refreshToken(
                     clientID: settings.clientID,
-                    refreshToken: settings.refreshToken
+                    refreshToken: KeychainService.load(key: .googleMeetRefreshToken)
                 )
                 token = response.accessToken
-                settings.accessToken = response.accessToken
+                KeychainService.save(key: .googleMeetAccessToken, value: response.accessToken)
                 if let newRefresh = response.refreshToken {
-                    settings.refreshToken = newRefresh
+                    KeychainService.save(key: .googleMeetRefreshToken, value: newRefresh)
                 }
-                settings.tokenExpiresAt = response.calculatedExpiresAt
+                KeychainService.saveDate(key: .googleMeetTokenExpiresAt, value: response.calculatedExpiresAt)
                 settings.updatedAt = Date()
                 try? modelContext.save()
             } catch {
@@ -203,7 +204,7 @@ struct GoogleMeetImportView: View {
                 let service = GoogleMeetService()
                 let audioFile = try await service.importConferenceRecord(
                     record: record,
-                    token: settings.accessToken,
+                    token: KeychainService.load(key: .googleMeetAccessToken),
                     modelContext: modelContext
                 )
 

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Observation
 
 protocol SummarizationEngineProtocol {
     var isSummarizing: Bool { get }
@@ -41,9 +42,10 @@ struct SummaryResult {
     }
 }
 
-final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
-    @Published var isSummarizing = false
-    @Published var progress = 0.0
+@Observable
+final class SummarizationEngine: SummarizationEngineProtocol {
+    var isSummarizing = false
+    var progress = 0.0
 
     private var aiService: AIService?
 
@@ -194,7 +196,11 @@ final class SummarizationEngine: SummarizationEngineProtocol, ObservableObject {
             modelContext.insert(todo)
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            DebugLogger.shared.addLog("SummarizationEngine", "Failed to save todo items: \(error.localizedDescription)", level: .error)
+        }
     }
 
     // MARK: - Private Helpers

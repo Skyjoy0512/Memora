@@ -40,15 +40,15 @@ final class PlaudSettings {
     /// 更新日時
     var updatedAt: Date = Date()
 
-    /// トークンが有効かどうか
+    /// トークンが有効かどうか（Keychain から読み取り）
     var isTokenValid: Bool {
-        guard let expiresAt = tokenExpiresAt else { return false }
+        guard let expiresAt = KeychainService.loadDate(key: .plaudTokenExpiresAt) else { return false }
         return Date() < expiresAt
     }
 
-    /// トークンをリフレッシュすべきか（30日以内）
+    /// トークンをリフレッシュすべきか（30日以内）（Keychain から読み取り）
     var shouldRefreshToken: Bool {
-        guard let expiresAt = tokenExpiresAt else { return false }
+        guard let expiresAt = KeychainService.loadDate(key: .plaudTokenExpiresAt) else { return false }
         let thirtyDaysFromNow = Calendar.current.date(byAdding: .day, value: 30, to: Date())!
         return expiresAt < thirtyDaysFromNow
     }

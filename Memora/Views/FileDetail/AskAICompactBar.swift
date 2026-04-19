@@ -1,40 +1,44 @@
 import SwiftUI
 
-// MARK: - Ask AI Compact Bar
+// MARK: - Ask AI Compact Bar (inline text field)
 
 struct AskAICompactBar: View {
     let provider: AIProvider
     let showAskAI: Binding<Bool>
+    var onSend: ((String) -> Void)? = nil
+    @State private var inputText = ""
+    @FocusState private var isFocused: Bool
 
     var body: some View {
-        Button {
-            showAskAI.wrappedValue = true
-        } label: {
-            HStack(spacing: MemoraSpacing.sm) {
-                Text(provider.rawValue)
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.accentNothing)
-                    .padding(.horizontal, MemoraSpacing.xs)
-                    .padding(.vertical, 2)
-                    .background(MemoraColor.accentNothingSubtle)
-                    .clipShape(Capsule())
+        HStack(spacing: MemoraSpacing.sm) {
+            TextField("Ask AI...", text: $inputText, axis: .vertical)
+                .font(MemoraTypography.body)
+                .lineLimit(1...4)
+                .focused($isFocused)
+                .onSubmit { send() }
 
-                Text("Ask AI...")
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                Image(systemName: "sparkle")
-                    .foregroundStyle(MemoraColor.accentNothing)
-                    .nothingGlow(.subtle)
+            Button {
+                send()
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : MemoraColor.accentNothing)
             }
-            .padding(.horizontal, MemoraSpacing.md)
-            .padding(.vertical, MemoraSpacing.sm)
-            .glassCard(.init(cornerRadius: 24, glow: false))
+            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, MemoraSpacing.md)
+        .padding(.vertical, MemoraSpacing.md)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .padding(.horizontal, MemoraSpacing.md)
         .padding(.bottom, MemoraSpacing.sm)
+    }
+
+    private func send() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        inputText = ""
+        isFocused = false
+        onSend?(trimmed)
     }
 }

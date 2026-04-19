@@ -1,13 +1,20 @@
 import SwiftUI
 
 struct NothingTabPicker<T: Hashable>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: T
     let options: [NothingTabOption<T>]
 
     struct NothingTabOption<T> {
         let value: T
         let label: String
-        let icon: String? = nil
+        let icon: String?
+
+        init(value: T, label: String, icon: String? = nil) {
+            self.value = value
+            self.label = label
+            self.icon = icon
+        }
     }
 
     var body: some View {
@@ -17,7 +24,7 @@ struct NothingTabPicker<T: Hashable>: View {
                 let isSelected = selection == option.value
 
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
                         selection = option.value
                     }
                 } label: {
@@ -45,6 +52,13 @@ struct NothingTabPicker<T: Hashable>: View {
             }
         }
         .padding(MemoraSpacing.xxxs)
-        .glassCard(.init(cornerRadius: MemoraRadius.pill, accentTint: false, glow: false))
+        .background(
+            MemoraColor.surfaceElevated,
+            in: Capsule()
+        )
+        .overlay {
+            Capsule()
+                .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+        }
     }
 }

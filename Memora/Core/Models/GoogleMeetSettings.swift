@@ -33,16 +33,18 @@ final class GoogleMeetSettings {
     // MARK: - Token State
 
     var isTokenValid: Bool {
+        let accessToken = KeychainService.load(key: .googleMeetAccessToken)
         guard !accessToken.isEmpty,
-              let expiresAt = tokenExpiresAt else {
+              let expiresAt = KeychainService.loadDate(key: .googleMeetTokenExpiresAt) else {
             return false
         }
         return expiresAt > Date()
     }
 
     var shouldRefreshToken: Bool {
+        let refreshToken = KeychainService.load(key: .googleMeetRefreshToken)
         guard !refreshToken.isEmpty else { return false }
-        guard let expiresAt = tokenExpiresAt else { return true }
+        guard let expiresAt = KeychainService.loadDate(key: .googleMeetTokenExpiresAt) else { return true }
         // 5 分前にリフレッシュ
         return expiresAt.addingTimeInterval(-300) <= Date()
     }

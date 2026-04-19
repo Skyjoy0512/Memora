@@ -50,7 +50,7 @@ struct GenerationFlowSheet: View {
                     config.template = selectedTemplate
                     onStart(config)
                     isPresented = false
-                }, style: .nothing)
+                }, style: .primary)
                 .padding(.horizontal, MemoraSpacing.lg)
                 .padding(.vertical, MemoraSpacing.md)
             }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Observation
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -269,9 +270,10 @@ struct Gemma4BenchmarkResult: Identifiable {
 /// Gemma 4 ベンチマークランナー。
 /// UI スレッドをブロックしないよう @MainActor で管理する。
 @MainActor
-final class Gemma4BenchmarkRunner: ObservableObject {
-    @Published private(set) var results: [Gemma4BenchmarkResult] = []
-    @Published private(set) var isRunning = false
+@Observable
+final class Gemma4BenchmarkRunner {
+    private(set) var results: [Gemma4BenchmarkResult] = []
+    private(set) var isRunning = false
 
     private let testPrompts = [
         ("短文生成", "今日の天気を一言で教えてください。"),

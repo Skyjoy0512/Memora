@@ -298,11 +298,11 @@ final class ExportService {
     ) throws -> URL {
         let data: [String: Any] = [
             "title": audioFile.title,
-            "createdAt": ISO8601DateFormatter().string(from: audioFile.createdAt),
+            "createdAt": Self.iso8601Formatter.string(from: audioFile.createdAt),
             "duration": audioFile.duration,
             "transcript": [
                 "text": transcript.text,
-                "createdAt": ISO8601DateFormatter().string(from: transcript.createdAt),
+                "createdAt": Self.iso8601Formatter.string(from: transcript.createdAt),
                 "segments": makeSegmentsJSON(transcript: transcript)
             ]
         ]
@@ -319,7 +319,7 @@ final class ExportService {
     ) throws -> URL {
         let data: [String: Any] = [
             "title": audioFile.title,
-            "createdAt": ISO8601DateFormatter().string(from: audioFile.createdAt),
+            "createdAt": Self.iso8601Formatter.string(from: audioFile.createdAt),
             "duration": audioFile.duration,
             "summary": [
                 "summary": summary,
@@ -340,14 +340,14 @@ final class ExportService {
     ) throws -> URL {
         var data: [String: Any] = [
             "title": audioFile.title,
-            "createdAt": ISO8601DateFormatter().string(from: audioFile.createdAt),
+            "createdAt": Self.iso8601Formatter.string(from: audioFile.createdAt),
             "duration": audioFile.duration
         ]
 
         if audioFile.isTranscribed, let transcript = transcript {
             data["transcript"] = [
                 "text": transcript.text,
-                "createdAt": ISO8601DateFormatter().string(from: transcript.createdAt)
+                "createdAt": Self.iso8601Formatter.string(from: transcript.createdAt)
             ]
         }
 
@@ -376,7 +376,7 @@ final class ExportService {
                 if let notes = todo.notes { item["notes"] = notes }
                 if let assignee = todo.assignee { item["assignee"] = assignee }
                 if let dueDate = todo.dueDate {
-                    item["dueDate"] = ISO8601DateFormatter().string(from: dueDate)
+                    item["dueDate"] = Self.iso8601Formatter.string(from: dueDate)
                 }
                 return item
             }
@@ -402,10 +402,14 @@ final class ExportService {
         return url
     }
 
+    private static let exportDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return f
+    }()
+
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
-        return formatter.string(from: date)
+        Self.exportDateFormatter.string(from: date)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -435,14 +439,14 @@ final class ExportService {
         return segments
     }
 
-    private func ISO8601DateFormatter() -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
-        return formatter
-    }
+    private static let iso8601Formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .iso8601)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+        return f
+    }()
 
     // MARK: - SRT エクスポート
 

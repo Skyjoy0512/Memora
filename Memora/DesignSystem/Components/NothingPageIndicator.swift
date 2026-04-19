@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NothingPageIndicator: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let totalPages: Int
     @Binding var currentPage: Int
 
@@ -13,8 +14,7 @@ struct NothingPageIndicator: View {
                         width: index == currentPage ? 8 : 6,
                         height: index == currentPage ? 8 : 6
                     )
-                    .nothingGlow(index == currentPage ? .subtle : .init(color: .clear, radius: 0, intensity: 0, animated: false))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: currentPage)
+                    .animation(reduceMotion ? nil : MemoraAnimation.springSnappy, value: currentPage)
             }
         }
     }

@@ -4,6 +4,7 @@ import SwiftData
 struct RecordingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let initialProject: Project?
     let onRecordingSaved: ((AudioFile) -> Void)?
     @State private var viewModel = RecordingViewModel()
@@ -178,8 +179,12 @@ struct RecordingView: View {
             stopTimer()
         }
         .onChange(of: audioRecorder.isRecording) { _, isRecording in
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            if reduceMotion {
                 pulseRecording = isRecording
+            } else {
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                    pulseRecording = isRecording
+                }
             }
         }
         .sheet(isPresented: $showProjectPicker) {

@@ -40,7 +40,6 @@ struct ProjectDetailView: View {
         }
         .navigationDestination(item: $selectedAudioFile) { file in
             FileDetailView(audioFile: file)
-                .toolbar(.hidden, for: .tabBar)
         }
         .task {
             viewModel.configure(
@@ -108,7 +107,7 @@ struct ProjectDetailView: View {
                     .font(MemoraTypography.phiBody)
                     .foregroundStyle(MemoraColor.textSecondary)
 
-                PillButton(title: "録音を開始", action: { showRecordingView = true }, style: .nothing)
+                PillButton(title: "録音を開始", action: { showRecordingView = true }, style: .primary)
                     .padding(.horizontal, MemoraSpacing.md)
 
                 Text("録音を開始してファイルを追加しましょう")

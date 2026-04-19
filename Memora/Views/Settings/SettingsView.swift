@@ -83,7 +83,7 @@ struct SettingsView: View {
         ).first else { return }
 
         state.plaudEmail = settings.email
-        state.plaudPassword = settings.password
+        state.plaudPassword = KeychainService.load(key: .plaudPassword)
         state.plaudApiServer = settings.apiServer
         state.plaudAutoSyncEnabled = settings.autoSyncEnabled
 

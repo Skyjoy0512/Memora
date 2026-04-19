@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SkeletonView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var height: CGFloat = 16
     var cornerRadius: CGFloat = MemoraRadius.sm
     @State private var isAnimating = false
@@ -26,8 +27,10 @@ struct SkeletonView: View {
             }
             .clipped()
             .onAppear {
-                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
-                    isAnimating = true
+                if !reduceMotion {
+                    withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
+                        isAnimating = true
+                    }
                 }
             }
     }

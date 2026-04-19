@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -6,24 +7,25 @@ import FoundationModels
 /// オンデバイス LLM モデルの管理状態を提供するサービス。
 /// model download / availability / memory requirement を管理する。
 @MainActor
-final class ModelStoreService: ObservableObject {
+@Observable
+final class ModelStoreService {
 
     // MARK: - Published State
 
     /// Foundation Models フレームワークがコンパイル時に存在するか
-    @Published private(set) var isFrameworkAvailable: Bool = false
+    private(set) var isFrameworkAvailable: Bool = false
 
     /// Foundation Models がランタイムで利用可能か
-    @Published private(set) var isFoundationModelsAvailable: Bool = false
+    private(set) var isFoundationModelsAvailable: Bool = false
 
     /// デバイスがローカル推論要件を満たすか
-    @Published private(set) var isDeviceSupported: Bool = false
+    private(set) var isDeviceSupported: Bool = false
 
     /// オンデバイスモデルがダウンロード済みで即座に利用可能か
-    @Published private(set) var isModelReady: Bool = false
+    private(set) var isModelReady: Bool = false
 
     /// ステータス説明テキスト
-    @Published private(set) var statusDescription: String = "確認中..."
+    private(set) var statusDescription: String = "確認中..."
 
     // MARK: - Init
 

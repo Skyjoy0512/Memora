@@ -25,12 +25,6 @@ struct PillButton: View {
                         .stroke(strokeColor, lineWidth: 1)
                 }
                 .clipShape(Capsule())
-                .if(style == .nothing) { view in
-                    view.nothingGlow(.prominent)
-                }
-                .if(style == .glass) { view in
-                    view.glassCard(.init(cornerRadius: MemoraSize.buttonHeight / 2, glow: false))
-                }
         }
     }
 

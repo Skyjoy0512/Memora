@@ -16,6 +16,7 @@ struct FileDetailView: View {
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var previewPhotoID: UUID?
     @State private var showAskAI = false
+    @State private var askAIInitialMessage: String?
     @State private var calendarEventLink: CalendarEventLink?
     @State private var suggestedEvent: FileDetailHelpers.EventKitEventWrapper?
     @State private var isLinkingEvent = false
@@ -50,36 +51,39 @@ struct FileDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                // タブごとの context-aware actions
-                switch selectedTab {
-                case .summary:
-                    if viewModel?.summaryResult != nil {
-                        Button("再生成", systemImage: "arrow.clockwise") {
-                            viewModel?.showGenerationFlow = true
-                        }
+                if let vm = viewModel {
+                    // 再生/一時停止
+                    Button {
+                        vm.togglePlayback()
+                    } label: {
+                        Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
                     }
+
+                    // 共有（全タブ共通）
                     Button("共有", systemImage: "square.and.arrow.up") {
                         viewModel?.showShareSheet = true
                     }
-                    .disabled(viewModel?.summaryResult == nil)
 
-                case .transcript:
-                    if viewModel?.transcriptResult != nil {
-                        Button("再文字起こし", systemImage: "arrow.clockwise") {
-                            viewModel?.startTranscription()
+                    // タブごとの actions
+                    switch selectedTab {
+                    case .summary:
+                        if viewModel?.summaryResult != nil {
+                            Button("再生成", systemImage: "arrow.clockwise") {
+                                viewModel?.showGenerationFlow = true
+                            }
                         }
-                        .disabled(viewModel?.isTranscribing == true)
-                    }
-                    Button("共有", systemImage: "square.and.arrow.up") {
-                        viewModel?.showShareSheet = true
-                    }
-                    .disabled(viewModel?.transcriptResult == nil)
 
-                case .memo:
-                    Button("保存", systemImage: "checkmark") {
-                        viewModel?.saveMemo()
+                    case .transcript:
+                        if viewModel?.transcriptResult != nil {
+                            Button("再文字起こし", systemImage: "arrow.clockwise") {
+                                viewModel?.startTranscription()
+                            }
+                            .disabled(viewModel?.isTranscribing == true)
+                        }
+
+                    case .memo:
+                        EmptyView()
                     }
-                    .disabled(viewModel?.memoHasUnsavedChanges != true)
                 }
             }
             ToolbarItem(placement: .secondaryAction) {
@@ -112,7 +116,7 @@ struct FileDetailView: View {
             viewModel?.cleanup()
         }
         .sheet(isPresented: $showAskAI) {
-            AskAIView(scope: .file(fileId: audioFile.id))
+            AskAIView(scope: .file(fileId: audioFile.id), initialMessage: askAIInitialMessage)
         }
         .onChange(of: selectedPhotoItems) { _, newItems in
             guard let vm = viewModel, !newItems.isEmpty else { return }
@@ -148,8 +152,6 @@ struct FileDetailView: View {
                         onLinkSuggested: linkSuggestedEvent
                     )
 
-                    PlayerControls(vm: vm)
-
                     tabPicker
 
                     tabContent(vm: vm)
@@ -161,7 +163,11 @@ struct FileDetailView: View {
 
             AskAICompactBar(
                 provider: currentProvider,
-                showAskAI: $showAskAI
+                showAskAI: $showAskAI,
+                onSend: { message in
+                    askAIInitialMessage = message
+                    showAskAI = true
+                }
             )
         }
         .sheet(isPresented: $vm.showGenerationFlow) {
@@ -213,16 +219,13 @@ struct FileDetailView: View {
     // MARK: - Tab Picker
 
     private var tabPicker: some View {
-        NothingTabPicker(
-            selection: $selectedTab,
-            options: FileDetailTab.allCases.map { tab in
-                NothingTabPicker<FileDetailTab>.NothingTabOption(
-                    value: tab,
-                    label: tab.title,
-                    icon: tab.icon
-                )
+        Picker("", selection: $selectedTab) {
+            ForEach(FileDetailTab.allCases) { tab in
+                Label(tab.title, systemImage: tab.icon)
+                    .tag(tab)
             }
-        )
+        }
+        .pickerStyle(.segmented)
     }
 
     // MARK: - Tab Content

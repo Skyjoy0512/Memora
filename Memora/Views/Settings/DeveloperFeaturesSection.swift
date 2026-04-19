@@ -109,7 +109,7 @@ struct DeveloperFeaturesSection: View {
                         newSettings.isEnabled = true
                         newSettings.apiServer = state.plaudApiServer
                         newSettings.email = state.plaudEmail
-                        newSettings.password = state.plaudPassword
+                        KeychainService.save(key: .plaudPassword, value: state.plaudPassword)
                         newSettings.autoSyncEnabled = state.plaudAutoSyncEnabled
                         modelContext.insert(newSettings)
                     } else {
@@ -215,8 +215,6 @@ struct DeveloperFeaturesSection: View {
                 }
             }
             .disabled(state.isPlaudSyncing || state.plaudEmail.isEmpty || state.plaudPassword.isEmpty)
-        } header: {
-            GlassSectionHeader(title: "開発者機能", icon: "hammer")
         }
     }
 
@@ -257,11 +255,11 @@ struct DeveloperFeaturesSection: View {
 
             settings.apiServer = server
             settings.email = state.plaudEmail
-            settings.password = state.plaudPassword
-            settings.accessToken = authResponse.accessToken
-            settings.refreshToken = authResponse.refreshToken
+            KeychainService.save(key: .plaudPassword, value: state.plaudPassword)
+            KeychainService.save(key: .plaudAccessToken, value: authResponse.accessToken)
+            KeychainService.save(key: .plaudRefreshToken, value: authResponse.refreshToken)
+            KeychainService.saveDate(key: .plaudTokenExpiresAt, value: authResponse.calculatedExpiresAt)
             settings.userId = userInfo.id
-            settings.tokenExpiresAt = authResponse.calculatedExpiresAt
             settings.updatedAt = Date()
 
             try? modelContext.save()
@@ -279,9 +277,9 @@ struct DeveloperFeaturesSection: View {
 
     private func logoutPlaud() {
         if let settings = plaudSettings {
-            settings.accessToken = ""
-            settings.refreshToken = ""
-            settings.tokenExpiresAt = nil
+            KeychainService.delete(key: .plaudAccessToken)
+            KeychainService.delete(key: .plaudRefreshToken)
+            KeychainService.saveDate(key: .plaudTokenExpiresAt, value: nil)
             settings.updatedAt = Date()
             try? modelContext.save()
         }
@@ -304,14 +302,15 @@ struct DeveloperFeaturesSection: View {
         if settings.shouldRefreshToken {
             do {
                 let service = PlaudService()
+                let refreshToken = KeychainService.load(key: .plaudRefreshToken)
                 let authResponse = try await service.refreshToken(
                     apiServer: settings.apiServer,
-                    refreshToken: settings.refreshToken
+                    refreshToken: refreshToken
                 )
 
-                settings.accessToken = authResponse.accessToken
-                settings.refreshToken = authResponse.refreshToken
-                settings.tokenExpiresAt = authResponse.calculatedExpiresAt
+                KeychainService.save(key: .plaudAccessToken, value: authResponse.accessToken)
+                KeychainService.save(key: .plaudRefreshToken, value: authResponse.refreshToken)
+                KeychainService.saveDate(key: .plaudTokenExpiresAt, value: authResponse.calculatedExpiresAt)
                 settings.updatedAt = Date()
                 try? modelContext.save()
             } catch {
@@ -328,7 +327,7 @@ struct DeveloperFeaturesSection: View {
             let service = PlaudService()
             let recordings = try await service.syncRecordings(
                 apiServer: settings.apiServer,
-                token: settings.accessToken
+                token: KeychainService.load(key: .plaudAccessToken)
             )
 
             var importedCount = 0
@@ -360,7 +359,7 @@ struct DeveloperFeaturesSection: View {
                 let audioUrl = try await service.importRecordingToMemora(
                     recording: recording,
                     apiServer: settings.apiServer,
-                    token: settings.accessToken
+                    token: KeychainService.load(key: .plaudAccessToken)
                 )
 
                 // AudioFile を作成

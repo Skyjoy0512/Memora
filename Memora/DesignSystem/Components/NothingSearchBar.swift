@@ -28,6 +28,13 @@ struct NothingSearchBar: View {
         }
         .padding(.horizontal, MemoraSpacing.md)
         .padding(.vertical, MemoraSpacing.sm)
-        .glassCard(.init(cornerRadius: MemoraRadius.pill, glow: false))
+        .background(
+            MemoraColor.surfaceElevated,
+            in: Capsule()
+        )
+        .overlay {
+            Capsule()
+                .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+        }
     }
 }

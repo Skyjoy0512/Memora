@@ -34,6 +34,22 @@ enum MemoraAnimation {
     static func snappy(_ reduceMotion: Bool) -> Animation? {
         reduceMotion ? nil : springSnappy
     }
+
+    // MARK: - withAnimation Helper
+
+    /// Reduce Motion を尊重して `withAnimation` を実行するヘルパー。
+    /// Reduce Motion 有効時はアニメーションなしで即時実行。
+    static func animate(
+        _ reduceMotion: Bool,
+        using animation: Animation = springDefault,
+        _ body: @escaping () -> Void
+    ) {
+        if reduceMotion {
+            body()
+        } else {
+            withAnimation(animation, body)
+        }
+    }
 }
 
 /// Memora 全体で統一されたTransitionプリセット。

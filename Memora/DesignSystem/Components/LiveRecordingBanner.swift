@@ -16,12 +16,6 @@ struct LiveRecordingBanner: View {
                     .fill(MemoraColor.accentRed)
                     .frame(width: 6, height: 6)
                     .opacity(reduceMotion ? 1.0 : (isBlinking ? 1.0 : 0.3))
-                    .nothingGlow(.init(
-                        color: MemoraColor.accentRed.opacity(0.4),
-                        radius: 8,
-                        intensity: 0.5,
-                        animated: true
-                    ))
 
                 // Duration
                 Text(formatDuration(duration))
@@ -46,11 +40,19 @@ struct LiveRecordingBanner: View {
             .padding(.horizontal, MemoraSpacing.md)
             .padding(.vertical, MemoraSpacing.sm)
             .frame(height: 52)
-            .glassCard(.default)
+            .background(
+                MemoraColor.surfaceSecondary,
+                in: RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
         }
         .onAppear {
             if !reduceMotion {
-                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                withAnimation(.easeInOut(duration: MemoraAnimation.slowDuration).repeatForever(autoreverses: true)) {
                     isBlinking = true
                 }
             }

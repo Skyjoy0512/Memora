@@ -45,12 +45,15 @@ struct NothingCardContainer<Content: View>: View {
     var body: some View {
         content()
             .padding(variant.padding)
-            .glassCard(.init(
-                cornerRadius: variant.cornerRadius,
-                accentTint: true,
-                glow: variant.hasGlow,
-                dotMatrix: variant.hasDotMatrix
-            ))
+            .background(
+                MemoraColor.surfaceSecondary,
+                in: RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
+                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
     }
 }
 
