@@ -81,6 +81,7 @@ struct ProjectsView: View {
                         Image(systemName: "plus")
                             .foregroundStyle(MemoraColor.accentNothing)
                     }
+                    .accessibilityLabel("プロジェクトを作成")
                 }
             }
         }
@@ -180,6 +181,8 @@ struct ProjectCard: View {
         }
         .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
         .nothingCard(.standard)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(project.title)、\(fileCount)ファイル")
     }
 
     private static let projectDateFormatter: DateFormatter = {
