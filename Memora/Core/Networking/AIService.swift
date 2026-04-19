@@ -542,7 +542,7 @@ protocol AIServiceProtocol {
 
 // MARK: - Unified Service
 
-final class AIService: AIServiceProtocol, ObservableObject {
+final class AIService: AIServiceProtocol {
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var openAIService: OpenAIService?

@@ -20,9 +20,10 @@ private protocol TranscriptionEngineProtocol: Sendable {
 }
 
 @MainActor
-final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
-    @Published var isTranscribing = false
-    @Published var progress = 0.0
+@Observable
+final class TranscriptionEngine: TranscriptionEngineProtocol {
+    var isTranscribing = false
+    var progress = 0.0
 
     private let sttService: STTServiceProtocol = STTService()
 
@@ -112,7 +113,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol, ObservableObject {
         )
     }
 
-    /// threshold を超える変動のみ @Published に反映する。
+    /// threshold を超える変動のみ 反映する。
     private func updateProgress(_ value: Double) {
         guard abs(value - progress) >= Self.progressThreshold else { return }
         progress = value
