@@ -119,14 +119,14 @@ struct SummaryContentView: View {
                 .font(MemoraTypography.headline)
                 .foregroundStyle(MemoraColor.textPrimary)
 
-            ForEach(result.keyPoints.indices, id: \.self) { index in
+            ForEach(Array(result.keyPoints.enumerated()), id: \.offset) { index, point in
                 HStack(alignment: .top, spacing: MemoraSpacing.sm) {
                     Text("\(index + 1).")
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.accentBlue)
                         .frame(width: 20, alignment: .trailing)
 
-                    Text(result.keyPoints[index])
+                    Text(point)
                         .font(MemoraTypography.body)
                         .foregroundStyle(.primary)
                 }
@@ -144,13 +144,13 @@ struct SummaryContentView: View {
                 .font(MemoraTypography.headline)
                 .foregroundStyle(MemoraColor.textPrimary)
 
-            ForEach(decisions.indices, id: \.self) { index in
+            ForEach(Array(decisions.enumerated()), id: \.offset) { _, decision in
                 HStack(alignment: .top, spacing: MemoraSpacing.sm) {
                     Image(systemName: "checkmark")
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.accentGreen)
 
-                    Text(decisions[index])
+                    Text(decision)
                         .font(MemoraTypography.body)
                         .foregroundStyle(.primary)
                 }
@@ -168,13 +168,13 @@ struct SummaryContentView: View {
                 .font(MemoraTypography.headline)
                 .foregroundStyle(MemoraColor.textPrimary)
 
-            ForEach(result.actionItems.indices, id: \.self) { index in
+            ForEach(Array(result.actionItems.enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .top, spacing: MemoraSpacing.sm) {
                     Image(systemName: "circle")
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.textSecondary)
 
-                    Text(result.actionItems[index])
+                    Text(item)
                         .font(MemoraTypography.body)
                         .foregroundStyle(.primary)
                 }
