@@ -8,12 +8,12 @@ struct NothingTabPicker<T: Hashable>: View {
     let options: [NothingTabOption<T>]
     var size: Size = .regular
 
-    struct NothingTabOption<T> {
-        let value: T
+    struct NothingTabOption<Value> {
+        let value: Value
         let label: String
         let icon: String?
 
-        init(value: T, label: String, icon: String? = nil) {
+        init(value: Value, label: String, icon: String? = nil) {
             self.value = value
             self.label = label
             self.icon = icon

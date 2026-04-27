@@ -29,6 +29,7 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
     private var audioPlayer: AVAudioPlayer?
     private var loadedURL: URL?
     private var progressContinuations: [UUID: AsyncStream<TimeInterval>.Continuation] = [:]
+    @ObservationIgnored
     private nonisolated(unsafe) var progressTask: Task<Void, Never>?
 
     override init() {

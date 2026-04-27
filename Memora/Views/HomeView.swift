@@ -276,14 +276,14 @@ struct HomeView: View {
 
             ForEach(filteredFiles) { file in
                 if isSelectMode {
-                    AudioFileRow(audioFile: file, projectName: nil, showActions: false)
+                    AudioFileRow(audioFile: file, projectName: projectName(for: file), showActions: false)
                         .tag(file.id)
                         .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                 } else {
                     Button {
                         selectedAudioFile = file
                     } label: {
-                        AudioFileRow(audioFile: file, projectName: nil, showActions: false)
+                        AudioFileRow(audioFile: file, projectName: projectName(for: file), showActions: false)
                     }
                     .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -401,6 +401,11 @@ struct HomeView: View {
     private func loadMoreAudioFilesIfNeeded(currentFile: AudioFile? = nil) {
         viewModel.loadMoreAudioFilesIfNeeded(currentFile: currentFile)
         updateFilteredFiles()
+    }
+
+    private func projectName(for file: AudioFile) -> String? {
+        guard let projectID = file.projectID else { return nil }
+        return projectLookup[projectID]
     }
 
     private func bulkDeleteSelected() {

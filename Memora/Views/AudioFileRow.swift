@@ -41,6 +41,18 @@ struct AudioFileRow: View {
                     .font(MemoraTypography.chatToken)
                     .foregroundStyle(MemoraColor.textTertiary)
 
+                if let projectName, !projectName.isEmpty {
+                    Text("\u{2022}")
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textTertiary)
+
+                    Label(projectName, systemImage: "folder")
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textSecondary)
+                        .lineLimit(1)
+                        .labelStyle(.titleAndIcon)
+                }
+
                 if let summary = audioFile.summary, !summary.isEmpty {
                     Text("\u{2022}")
                         .font(MemoraTypography.chatToken)
