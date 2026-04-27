@@ -101,6 +101,8 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if isSelectMode {
                         selectModeMenu
+                    } else {
+                        fileControlsMenu
                     }
                 }
                 if hasActiveFilters && !isSelectMode {
@@ -256,6 +258,36 @@ struct HomeView: View {
                 .background(MemoraColor.interactivePrimary)
                 .clipShape(Capsule())
         }
+    }
+
+    private var fileControlsMenu: some View {
+        Menu {
+            Button {
+                showFilterSheet = true
+            } label: {
+                Label("フィルター", systemImage: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            }
+
+            Picker("並び替え", selection: $sortOption) {
+                ForEach(SortOption.allCases, id: \.self) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+
+            Divider()
+
+            Button {
+                isSelectMode = true
+                selectedFileIDs.removeAll()
+            } label: {
+                Label("選択", systemImage: "checkmark.circle")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(hasActiveFilters ? MemoraColor.accentNothing : MemoraColor.textPrimary)
+        }
+        .accessibilityLabel("ファイル表示オプション")
     }
 
     // MARK: - Content Section
