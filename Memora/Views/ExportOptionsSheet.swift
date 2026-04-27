@@ -15,9 +15,16 @@ struct ExportOptionsSheet: View {
     @State private var notionExportType: ExportType = .all
     @State private var isExportingToNotion = false
     @State private var notionExportMessage: String?
+    @State private var openAIExportFormat: OpenAIExportFormat = .markdown
+    @State private var isExportingToOpenAI = false
+    @State private var openAIExportMessage: String?
 
     private var notionSettings: NotionSettings? {
         notionSettingsList.first
+    }
+
+    private var openAIAPIKey: String {
+        KeychainService.load(key: .apiKeyOpenAI).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var body: some View {
@@ -124,6 +131,53 @@ struct ExportOptionsSheet: View {
                     }
                 }
 
+                if !openAIAPIKey.isEmpty {
+                    Divider()
+                        .padding(.vertical, MemoraSpacing.xs)
+
+                    VStack(alignment: .leading, spacing: MemoraRadius.md) {
+                        Text("OpenAI にアップロード")
+                            .font(MemoraTypography.headline)
+
+                        Picker("", selection: $openAIExportFormat) {
+                            ForEach(OpenAIExportFormat.allCases, id: \.self) { format in
+                                Text(format.displayName).tag(format)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if isExportingToOpenAI {
+                            HStack {
+                                ProgressView()
+                                Text("OpenAI にアップロード中...")
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        } else {
+                            Button(action: exportToOpenAI) {
+                                Label("OpenAI Files にアップロード", systemImage: "arrow.up.doc")
+                                    .font(MemoraTypography.headline)
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(MemoraColor.accentGreen)
+                                    .clipShape(.rect(cornerRadius: MemoraRadius.md))
+                            }
+                        }
+
+                        if let message = openAIExportMessage {
+                            let isSuccess = message.contains("成功")
+                            Text(message)
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(isSuccess ? MemoraColor.accentGreen : MemoraColor.accentRed)
+                                .padding()
+                                .background((isSuccess ? MemoraColor.accentGreen : MemoraColor.accentRed).opacity(0.1))
+                                .clipShape(.rect(cornerRadius: MemoraRadius.sm))
+                        }
+                    }
+                }
+
                 Spacer()
             }
             .padding()
@@ -157,35 +211,9 @@ struct ExportOptionsSheet: View {
                 let exportService = ExportService()
                 let url: URL
 
-                // Transcript を取得
-                let transcript: Transcript?
-                if audioFile.isTranscribed {
-                    let descriptor = FetchDescriptor<Transcript>()
-                    let transcripts = try? modelContext.fetch(descriptor)
-                    transcript = transcripts?.first(where: { $0.audioFileID == audioFile.id })
-                } else {
-                    transcript = nil
-                }
-
-                // Memo を取得
-                let memoText: String? = {
-                    let targetID = audioFile.id
-                    var descriptor = FetchDescriptor<MeetingMemo>(
-                        predicate: #Predicate { $0.audioFileID == targetID }
-                    )
-                    descriptor.fetchLimit = 1
-                    return try? modelContext.fetch(descriptor).first?.markdown
-                }()
-
-                // Todo を取得（同じプロジェクトに紐づくもの）
-                let todoItems: [TodoItem] = {
-                    guard let projectID = audioFile.projectID else { return [] }
-                    let targetID = projectID
-                    let descriptor = FetchDescriptor<TodoItem>(
-                        predicate: #Predicate { $0.projectID == targetID }
-                    )
-                    return (try? modelContext.fetch(descriptor)) ?? []
-                }()
+                let transcript = fetchTranscript()
+                let memoText = fetchMemoText()
+                let todoItems = fetchProjectTodos()
 
                 // エクスポート実行
                 switch exportType {
@@ -259,26 +287,10 @@ struct ExportOptionsSheet: View {
                 let parentPageID = settings.parentPageID
 
                 // Transcript テキストを取得
-                var transcriptText: String?
-                if audioFile.isTranscribed {
-                    let descriptor = FetchDescriptor<Transcript>()
-                    let transcripts = try? modelContext.fetch(descriptor)
-                    if let t = transcripts?.first(where: { $0.audioFileID == audioFile.id }) {
-                        transcriptText = t.text
-                    }
-                } else if let ref = audioFile.referenceTranscript {
-                    transcriptText = ref
-                }
+                let transcriptText = fetchTranscriptText()
 
                 // Todo を取得（同じプロジェクトに紐づくもの）
-                let todoItems: [TodoItem] = {
-                    guard let projectID = audioFile.projectID else { return [] }
-                    let targetID = projectID
-                    let descriptor = FetchDescriptor<TodoItem>(
-                        predicate: #Predicate { $0.projectID == targetID }
-                    )
-                    return (try? modelContext.fetch(descriptor)) ?? []
-                }()
+                let todoItems = fetchProjectTodos()
 
                 let _: NotionService.NotionPage
 
@@ -329,6 +341,84 @@ struct ExportOptionsSheet: View {
                     isExportingToNotion = false
                 }
             }
+        }
+    }
+
+    private func exportToOpenAI() {
+        let apiKey = openAIAPIKey
+        guard !apiKey.isEmpty else {
+            openAIExportMessage = OpenAIExportError.apiKeyMissing.localizedDescription
+            return
+        }
+
+        isExportingToOpenAI = true
+        openAIExportMessage = nil
+
+        Task {
+            do {
+                let service = OpenAIExportService(apiKey: apiKey)
+                let result = try await service.exportMeeting(
+                    audioFile: audioFile,
+                    transcript: fetchTranscript(),
+                    format: openAIExportFormat,
+                    purpose: .userData,
+                    memoText: fetchMemoText(),
+                    todoItems: fetchProjectTodos()
+                )
+
+                await MainActor.run {
+                    openAIExportMessage = "OpenAI へのアップロードに成功しました: \(result.fileId)"
+                    isExportingToOpenAI = false
+                }
+            } catch {
+                await MainActor.run {
+                    openAIExportMessage = "エラー: \(error.localizedDescription)"
+                    isExportingToOpenAI = false
+                }
+            }
+        }
+    }
+
+    private func fetchTranscript() -> Transcript? {
+        guard audioFile.isTranscribed else { return nil }
+        let descriptor = FetchDescriptor<Transcript>()
+        let transcripts = try? modelContext.fetch(descriptor)
+        return transcripts?.first(where: { $0.audioFileID == audioFile.id })
+    }
+
+    private func fetchTranscriptText() -> String? {
+        if let transcript = fetchTranscript() {
+            return transcript.text
+        }
+        return audioFile.referenceTranscript
+    }
+
+    private func fetchMemoText() -> String? {
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<MeetingMemo>(
+            predicate: #Predicate { $0.audioFileID == targetID }
+        )
+        descriptor.fetchLimit = 1
+        return try? modelContext.fetch(descriptor).first?.markdown
+    }
+
+    private func fetchProjectTodos() -> [TodoItem] {
+        guard let projectID = audioFile.projectID else { return [] }
+        let targetID = projectID
+        let descriptor = FetchDescriptor<TodoItem>(
+            predicate: #Predicate { $0.projectID == targetID }
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+}
+
+private extension OpenAIExportFormat {
+    var displayName: String {
+        switch self {
+        case .json:
+            return "JSON"
+        case .markdown:
+            return "Markdown"
         }
     }
 }
