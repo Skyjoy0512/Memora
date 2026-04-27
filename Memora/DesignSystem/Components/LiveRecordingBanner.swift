@@ -23,7 +23,7 @@ struct LiveRecordingBanner: View {
                     .foregroundStyle(MemoraColor.textPrimary)
                     .monospacedDigit()
 
-                // Waveform placeholder
+                // Live waveform
                 WaveformIndicator()
 
                 Spacer()

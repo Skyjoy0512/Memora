@@ -29,7 +29,6 @@ struct HomeView: View {
     @State private var filterLifeLog: Bool? = nil
     @State private var selectedTag: String? = nil
     @State private var sortOption: SortOption = .dateDesc
-    @State private var viewMode: ViewMode = .list
 
     // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
     @State private var cachedFilteredFiles: [AudioFile] = []
@@ -39,12 +38,6 @@ struct HomeView: View {
     @State private var showMoveToProjectSheet = false
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var isInitialLoading = true
-
-    enum ViewMode: String, CaseIterable {
-        case list = "リスト"
-        case timeline = "タイムライン"
-        case calendar = "カレンダー"
-    }
 
     private typealias SortOption = HomeViewModel.SortOption
 
