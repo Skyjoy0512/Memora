@@ -278,12 +278,14 @@ struct HomeView: View {
                 if isSelectMode {
                     AudioFileRow(audioFile: file, projectName: nil, showActions: false)
                         .tag(file.id)
+                        .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                 } else {
                     Button {
                         selectedAudioFile = file
                     } label: {
                         AudioFileRow(audioFile: file, projectName: nil, showActions: false)
                     }
+                    .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button {
                             isSelectMode = true
@@ -296,6 +298,10 @@ struct HomeView: View {
                 }
             }
             .onDelete(perform: deleteAudioFiles)
+
+            if viewModel.hasMoreAudioFiles {
+                loadMoreRow
+            }
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
@@ -373,6 +379,28 @@ struct HomeView: View {
 
     private func deleteAudioFiles(at offsets: IndexSet) {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
+    }
+
+    private var loadMoreRow: some View {
+        HStack {
+            Spacer()
+            if viewModel.isLoadingMoreAudioFiles {
+                ProgressView()
+            } else {
+                Button("さらに読み込む") {
+                    loadMoreAudioFilesIfNeeded()
+                }
+                .font(MemoraTypography.chatButton)
+            }
+            Spacer()
+        }
+        .listRowSeparator(.hidden)
+        .onAppear { loadMoreAudioFilesIfNeeded() }
+    }
+
+    private func loadMoreAudioFilesIfNeeded(currentFile: AudioFile? = nil) {
+        viewModel.loadMoreAudioFilesIfNeeded(currentFile: currentFile)
+        updateFilteredFiles()
     }
 
     private func bulkDeleteSelected() {

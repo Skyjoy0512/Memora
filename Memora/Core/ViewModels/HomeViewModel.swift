@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
+    static let pageSize = 50
+
     enum SortOption: String, CaseIterable {
         case dateDesc = "日付（新しい順）"
         case dateAsc = "日付（古い順）"
@@ -18,6 +20,8 @@ final class HomeViewModel {
         didSet { filterCacheInvalidated = true }
     }
     var lastErrorMessage: String?
+    private(set) var hasMoreAudioFiles = false
+    private(set) var isLoadingMoreAudioFiles = false
 
     @ObservationIgnored private var filterCacheInvalidated = true
     @ObservationIgnored private var cachedFilterHash: Int = 0
@@ -32,7 +36,33 @@ final class HomeViewModel {
         guard let audioFileRepository else { return }
 
         do {
-            audioFiles = try audioFileRepository.fetchAll()
+            let firstPage = try audioFileRepository.fetchPage(offset: 0, limit: Self.pageSize)
+            audioFiles = firstPage
+            hasMoreAudioFiles = firstPage.count == Self.pageSize
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func loadMoreAudioFilesIfNeeded(currentFile: AudioFile? = nil) {
+        guard hasMoreAudioFiles, !isLoadingMoreAudioFiles, let audioFileRepository else { return }
+
+        if let currentFile {
+            let thresholdIndex = audioFiles.index(audioFiles.endIndex, offsetBy: -5, limitedBy: audioFiles.startIndex) ?? audioFiles.startIndex
+            guard audioFiles.firstIndex(where: { $0.id == currentFile.id }).map({ $0 >= thresholdIndex }) == true else {
+                return
+            }
+        }
+
+        isLoadingMoreAudioFiles = true
+        defer { isLoadingMoreAudioFiles = false }
+
+        do {
+            let nextPage = try audioFileRepository.fetchPage(offset: audioFiles.count, limit: Self.pageSize)
+            let existingIDs = Set(audioFiles.map(\.id))
+            audioFiles.append(contentsOf: nextPage.filter { !existingIDs.contains($0.id) })
+            hasMoreAudioFiles = nextPage.count == Self.pageSize
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -66,7 +96,8 @@ final class HomeViewModel {
             filterLifeLog?.description,
             selectedTag,
             sortOption.rawValue,
-            "\(audioFiles.count)"
+            "\(audioFiles.count)",
+            "\(hasMoreAudioFiles)"
         ].compactMap { $0 }.joined(separator: "|").hashValue
 
         if !filterCacheInvalidated && hash == cachedFilterHash {
