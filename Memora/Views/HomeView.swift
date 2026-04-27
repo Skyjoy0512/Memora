@@ -64,6 +64,12 @@ struct HomeView: View {
         cachedFilteredFiles
     }
 
+    private var availableLifeLogTags: [String] {
+        Array(Set(viewModel.audioFiles.flatMap(\.lifeLogTags))).sorted { lhs, rhs in
+            lhs.localizedStandardCompare(rhs) == .orderedAscending
+        }
+    }
+
     private func updateFilteredFiles() {
         cachedFilteredFiles = viewModel.filteredFiles(
             searchText: searchText,
@@ -126,7 +132,10 @@ struct HomeView: View {
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
                     filterTranscribed: $filterTranscribed,
-                    filterSummarized: $filterSummarized
+                    filterSummarized: $filterSummarized,
+                    filterLifeLog: $filterLifeLog,
+                    selectedTag: $selectedTag,
+                    availableTags: availableLifeLogTags
                 )
             }
             .navigationDestination(item: $selectedAudioFile) { file in
@@ -203,6 +212,8 @@ struct HomeView: View {
             }
             .onChange(of: filterTranscribed) { _, _ in updateFilteredFiles() }
             .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterLifeLog) { _, _ in updateFilteredFiles() }
+            .onChange(of: selectedTag) { _, _ in updateFilteredFiles() }
             .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
     }
