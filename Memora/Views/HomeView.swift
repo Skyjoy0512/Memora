@@ -11,6 +11,8 @@ struct HomeView: View {
     @State private var shouldAutoTranscribe = false
     @Binding var pendingOpenedAudioFileID: UUID?
     @Binding var isTabBarHidden: Bool
+    @Binding var triggerRecording: Bool
+    @Binding var triggerFileImport: Bool
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @Query private var projects: [Project]
 
@@ -50,9 +52,11 @@ struct HomeView: View {
         [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
     }
 
-    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false)) {
+    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false), triggerRecording: Binding<Bool> = .constant(false), triggerFileImport: Binding<Bool> = .constant(false)) {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
         self._isTabBarHidden = isTabBarHidden
+        self._triggerRecording = triggerRecording
+        self._triggerFileImport = triggerFileImport
     }
 
     // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
@@ -177,6 +181,16 @@ struct HomeView: View {
                 updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
             }
+            .onChange(of: triggerRecording) { _, newValue in
+                guard newValue else { return }
+                triggerRecording = false
+                showRecordingView = true
+            }
+            .onChange(of: triggerFileImport) { _, newValue in
+                guard newValue else { return }
+                triggerFileImport = false
+                showFileImporter = true
+            }
             .onChange(of: searchText) { _, _ in
                 searchDebounceTask?.cancel()
                 searchDebounceTask = Task {
@@ -235,11 +249,11 @@ struct HomeView: View {
             }
         } label: {
             Text("\(selectedFileIDs.count)")
-                .font(MemoraTypography.caption1)
-                .foregroundStyle(.white)
+                .font(MemoraTypography.chatLabel)
+                .foregroundStyle(MemoraColor.interactivePrimaryLabel)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(MemoraColor.accentNothing)
+                .background(MemoraColor.interactivePrimary)
                 .clipShape(Capsule())
         }
     }
@@ -305,7 +319,7 @@ struct HomeView: View {
                 showMoveToProjectSheet = true
             } label: {
                 Label("プロジェクト移動", systemImage: "folder")
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatButton)
             }
 
             Spacer()
@@ -314,7 +328,7 @@ struct HomeView: View {
                 bulkDeleteSelected()
             } label: {
                 Label("\(selectedFileIDs.count)件削除", systemImage: "trash")
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatButton)
             }
         }
         .padding(.horizontal, MemoraSpacing.lg)
@@ -541,17 +555,20 @@ struct NothingFilterChip: View {
         Button(action: action) {
             HStack(spacing: MemoraSpacing.xxxs) {
                 Text(title)
-                    .font(MemoraTypography.phiCaption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .font(MemoraTypography.chatToken)
+                    .fontWeight(.medium)
+                    .foregroundStyle(MemoraColor.textPrimary)
 
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(MemoraColor.textTertiary)
             }
             .padding(.horizontal, MemoraSpacing.sm)
             .padding(.vertical, 6)
-            .background(MemoraColor.accentNothing)
+            .background(Color.clear)
+            .overlay {
+                Capsule().stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+            }
             .clipShape(Capsule())
         }
     }

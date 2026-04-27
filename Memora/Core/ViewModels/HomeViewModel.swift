@@ -67,7 +67,7 @@ final class HomeViewModel {
             selectedTag,
             sortOption.rawValue,
             "\(audioFiles.count)"
-        ].joined(separator: "|").hashValue
+        ].compactMap { $0 }.joined(separator: "|").hashValue
 
         if !filterCacheInvalidated && hash == cachedFilterHash {
             return cachedFilteredResult

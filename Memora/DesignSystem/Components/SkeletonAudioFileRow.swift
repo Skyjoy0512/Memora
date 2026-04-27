@@ -4,18 +4,25 @@ import SwiftUI
 /// 初期ロード中にリスト表示として使用する。
 struct SkeletonAudioFileRow: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            SkeletonView(height: 16, cornerRadius: 4)
-                .frame(maxWidth: 180)
+        VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
+            SkeletonView(height: 18, cornerRadius: 4)
+                .frame(maxWidth: 200)
 
-            HStack(spacing: 8) {
+            HStack(spacing: MemoraSpacing.xs) {
                 SkeletonView(height: 12, cornerRadius: 4)
-                    .frame(maxWidth: 80)
+                    .frame(maxWidth: 70)
                 SkeletonView(height: 12, cornerRadius: 4)
-                    .frame(maxWidth: 140)
+                    .frame(maxWidth: 120)
+            }
+
+            HStack(spacing: MemoraSpacing.xxs) {
+                SkeletonView(height: 14, cornerRadius: 7)
+                    .frame(maxWidth: 60)
+                SkeletonView(height: 14, cornerRadius: 7)
+                    .frame(maxWidth: 48)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, MemoraSpacing.xxxs)
         .accessibilityHidden(true)
     }
 }

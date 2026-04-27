@@ -14,13 +14,17 @@ struct ContentView: View {
     @State private var pendingOpenedAudioFileID: UUID?
     @State private var isFABExpanded = false
     @State private var isTabBarHidden = false
+    @State private var triggerRecording = false
+    @State private var triggerFileImport = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
                 HomeView(
                     pendingOpenedAudioFileID: $pendingOpenedAudioFileID,
-                    isTabBarHidden: $isTabBarHidden
+                    isTabBarHidden: $isTabBarHidden,
+                    triggerRecording: $triggerRecording,
+                    triggerFileImport: $triggerFileImport
                 )
                 .tabItem { Label("Files", systemImage: "folder.fill") }
                 .tag(0)
@@ -41,7 +45,7 @@ struct ContentView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(4)
             }
-            .tint(.black)
+            .tint(MemoraColor.interactivePrimary)
 
             // FAB (only on Files tab, hidden on detail pages)
             if selectedTab == 0 && !isTabBarHidden {
@@ -106,7 +110,7 @@ struct ContentView: View {
                 MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
-                selectedTab = 0
+                triggerRecording = true
             } label: {
                 Label("録音", systemImage: "mic.fill")
                     .font(.body)
@@ -122,7 +126,7 @@ struct ContentView: View {
                 MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
-                selectedTab = 0
+                triggerFileImport = true
             } label: {
                 Label("インポート", systemImage: "square.and.arrow.down")
                     .font(.body)
@@ -173,10 +177,10 @@ struct FABGlassButtonStyle: ButtonStyle {
                 .glassEffect(.regular.interactive(), in: .circle)
         } else {
             configuration.label
-                .background(Color.black)
+                .background(MemoraColor.interactivePrimary)
                 .clipShape(Circle())
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                .foregroundStyle(MemoraColor.interactivePrimaryLabel)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         }
     }
 }

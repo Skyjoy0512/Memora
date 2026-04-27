@@ -15,8 +15,8 @@ enum NothingCardVariant {
 
     var hasGlow: Bool {
         switch self {
-        case .standard: return true
-        case .prominent: return true
+        case .standard: return false
+        case .prominent: return false
         case .minimal: return false
         }
     }
@@ -24,7 +24,7 @@ enum NothingCardVariant {
     var hasDotMatrix: Bool {
         switch self {
         case .standard: return false
-        case .prominent: return true
+        case .prominent: return false
         case .minimal: return false
         }
     }
@@ -46,14 +46,14 @@ struct NothingCardContainer<Content: View>: View {
         content()
             .padding(variant.padding)
             .background(
-                MemoraColor.surfaceSecondary,
+                MemoraColor.surfaceCard,
                 in: RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
-                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
+            .shadow(color: MemoraColor.shadowLight, radius: 6, x: 0, y: 2)
     }
 }
 

@@ -84,54 +84,66 @@ extension Color {
     }
 }
 
-// MARK: - Memora Color Tokens（Light/Dark Adaptive）
+// MARK: - Memora Color Tokens（ChatGPT Design System — Light/Dark Adaptive）
 
 enum MemoraColor {
-    // Backgrounds
-    static let surfacePrimary   = adaptiveColor(light: "F5F5F7", dark: "1C1C1E")
-    static let surfaceSecondary = adaptiveColor(light: "FFFFFF", dark: "2C2C2E")
+    // ── Backgrounds ──────────────────────────────────────────
+    static let surfacePrimary   = adaptiveColor(light: "FFFFFF", dark: "1C1C1E")
+    static let surfaceSecondary = adaptiveColor(light: "F5F5F5", dark: "2C2C2E")
     static let surfaceElevated  = adaptiveColor(light: "FFFFFF", dark: "3A3A3C")
     static let surfaceGlass     = adaptiveAlpha("FFFFFF", light: 0.48, dark: 0.12)
+    static let surfaceCard      = adaptiveColor(light: "FFFFFF", dark: "1C1C1E")
+    static let surfaceInput     = adaptiveColor(light: "F3F3F3", dark: "2C2C2E")
 
-    // Text
-    static let textPrimary   = adaptiveColor(light: "1C1C1E", dark: "F5F5F7")
-    static let textSecondary = adaptiveColor(light: "8E8E93", dark: "98989D")
-    static let textTertiary  = adaptiveColor(light: "AEAEB2", dark: "636366")
+    // ── Text ─────────────────────────────────────────────────
+    static let textPrimary   = adaptiveColor(light: "0D0D0D", dark: "F5F5F7")
+    static let textSecondary = adaptiveColor(light: "6E6E80", dark: "98989D")
+    static let textTertiary  = adaptiveColor(light: "8E8EA0", dark: "636366")
 
-    // Accents
-    static let accentPrimary = adaptiveColor(light: "1C1C1E", dark: "F5F5F7")
+    // ── Accents ──────────────────────────────────────────────
+    static let accentPrimary = adaptiveColor(light: "0D0D0D", dark: "F5F5F7")
     static let accentBlue    = adaptiveColor(light: "007AFF", dark: "0A84FF")
-    static let accentRed     = adaptiveColor(light: "FF3B30", dark: "FF453A")
+    static let accentRed     = adaptiveColor(light: "E02E2A", dark: "FF453A")
     static let accentGreen   = adaptiveColor(light: "34C759", dark: "30D158")
 
-    // Dividers
+    // ── Dividers ─────────────────────────────────────────────
     static let divider = adaptiveColor(light: "E5E5EA", dark: "38383A")
 
-    // Accent (iOS system blue)
-    static let accentNothing       = adaptiveColor(light: "007AFF", dark: "0A84FF")
-    static let accentNothingGlow   = adaptiveAlpha("007AFF", light: 0.35, dark: 0.25)
-    static let accentNothingSubtle = adaptiveAlpha("007AFF", light: 0.08, dark: 0.15)
+    // ── Interactive (ChatGPT-aligned) ────────────────────────
+    static let interactivePrimary        = adaptiveColor(light: "0D0D0D", dark: "F5F5F7")
+    static let interactivePrimaryLabel   = adaptiveColor(light: "FFFFFF", dark: "0D0D0D")
+    static let interactiveSecondaryBorder = adaptiveAlpha("0D0D0D", light: 0.10, dark: 0.10)
+    static let interactiveHoverBg        = adaptiveAlpha("0D0D0D", light: 0.02, dark: 0.03)
+    static let interactivePressBg        = adaptiveAlpha("0D0D0D", light: 0.05, dark: 0.05)
+    static let interactiveHoverBorder    = adaptiveAlpha("0D0D0D", light: 0.05, dark: 0.06)
 
-    // Glass
+    // ── Segmented Control (ChatGPT-aligned) ──────────────────
+    static let segmentBg       = adaptiveColor(light: "E8E8E8", dark: "3A3A3C")
+    static let segmentSelected = adaptiveColor(light: "FFFFFF", dark: "4A4A4C")
+
+    // ── Monochrome Accent (legacy compat) ────────────────────
+    static let accentNothing       = interactivePrimary
+    static let accentNothingGlow   = adaptiveAlpha("0D0D0D", light: 0.06, dark: 0.04)
+    static let accentNothingSubtle = adaptiveAlpha("0D0D0D", light: 0.04, dark: 0.04)
+
+    // ── Glass ────────────────────────────────────────────────
     static let glassBorder    = adaptiveAlpha("FFFFFF", light: 0.18, dark: 0.10)
     static let glassHighlight = adaptiveAlpha("FFFFFF", light: 0.25, dark: 0.08)
     static let glassShadow    = adaptiveAlpha("000000", light: 0.06, dark: 0.20)
-    static let glassTint      = adaptiveColor(
-        light: "007AFF", lightAlpha: 0.04,
-        dark: "0A84FF", darkAlpha: 0.08
-    )
+    static let glassTint      = adaptiveAlpha("0D0D0D", light: 0.02, dark: 0.04)
 
-    // Dot Matrix
-    static let dotMatrixPrimary = adaptiveAlpha("1C1C1E", light: 0.06, dark: 0.06)
+    // ── Dot Matrix ───────────────────────────────────────────
+    static let dotMatrixPrimary = adaptiveAlpha("0D0D0D", light: 0.06, dark: 0.06)
     static let dotMatrixAccent  = adaptiveColor(
         light: "007AFF", lightAlpha: 0.12,
         dark: "0A84FF", darkAlpha: 0.15
     )
 
-    // Shadows
-    static let shadowLight  = adaptiveAlpha("000000", light: 0.04, dark: 0.20)
-    static let shadowMedium = adaptiveAlpha("000000", light: 0.08, dark: 0.30)
+    // ── Shadows ──────────────────────────────────────────────
+    static let shadowLight     = adaptiveAlpha("000000", light: 0.04, dark: 0.20)
+    static let shadowMedium    = adaptiveAlpha("000000", light: 0.08, dark: 0.30)
+    static let shadowSegment   = adaptiveAlpha("000000", light: 0.06, dark: 0.25)
 
-    // Skeleton
+    // ── Skeleton ─────────────────────────────────────────────
     static let skeletonShimmer = adaptiveColor(light: "E8E8EA", dark: "3A3A3C")
 }

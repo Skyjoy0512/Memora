@@ -39,7 +39,7 @@ struct FilterSheet: View {
                 Spacer()
 
                 // リセットボタン
-                PillButton(title: "リセット", action: resetFilters, style: .outline)
+                PillButton(title: "リセット", action: resetFilters, style: .secondary)
                     .padding(.horizontal, MemoraSpacing.md)
                     .padding(.bottom, MemoraSpacing.md)
             }

@@ -34,7 +34,7 @@ struct DeviceConnectionView: View {
                         .font(MemoraTypography.phiCaption)
                         .foregroundStyle(.secondary)
 
-                    PillButton(title: "セッション終了", action: { omiAdapter.disconnect() }, style: .outline)
+                    PillButton(title: "セッション終了", action: { omiAdapter.disconnect() }, style: .secondary)
                         .padding(.horizontal)
 
                     Text(omiAdapter.sessionTerminationDescription)

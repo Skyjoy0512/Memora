@@ -1,34 +1,33 @@
 import SwiftUI
 
-// MARK: - Header View
+// MARK: - Header View (ChatGPT-aligned minimal header)
 
 extension AskAIView {
     var headerView: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
             HStack(alignment: .top, spacing: MemoraSpacing.sm) {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .foregroundStyle(MemoraColor.accentNothing)
+                    .foregroundStyle(MemoraColor.textTertiary)
                     .font(.title3)
-                    .nothingGlow(.subtle)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(scopeDescription)
-                        .font(MemoraTypography.phiBody)
+                        .font(MemoraTypography.chatBody)
                         .foregroundStyle(MemoraColor.textPrimary)
 
                     Text(currentSession?.title ?? "新しい会話")
-                        .font(MemoraTypography.phiCaption)
-                        .foregroundStyle(.secondary)
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textSecondary)
                 }
 
                 Spacer()
 
                 Text(currentProvider.rawValue)
-                    .font(MemoraTypography.phiCaption)
-                    .foregroundStyle(MemoraColor.accentNothing)
-                    .padding(.horizontal, MemoraSpacing.sm)
-                    .padding(.vertical, MemoraSpacing.xxxs)
-                    .background(MemoraColor.accentNothingSubtle)
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(MemoraColor.interactiveSecondaryBorder.opacity(0.3))
                     .clipShape(Capsule())
             }
 
@@ -37,11 +36,16 @@ extension AskAIView {
                     HStack(spacing: MemoraSpacing.xs) {
                         ForEach(sourceBadges) { badge in
                             Label(badge.label, systemImage: badge.systemImage)
-                                .font(MemoraTypography.phiCaption)
+                                .font(MemoraTypography.chatToken)
                                 .foregroundStyle(MemoraColor.textSecondary)
-                                .padding(.horizontal, MemoraSpacing.sm)
-                                .padding(.vertical, MemoraSpacing.xxxs)
-                                .glassCard(.init(cornerRadius: MemoraRadius.pill, accentTint: false, glow: false))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(MemoraColor.interactiveHoverBg)
+                                .clipShape(Capsule())
+                                .overlay {
+                                    Capsule()
+                                        .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+                                }
                         }
                     }
                 }
@@ -49,64 +53,45 @@ extension AskAIView {
 
             if let infoMessage {
                 Text(infoMessage)
-                    .font(MemoraTypography.phiCaption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textSecondary)
             }
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.top, MemoraSpacing.md)
         .padding(.bottom, MemoraSpacing.sm)
-        .glassCard(.init(cornerRadius: 0, accentTint: false, glow: false))
-        .nothingDotMatrix()
     }
 }
 
-// MARK: - Scope Selector
+// MARK: - Scope Selector (ChatGPT SegmentedControl pill)
 
 extension AskAIView {
     var scopeSelector: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: MemoraSpacing.xs) {
-                ForEach(availableScopes) { option in
-                    Button {
-                        activeScope = option.scope
-                    } label: {
-                        Text(option.title)
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(activeScopeKey == option.id ? .white : MemoraColor.textPrimary)
-                            .padding(.horizontal, MemoraSpacing.md)
-                            .padding(.vertical, MemoraSpacing.xxs)
-                            .background(activeScopeKey == option.id ? MemoraColor.accentNothing : Color.clear)
-                            .clipShape(Capsule())
-                            .overlay {
-                                Capsule()
-                                    .stroke(activeScopeKey == option.id ? Color.clear : MemoraColor.divider, lineWidth: 0.5)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            NothingTabPicker(selection: $activeScope, options: availableScopes.map {
+                .init(value: $0.scope, label: $0.title)
+            }, size: .compact)
             .padding(.horizontal, MemoraSpacing.lg)
-            .padding(.vertical, MemoraSpacing.sm)
+            .padding(.vertical, MemoraSpacing.xs)
         }
     }
 }
 
-// MARK: - Session Strip
+// MARK: - Session Strip (ChatGPT Token/Chip group)
 
 extension AskAIView {
     var sessionStrip: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
             HStack {
                 Text("Session")
-                    .font(MemoraTypography.phiCaption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.chatLabel)
+                    .foregroundStyle(MemoraColor.textSecondary)
 
                 Spacer()
 
                 if !sessions.isEmpty {
                     Text("\(sessions.count)件")
-                        .font(MemoraTypography.phiCaption)
+                        .font(MemoraTypography.chatToken)
                         .foregroundStyle(MemoraColor.textTertiary)
                 }
             }
@@ -118,11 +103,11 @@ extension AskAIView {
                         startNewSession()
                     } label: {
                         Label("新規チャット", systemImage: "plus")
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(MemoraColor.accentNothing)
-                            .padding(.horizontal, MemoraSpacing.sm)
-                            .padding(.vertical, MemoraSpacing.xxs)
-                            .background(MemoraColor.accentNothingSubtle)
+                            .font(MemoraTypography.chatToken)
+                            .foregroundStyle(MemoraColor.textPrimary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(MemoraColor.interactiveSecondaryBorder.opacity(0.15))
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -133,16 +118,16 @@ extension AskAIView {
                             loadMessages(for: session)
                         } label: {
                             Text(session.title)
-                                .font(MemoraTypography.phiCaption)
-                                .foregroundStyle(activeSessionID == session.id ? .white : MemoraColor.textPrimary)
+                                .font(MemoraTypography.chatToken)
+                                .foregroundStyle(activeSessionID == session.id ? MemoraColor.interactivePrimaryLabel : MemoraColor.textPrimary)
                                 .lineLimit(1)
-                                .padding(.horizontal, MemoraSpacing.sm)
-                                .padding(.vertical, MemoraSpacing.xxs)
-                                .background(activeSessionID == session.id ? MemoraColor.accentNothing : Color.clear)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .background(activeSessionID == session.id ? MemoraColor.interactivePrimary : Color.clear)
                                 .clipShape(Capsule())
                                 .overlay {
                                     Capsule()
-                                        .stroke(activeSessionID == session.id ? Color.clear : MemoraColor.divider, lineWidth: 0.5)
+                                        .stroke(activeSessionID == session.id ? Color.clear : MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -191,11 +176,11 @@ extension AskAIView {
     }
 }
 
-// MARK: - Suggestions Grid
+// MARK: - Suggestions Grid (ChatGPT Token/Chip group)
 
 extension AskAIView {
     var suggestionsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: MemoraSpacing.sm) {
+        VStack(spacing: MemoraSpacing.xs) {
             ForEach(suggestions, id: \.self) { text in
                 Button {
                     inputText = text
@@ -203,15 +188,22 @@ extension AskAIView {
                 } label: {
                     HStack(spacing: MemoraSpacing.xs) {
                         Image(systemName: "lightbulb")
-                            .foregroundStyle(MemoraColor.accentNothing)
+                            .font(.system(size: 16))
+                            .foregroundStyle(MemoraColor.textTertiary)
                         Text(text)
-                            .font(MemoraTypography.phiBody)
+                            .font(MemoraTypography.chatToken)
                             .foregroundStyle(MemoraColor.textPrimary)
                             .lineLimit(2)
+                        Spacer(minLength: 0)
                     }
-                    .padding(MemoraSpacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassCard(.default)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.pill, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: MemoraRadius.pill, style: .continuous)
+                            .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+                    }
                 }
                 .buttonStyle(.plain)
             }
@@ -229,7 +221,7 @@ extension AskAIView {
         if isLoading {
             HStack(spacing: MemoraSpacing.sm) {
                 Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatBody)
                     .foregroundStyle(MemoraColor.textSecondary)
                 ThinkingDots()
                 Spacer()
@@ -240,16 +232,13 @@ extension AskAIView {
     }
 }
 
-// MARK: - Input Bar
+// MARK: - Input Bar (ChatGPT-aligned)
 
 extension AskAIView {
     var inputBar: some View {
         HStack(spacing: MemoraSpacing.sm) {
-            Image(systemName: "paperclip")
-                .foregroundStyle(MemoraColor.textTertiary)
-
             TextField("質問を入力...", text: $inputText, axis: .vertical)
-                .font(MemoraTypography.phiBody)
+                .font(MemoraTypography.chatBody)
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .submitLabel(.send)
@@ -258,11 +247,11 @@ extension AskAIView {
                 }
 
             Text(currentProvider.rawValue)
-                .font(MemoraTypography.phiCaption)
-                .foregroundStyle(MemoraColor.textSecondary)
+                .font(MemoraTypography.chatToken)
+                .foregroundStyle(MemoraColor.textTertiary)
                 .padding(.horizontal, MemoraSpacing.xs)
                 .padding(.vertical, 6)
-                .background(MemoraColor.divider.opacity(0.08))
+                .background(MemoraColor.interactiveSecondaryBorder.opacity(0.15))
                 .clipShape(Capsule())
 
             Button {
@@ -276,12 +265,15 @@ extension AskAIView {
         }
         .padding(.horizontal, MemoraSpacing.lg)
         .padding(.vertical, MemoraSpacing.md)
-        .glassCard(.init(cornerRadius: 0, accentTint: false, glow: false, dotMatrix: false))
+        .background(MemoraColor.surfaceCard)
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 
     private var sendButtonColor: Color {
         inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading
             ? MemoraColor.textTertiary
-            : MemoraColor.accentNothing
+            : MemoraColor.interactivePrimary
     }
 }

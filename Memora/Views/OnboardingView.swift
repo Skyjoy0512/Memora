@@ -17,8 +17,8 @@ struct OnboardingView: View {
                     Button("スキップ") {
                         completeOnboarding()
                     }
-                    .font(MemoraTypography.phiBody)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textTertiary)
                     .padding(MemoraSpacing.md)
                 }
             }
@@ -54,8 +54,7 @@ struct OnboardingView: View {
             .padding(.horizontal, MemoraSpacing.xl)
             .padding(.bottom, MemoraSpacing.xl)
         }
-        .background(Color.black)
-        .nothingDotMatrix(.prominent)
+        .background(MemoraColor.surfacePrimary)
     }
 
     // MARK: - Page Content
@@ -65,33 +64,31 @@ struct OnboardingView: View {
         VStack(spacing: MemoraSpacing.xxl) {
             Spacer()
 
-            // Icon: large 200pt circle with glassCard + accentNothing border + glow
+            // Icon: clean circle with divider border
             ZStack {
                 Circle()
                     .fill(Color.clear)
-                    .frame(width: 200, height: 200)
-                    .glassCard(.init(cornerRadius: 100, accentTint: true, glow: true))
+                    .frame(width: 160, height: 160)
                     .overlay {
                         Circle()
-                            .stroke(MemoraColor.accentNothing, lineWidth: 2)
-                            .frame(width: 200, height: 200)
+                            .stroke(MemoraColor.divider, lineWidth: 1.5)
+                            .frame(width: 160, height: 160)
                     }
-                    .nothingGlow(.prominent)
 
                 Image(systemName: pageInfo(page).icon)
                     .font(.system(size: 60, weight: .light))
-                    .foregroundStyle(MemoraColor.accentNothing)
+                    .foregroundStyle(MemoraColor.textTertiary)
             }
 
             // Text
             VStack(spacing: MemoraSpacing.sm) {
                 Text(pageInfo(page).title)
-                    .font(MemoraTypography.phiDisplay)
-                    .foregroundStyle(.white)
+                    .font(MemoraTypography.phiTitle)
+                    .foregroundStyle(MemoraColor.textPrimary)
 
                 Text(pageInfo(page).description)
-                    .font(MemoraTypography.phiBody)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(MemoraTypography.chatBody)
+                    .foregroundStyle(MemoraColor.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, MemoraSpacing.xxl)
             }

@@ -13,33 +13,84 @@ struct AudioFileRow: View {
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "M月d日 HH:mm"
+        f.dateFormat = "yyyy/MM/dd"
         return f
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(audioFile.title)
-                .font(.body)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
+            // Row 1: Title + Duration
+            HStack(alignment: .firstTextBaseline) {
+                Text(audioFile.title)
+                    .font(MemoraTypography.chatBody)
+                    .fontWeight(.medium)
+                    .foregroundStyle(MemoraColor.textPrimary)
+                    .lineLimit(1)
 
-            HStack(spacing: 8) {
+                Spacer()
+
+                Text(formatDuration(audioFile.duration))
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textTertiary)
+                    .monospacedDigit()
+            }
+
+            // Row 2: Date + Summary preview
+            HStack(spacing: MemoraSpacing.xxs) {
                 Text(formatDate(audioFile.createdAt))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textTertiary)
 
                 if let summary = audioFile.summary, !summary.isEmpty {
+                    Text("\u{2022}")
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textTertiary)
+
                     Text(summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textSecondary)
                         .lineLimit(1)
+                }
+            }
+
+            // Row 3: Status chips
+            if hasStatusChips {
+                HStack(spacing: MemoraSpacing.xxs) {
+                    if audioFile.isTranscribed {
+                        StatusChip(title: "文字起こし済", color: MemoraColor.accentGreen)
+                    } else {
+                        StatusChip(title: "未文字起こし", color: MemoraColor.textTertiary)
+                    }
+
+                    if audioFile.isSummarized {
+                        StatusChip(title: "要約済", color: MemoraColor.accentGreen)
+                    }
                 }
             }
         }
     }
 
+    // MARK: - Helpers
+
+    private var hasStatusChips: Bool {
+        true // always show transcription status
+    }
+
     private func formatDate(_ date: Date) -> String {
         Self.dateFormatter.string(from: date)
+    }
+
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        } else {
+            return String(format: "%d:%02d", minutes, secs)
+        }
     }
 }
 
@@ -51,13 +102,13 @@ struct StatusChip: View {
 
     var body: some View {
         Text(title)
-            .font(MemoraTypography.caption2)
-            .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.06))
+            .font(MemoraTypography.chatToken)
+            .foregroundStyle(MemoraColor.textSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.clear)
             .overlay {
-                Capsule().stroke(color.opacity(0.3), lineWidth: 0.5)
+                Capsule().stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
             }
             .clipShape(Capsule())
     }

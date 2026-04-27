@@ -3,14 +3,14 @@ import SwiftUI
 struct GlassCardConfiguration {
     var cornerRadius: CGFloat = MemoraRadius.md
     var accentTint: Bool = true
-    var glow: Bool = true
+    var glow: Bool = false
     var dotMatrix: Bool = false
 
     static let `default` = GlassCardConfiguration()
     static let prominent = GlassCardConfiguration(
         cornerRadius: MemoraRadius.lg,
-        glow: true,
-        dotMatrix: true
+        glow: false,
+        dotMatrix: false
     )
 }
 
@@ -34,12 +34,12 @@ struct GlassCardModifier: ViewModifier {
     private func ios17Body(_ content: Content) -> some View {
         content
             .background(
-                MemoraColor.surfaceSecondary,
+                MemoraColor.surfaceCard,
                 in: RoundedRectangle(cornerRadius: config.cornerRadius, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: config.cornerRadius, style: .continuous)
-                    .stroke(MemoraColor.divider.opacity(0.5), lineWidth: 0.5)
+                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
     }

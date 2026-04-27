@@ -15,7 +15,7 @@ struct ToastOverlay: View {
             switch self {
             case .error: return MemoraColor.accentRed
             case .success: return MemoraColor.accentGreen
-            case .info: return MemoraColor.accentNothing
+            case .info: return MemoraColor.accentBlue
             }
         }
 
@@ -23,7 +23,7 @@ struct ToastOverlay: View {
             switch self {
             case .error: return MemoraColor.accentRed
             case .success: return MemoraColor.accentGreen
-            case .info: return MemoraColor.accentNothing
+            case .info: return MemoraColor.accentBlue
             }
         }
     }
@@ -40,7 +40,7 @@ struct ToastOverlay: View {
                 .foregroundStyle(style.iconColor)
 
             Text(message)
-                .font(MemoraTypography.subheadline)
+                .font(MemoraTypography.chatBody)
                 .foregroundStyle(MemoraColor.textPrimary)
                 .lineLimit(2)
 
@@ -50,13 +50,20 @@ struct ToastOverlay: View {
                 onDismiss?()
             } label: {
                 Image(systemName: "xmark")
-                    .font(MemoraTypography.caption1)
+                    .font(.system(size: 12))
                     .foregroundStyle(MemoraColor.textTertiary)
             }
         }
         .padding(.horizontal, MemoraSpacing.md)
         .padding(.vertical, MemoraSpacing.sm)
-        .glassCard(.default)
+        .background(
+            MemoraColor.surfaceCard,
+            in: RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: MemoraRadius.md, style: .continuous)
+                .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+        }
         .padding(.horizontal, MemoraSpacing.md)
     }
 }
