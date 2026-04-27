@@ -79,6 +79,39 @@ struct HomeViewModelTests {
         #expect(filtered.first?.id == meeting.id)
     }
 
+    @Test("filteredFiles はファイル属性変更後にキャッシュを更新する")
+    func filteredFilesRefreshesCacheAfterFileMutation() {
+        let file = makeAudioFile(title: "LifeLog", daysFromNow: 0)
+        let repository = MockAudioFileRepository(files: [file])
+        let viewModel = HomeViewModel()
+        viewModel.configure(audioFileRepository: repository)
+        viewModel.loadAudioFiles()
+
+        let initial = viewModel.filteredFiles(
+            searchText: "",
+            filterTranscribed: nil,
+            filterSummarized: nil,
+            filterLifeLog: true,
+            selectedTag: "仕事",
+            sortOption: .dateDesc
+        )
+        #expect(initial.isEmpty)
+
+        file.isLifeLog = true
+        file.lifeLogTags = ["仕事"]
+
+        let updated = viewModel.filteredFiles(
+            searchText: "",
+            filterTranscribed: nil,
+            filterSummarized: nil,
+            filterLifeLog: true,
+            selectedTag: "仕事",
+            sortOption: .dateDesc
+        )
+
+        #expect(updated.map(\.id) == [file.id])
+    }
+
     @Test("filteredFiles がタイトル降順で並べ替える")
     func filteredFilesSortsByTitleDescending() {
         let alpha = makeAudioFile(title: "Alpha", daysFromNow: -1)

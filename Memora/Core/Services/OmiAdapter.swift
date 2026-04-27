@@ -56,7 +56,7 @@ final class OmiAdapter {
     func startScan() {
         guard sdkAvailable else {
             connectionState = .unavailable
-            errorMessage = "Omi Swift SDK が未導入です。project.yml の package 追加後に xcodegen を再生成してください。"
+            errorMessage = "Omi Swift SDK を読み込めません。Swift Package の解決状態と omi-lib のリンク設定を確認してください。"
             return
         }
 
@@ -110,7 +110,7 @@ final class OmiAdapter {
     func connect(to descriptor: OmiDeviceDescriptor) {
         guard sdkAvailable else {
             connectionState = .unavailable
-            errorMessage = "Omi Swift SDK が未導入です。"
+            errorMessage = "Omi Swift SDK を読み込めません。"
             return
         }
 

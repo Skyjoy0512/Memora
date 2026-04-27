@@ -96,8 +96,7 @@ final class HomeViewModel {
             filterLifeLog?.description,
             selectedTag,
             sortOption.rawValue,
-            "\(audioFiles.count)",
-            "\(hasMoreAudioFiles)"
+            filterCacheSignature
         ].compactMap { $0 }.joined(separator: "|").hashValue
 
         if !filterCacheInvalidated && hash == cachedFilterHash {
@@ -153,5 +152,19 @@ final class HomeViewModel {
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    private var filterCacheSignature: String {
+        audioFiles.map { file in
+            [
+                file.id.uuidString,
+                file.title,
+                "\(file.createdAt.timeIntervalSinceReferenceDate)",
+                "\(file.isTranscribed)",
+                "\(file.isSummarized)",
+                "\(file.isLifeLog)",
+                file.lifeLogTags.joined(separator: ",")
+            ].joined(separator: ":")
+        }.joined(separator: "|")
     }
 }
