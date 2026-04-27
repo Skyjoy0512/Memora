@@ -33,6 +33,10 @@ struct AudioFileRow: View {
                     .font(MemoraTypography.chatToken)
                     .foregroundStyle(MemoraColor.textTertiary)
                     .monospacedDigit()
+
+                if showActions, hasActions {
+                    actionMenu
+                }
             }
 
             // Row 2: Date + Summary preview
@@ -86,6 +90,45 @@ struct AudioFileRow: View {
 
     private var hasStatusChips: Bool {
         true // always show transcription status
+    }
+
+    private var hasActions: Bool {
+        onTranscribe != nil || onAISummary != nil || onAddToProject != nil || onContextMenu != nil
+    }
+
+    private var actionMenu: some View {
+        Menu {
+            if let onTranscribe {
+                Button(action: onTranscribe) {
+                    Label(audioFile.isTranscribed ? "再文字起こし" : "文字起こし", systemImage: "waveform.badge.magnifyingglass")
+                }
+            }
+
+            if let onAISummary {
+                Button(action: onAISummary) {
+                    Label(audioFile.isSummarized ? "要約を再生成" : "AI要約", systemImage: "sparkles")
+                }
+            }
+
+            if let onAddToProject {
+                Button(action: onAddToProject) {
+                    Label("プロジェクトに移動", systemImage: "folder")
+                }
+            }
+
+            if let onContextMenu {
+                Divider()
+                Button(action: onContextMenu) {
+                    Label("その他", systemImage: "ellipsis")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(MemoraColor.textTertiary)
+                .frame(width: 28, height: 28)
+        }
+        .accessibilityLabel("ファイル操作")
     }
 
     private func formatDate(_ date: Date) -> String {
