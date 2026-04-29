@@ -9,18 +9,18 @@ struct GlassSectionHeader: View {
             HStack(spacing: MemoraSpacing.xs) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(MemoraTypography.phiCaption)
-                        .foregroundStyle(MemoraColor.accentNothing)
+                        .font(.system(size: 13))
+                        .foregroundStyle(MemoraColor.textTertiary)
                 }
 
                 Text(title)
-                    .font(MemoraTypography.phiCaption)
+                    .font(MemoraTypography.chatLabel)
                     .foregroundStyle(MemoraColor.textSecondary)
             }
 
             Rectangle()
-                .fill(MemoraColor.divider.opacity(0.4))
-                .frame(height: 0.5)
+                .fill(MemoraColor.interactiveSecondaryBorder)
+                .frame(height: 1)
         }
     }
 }

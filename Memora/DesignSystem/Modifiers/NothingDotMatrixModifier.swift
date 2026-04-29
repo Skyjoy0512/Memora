@@ -31,29 +31,7 @@ private struct DotMatrixGrid: View {
     let config: NothingDotMatrixConfiguration
 
     var body: some View {
-        Canvas { context, size in
-            let step = config.spacing
-            let dotRadius = config.dotSize / 2
-            var index = 0
-            var y = step / 2
-            while y < size.height {
-                var x = step / 2
-                while x < size.width {
-                    let isAccent = index % config.accentInterval == 0
-                    let color = isAccent ? config.accentColor : config.color
-                    let rect = CGRect(
-                        x: x - dotRadius,
-                        y: y - dotRadius,
-                        width: config.dotSize,
-                        height: config.dotSize
-                    )
-                    context.fill(Circle().path(in: rect), with: .color(color))
-                    index += 1
-                    x += step
-                }
-                y += step
-            }
-        }
+        EmptyView()
     }
 }
 

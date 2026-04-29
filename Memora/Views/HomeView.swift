@@ -11,6 +11,8 @@ struct HomeView: View {
     @State private var shouldAutoTranscribe = false
     @Binding var pendingOpenedAudioFileID: UUID?
     @Binding var isTabBarHidden: Bool
+    @Binding var triggerRecording: Bool
+    @Binding var triggerFileImport: Bool
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @Query private var projects: [Project]
 
@@ -27,7 +29,6 @@ struct HomeView: View {
     @State private var filterLifeLog: Bool? = nil
     @State private var selectedTag: String? = nil
     @State private var sortOption: SortOption = .dateDesc
-    @State private var viewMode: ViewMode = .list
 
     // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
     @State private var cachedFilteredFiles: [AudioFile] = []
@@ -36,12 +37,7 @@ struct HomeView: View {
     @State private var selectedFileIDs: Set<UUID> = []
     @State private var showMoveToProjectSheet = false
     @State private var searchDebounceTask: Task<Void, Never>?
-
-    enum ViewMode: String, CaseIterable {
-        case list = "リスト"
-        case timeline = "タイムライン"
-        case calendar = "カレンダー"
-    }
+    @State private var isInitialLoading = true
 
     private typealias SortOption = HomeViewModel.SortOption
 
@@ -49,14 +45,22 @@ struct HomeView: View {
         [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
     }
 
-    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false)) {
+    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false), triggerRecording: Binding<Bool> = .constant(false), triggerFileImport: Binding<Bool> = .constant(false)) {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
         self._isTabBarHidden = isTabBarHidden
+        self._triggerRecording = triggerRecording
+        self._triggerFileImport = triggerFileImport
     }
 
     // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
     var filteredFiles: [AudioFile] {
         cachedFilteredFiles
+    }
+
+    private var availableLifeLogTags: [String] {
+        Array(Set(viewModel.audioFiles.flatMap(\.lifeLogTags))).sorted { lhs, rhs in
+            lhs.localizedStandardCompare(rhs) == .orderedAscending
+        }
     }
 
     private func updateFilteredFiles() {
@@ -73,7 +77,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.audioFiles.isEmpty && searchText.isEmpty {
+                if isInitialLoading {
+                    skeletonListView
+                } else if viewModel.audioFiles.isEmpty && searchText.isEmpty {
                     emptyStateView
                 } else {
                     fileListSection
@@ -94,6 +100,8 @@ struct HomeView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     if isSelectMode {
                         selectModeMenu
+                    } else {
+                        fileControlsMenu
                     }
                 }
                 if hasActiveFilters && !isSelectMode {
@@ -117,7 +125,10 @@ struct HomeView: View {
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheet(
                     filterTranscribed: $filterTranscribed,
-                    filterSummarized: $filterSummarized
+                    filterSummarized: $filterSummarized,
+                    filterLifeLog: $filterLifeLog,
+                    selectedTag: $selectedTag,
+                    availableTags: availableLifeLogTags
                 )
             }
             .navigationDestination(item: $selectedAudioFile) { file in
@@ -153,7 +164,9 @@ struct HomeView: View {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
+                isInitialLoading = false
             }
             .onChange(of: showRecordingView) { _, isPresented in
                 if !isPresented {
@@ -169,7 +182,18 @@ struct HomeView: View {
             }
             .onChange(of: viewModel.audioFiles) { _, _ in
                 updateFilteredFiles()
+                updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
+            }
+            .onChange(of: triggerRecording) { _, newValue in
+                guard newValue else { return }
+                triggerRecording = false
+                showRecordingView = true
+            }
+            .onChange(of: triggerFileImport) { _, newValue in
+                guard newValue else { return }
+                triggerFileImport = false
+                showFileImporter = true
             }
             .onChange(of: searchText) { _, _ in
                 searchDebounceTask?.cancel()
@@ -181,8 +205,21 @@ struct HomeView: View {
             }
             .onChange(of: filterTranscribed) { _, _ in updateFilteredFiles() }
             .onChange(of: filterSummarized) { _, _ in updateFilteredFiles() }
+            .onChange(of: filterLifeLog) { _, _ in updateFilteredFiles() }
+            .onChange(of: selectedTag) { _, _ in updateFilteredFiles() }
             .onChange(of: sortOption) { _, _ in updateFilteredFiles() }
         }
+    }
+
+    // MARK: - Skeleton Loading
+
+    private var skeletonListView: some View {
+        List {
+            ForEach(0..<5, id: \.self) { _ in
+                SkeletonAudioFileRow()
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 
     // MARK: - Empty State
@@ -218,19 +255,51 @@ struct HomeView: View {
             }
         } label: {
             Text("\(selectedFileIDs.count)")
-                .font(MemoraTypography.caption1)
-                .foregroundStyle(.white)
+                .font(MemoraTypography.chatLabel)
+                .foregroundStyle(MemoraColor.interactivePrimaryLabel)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(MemoraColor.accentNothing)
+                .background(MemoraColor.interactivePrimary)
                 .clipShape(Capsule())
         }
     }
 
+    private var fileControlsMenu: some View {
+        Menu {
+            Button {
+                showFilterSheet = true
+            } label: {
+                Label("フィルター", systemImage: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            }
+
+            Picker("並び替え", selection: $sortOption) {
+                ForEach(SortOption.allCases, id: \.self) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+
+            Divider()
+
+            Button {
+                isSelectMode = true
+                selectedFileIDs.removeAll()
+            } label: {
+                Label("選択", systemImage: "checkmark.circle")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(hasActiveFilters ? MemoraColor.accentNothing : MemoraColor.textPrimary)
+        }
+        .accessibilityLabel("ファイル表示オプション")
+    }
+
     // MARK: - Content Section
 
-    private var projectLookup: [UUID: String] {
-        Dictionary(uniqueKeysWithValues: projects.compactMap { p in
+    @State private var projectLookup: [UUID: String] = [:]
+
+    private func updateProjectLookup() {
+        projectLookup = Dictionary(uniqueKeysWithValues: projects.compactMap { p in
             p.title.isEmpty ? nil : (p.id, p.title)
         })
     }
@@ -243,14 +312,16 @@ struct HomeView: View {
 
             ForEach(filteredFiles) { file in
                 if isSelectMode {
-                    AudioFileRow(audioFile: file, projectName: nil, showActions: false)
+                    AudioFileRow(audioFile: file, projectName: projectName(for: file), showActions: false)
                         .tag(file.id)
+                        .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                 } else {
                     Button {
                         selectedAudioFile = file
                     } label: {
-                        AudioFileRow(audioFile: file, projectName: nil, showActions: false)
+                        AudioFileRow(audioFile: file, projectName: projectName(for: file), showActions: false)
                     }
+                    .onAppear { loadMoreAudioFilesIfNeeded(currentFile: file) }
                     .swipeActions(edge: .leading, allowsFullSwipe: false) {
                         Button {
                             isSelectMode = true
@@ -263,6 +334,10 @@ struct HomeView: View {
                 }
             }
             .onDelete(perform: deleteAudioFiles)
+
+            if viewModel.hasMoreAudioFiles {
+                loadMoreRow
+            }
         }
         .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.interactively)
@@ -286,7 +361,7 @@ struct HomeView: View {
                 showMoveToProjectSheet = true
             } label: {
                 Label("プロジェクト移動", systemImage: "folder")
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatButton)
             }
 
             Spacer()
@@ -295,7 +370,7 @@ struct HomeView: View {
                 bulkDeleteSelected()
             } label: {
                 Label("\(selectedFileIDs.count)件削除", systemImage: "trash")
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatButton)
             }
         }
         .padding(.horizontal, MemoraSpacing.lg)
@@ -342,12 +417,40 @@ struct HomeView: View {
         viewModel.deleteAudioFiles(at: offsets, from: filteredFiles)
     }
 
+    private var loadMoreRow: some View {
+        HStack {
+            Spacer()
+            if viewModel.isLoadingMoreAudioFiles {
+                ProgressView()
+            } else {
+                Button("さらに読み込む") {
+                    loadMoreAudioFilesIfNeeded()
+                }
+                .font(MemoraTypography.chatButton)
+            }
+            Spacer()
+        }
+        .listRowSeparator(.hidden)
+        .onAppear { loadMoreAudioFilesIfNeeded() }
+    }
+
+    private func loadMoreAudioFilesIfNeeded(currentFile: AudioFile? = nil) {
+        viewModel.loadMoreAudioFilesIfNeeded(currentFile: currentFile)
+        updateFilteredFiles()
+    }
+
+    private func projectName(for file: AudioFile) -> String? {
+        guard let projectID = file.projectID else { return nil }
+        return projectLookup[projectID]
+    }
+
     private func bulkDeleteSelected() {
         let toDelete = filteredFiles.filter { selectedFileIDs.contains($0.id) }
         for file in toDelete {
             modelContext.delete(file)
         }
         try? modelContext.save()
+        MemoraHaptics.warning()
         selectedFileIDs.removeAll()
         isSelectMode = false
         viewModel.loadAudioFiles()
@@ -521,17 +624,20 @@ struct NothingFilterChip: View {
         Button(action: action) {
             HStack(spacing: MemoraSpacing.xxxs) {
                 Text(title)
-                    .font(MemoraTypography.phiCaption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .font(MemoraTypography.chatToken)
+                    .fontWeight(.medium)
+                    .foregroundStyle(MemoraColor.textPrimary)
 
                 Image(systemName: "xmark")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(MemoraColor.textTertiary)
             }
             .padding(.horizontal, MemoraSpacing.sm)
             .padding(.vertical, 6)
-            .background(MemoraColor.accentNothing)
+            .background(Color.clear)
+            .overlay {
+                Capsule().stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+            }
             .clipShape(Capsule())
         }
     }

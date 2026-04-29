@@ -10,28 +10,38 @@ struct AskAICompactBar: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: MemoraSpacing.sm) {
-            TextField("Ask AI...", text: $inputText, axis: .vertical)
-                .font(MemoraTypography.body)
-                .lineLimit(1...4)
-                .focused($isFocused)
-                .onSubmit { send() }
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(MemoraColor.divider)
+                .frame(height: 0.5)
 
-            Button {
-                send()
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .gray : MemoraColor.accentNothing)
+            HStack(spacing: MemoraSpacing.sm) {
+                TextField("Ask AI...", text: $inputText, axis: .vertical)
+                    .font(MemoraTypography.chatBody)
+                    .lineLimit(1...4)
+                    .focused($isFocused)
+                    .onSubmit { send() }
+
+                Button {
+                    send()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? MemoraColor.textTertiary : MemoraColor.interactivePrimary)
+                }
+                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.vertical, MemoraSpacing.md)
+            .background(MemoraColor.surfaceCard)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 0.5)
+            )
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.bottom, MemoraSpacing.sm)
         }
-        .padding(.horizontal, MemoraSpacing.md)
-        .padding(.vertical, MemoraSpacing.md)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .padding(.horizontal, MemoraSpacing.md)
-        .padding(.bottom, MemoraSpacing.sm)
     }
 
     private func send() {

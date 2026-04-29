@@ -158,17 +158,27 @@ struct FileDetailView: View {
                 }
                 .padding(.horizontal, MemoraSpacing.md)
                 .padding(.top, MemoraSpacing.xxl)
-                .padding(.bottom, 80)
+                .padding(.bottom, 140)
             }
 
-            AskAICompactBar(
-                provider: currentProvider,
-                showAskAI: $showAskAI,
-                onSend: { message in
-                    askAIInitialMessage = message
-                    showAskAI = true
-                }
-            )
+            VStack(spacing: 0) {
+                PlayerControls(vm: vm)
+                    .background(MemoraColor.surfaceCard)
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(MemoraColor.divider)
+                            .frame(height: 0.5)
+                    }
+
+                AskAICompactBar(
+                    provider: currentProvider,
+                    showAskAI: $showAskAI,
+                    onSend: { message in
+                        askAIInitialMessage = message
+                        showAskAI = true
+                    }
+                )
+            }
         }
         .sheet(isPresented: $vm.showGenerationFlow) {
             GenerationFlowSheet(isPresented: $vm.showGenerationFlow) { config in
@@ -219,13 +229,10 @@ struct FileDetailView: View {
     // MARK: - Tab Picker
 
     private var tabPicker: some View {
-        Picker("", selection: $selectedTab) {
-            ForEach(FileDetailTab.allCases) { tab in
-                Label(tab.title, systemImage: tab.icon)
-                    .tag(tab)
-            }
-        }
-        .pickerStyle(.segmented)
+        NothingTabPicker(
+            selection: $selectedTab,
+            options: FileDetailTab.allCases.map { .init(value: $0, label: $0.title, icon: $0.icon) }
+        )
     }
 
     // MARK: - Tab Content

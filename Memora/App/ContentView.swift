@@ -7,19 +7,24 @@ struct ContentView: View {
     @State private var bluetoothService = BluetoothAudioService()
     @State private var omiAdapter = OmiAdapter()
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBluetoothConfigured = false
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @State private var selectedTab: Int = 0
     @State private var pendingOpenedAudioFileID: UUID?
     @State private var isFABExpanded = false
     @State private var isTabBarHidden = false
+    @State private var triggerRecording = false
+    @State private var triggerFileImport = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
                 HomeView(
                     pendingOpenedAudioFileID: $pendingOpenedAudioFileID,
-                    isTabBarHidden: $isTabBarHidden
+                    isTabBarHidden: $isTabBarHidden,
+                    triggerRecording: $triggerRecording,
+                    triggerFileImport: $triggerFileImport
                 )
                 .tabItem { Label("Files", systemImage: "folder.fill") }
                 .tag(0)
@@ -40,7 +45,7 @@ struct ContentView: View {
                     .tabItem { Label("Settings", systemImage: "gearshape") }
                     .tag(4)
             }
-            .tint(.black)
+            .tint(MemoraColor.interactivePrimary)
 
             // FAB (only on Files tab, hidden on detail pages)
             if selectedTab == 0 && !isTabBarHidden {
@@ -48,8 +53,8 @@ struct ContentView: View {
                     .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: isTabBarHidden)
-        .animation(.easeInOut(duration: 0.25), value: selectedTab)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isTabBarHidden)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: selectedTab)
         .nothingTheme(showDotMatrix: true)
         .environment(bluetoothService)
         .environment(omiAdapter)
@@ -84,7 +89,7 @@ struct ContentView: View {
 
     private var fabButton: some View {
         Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.35, dampingFraction: 0.7)) {
                 isFABExpanded.toggle()
             }
         } label: {
@@ -102,10 +107,10 @@ struct ContentView: View {
     private var fabMenu: some View {
         VStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
-                selectedTab = 0
+                triggerRecording = true
             } label: {
                 Label("録音", systemImage: "mic.fill")
                     .font(.body)
@@ -118,10 +123,10 @@ struct ContentView: View {
             Divider().padding(.leading, 44)
 
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                MemoraAnimation.animate(reduceMotion, using: .spring(response: 0.3, dampingFraction: 0.8)) {
                     isFABExpanded = false
                 }
-                selectedTab = 0
+                triggerFileImport = true
             } label: {
                 Label("インポート", systemImage: "square.and.arrow.down")
                     .font(.body)
@@ -172,10 +177,10 @@ struct FABGlassButtonStyle: ButtonStyle {
                 .glassEffect(.regular.interactive(), in: .circle)
         } else {
             configuration.label
-                .background(Color.black)
+                .background(MemoraColor.interactivePrimary)
                 .clipShape(Circle())
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                .foregroundStyle(MemoraColor.interactivePrimaryLabel)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         }
     }
 }

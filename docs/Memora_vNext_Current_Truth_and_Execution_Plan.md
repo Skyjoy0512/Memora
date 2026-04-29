@@ -4,7 +4,7 @@
 > 以後、Claude はまずこの文書を読み、次に `CLAUDE.md`、必要なら `docs/transcription-core-boundary.md` を読むこと。  
 > 旧 docs は参考程度とし、この文書と矛盾したら **この文書を優先** する。
 
-最終更新: 2026-04-14
+最終更新: 2026-04-28
 
 ---
 
@@ -43,14 +43,14 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 - `MeetingMemo` は Markdown 保存を前提にしたモデルになっている。
 - `PhotoAttachment` は caption / OCR text を持つ。
 - `KnowledgeChunk` と `KnowledgeIndexingService` があり、summary / memo / todo / photo OCR / reference transcript を検索文脈化できる土台がある。
-- Ask AI は file / project / global の 3 scope UI と、各 scope ごとの context assembly をすでに持つ。
+- Ask AI は file / project / global の 3 scope UI と、`KnowledgeQueryService` ベースの context assembly をすでに持つ。
+- Notion export と OpenAI Files upload は File Detail の export 導線から到達できる。
 
 ### まだ危ないところ
 - `SpeechAnalyzerFeatureFlag` は「実機での EXC_BREAKPOINT クラッシュ回避のためデフォルト OFF」になっている。
 - `STTService` の legacy path は `SFSpeechURLRecognitionRequest.requiresOnDeviceRecognition = true` を強制している。
 - `MemoraApp` は `ModelContainer` 生成を 5 秒で打ち切り、一時ストアへフォールバックする。
-- `AudioFileImportService` にはまだ `repositoryFactory` 引数が残っており、docs と code にズレがある。
-- Ask AI は `KnowledgeChunk` ベースの retrieval ではなく、View 内で prompt 文脈を直接組んでいる。
+- Ask AI の prompt 生成は service 側へ寄っているが、View から provider 呼び出しまでの orchestration はまだ太い。
 
 ### 現状の判断
 機能の数は増えているが、**プロダクト価値を決めるのは STT と UI**。  
@@ -157,7 +157,7 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 - [x] **C4. Gemma 4 experimental profile を追加する** → 実機検証 OK（2026-04-14）
 
 ### Later / Parking Lot
-- [ ] D1. Notion / external knowledge export
+- [x] D1. Notion / external knowledge export → Notion export + OpenAI Files upload 導線を確認（2026-04-28）
 - [ ] D2. Online meeting capture
 - [ ] D3. Apple Watch remote recording
 - [ ] D4. Sign in / paywall / cloud sync
@@ -432,4 +432,3 @@ Gemma 4 をローカル実行できる将来形に備えつつ、実験フラグ
 - 受け入れ条件の達成状況
 - 未確認事項
 - 次に進むべき task
-

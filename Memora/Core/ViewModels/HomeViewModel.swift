@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
+    static let pageSize = 50
+
     enum SortOption: String, CaseIterable {
         case dateDesc = "日付（新しい順）"
         case dateAsc = "日付（古い順）"
@@ -14,8 +16,16 @@ final class HomeViewModel {
     @ObservationIgnored
     private var audioFileRepository: AudioFileRepositoryProtocol?
 
-    var audioFiles: [AudioFile] = []
+    var audioFiles: [AudioFile] = [] {
+        didSet { filterCacheInvalidated = true }
+    }
     var lastErrorMessage: String?
+    private(set) var hasMoreAudioFiles = false
+    private(set) var isLoadingMoreAudioFiles = false
+
+    @ObservationIgnored private var filterCacheInvalidated = true
+    @ObservationIgnored private var cachedFilterHash: Int = 0
+    @ObservationIgnored private var cachedFilteredResult: [AudioFile] = []
 
     func configure(audioFileRepository: AudioFileRepositoryProtocol?) {
         guard self.audioFileRepository == nil else { return }
@@ -26,7 +36,33 @@ final class HomeViewModel {
         guard let audioFileRepository else { return }
 
         do {
-            audioFiles = try audioFileRepository.fetchAll()
+            let firstPage = try audioFileRepository.fetchPage(offset: 0, limit: Self.pageSize)
+            audioFiles = firstPage
+            hasMoreAudioFiles = firstPage.count == Self.pageSize
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func loadMoreAudioFilesIfNeeded(currentFile: AudioFile? = nil) {
+        guard hasMoreAudioFiles, !isLoadingMoreAudioFiles, let audioFileRepository else { return }
+
+        if let currentFile {
+            let thresholdIndex = audioFiles.index(audioFiles.endIndex, offsetBy: -5, limitedBy: audioFiles.startIndex) ?? audioFiles.startIndex
+            guard audioFiles.firstIndex(where: { $0.id == currentFile.id }).map({ $0 >= thresholdIndex }) == true else {
+                return
+            }
+        }
+
+        isLoadingMoreAudioFiles = true
+        defer { isLoadingMoreAudioFiles = false }
+
+        do {
+            let nextPage = try audioFileRepository.fetchPage(offset: audioFiles.count, limit: Self.pageSize)
+            let existingIDs = Set(audioFiles.map(\.id))
+            audioFiles.append(contentsOf: nextPage.filter { !existingIDs.contains($0.id) })
+            hasMoreAudioFiles = nextPage.count == Self.pageSize
             lastErrorMessage = nil
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -53,6 +89,20 @@ final class HomeViewModel {
         selectedTag: String?,
         sortOption: SortOption
     ) -> [AudioFile] {
+        let hash = [
+            searchText,
+            filterTranscribed?.description,
+            filterSummarized?.description,
+            filterLifeLog?.description,
+            selectedTag,
+            sortOption.rawValue,
+            filterCacheSignature
+        ].compactMap { $0 }.joined(separator: "|").hashValue
+
+        if !filterCacheInvalidated && hash == cachedFilterHash {
+            return cachedFilteredResult
+        }
+
         var files = audioFiles
 
         if !searchText.isEmpty {
@@ -86,6 +136,9 @@ final class HomeViewModel {
             files.sort { $0.title.localizedStandardCompare($1.title) == .orderedDescending }
         }
 
+        cachedFilteredResult = files
+        cachedFilterHash = hash
+        filterCacheInvalidated = false
         return files
     }
 
@@ -99,5 +152,19 @@ final class HomeViewModel {
         } catch {
             lastErrorMessage = error.localizedDescription
         }
+    }
+
+    private var filterCacheSignature: String {
+        audioFiles.map { file in
+            [
+                file.id.uuidString,
+                file.title,
+                "\(file.createdAt.timeIntervalSinceReferenceDate)",
+                "\(file.isTranscribed)",
+                "\(file.isSummarized)",
+                "\(file.isLifeLog)",
+                file.lifeLogTags.joined(separator: ",")
+            ].joined(separator: ":")
+        }.joined(separator: "|")
     }
 }

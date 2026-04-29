@@ -10,8 +10,8 @@ struct PlayerControls: View {
             // 再生ボタン
             Button(action: { vm.togglePlayback() }) {
                 Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
-                    .font(MemoraTypography.phiTitle)
-                    .foregroundStyle(MemoraColor.accentNothing)
+                    .font(MemoraTypography.chatSegment)
+                    .foregroundStyle(MemoraColor.interactivePrimary)
                     .frame(minWidth: MemoraSize.minTapTarget, minHeight: MemoraSize.minTapTarget)
             }
 
@@ -26,19 +26,18 @@ struct PlayerControls: View {
                         }
                     }
                 )
-                .tint(MemoraColor.accentNothing)
+                .tint(MemoraColor.interactivePrimary)
 
                 HStack {
                     Text(vm.formatTime(vm.playbackPosition))
                     Spacer()
                     Text(vm.formatTime(vm.audioDuration))
                 }
-                .font(MemoraTypography.phiCaption)
+                .font(MemoraTypography.chatToken)
                 .foregroundStyle(MemoraColor.textTertiary)
             }
         }
         .padding(.horizontal, MemoraSpacing.md)
         .padding(.vertical, MemoraSpacing.sm)
-        .nothingCard(.standard)
     }
 }

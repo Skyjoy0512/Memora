@@ -8,7 +8,7 @@ struct SkeletonView: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color(hex: "E8E8EA"))
+            .fill(MemoraColor.skeletonShimmer)
             .frame(height: height)
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -16,7 +16,7 @@ struct SkeletonView: View {
                         LinearGradient(
                             stops: [
                                 .init(color: .clear, location: 0),
-                                .init(color: MemoraColor.accentNothingSubtle, location: 0.5),
+                                .init(color: MemoraColor.skeletonShimmer.opacity(0.3), location: 0.5),
                                 .init(color: .clear, location: 1)
                             ],
                             startPoint: .leading,

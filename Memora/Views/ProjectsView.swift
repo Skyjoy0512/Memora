@@ -8,6 +8,7 @@ struct ProjectsView: View {
     @State private var selectedProject: Project?
     @Query private var audioFiles: [AudioFile]
     @Binding var isTabBarHidden: Bool
+    @State private var isInitialLoading = true
 
     init(isTabBarHidden: Binding<Bool> = .constant(false)) {
         self._isTabBarHidden = isTabBarHidden
@@ -27,7 +28,17 @@ struct ProjectsView: View {
                         .padding(.top, MemoraSpacing.sm)
                 }
 
-                if viewModel.projects.isEmpty {
+                if isInitialLoading {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: MemoraSpacing.md) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                SkeletonProjectCard()
+                            }
+                        }
+                        .padding(.horizontal, MemoraSpacing.md)
+                        .padding(.top, MemoraSpacing.sm)
+                    }
+                } else if viewModel.projects.isEmpty {
                     // 空の状態
                     VStack(spacing: MemoraSpacing.xxl) {
                         Spacer()
@@ -39,11 +50,6 @@ struct ProjectsView: View {
                             buttonTitle: "プロジェクトを作成",
                             buttonAction: { showCreateProjectView = true }
                         )
-
-                        Text("まだプロジェクトがありません")
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(MemoraColor.textTertiary)
-                            .padding(.bottom, MemoraSpacing.xl)
                     }
                 } else {
                     // プロジェクト一覧 — 2-column grid
@@ -79,8 +85,9 @@ struct ProjectsView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: { showCreateProjectView = true }) {
                         Image(systemName: "plus")
-                            .foregroundStyle(MemoraColor.accentNothing)
+                            .foregroundStyle(MemoraColor.interactivePrimary)
                     }
+                    .accessibilityLabel("プロジェクトを作成")
                 }
             }
         }
@@ -98,6 +105,7 @@ struct ProjectsView: View {
         .task {
             viewModel.configure(projectRepository: ProjectRepository(modelContext: modelContext))
             viewModel.loadProjects()
+            isInitialLoading = false
         }
         .onChange(of: selectedProject?.id) { _, projectID in
             if projectID == nil {
@@ -126,7 +134,7 @@ struct InlineErrorMessage: View {
                 .foregroundStyle(MemoraColor.accentRed)
 
             Text(message)
-                .font(MemoraTypography.phiCaption)
+                .font(MemoraTypography.chatToken)
                 .foregroundStyle(MemoraColor.accentRed)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -148,11 +156,11 @@ struct ProjectCard: View {
             // Icon
             Image(systemName: "folder.fill")
                 .font(.system(size: MemoraSize.iconMedium))
-                .foregroundStyle(MemoraColor.accentNothing)
+                .foregroundStyle(MemoraColor.textTertiary)
 
             // Title
             Text(project.title)
-                .font(MemoraTypography.phiTitle)
+                .font(MemoraTypography.chatBody)
                 .foregroundStyle(MemoraColor.textPrimary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -162,24 +170,26 @@ struct ProjectCard: View {
             // Footer: date + file count badge
             HStack {
                 Text(formatDate(project.updatedAt))
-                    .font(MemoraTypography.phiCaption)
+                    .font(MemoraTypography.chatToken)
                     .foregroundStyle(MemoraColor.textTertiary)
 
                 Spacer()
 
                 if fileCount > 0 {
                     Text("\(fileCount)")
-                        .font(MemoraTypography.phiCaption)
-                        .foregroundStyle(MemoraColor.accentNothing)
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.interactivePrimary)
                         .padding(.horizontal, MemoraSpacing.xs)
                         .padding(.vertical, MemoraSpacing.xxxs)
-                        .background(MemoraColor.accentNothingSubtle)
+                        .background(MemoraColor.interactiveHoverBg)
                         .clipShape(Capsule())
                 }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: MemoraSpacing.xxl * 3, alignment: .topLeading)
         .nothingCard(.standard)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(project.title)、\(fileCount)ファイル")
     }
 
     private static let projectDateFormatter: DateFormatter = {
@@ -202,18 +212,18 @@ struct ProjectRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
             Text(project.title)
-                .font(MemoraTypography.phiBody)
+                .font(MemoraTypography.chatBody)
                 .foregroundStyle(MemoraColor.textPrimary)
                 .lineLimit(1)
 
             HStack(spacing: MemoraSpacing.xs) {
                 Text(formatDate(project.updatedAt))
-                    .font(MemoraTypography.phiCaption)
+                    .font(MemoraTypography.chatToken)
                     .foregroundStyle(MemoraColor.textTertiary)
 
                 if fileCount > 0 {
                     Text("\(fileCount)ファイル")
-                        .font(MemoraTypography.phiCaption)
+                        .font(MemoraTypography.chatToken)
                         .foregroundStyle(MemoraColor.textTertiary)
                 }
 

@@ -13,20 +13,16 @@ struct MessageBubbleView: View {
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: MemoraSpacing.xs) {
                 Text(message.content)
-                    .font(MemoraTypography.body)
-                    .foregroundStyle(isUser ? .white : MemoraColor.textPrimary)
-                    .lineSpacing(4)
-                    .padding(MemoraSpacing.md)
-                    .frame(maxWidth: isUser ? 300 : .infinity, alignment: isUser ? .trailing : .leading)
+                    .font(MemoraTypography.chatMessage)
+                    .foregroundStyle(isUser ? MemoraColor.interactivePrimaryLabel : MemoraColor.textPrimary)
+                    .lineSpacing(5)
+                    .padding(.horizontal, MemoraSpacing.md)
+                    .padding(.vertical, MemoraSpacing.sm)
+                    .frame(maxWidth: isUser ? 0.85 : .infinity, alignment: isUser ? .trailing : .leading)
                     .if(isUser) { view in
                         view
-                            .background(MemoraColor.accentNothing)
-                            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.md))
-                            .nothingGlow(.subtle)
-                    }
-                    .if(!isUser) { view in
-                        view
-                            .nothingCard(.standard)
+                            .background(MemoraColor.interactivePrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
 
                 if !message.citations.isEmpty {
@@ -35,22 +31,27 @@ struct MessageBubbleView: View {
                             ForEach(message.citations) { citation in
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(citation.sourceLabel)
-                                        .font(MemoraTypography.caption2)
-                                        .foregroundStyle(MemoraColor.accentNothing)
+                                        .font(MemoraTypography.chatToken)
+                                        .foregroundStyle(MemoraColor.textTertiary)
                                     Text(citation.title)
-                                        .font(MemoraTypography.caption2)
+                                        .font(MemoraTypography.chatToken)
                                         .foregroundStyle(MemoraColor.textSecondary)
                                         .lineLimit(1)
                                 }
-                                .padding(.horizontal, MemoraSpacing.xs)
-                                .padding(.vertical, 6)
-                                .glassCard(.init(cornerRadius: MemoraRadius.sm, glow: false))
+                                .padding(.horizontal, MemoraSpacing.sm)
+                                .padding(.vertical, MemoraSpacing.xs)
+                                .background(MemoraColor.surfaceCard)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: MemoraRadius.sm)
+                                        .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
                             }
                         }
                     }
                 }
             }
-            .frame(maxWidth: isUser ? 300 : .infinity, alignment: isUser ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
             if isUser { Spacer(minLength: 0) }
         }

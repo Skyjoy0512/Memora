@@ -4,6 +4,9 @@ struct FilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var filterTranscribed: Bool?
     @Binding var filterSummarized: Bool?
+    @Binding var filterLifeLog: Bool?
+    @Binding var selectedTag: String?
+    let availableTags: [String]
 
     var body: some View {
         NavigationStack {
@@ -36,10 +39,33 @@ struct FilterSheet: View {
                 .padding(MemoraSpacing.md)
                 .glassCard(.default)
 
+                VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                    GlassSectionHeader(title: "LifeLog", icon: "tag")
+
+                    HStack(spacing: MemoraSpacing.sm) {
+                        lifeLogFilterButton(title: "すべて", selected: filterLifeLog == nil)
+                        lifeLogFilterButton(title: "LifeLog", selected: filterLifeLog == true)
+                        lifeLogFilterButton(title: "通常", selected: filterLifeLog == false)
+                    }
+
+                    if !availableTags.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: MemoraSpacing.xs) {
+                                tagFilterButton(title: "すべて", selected: selectedTag == nil)
+                                ForEach(availableTags, id: \.self) { tag in
+                                    tagFilterButton(title: tag, selected: selectedTag == tag)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(MemoraSpacing.md)
+                .glassCard(.default)
+
                 Spacer()
 
                 // リセットボタン
-                PillButton(title: "リセット", action: resetFilters, style: .outline)
+                PillButton(title: "リセット", action: resetFilters, style: .secondary)
                     .padding(.horizontal, MemoraSpacing.md)
                     .padding(.bottom, MemoraSpacing.md)
             }
@@ -119,9 +145,53 @@ struct FilterSheet: View {
         }
     }
 
+    private func lifeLogFilterButton(title: String, selected: Bool) -> some View {
+        Button(action: {
+            if title == "すべて" {
+                filterLifeLog = nil
+            } else if title == "LifeLog" {
+                filterLifeLog = true
+            } else if title == "通常" {
+                filterLifeLog = false
+            }
+        }) {
+            filterPill(title: title, selected: selected)
+        }
+    }
+
+    private func tagFilterButton(title: String, selected: Bool) -> some View {
+        Button(action: {
+            selectedTag = title == "すべて" ? nil : title
+        }) {
+            filterPill(title: title, selected: selected)
+        }
+    }
+
+    private func filterPill(title: String, selected: Bool) -> some View {
+        Text(title)
+            .font(MemoraTypography.phiSubhead)
+            .foregroundStyle(selected ? .white : MemoraColor.textPrimary)
+            .padding(.vertical, MemoraSpacing.sm)
+            .padding(.horizontal, MemoraSpacing.md)
+            .background(
+                Capsule()
+                    .fill(selected ? MemoraColor.accentNothing : Color.clear)
+            )
+            .overlay {
+                Capsule()
+                    .stroke(
+                        selected ? Color.clear : MemoraColor.divider,
+                        lineWidth: 1
+                    )
+            }
+            .clipShape(Capsule())
+    }
+
     private func resetFilters() {
         filterTranscribed = nil
         filterSummarized = nil
+        filterLifeLog = nil
+        selectedTag = nil
         dismiss()
     }
 }
@@ -129,6 +199,9 @@ struct FilterSheet: View {
 #Preview {
     FilterSheet(
         filterTranscribed: .constant(nil),
-        filterSummarized: .constant(nil)
+        filterSummarized: .constant(nil),
+        filterLifeLog: .constant(nil),
+        selectedTag: .constant(nil),
+        availableTags: ["仕事", "会議", "個人"]
     )
 }

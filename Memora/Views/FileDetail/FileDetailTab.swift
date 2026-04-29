@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - File Detail Tab
 
-enum FileDetailTab: String, CaseIterable, Identifiable {
+enum FileDetailTab: String, CaseIterable, Identifiable, Hashable {
     case summary
     case transcript
     case memo

@@ -7,8 +7,8 @@ struct HomeViewModelTests {
 
     @Test("loadAudioFiles が repository の結果を保持する")
     func loadAudioFiles() {
-        let first = makeAudioFile(title: "B会議", daysFromNow: -1)
-        let second = makeAudioFile(title: "A会議", daysFromNow: 0)
+        let first = makeAudioFile(title: "B会議", daysFromNow: 0)
+        let second = makeAudioFile(title: "A会議", daysFromNow: -1)
         let repository = MockAudioFileRepository(files: [first, second])
         let viewModel = HomeViewModel()
 
@@ -17,6 +17,33 @@ struct HomeViewModelTests {
 
         #expect(viewModel.audioFiles.map(\.id) == [first.id, second.id])
         #expect(viewModel.lastErrorMessage == nil)
+    }
+
+    @Test("loadAudioFiles は初回ページのみを読み込む")
+    func loadAudioFilesUsesFirstPage() {
+        let files = (0..<55).map { makeAudioFile(title: "file-\($0)", daysFromNow: -$0) }
+        let repository = MockAudioFileRepository(files: files)
+        let viewModel = HomeViewModel()
+
+        viewModel.configure(audioFileRepository: repository)
+        viewModel.loadAudioFiles()
+
+        #expect(viewModel.audioFiles.count == HomeViewModel.pageSize)
+        #expect(viewModel.hasMoreAudioFiles)
+    }
+
+    @Test("loadMoreAudioFilesIfNeeded は次ページを追加する")
+    func loadMoreAudioFilesAppendsNextPage() {
+        let files = (0..<55).map { makeAudioFile(title: "file-\($0)", daysFromNow: -$0) }
+        let repository = MockAudioFileRepository(files: files)
+        let viewModel = HomeViewModel()
+
+        viewModel.configure(audioFileRepository: repository)
+        viewModel.loadAudioFiles()
+        viewModel.loadMoreAudioFilesIfNeeded()
+
+        #expect(viewModel.audioFiles.count == 55)
+        #expect(!viewModel.hasMoreAudioFiles)
     }
 
     @Test("filteredFiles が検索と状態フィルタを適用する")
@@ -50,6 +77,39 @@ struct HomeViewModelTests {
 
         #expect(filtered.count == 1)
         #expect(filtered.first?.id == meeting.id)
+    }
+
+    @Test("filteredFiles はファイル属性変更後にキャッシュを更新する")
+    func filteredFilesRefreshesCacheAfterFileMutation() {
+        let file = makeAudioFile(title: "LifeLog", daysFromNow: 0)
+        let repository = MockAudioFileRepository(files: [file])
+        let viewModel = HomeViewModel()
+        viewModel.configure(audioFileRepository: repository)
+        viewModel.loadAudioFiles()
+
+        let initial = viewModel.filteredFiles(
+            searchText: "",
+            filterTranscribed: nil,
+            filterSummarized: nil,
+            filterLifeLog: true,
+            selectedTag: "仕事",
+            sortOption: .dateDesc
+        )
+        #expect(initial.isEmpty)
+
+        file.isLifeLog = true
+        file.lifeLogTags = ["仕事"]
+
+        let updated = viewModel.filteredFiles(
+            searchText: "",
+            filterTranscribed: nil,
+            filterSummarized: nil,
+            filterLifeLog: true,
+            selectedTag: "仕事",
+            sortOption: .dateDesc
+        )
+
+        #expect(updated.map(\.id) == [file.id])
     }
 
     @Test("filteredFiles がタイトル降順で並べ替える")

@@ -19,15 +19,15 @@ struct FileDetailHeader: View {
             // メタ情報: date / duration (top)
             HStack(spacing: MemoraSpacing.sm) {
                 Text(vm.formatDate(audioFile.createdAt))
-                    .font(MemoraTypography.phiCaption)
-                    .foregroundStyle(.secondary)
+                    .font(MemoraTypography.chatToken)
+                    .foregroundStyle(MemoraColor.textTertiary)
 
                 if audioFile.duration > 0 {
                     AccentDotIndicator(color: MemoraColor.divider, size: 4)
 
                     Text(vm.formatDuration(audioFile.duration))
-                        .font(MemoraTypography.phiCaption)
-                        .foregroundStyle(.secondary)
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textTertiary)
                 }
 
                 if let projectTitle = cachedProjectTitle {
@@ -35,11 +35,11 @@ struct FileDetailHeader: View {
 
                     HStack(spacing: 2) {
                         Image(systemName: "folder")
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(.secondary)
+                            .font(MemoraTypography.chatToken)
+                            .foregroundStyle(MemoraColor.textTertiary)
                         Text(projectTitle)
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(.secondary)
+                            .font(MemoraTypography.chatToken)
+                            .foregroundStyle(MemoraColor.textTertiary)
                             .lineLimit(1)
                     }
                 }
@@ -50,7 +50,7 @@ struct FileDetailHeader: View {
             // タイトル (bottom)
             if vm.isEditingTitle {
                 TextField("タイトル", text: $vm.titleDraft)
-                    .font(MemoraTypography.phiHeadline)
+                    .font(MemoraTypography.chatMessage)
                     .focused($isTitleFieldFocused)
                     .submitLabel(.done)
                     .onSubmit { vm.saveTitle() }
@@ -65,8 +65,8 @@ struct FileDetailHeader: View {
                     vm.beginEditTitle()
                 } label: {
                     Text(audioFile.title)
-                        .font(MemoraTypography.phiHeadline)
-                        .foregroundStyle(.primary)
+                        .font(MemoraTypography.chatMessage)
+                        .foregroundStyle(MemoraColor.textPrimary)
                         .lineLimit(3)
                 }
                 .buttonStyle(.plain)
@@ -83,21 +83,22 @@ struct FileDetailHeader: View {
     @ViewBuilder
     private var calendarEventCard: some View {
         if let link = calendarEventLink {
-            // 紐付済みイベント: glassCard + left accentNothing bar
+            // 紐付済みイベント: clean card + left accentBlue bar
             HStack(spacing: MemoraSpacing.sm) {
                 Rectangle()
-                    .fill(MemoraColor.accentNothing)
+                    .fill(MemoraColor.accentBlue)
                     .frame(width: 3)
                     .clipShape(RoundedRectangle(cornerRadius: 1.5))
 
                 Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(MemoraColor.accentNothing)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .font(MemoraTypography.chatToken)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(link.title)
-                        .font(MemoraTypography.phiBody)
+                        .font(MemoraTypography.chatBody)
                         .foregroundStyle(MemoraColor.textPrimary)
                     Text("\(FileDetailHelpers.formatEventDate(link.startAt)) - \(FileDetailHelpers.formatEventTime(link.endAt))")
-                        .font(MemoraTypography.phiCaption)
+                        .font(MemoraTypography.chatToken)
                         .foregroundStyle(MemoraColor.textSecondary)
                 }
                 Spacer()
@@ -105,28 +106,34 @@ struct FileDetailHeader: View {
                     onUnlinkCalendar()
                 } label: {
                     Image(systemName: "xmark.circle")
-                        .foregroundStyle(MemoraColor.textSecondary)
-                        .font(.caption)
+                        .foregroundStyle(MemoraColor.textTertiary)
+                        .font(MemoraTypography.chatToken)
                 }
             }
             .padding(MemoraSpacing.sm)
-            .glassCard(.default)
+            .background(MemoraColor.surfaceCard)
+            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .overlay(
+                RoundedRectangle(cornerRadius: 13)
+                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 0.5)
+            )
         } else if let suggested = suggestedEvent {
-            // 提案イベント: glassCard + left accentNothing bar
+            // 提案イベント: clean card + left accentBlue bar
             HStack(spacing: MemoraSpacing.sm) {
                 Rectangle()
-                    .fill(MemoraColor.accentNothing.opacity(0.4))
+                    .fill(MemoraColor.accentBlue.opacity(0.4))
                     .frame(width: 3)
                     .clipShape(RoundedRectangle(cornerRadius: 1.5))
 
                 Image(systemName: "calendar.badge.plus")
-                    .foregroundStyle(MemoraColor.accentNothing)
+                    .foregroundStyle(MemoraColor.accentBlue)
+                    .font(MemoraTypography.chatToken)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(suggested.title)
-                        .font(MemoraTypography.phiBody)
+                        .font(MemoraTypography.chatBody)
                         .foregroundStyle(MemoraColor.textPrimary)
                     Text(FileDetailHelpers.formatEventDate(suggested.startDate))
-                        .font(MemoraTypography.phiCaption)
+                        .font(MemoraTypography.chatToken)
                         .foregroundStyle(MemoraColor.textSecondary)
                 }
                 Spacer()
@@ -138,18 +145,23 @@ struct FileDetailHeader: View {
                             .controlSize(.small)
                     } else {
                         Text("紐付")
-                            .font(MemoraTypography.phiCaption)
-                            .foregroundStyle(.white)
+                            .font(MemoraTypography.chatButtonSmall)
+                            .foregroundStyle(MemoraColor.interactivePrimaryLabel)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(MemoraColor.accentNothing)
+                            .background(MemoraColor.interactivePrimary)
                             .clipShape(Capsule())
                     }
                 }
                 .disabled(isLinkingEvent)
             }
             .padding(MemoraSpacing.sm)
-            .glassCard(.default)
+            .background(MemoraColor.surfaceCard)
+            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .overlay(
+                RoundedRectangle(cornerRadius: 13)
+                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 0.5)
+            )
         }
     }
 
@@ -173,7 +185,7 @@ struct FileDetailHeader: View {
             case .google: return "Meet"
             }
         }(), systemImage: icon)
-            .font(MemoraTypography.phiCaption)
-            .foregroundStyle(.secondary)
+            .font(MemoraTypography.chatToken)
+            .foregroundStyle(MemoraColor.textTertiary)
     }
 }

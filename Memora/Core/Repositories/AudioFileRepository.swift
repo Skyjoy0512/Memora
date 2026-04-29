@@ -5,6 +5,7 @@ import SwiftData
 
 protocol AudioFileRepositoryProtocol {
     func fetchAll() throws -> [AudioFile]
+    func fetchPage(offset: Int, limit: Int) throws -> [AudioFile]
     func fetch(id: UUID) throws -> AudioFile?
     func save(_ file: AudioFile) throws
     func delete(_ file: AudioFile) throws
@@ -12,6 +13,12 @@ protocol AudioFileRepositoryProtocol {
     func fetchByProject(_ projectId: UUID) throws -> [AudioFile]
     func fetchTranscribed() throws -> [AudioFile]
     func search(query: String) throws -> [AudioFile]
+}
+
+extension AudioFileRepositoryProtocol {
+    func fetchPage(offset: Int, limit: Int) throws -> [AudioFile] {
+        Array(try fetchAll().dropFirst(max(0, offset)).prefix(max(0, limit)))
+    }
 }
 
 // MARK: - Implementation
@@ -27,6 +34,15 @@ final class AudioFileRepository: AudioFileRepositoryProtocol {
         let descriptor = FetchDescriptor<AudioFile>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
+        return try modelContext.fetch(descriptor)
+    }
+
+    func fetchPage(offset: Int, limit: Int) throws -> [AudioFile] {
+        var descriptor = FetchDescriptor<AudioFile>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchOffset = max(0, offset)
+        descriptor.fetchLimit = max(0, limit)
         return try modelContext.fetch(descriptor)
     }
 

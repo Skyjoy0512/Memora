@@ -1,63 +1,99 @@
 import SwiftUI
 
+/// ChatGPT Design System — Button
+/// Pill-shaped button with primary / secondary / destructive variants.
+/// Large (h44, 14pt) and Compact (h36, 13pt) sizes.
 struct PillButton: View {
     let title: String
     let action: () -> Void
     var style: Style = .primary
+    var size: Size = .regular
+    var isDisabled: Bool = false
 
     enum Style {
         case primary
-        case outline
+        case secondary
+        case destructive
+        case destructiveSecondary
         case glass
-        case nothing
+    }
+
+    enum Size {
+        case regular    // h44, font 14pt Medium
+        case compact    // h36, font 13pt Medium
     }
 
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(MemoraTypography.headline)
-                .foregroundStyle(foregroundColor)
+                .font(size == .regular ? MemoraTypography.chatButton : MemoraTypography.chatButtonSmall)
+                .foregroundStyle(labelColor)
                 .frame(maxWidth: .infinity)
-                .frame(height: MemoraSize.buttonHeight)
-                .background(background)
+                .frame(height: size == .regular ? 44 : 36)
+                .background(backgroundColor)
                 .overlay {
                     Capsule()
-                        .stroke(strokeColor, lineWidth: 1)
+                        .stroke(borderColor, lineWidth: 1)
                 }
                 .clipShape(Capsule())
         }
+        .opacity(isDisabled ? disabledOpacity : 1)
+        .disabled(isDisabled)
     }
 
-    private var foregroundColor: Color {
+    // MARK: - Colors (ChatGPT specs)
+
+    private var labelColor: Color {
         switch style {
-        case .primary: return .white
-        case .outline: return MemoraColor.accentPrimary
-        case .glass: return MemoraColor.textPrimary
-        case .nothing: return .white
+        case .primary:
+            return MemoraColor.interactivePrimaryLabel
+        case .secondary:
+            return MemoraColor.textPrimary
+        case .destructive:
+            return .white
+        case .destructiveSecondary:
+            return MemoraColor.accentRed
+        case .glass:
+            return MemoraColor.textPrimary
         }
     }
 
-    private var background: some View {
-        Group {
-            switch style {
-            case .primary:
-                MemoraColor.accentPrimary
-            case .outline:
-                Color.clear
-            case .glass:
-                Color.clear
-            case .nothing:
-                MemoraColor.accentNothing
-            }
+    private var backgroundColor: Color {
+        switch style {
+        case .primary:
+            return MemoraColor.interactivePrimary
+        case .secondary:
+            return Color.clear
+        case .destructive:
+            return MemoraColor.accentRed
+        case .destructiveSecondary:
+            return Color.clear
+        case .glass:
+            return Color.clear
         }
     }
 
-    private var strokeColor: Color {
+    private var borderColor: Color {
         switch style {
-        case .primary: return Color.clear
-        case .outline: return MemoraColor.accentNothing
-        case .glass: return Color.clear
-        case .nothing: return Color.clear
+        case .primary:
+            return Color.clear
+        case .secondary:
+            return MemoraColor.interactiveSecondaryBorder
+        case .destructive:
+            return Color.clear
+        case .destructiveSecondary:
+            return MemoraColor.accentRed
+        case .glass:
+            return Color.clear
+        }
+    }
+
+    private var disabledOpacity: Double {
+        switch style {
+        case .primary, .destructive, .destructiveSecondary:
+            return 0.40
+        case .secondary, .glass:
+            return 0.70
         }
     }
 }

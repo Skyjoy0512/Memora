@@ -39,33 +39,33 @@ struct TodoRowView: View {
             // Content
             VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
                 Text(todo.title)
-                    .font(MemoraTypography.phiBody)
+                    .font(MemoraTypography.chatBody)
                     .foregroundStyle(todo.isCompleted ? MemoraColor.textTertiary : MemoraColor.textPrimary)
                     .strikethrough(todo.isCompleted)
 
                 if let parentTitle, !parentTitle.isEmpty {
                     Label("親: \(parentTitle)", systemImage: "arrow.turn.down.right")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.accentNothing)
+                        .font(MemoraTypography.chatToken)
+                        .foregroundStyle(MemoraColor.textTertiary)
                 }
 
                 if !todo.isCompleted {
                     HStack(spacing: MemoraSpacing.xs) {
                         if let assignee = todo.assignee, !assignee.isEmpty {
                             Label(assignee, systemImage: "person.crop.circle")
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.chatToken)
                                 .foregroundStyle(MemoraColor.textSecondary)
                         }
 
                         if let speaker = todo.speaker, !speaker.isEmpty {
                             Label(speaker, systemImage: "person.fill")
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.chatToken)
                                 .foregroundStyle(MemoraColor.textSecondary)
                         }
 
                         if let dueDate = todo.dueDate {
                             Label(dueDateString(dueDate), systemImage: "calendar")
-                                .font(MemoraTypography.caption1)
+                                .font(MemoraTypography.chatToken)
                                 .foregroundStyle(isOverdue(dueDate) ? MemoraColor.accentRed : MemoraColor.textSecondary)
                         }
 
@@ -105,7 +105,7 @@ struct TodoRowView: View {
     private func priorityDot(_ priority: Priority) -> some View {
         switch priority {
         case .high:
-            AccentDotIndicator(color: MemoraColor.accentNothing, size: 8, glowing: false)
+            AccentDotIndicator(color: MemoraColor.accentRed, size: 8, glowing: false)
         case .medium:
             Circle().fill(MemoraColor.accentBlue).frame(width: 8, height: 8)
         case .low:
