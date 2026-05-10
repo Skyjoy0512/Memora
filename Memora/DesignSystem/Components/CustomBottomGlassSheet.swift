@@ -124,7 +124,7 @@ struct CustomBottomGlassSheet<Content: View>: View {
         .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: isDragging)
     }
 
-    private var sheetBackgroundShape: some View {
+    private var sheetBackgroundShape: some Shape {
         UnevenRoundedRectangle(
             topLeadingRadius: topCornerRadius,
             bottomLeadingRadius: 0,

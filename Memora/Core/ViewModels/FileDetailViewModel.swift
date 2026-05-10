@@ -239,7 +239,7 @@ final class FileDetailViewModel {
     // MARK: - Summarization
 
     func startSummarization(with config: GenerationConfig = GenerationConfig()) {
-        let provider = config.aiProvider ?? currentProvider
+        let provider = currentProvider
         let apiKey = apiKey(for: provider)
 
         guard !provider.requiresAPIKey || !apiKey.isEmpty else {

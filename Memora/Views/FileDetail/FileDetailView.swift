@@ -190,7 +190,6 @@ struct FileDetailView: View {
                 generationLoadingSkeleton
                     .zIndex(5)
             }
-            }
         }
         .sheet(isPresented: $vm.showShareSheet) {
             ShareSheet(
@@ -358,7 +357,8 @@ struct FileDetailView: View {
     // MARK: - Title & Metadata
 
     private func titleMetadataSection(vm: FileDetailViewModel) -> some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
+        @Bindable var vm = vm
+        return VStack(alignment: .leading, spacing: MemoraSpacing.xxs) {
             // Title
             if vm.isEditingTitle {
                 TextField("タイトル", text: $vm.titleDraft)
