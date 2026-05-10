@@ -35,167 +35,199 @@ struct DeviceStatusToolbarButton: View {
 }
 
 struct DeviceDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(OmiAdapter.self) private var omiAdapter
     @Environment(BluetoothAudioService.self) private var bluetoothService
     let plaudSettings: PlaudSettings?
-    @State private var firmwareNotice: String?
+
+    // MARK: - Computed Device Data
+
+    private var deviceName: String {
+        if bluetoothService.isConnected, bluetoothService.connectedDeviceType == .plaud {
+            return bluetoothService.connectedDeviceName ?? "PLAUD_NOTE_Ken"
+        }
+        return "PLAUD_NOTE_Ken"
+    }
+
+    private var serialNumber: String {
+        if let model = bluetoothService.modelNumber, !model.isEmpty {
+            return model
+        }
+        return "123456789"
+    }
+
+    private var firmwareVersionText: String {
+        if bluetoothService.isConnected, bluetoothService.connectedDeviceType == .plaud,
+           let fw = bluetoothService.firmwareVersion, !fw.isEmpty {
+            return fw
+        }
+        return "v 0.01"
+    }
+
+    private var batteryText: String {
+        if bluetoothService.isConnected, bluetoothService.connectedDeviceType == .plaud,
+           let level = bluetoothService.batteryLevel {
+            return "\(level)%"
+        }
+        return "80%"
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        List {
-            omiSection
-            plaudSection
-            bluetoothSection
-        }
-        .navigationTitle("デバイス")
-        .navigationBarTitleDisplayMode(.inline)
-        .listStyle(.insetGrouped)
-        .alert("ファームウェアアップデート", isPresented: Binding(
-            get: { firmwareNotice != nil },
-            set: { if !$0 { firmwareNotice = nil } }
-        )) {
-            Button("OK", role: .cancel) { firmwareNotice = nil }
-        } message: {
-            if let firmwareNotice {
-                Text(firmwareNotice)
+        ZStack {
+            // Background per spec: #ECECEC
+            Color(hex: "ECECEC").ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    backButtonRow
+                    titleRow
+                    deviceImagePlaceholder
+                    batteryRow
+                    pageIndicatorRow
+                    infoCard
+                    unpairButtonRow
+                }
+                .padding(.bottom, 40)
             }
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var omiSection: some View {
-        Section {
-            deviceHeader(
-                title: "Omi",
-                subtitle: omiAdapter.connectedDeviceName ?? omiAdapter.connectionState.description,
-                icon: "headphones",
-                isConnected: omiAdapter.isConnected,
-                stateText: omiAdapter.connectionState.description
-            )
+    // MARK: - Back Button
 
-            detailRow(title: "バッテリー", value: "未取得", icon: "battery.50")
-            detailRow(title: "ファームウェア", value: "SDK未対応", icon: "shippingbox")
-
+    private var backButtonRow: some View {
+        HStack {
             Button {
-                firmwareNotice = "現在の Omi SDK からはファームウェア更新APIが公開されていないため、アプリ内更新は未対応です。SDK側で提供されたらここに接続します。"
+                dismiss()
             } label: {
-                Label("アップデートを確認", systemImage: "arrow.down.circle")
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(MemoraColor.textPrimary)
+                    .frame(width: 60, height: 60)
+                    .liquidGlass(cornerRadius: 30)
             }
 
-            if let statusMessage = omiAdapter.statusMessage {
-                detailRow(title: "状態メモ", value: statusMessage, icon: "info.circle")
-            }
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+    }
 
-            if omiAdapter.isConnected {
-                Button(role: .destructive) {
-                    omiAdapter.disconnect()
-                } label: {
-                    Label("Omi セッションを終了", systemImage: "xmark.circle")
-                }
-            } else {
-                Button {
-                    omiAdapter.startScan()
-                } label: {
-                    Label(omiAdapter.isScanning ? "検索中..." : "Omi を検索", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                .disabled(omiAdapter.isScanning)
+    // MARK: - Title
+
+    private var titleRow: some View {
+        HStack {
+            Text("PlaudNote Pro")
+                .font(.system(size: 36, weight: .bold))
+                .foregroundStyle(MemoraColor.textPrimary)
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+    }
+
+    // MARK: - Device Image Placeholder
+
+    private var deviceImagePlaceholder: some View {
+        Image(systemName: "list.bullet.rectangle")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 200, height: 200)
+            .foregroundStyle(MemoraColor.textSecondary)
+            .padding(.top, 40)
+    }
+
+    // MARK: - Battery
+
+    private var batteryRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "battery.75")
+                .font(.system(size: 20, weight: .medium))
+            Text(batteryText)
+                .font(.system(size: 20, weight: .bold))
+        }
+        .foregroundStyle(MemoraColor.textPrimary)
+        .padding(.top, 16)
+    }
+
+    // MARK: - Page Indicator (3 dots)
+
+    private var pageIndicatorRow: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(MemoraColor.textPrimary)
+                .frame(width: 8, height: 8)
+            Circle()
+                .fill(Color(hex: "D9D9D9"))
+                .frame(width: 8, height: 8)
+            Circle()
+                .fill(Color(hex: "D9D9D9"))
+                .frame(width: 8, height: 8)
+        }
+        .padding(.top, 12)
+    }
+
+    // MARK: - Info Card
+
+    private var infoCard: some View {
+        VStack(spacing: 0) {
+            infoRow(title: "デバイス名", value: deviceName, showSeparator: true)
+            infoRow(title: "シリアル番号", value: serialNumber, showSeparator: true)
+            infoRow(title: "ファームウェアバージョン", value: firmwareVersionText, showSeparator: false)
+        }
+        .background(MemoraColor.surfacePrimary)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.horizontal, 48)
+        .padding(.top, 32)
+    }
+
+    private func infoRow(title: String, value: String, showSeparator: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Color(hex: "58585A"))
+
+                Spacer()
+
+                Text(value)
+                    .font(.system(size: 15))
+                    .foregroundStyle(MemoraColor.textPrimary)
+                    .multilineTextAlignment(.trailing)
             }
-        } header: {
-            Text("Omi")
-        } footer: {
-            Text(omiAdapter.sessionTerminationDescription)
+            .frame(height: 88)
+            .padding(.horizontal, 20)
+
+            if showSeparator {
+                Divider()
+                    .foregroundStyle(MemoraColor.divider)
+                    .padding(.horizontal, 20)
+            }
         }
     }
 
-    private var plaudSection: some View {
-        Section {
-            let isLinked = plaudSettings?.isEnabled == true && plaudSettings?.isTokenValid == true
-            deviceHeader(
-                title: "Plaud",
-                subtitle: plaudSubtitle,
-                icon: "waveform",
-                isConnected: isLinked || (bluetoothService.isConnected && bluetoothService.connectedDeviceType == .plaud),
-                stateText: isLinked ? "クラウド連携中" : "未連携"
-            )
+    // MARK: - Unpair Button
 
-            detailRow(title: "バッテリー", value: plaudBatteryText, icon: "battery.50")
-            detailRow(title: "ファームウェア", value: bluetoothService.connectedDeviceType == .plaud ? (bluetoothService.firmwareVersion ?? "未取得") : "未取得", icon: "shippingbox")
-
-            Button {
-                firmwareNotice = "Plaud のファームウェア更新は公式アプリ側の管理です。Memora では連携状態とBLEで取得できる端末情報のみ表示します。"
-            } label: {
-                Label("アップデートを確認", systemImage: "arrow.down.circle")
-            }
-
-            if let lastSyncAt = plaudSettings?.lastSyncAt {
-                detailRow(title: "最終同期", value: lastSyncAt.formatted(date: .abbreviated, time: .shortened), icon: "clock")
-            }
-
-            if plaudSettings != nil {
-                Button(role: .destructive) {
-                    unlinkPlaud()
-                } label: {
-                    Label("Plaud 連携を解除", systemImage: "link.badge.minus")
-                }
-            }
-        } header: {
-            Text("Plaud")
-        } footer: {
-            Text("Plaud のバッテリー/ファームウェアはBLEで接続できた場合のみ表示します。クラウド連携だけの場合は同期状態を表示します。")
+    private var unpairButtonRow: some View {
+        Button {
+            unlinkPlaud()
+        } label: {
+            Text("ペアリングを解除")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 96)
+                .background(Color(hex: "FF3030"))
+                .clipShape(Capsule())
         }
+        .padding(.horizontal, 48)
+        .padding(.top, 24)
+        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
 
-    private var bluetoothSection: some View {
-        Section {
-            if bluetoothService.isConnected {
-                deviceHeader(
-                    title: bluetoothService.connectedDeviceType.displayName,
-                    subtitle: bluetoothService.connectedDeviceName ?? "接続中",
-                    icon: bluetoothService.connectedDeviceType.iconName,
-                    isConnected: true,
-                    stateText: bluetoothService.connectionState.description
-                )
-                detailRow(title: "バッテリー", value: bluetoothService.batteryLevel.map { "\($0)%" } ?? "未取得", icon: "battery.50")
-                detailRow(title: "モデル", value: bluetoothService.modelNumber ?? "未取得", icon: "tag")
-                detailRow(title: "ファームウェア", value: bluetoothService.firmwareVersion ?? "未取得", icon: "shippingbox")
-
-                Button {
-                    firmwareNotice = "接続中のBLEデバイスに対するファームウェア更新手順が未定義です。更新用characteristic/APIが分かればここから実行できます。"
-                } label: {
-                    Label("アップデートを確認", systemImage: "arrow.down.circle")
-                }
-
-                Button(role: .destructive) {
-                    bluetoothService.disconnect()
-                } label: {
-                    Label("BLE デバイスを解除", systemImage: "xmark.circle")
-                }
-            } else {
-                Button {
-                    bluetoothService.startScanning()
-                } label: {
-                    Label(bluetoothService.isScanning ? "検索中..." : "BLE デバイスを検索", systemImage: "antenna.radiowaves.left.and.right")
-                }
-                .disabled(bluetoothService.isScanning)
-            }
-        } header: {
-            Text("BLE 詳細")
-        }
-    }
-
-    private var plaudSubtitle: String {
-        if bluetoothService.isConnected && bluetoothService.connectedDeviceType == .plaud {
-            return bluetoothService.connectedDeviceName ?? "BLE 接続中"
-        }
-        guard let plaudSettings else { return "未設定" }
-        return plaudSettings.email.isEmpty ? plaudSettings.apiServer : plaudSettings.email
-    }
-
-    private var plaudBatteryText: String {
-        guard bluetoothService.isConnected, bluetoothService.connectedDeviceType == .plaud else {
-            return "未取得"
-        }
-        return bluetoothService.batteryLevel.map { "\($0)%" } ?? "未取得"
-    }
+    // MARK: - Actions
 
     private func unlinkPlaud() {
         guard let plaudSettings else { return }
@@ -206,53 +238,5 @@ struct DeviceDetailView: View {
         KeychainService.delete(key: .plaudRefreshToken)
         KeychainService.delete(key: .plaudTokenExpiresAt)
         try? modelContext.save()
-    }
-
-    private func deviceHeader(title: String, subtitle: String, icon: String, isConnected: Bool, stateText: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(isConnected ? MemoraColor.accentGreen : MemoraColor.textTertiary)
-                .frame(width: 40, height: 40)
-                .background(MemoraColor.divider.opacity(0.16), in: Circle())
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(MemoraTypography.subheadline)
-                    .foregroundStyle(MemoraColor.textPrimary)
-
-                Text(subtitle)
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(MemoraColor.textSecondary)
-            }
-
-            Spacer()
-
-            Text(stateText)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(isConnected ? MemoraColor.accentGreen : MemoraColor.textTertiary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background((isConnected ? MemoraColor.accentGreen : MemoraColor.divider).opacity(0.12), in: Capsule())
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func detailRow(title: String, value: String, icon: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .foregroundStyle(MemoraColor.textTertiary)
-                .frame(width: 22)
-
-            Text(title)
-                .foregroundStyle(MemoraColor.textPrimary)
-
-            Spacer()
-
-            Text(value)
-                .foregroundStyle(MemoraColor.textSecondary)
-                .multilineTextAlignment(.trailing)
-        }
-        .font(MemoraTypography.subheadline)
     }
 }
