@@ -17,7 +17,7 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
 
         do {
             let features = try featureExtractor.extractSegmentFeatures(audioURL: audioURL, segments: segments)
-            let rawLabels = clusterSpeakers(features: features)
+            let rawLabels = clusterSpeakers(features: features, numSpeakers: numSpeakers)
             let smoothedLabels = smoothLabels(rawLabels, segments: segments, features: features)
             let speakerLabels = resolveDisplayLabels(clusterLabels: smoothedLabels, features: features)
 
@@ -48,11 +48,11 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
         }
     }
 
-    private func clusterSpeakers(features: [SpeakerVoiceFeatures]) -> [Int] {
+    private func clusterSpeakers(features: [SpeakerVoiceFeatures], numSpeakers: Int? = nil) -> [Int] {
         guard features.count > 1 else { return [0] }
 
-        let maxSpeakers = min(3, features.count)
-        let speakerCount = determineOptimalSpeakerCount(features: features, maxSpeakers: maxSpeakers)
+        let maxSpeakers = min(numSpeakers ?? 3, features.count)
+        let speakerCount = determineOptimalSpeakerCount(features: features, maxSpeakers: maxSpeakers, numSpeakers: numSpeakers)
         var centroids = initializeCentroids(features: features, count: speakerCount)
 
         for _ in 0..<12 {
@@ -173,7 +173,11 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
         }?.offset ?? 0
     }
 
-    private func determineOptimalSpeakerCount(features: [SpeakerVoiceFeatures], maxSpeakers: Int) -> Int {
+    private func determineOptimalSpeakerCount(features: [SpeakerVoiceFeatures], maxSpeakers: Int, numSpeakers: Int? = nil) -> Int {
+        // 外部から話者数が指定されている場合はその値を信頼
+        if let numSpeakers, numSpeakers >= 1 {
+            return min(numSpeakers, maxSpeakers)
+        }
         guard features.count >= 2 else { return 1 }
 
         var bestK = 1
@@ -211,18 +215,45 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
         return totalDistance / Double(max(k, 1))
     }
 
+    /// k-means++ 初期化: 最初の重心をランダムに選び、後続の重心は
+    /// 既存重心からの距離が遠い点ほど選ばれやすくする。
+    /// ピッチソートベースの初期化より話者分離精度が高い。
     private func initializeCentroids(features: [SpeakerVoiceFeatures], count: Int) -> [SpeakerVoiceFeatures] {
         guard count > 1 else {
             return [SpeakerVoiceFeatures.average(features)]
         }
-
-        let sorted = features.sorted { $0.pitch < $1.pitch }
-        let step = Double(sorted.count - 1) / Double(count - 1)
+        guard features.count > count else {
+            return features
+        }
 
         var centroids: [SpeakerVoiceFeatures] = []
-        for i in 0..<count {
-            let idx = Int(Double(i) * step)
-            centroids.append(sorted[idx])
+        // 最初の重心: 全特徴の平均に最も近い点
+        let avg = SpeakerVoiceFeatures.average(features)
+        if let first = features.min(by: { $0.distance(to: avg) < $1.distance(to: avg) }) {
+            centroids.append(first)
+        } else {
+            centroids.append(features[0])
+        }
+
+        // k-means++: 距離の二乗に比例する確率で後続の重心を選択
+        for _ in 1..<count {
+            let distances = features.map { feature in
+                centroids.map { feature.distance(to: $0) }.min() ?? 0
+            }
+            let totalDistance = distances.reduce(0, +)
+            guard totalDistance > 0 else { break }
+
+            var cumulative = 0.0
+            let threshold = Double.random(in: 0..<totalDistance)
+            var selected = features[features.count - 1]
+            for (index, distance) in distances.enumerated() {
+                cumulative += distance
+                if cumulative >= threshold {
+                    selected = features[index]
+                    break
+                }
+            }
+            centroids.append(selected)
         }
 
         return centroids

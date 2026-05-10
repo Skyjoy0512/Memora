@@ -70,10 +70,12 @@ struct SpeakerSegmentView: View {
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(MemoraColor.textSecondary)
 
-                    Text(segment.speakerLabel)
-                        .font(MemoraTypography.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(MemoraColor.textSecondary)
+                    if !segment.speakerLabel.isEmpty {
+                        Text(segment.speakerLabel)
+                            .font(MemoraTypography.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(MemoraColor.textSecondary)
+                    }
 
                     Spacer()
 

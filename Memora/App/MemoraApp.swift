@@ -36,7 +36,10 @@ struct MemoraApp: App {
         CalendarEventLink.self,
         GoogleMeetSettings.self,
         NotionSettings.self,
-        CustomSummaryTemplate.self
+        CustomSummaryTemplate.self,
+        OnlineMeetingCapture.self,
+        BotMeetingConfig.self,
+        ScheduledBotMeeting.self
     ])
 
     nonisolated private static let migrationPlan = MemoraMigrationPlan.self

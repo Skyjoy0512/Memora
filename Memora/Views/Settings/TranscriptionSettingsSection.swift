@@ -5,6 +5,7 @@ import SwiftUI
 struct TranscriptionSettingsSection: View {
     @Bindable var state: SettingsState
     @AppStorage("transcriptionMode") var transcriptionMode: String = "ローカル"
+    @AppStorage(DebugLogger.detailedSTTLoggingKey) private var detailedSTTLoggingEnabled = false
 
     var body: some View {
         Section {
@@ -33,6 +34,18 @@ struct TranscriptionSettingsSection: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, MemoraSpacing.xxxs)
+
+                Toggle(isOn: Binding(
+                    get: { STTLocalProcessingSettings.isSpeakerDiarizationEnabled },
+                    set: { STTLocalProcessingSettings.isSpeakerDiarizationEnabled = $0 }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("話者分離")
+                        Text("有料/API モードでのみ話者ラベルを推定します。OFF の場合は文字起こしを優先して高速に完了します。")
+                            .font(MemoraTypography.caption1)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if state.currentTranscriptionMode == .local {
@@ -55,7 +68,7 @@ struct TranscriptionSettingsSection: View {
                         )) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("iOS 26 SpeechAnalyzer（ベータ）")
-                                Text("有効にすると iOS 26 ネイティブエンジンを使用します。不安定な場合があります。")
+                                Text("短い音声向けです。長尺会議では精度低下や電池消費が大きい場合があります。")
                                     .font(MemoraTypography.caption1)
                                     .foregroundStyle(.secondary)
                             }
@@ -68,6 +81,9 @@ struct TranscriptionSettingsSection: View {
                         }
                     }
                 }
+                Text("ローカル文字起こしでは話者分離を行わず、高速化と省電力を優先します。")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
             }
 
             NavigationLink {
@@ -88,6 +104,15 @@ struct TranscriptionSettingsSection: View {
                     }
                 }
                 .padding(.vertical, MemoraSpacing.xxxs)
+            }
+
+            Toggle(isOn: $detailedSTTLoggingEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("STT 詳細ログ")
+                    Text("通常はOFFにして文字起こし中のログ保存とOSログ出力を抑えます。調査時だけ有効にします。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
             }
         } header: {
             GlassSectionHeader(title: "文字起こし設定", icon: "waveform")

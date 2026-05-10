@@ -175,6 +175,8 @@ struct FileDetailHeader: View {
             case .import: return "square.and.arrow.down"
             case .plaud: return "waveform"
             case .google: return "video.fill"
+            case .onlineMeeting: return "waveform.circle.fill"
+            case .botMeeting: return "bot.circle.fill"
             }
         }()
         Label({
@@ -183,6 +185,8 @@ struct FileDetailHeader: View {
             case .import: return "インポート"
             case .plaud: return "Plaud"
             case .google: return "Meet"
+            case .onlineMeeting: return "会議"
+            case .botMeeting: return "Bot会議"
             }
         }(), systemImage: icon)
             .font(MemoraTypography.chatToken)

@@ -6,6 +6,8 @@ enum SourceType: String, CaseIterable {
     case `import` = "import"
     case plaud = "plaud"
     case google = "google"
+    case onlineMeeting = "online_meeting"
+    case botMeeting = "bot_meeting"
 }
 
 @Model

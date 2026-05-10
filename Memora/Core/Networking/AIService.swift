@@ -30,10 +30,10 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
     private func setup() async throws {
         let installedLocales = await SpeechTranscriber.installedLocales
-        print("インストール済みロケール: \(installedLocales)")
+        STTConsoleLog("インストール済みロケール: \(installedLocales)")
 
         guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
-            print("ロケール \(locale.identifier) が利用可能ではありません")
+            STTConsoleLog("ロケール \(locale.identifier) が利用可能ではありません")
             throw LocalTranscriptionError.localeNotSupported
         }
 
@@ -44,7 +44,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         )
         try await ensureAssetsInstalled(for: createdTranscriber, locale: supportedLocale)
         transcriber = createdTranscriber
-        print("使用ロケール: \(supportedLocale)")
+        STTConsoleLog("使用ロケール: \(supportedLocale)")
 
         let options = SpeechAnalyzer.Options(
             priority: .userInitiated,
@@ -55,10 +55,10 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         // 事前準備: 互換フォーマットを取得し prepareToAnalyze を呼ぶ
         let bestFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [createdTranscriber])
         if let bestFormat {
-            print("[MemoraSTT] bestAvailableAudioFormat: \(bestFormat)")
+            STTConsoleLog("[MemoraSTT] bestAvailableAudioFormat: \(bestFormat)")
             try await analyzer?.prepareToAnalyze(in: bestFormat)
         } else {
-            print("[MemoraSTT] bestAvailableAudioFormat returned nil")
+            STTConsoleLog("[MemoraSTT] bestAvailableAudioFormat returned nil")
         }
     }
 
@@ -67,7 +67,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         locale: Locale
     ) async throws {
         let initialStatus = await AssetInventory.status(forModules: [transcriber])
-        print("SpeechAnalyzer asset status[\(locale.identifier)]: \(String(describing: initialStatus))")
+        STTConsoleLog("SpeechAnalyzer asset status[\(locale.identifier)]: \(String(describing: initialStatus))")
 
         if initialStatus == .installed {
             return
@@ -83,7 +83,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             )
         }
 
-        print("SpeechAnalyzer 用モデルを自動ダウンロードします: \(locale.identifier)")
+        STTConsoleLog("SpeechAnalyzer 用モデルを自動ダウンロードします: \(locale.identifier)")
         progress = 0.05
 
         do {
@@ -93,7 +93,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
         }
 
         let finalStatus = await AssetInventory.status(forModules: [transcriber])
-        print("SpeechAnalyzer asset status after install[\(locale.identifier)]: \(String(describing: finalStatus))")
+        STTConsoleLog("SpeechAnalyzer asset status after install[\(locale.identifier)]: \(String(describing: finalStatus))")
 
         guard finalStatus == .installed else {
             throw LocalTranscriptionError.assetInstallationFailed(
@@ -116,7 +116,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
 
             // 音声ファイルをロード
             let audioFile = try AVAudioFile(forReading: audioURL)
-            print("[MemoraSTT] Audio file loaded: \(audioFile.length) frames, format: \(audioFile.processingFormat)")
+            STTConsoleLog("[MemoraSTT] Audio file loaded: \(audioFile.length) frames, format: \(audioFile.processingFormat)")
 
             guard audioFile.length > 0 else {
                 throw LocalTranscriptionError.transcriptionFailed(
@@ -127,7 +127,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             }
 
             progress = 0.2
-            print("[MemoraSTT] SpeechAnalyzer: analyzeSequence(from:) 開始 (offlineTranscription)")
+            STTConsoleLog("[MemoraSTT] SpeechAnalyzer: analyzeSequence(from:) 開始 (offlineTranscription)")
 
             // ★ 結果を並行で消費（これがないと結果が失われる）
             let resultsTask = Task<[String], Error> {
@@ -147,14 +147,14 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             // 音声投入（高レベルAPI: MP3 を直接渡す）
             do {
                 if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
-                    print("[MemoraSTT] analyzeSequence 完了 — finalizing through lastSample")
+                    STTConsoleLog("[MemoraSTT] analyzeSequence 完了 — finalizing through lastSample")
                     try await analyzer.finalizeAndFinish(through: lastSample)
                 } else {
-                    print("[MemoraSTT] analyzeSequence returned nil — canceling")
+                    STTConsoleLog("[MemoraSTT] analyzeSequence returned nil — canceling")
                     await analyzer.cancelAndFinishNow()
                 }
             } catch {
-                print("[MemoraSTT] analyzeSequence error: \(error)")
+                STTConsoleLog("[MemoraSTT] analyzeSequence error: \(error)")
                 resultsTask.cancel()
                 throw LocalTranscriptionError.transcriptionFailed(error)
             }
@@ -169,7 +169,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
             }
 
             if transcript.isEmpty {
-                print("[MemoraSTT] SpeechAnalyzer: 結果が空 — フォールバックへ")
+                STTConsoleLog("[MemoraSTT] SpeechAnalyzer: 結果が空 — フォールバックへ")
                 throw LocalTranscriptionError.transcriptionFailed(
                     NSError(domain: "MemoraSTT", code: -2, userInfo: [
                         NSLocalizedDescriptionKey: "SpeechAnalyzer produced no transcript"
@@ -177,7 +177,7 @@ final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject
                 )
             }
 
-            print("[MemoraSTT] SpeechAnalyzer: 文字起こし成功 (\(transcript.count)文字)")
+            STTConsoleLog("[MemoraSTT] SpeechAnalyzer: 文字起こし成功 (\(transcript.count)文字)")
             return transcript
         } catch {
             await MainActor.run {
@@ -213,14 +213,14 @@ struct AudioFileAsyncSequence: AsyncSequence {
         let tgtFormat = targetFormat
         let conv = converter
 
-        print("[MemoraSTT] AudioFileAsyncSequence source format: \(sourceFormat), totalFrames: \(frames)")
+        STTConsoleLog("[MemoraSTT] AudioFileAsyncSequence source format: \(sourceFormat), totalFrames: \(frames)")
 
         return AsyncStream { continuation in
             Task {
                 // ファイル全体を1回の read で取り込む（2回目以降の nilError を回避）
                 guard frames > 0,
                       let fullBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: frames) else {
-                    print("[MemoraSTT] AudioFileAsyncSequence: buffer allocation failed for \(frames) frames")
+                    STTConsoleLog("[MemoraSTT] AudioFileAsyncSequence: buffer allocation failed for \(frames) frames")
                     continuation.finish()
                     return
                 }
@@ -228,18 +228,18 @@ struct AudioFileAsyncSequence: AsyncSequence {
                 do {
                     try audioFile.read(into: fullBuffer)
                 } catch {
-                    print("[MemoraSTT] File read error (single-pass): \(error)")
+                    STTConsoleLog("[MemoraSTT] File read error (single-pass): \(error)")
                     continuation.finish()
                     return
                 }
 
                 guard fullBuffer.frameLength > 0 else {
-                    print("[MemoraSTT] AudioFileAsyncSequence: read returned 0 frames")
+                    STTConsoleLog("[MemoraSTT] AudioFileAsyncSequence: read returned 0 frames")
                     continuation.finish()
                     return
                 }
 
-                print("[MemoraSTT] AudioFileAsyncSequence: read \(fullBuffer.frameLength) frames in single pass")
+                STTConsoleLog("[MemoraSTT] AudioFileAsyncSequence: read \(fullBuffer.frameLength) frames in single pass")
 
                 // フォーマット変換（必要な場合）
                 let outputBuffer: AVAudioPCMBuffer
@@ -247,7 +247,7 @@ struct AudioFileAsyncSequence: AsyncSequence {
                     let ratio = tgtFormat.sampleRate / sourceFormat.sampleRate
                     let outputFrames = AVAudioFrameCount(Double(fullBuffer.frameLength) * ratio) + 1
                     guard let converted = AVAudioPCMBuffer(pcmFormat: tgtFormat, frameCapacity: outputFrames) else {
-                        print("[MemoraSTT] Failed to allocate conversion buffer")
+                        STTConsoleLog("[MemoraSTT] Failed to allocate conversion buffer")
                         continuation.finish()
                         return
                     }
@@ -257,12 +257,12 @@ struct AudioFileAsyncSequence: AsyncSequence {
                         return fullBuffer
                     }
                     if status == .error {
-                        print("[MemoraSTT] Format conversion error: \(error?.localizedDescription ?? "unknown")")
+                        STTConsoleLog("[MemoraSTT] Format conversion error: \(error?.localizedDescription ?? "unknown")")
                         continuation.finish()
                         return
                     }
                     outputBuffer = converted
-                    print("[MemoraSTT] Converted: \(fullBuffer.frameLength) → \(converted.frameLength) frames")
+                    STTConsoleLog("[MemoraSTT] Converted: \(fullBuffer.frameLength) → \(converted.frameLength) frames")
                 } else {
                     outputBuffer = fullBuffer
                 }
@@ -291,7 +291,7 @@ struct AudioFileAsyncSequence: AsyncSequence {
                     offset += count
                 }
 
-                print("[MemoraSTT] AudioFileAsyncSequence: yielded \(offset)/\(totalOutputFrames) frames in \(Int(totalOutputFrames)/Int(chunkSize) + 1) chunks")
+                STTConsoleLog("[MemoraSTT] AudioFileAsyncSequence: yielded \(offset)/\(totalOutputFrames) frames in \(Int(totalOutputFrames)/Int(chunkSize) + 1) chunks")
                 continuation.finish()
             }
         }.makeAsyncIterator()
@@ -783,6 +783,8 @@ final class OpenAIService: LLMProvider {
     func transcribe(audioURL: URL) async throws -> String {
         let audioData = try Data(contentsOf: audioURL)
         let boundary = "Boundary-\(UUID().uuidString)"
+        let filename = audioURL.lastPathComponent.isEmpty ? "audio.m4a" : audioURL.lastPathComponent
+        let mimeType = Self.mimeType(for: audioURL)
 
         var request = URLRequest(url: URL(string: "\(baseURL)/audio/transcriptions")!)
         request.httpMethod = "POST"
@@ -794,12 +796,21 @@ final class OpenAIService: LLMProvider {
         // Add model parameter
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
-        body.append("whisper-1\r\n".data(using: .utf8)!)
+        body.append("gpt-4o-transcribe\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
+        body.append("ja\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n".data(using: .utf8)!)
+        body.append(Self.transcriptionPrompt.data(using: .utf8)!)
+        body.append("\r\n".data(using: .utf8)!)
 
         // Add file parameter
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: audio/mp4a\r\n\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         body.append(audioData)
         body.append("\r\n".data(using: .utf8)!)
 
@@ -823,6 +834,27 @@ final class OpenAIService: LLMProvider {
 
         let result = try JSONDecoder().decode(TranscriptionResponse.self, from: data)
         return result.text
+    }
+
+    private static let transcriptionPrompt = """
+    日本語のビジネス会議音声です。固有名詞、商品名、決済、解約、請求、バンドル、ローンチ、集計基準などの業務用語を文脈に合わせて正確に文字起こししてください。
+    """
+
+    private static func mimeType(for url: URL) -> String {
+        switch url.pathExtension.lowercased() {
+        case "mp3", "mpga":
+            return "audio/mpeg"
+        case "wav":
+            return "audio/wav"
+        case "mp4":
+            return "audio/mp4"
+        case "webm":
+            return "audio/webm"
+        case "m4a", "aac":
+            return "audio/mp4"
+        default:
+            return "application/octet-stream"
+        }
     }
 }
 

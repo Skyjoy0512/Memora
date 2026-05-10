@@ -13,7 +13,7 @@ struct TranscriptTab: View {
                 progressCard(
                     title: "文字起こしを実行中",
                     progress: vm.transcriptionProgress,
-                    message: "音声を解析して、話者ごとのテキストを整えています。"
+                    message: "音声を解析して、テキストを整えています。"
                 )
             } else if let result = vm.transcriptResult {
                 if vm.isEditingTranscript {
@@ -71,7 +71,7 @@ struct TranscriptTab: View {
                         }
                         .buttonStyle(.bordered)
 
-                        if result.segments.count > 1 {
+                        if Set(result.segments.map(\.speakerLabel).filter { !$0.isEmpty }).count > 1 {
                             Button {
                                 vm.registerPrimarySpeakerSample()
                             } label: {
@@ -111,7 +111,7 @@ struct TranscriptTab: View {
                 placeholderCard(
                     icon: "waveform.badge.magnifyingglass",
                     title: "文字起こしはまだありません",
-                    description: "録音を文字起こしすると、全文と話者セグメントをこのタブで確認できます。",
+                    description: "録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。",
                     buttonTitle: "文字起こしを開始",
                     buttonAction: { vm.startTranscription() }
                 )

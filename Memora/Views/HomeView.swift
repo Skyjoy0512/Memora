@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(OmiAdapter.self) private var omiAdapter
+    @Environment(BluetoothAudioService.self) private var bluetoothService
     @State private var viewModel = HomeViewModel()
     @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
@@ -13,13 +15,18 @@ struct HomeView: View {
     @Binding var isTabBarHidden: Bool
     @Binding var triggerRecording: Bool
     @Binding var triggerFileImport: Bool
+    @Binding var triggerMeetingCapture: Bool
     @Query private var googleSettingsList: [GoogleMeetSettings]
     @Query private var projects: [Project]
+    @Query private var botConfigs: [BotMeetingConfig]
+    @Query private var plaudSettingsList: [PlaudSettings]
 
     // インポート・Meet
     @State private var showFileImporter = false
     @State private var showGoogleMeetImport = false
+    @State private var showMeetingCapture = false
     @State private var importErrorMessage: String?
+    @State private var meetingCaptureViewModel = MeetingCaptureViewModel()
 
     // 検索・フィルタリング用
     @State private var searchText = ""
@@ -29,6 +36,7 @@ struct HomeView: View {
     @State private var filterLifeLog: Bool? = nil
     @State private var selectedTag: String? = nil
     @State private var sortOption: SortOption = .dateDesc
+    @State private var showDeviceDetails = false
 
     // フィルタリング結果キャッシュ（body 再評価時の再計算を防止）
     @State private var cachedFilteredFiles: [AudioFile] = []
@@ -45,11 +53,12 @@ struct HomeView: View {
         [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
     }
 
-    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false), triggerRecording: Binding<Bool> = .constant(false), triggerFileImport: Binding<Bool> = .constant(false)) {
+    init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false), triggerRecording: Binding<Bool> = .constant(false), triggerFileImport: Binding<Bool> = .constant(false), triggerMeetingCapture: Binding<Bool> = .constant(false)) {
         self._pendingOpenedAudioFileID = pendingOpenedAudioFileID
         self._isTabBarHidden = isTabBarHidden
         self._triggerRecording = triggerRecording
         self._triggerFileImport = triggerFileImport
+        self._triggerMeetingCapture = triggerMeetingCapture
     }
 
     // フィルタリング・ソート後のファイル一覧（キャッシュ参照）
@@ -61,6 +70,14 @@ struct HomeView: View {
         Array(Set(viewModel.audioFiles.flatMap(\.lifeLogTags))).sorted { lhs, rhs in
             lhs.localizedStandardCompare(rhs) == .orderedAscending
         }
+    }
+
+    private var isPlaudConnected: Bool {
+        if bluetoothService.isConnected && bluetoothService.connectedDeviceType == .plaud {
+            return true
+        }
+        guard let settings = plaudSettingsList.first else { return false }
+        return settings.isEnabled && settings.isTokenValid
     }
 
     private func updateFilteredFiles() {
@@ -95,6 +112,18 @@ struct HomeView: View {
                             isSelectMode = false
                             selectedFileIDs.removeAll()
                         }
+                    } else {
+                        Button {
+                            showDeviceDetails = true
+                        } label: {
+                            DeviceStatusToolbarButton(
+                                omiState: omiAdapter.connectionState,
+                                isOmiConnected: omiAdapter.isConnected,
+                                isPlaudConnected: isPlaudConnected
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("デバイス接続状態")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -137,6 +166,9 @@ struct HomeView: View {
                     .onAppear { isTabBarHidden = true }
                     .onDisappear { isTabBarHidden = false; shouldAutoTranscribe = false }
             }
+            .navigationDestination(isPresented: $showDeviceDetails) {
+                DeviceDetailView(plaudSettings: plaudSettingsList.first)
+            }
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: importContentTypes,
@@ -163,6 +195,26 @@ struct HomeView: View {
             .task {
                 viewModel.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
                 viewModel.loadAudioFiles()
+
+                let captureService = SystemAudioCaptureService()
+                captureService.configure(modelContext: modelContext)
+                meetingCaptureViewModel.configure(captureService: captureService)
+                meetingCaptureViewModel.configure(modelContext: modelContext)
+
+                meetingCaptureViewModel.onCaptureCompleted = { audioFileID in
+                    if let file = viewModel.audioFile(id: audioFileID) {
+                        selectedAudioFile = file
+                        shouldAutoTranscribe = true
+                    }
+                    showMeetingCapture = false
+                }
+
+                if let botConfig = botConfigs.first, botConfig.isEnabled {
+                    let botService = BotMeetingService()
+                    botService.configure(serverURL: botConfig.serverURL, apiKey: botConfig.apiKey)
+                    meetingCaptureViewModel.configureBotService(botService, modelContext: modelContext)
+                }
+
                 updateFilteredFiles()
                 updateProjectLookup()
                 openPendingImportedAudioIfNeeded()
@@ -194,6 +246,15 @@ struct HomeView: View {
                 guard newValue else { return }
                 triggerFileImport = false
                 showFileImporter = true
+            }
+            .onChange(of: triggerMeetingCapture) { _, newValue in
+                guard newValue else { return }
+                triggerMeetingCapture = false
+                meetingCaptureViewModel.reset()
+                showMeetingCapture = true
+            }
+            .sheet(isPresented: $showMeetingCapture) {
+                MeetingCaptureSetupView(viewModel: meetingCaptureViewModel)
             }
             .onChange(of: searchText) { _, _ in
                 searchDebounceTask?.cancel()

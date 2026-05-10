@@ -58,12 +58,23 @@ struct STTExecutionConfiguration: Sendable {
     let apiKey: String
     let provider: AIProvider
     let transcriptionMode: TranscriptionMode
+    let allowsSpeechAnalyzer: Bool
 
     static let localDefault = STTExecutionConfiguration(
         apiKey: "",
         provider: .openai,
-        transcriptionMode: .local
+        transcriptionMode: .local,
+        allowsSpeechAnalyzer: true
     )
+
+    func withSpeechAnalyzerAllowed(_ isAllowed: Bool) -> STTExecutionConfiguration {
+        STTExecutionConfiguration(
+            apiKey: apiKey,
+            provider: provider,
+            transcriptionMode: transcriptionMode,
+            allowsSpeechAnalyzer: isAllowed
+        )
+    }
 }
 
 struct OnDeviceTranscriptionTimeoutError: LocalizedError, Equatable, Sendable {
@@ -71,6 +82,121 @@ struct OnDeviceTranscriptionTimeoutError: LocalizedError, Equatable, Sendable {
 
     var errorDescription: String? {
         Self.message
+    }
+}
+
+enum DurationFormatter {
+    static func milliseconds(_ duration: Duration) -> Double {
+        Double(duration.components.seconds) * 1000.0
+            + Double(duration.components.attoseconds) / 1_000_000_000_000_000.0
+    }
+}
+
+struct TranscriptPostProcessor {
+    func process(_ result: TranscriptionResult) -> TranscriptionResult {
+        let cleanedSegments = result.segments.map { segment in
+            TranscriptionSegment(
+                id: segment.id,
+                speakerLabel: segment.speakerLabel,
+                startSec: segment.startSec,
+                endSec: segment.endSec,
+                text: clean(segment.text)
+            )
+        }
+        let cleanedFullText = clean(result.fullText)
+
+        return TranscriptionResult(
+            fullText: cleanedFullText,
+            language: result.language,
+            segments: cleanedSegments
+        )
+    }
+
+    func clean(_ text: String) -> String {
+        var value = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        value = collapseHorizontalWhitespace(value)
+        value = normalizeLineBreaks(value)
+        value = normalizeJapaneseSpacing(value)
+        value = normalizePunctuation(value)
+        value = removeStandaloneFillers(value)
+
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func collapseHorizontalWhitespace(_ text: String) -> String {
+        text.replacingOccurrences(
+            of: #"[ \t　]+"#,
+            with: " ",
+            options: .regularExpression
+        )
+    }
+
+    private func normalizeLineBreaks(_ text: String) -> String {
+        text.replacingOccurrences(
+            of: #"\n{3,}"#,
+            with: "\n\n",
+            options: .regularExpression
+        )
+    }
+
+    private func normalizeJapaneseSpacing(_ text: String) -> String {
+        var value = text
+        value = value.replacingOccurrences(
+            of: #"([\p{Han}\p{Hiragana}\p{Katakana}]) ([\p{Han}\p{Hiragana}\p{Katakana}])"#,
+            with: "$1$2",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #" ([、。！？])"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"([（「『]) "#,
+            with: "$1",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #" "([）」』])"#,
+            with: "$1",
+            options: .regularExpression
+        )
+        return value
+    }
+
+    private func normalizePunctuation(_ text: String) -> String {
+        var value = text
+        value = value.replacingOccurrences(
+            of: #"[、,]{2,}"#,
+            with: "、",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"[。\.]{2,}"#,
+            with: "。",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"[!！]{2,}"#,
+            with: "！",
+            options: .regularExpression
+        )
+        value = value.replacingOccurrences(
+            of: #"[?？]{2,}"#,
+            with: "？",
+            options: .regularExpression
+        )
+        return value
+    }
+
+    private func removeStandaloneFillers(_ text: String) -> String {
+        text.replacingOccurrences(
+            of: #"(?m)^\s*(えー|ええと|えっと|あの|その|まあ|うーん)\s*[、。,.]?\s*$\n?"#,
+            with: "",
+            options: .regularExpression
+        )
     }
 }
 
@@ -121,6 +247,95 @@ enum STTErrorMapper {
 /// デフォルト OFF（実機での EXC_BREAKPOINT クラッシュを回避）。
 struct SpeechAnalyzerFeatureFlag {
     @AppStorage("speechAnalyzerEnabled") static var isEnabled: Bool = false
+}
+
+enum STTLocalProcessingSettings {
+    @AppStorage("speakerDiarizationEnabled") static var isSpeakerDiarizationEnabled: Bool = false
+
+    static let contextualVocabulary: [String] = [
+        "決済", "決済サイクル", "解約", "請求", "入金", "未入金", "返金",
+        "バンドル", "ローンチ", "集計基準", "月次", "当月", "翌月",
+        "初月無料", "再契約", "店舗管理画面", "代理店", "契約書", "QRコード"
+    ]
+}
+
+final class STTProgressThrottler: @unchecked Sendable {
+    private let lock = NSLock()
+    private let progressInterval: TimeInterval
+    private let progressStep: Double
+    private let partialInterval: TimeInterval
+    private let liveActivityChunkStep: Int
+
+    private var lastProgress = 0.0
+    private var lastProgressDate = Date.distantPast
+    private var lastPartialDate = Date.distantPast
+    private var lastLiveActivityChunk = 0
+
+    init(
+        progressInterval: TimeInterval,
+        progressStep: Double,
+        partialInterval: TimeInterval,
+        liveActivityChunkStep: Int
+    ) {
+        self.progressInterval = progressInterval
+        self.progressStep = progressStep
+        self.partialInterval = partialInterval
+        self.liveActivityChunkStep = max(1, liveActivityChunkStep)
+    }
+
+    static func forTranscription(mode: TranscriptionMode, totalChunks: Int) -> STTProgressThrottler {
+        if mode == .local, totalChunks >= 8 {
+            return STTProgressThrottler(
+                progressInterval: 2.0,
+                progressStep: 0.02,
+                partialInterval: 4.0,
+                liveActivityChunkStep: max(1, totalChunks / 20)
+            )
+        }
+
+        return STTProgressThrottler(
+            progressInterval: 0.5,
+            progressStep: 0.005,
+            partialInterval: 1.0,
+            liveActivityChunkStep: 1
+        )
+    }
+
+    func shouldEmitProgress(_ progress: Double, force: Bool = false) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let now = Date()
+        if force || progress >= 1 || progress - lastProgress >= progressStep || now.timeIntervalSince(lastProgressDate) >= progressInterval {
+            lastProgress = progress
+            lastProgressDate = now
+            return true
+        }
+        return false
+    }
+
+    func shouldEmitPartial(force: Bool = false) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let now = Date()
+        if force || now.timeIntervalSince(lastPartialDate) >= partialInterval {
+            lastPartialDate = now
+            return true
+        }
+        return false
+    }
+
+    func shouldUpdateLiveActivity(completedChunkCount: Int, totalChunks: Int, force: Bool = false) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if force || completedChunkCount >= totalChunks || completedChunkCount - lastLiveActivityChunk >= liveActivityChunkStep {
+            lastLiveActivityChunk = completedChunkCount
+            return true
+        }
+        return false
+    }
 }
 
 // MARK: - STT Backend Diagnostics

@@ -17,6 +17,17 @@ final class BluetoothAudioService: NSObject {
     var recordingDuration: TimeInterval = 0
     var connectionState: ConnectionState = .disconnected
     var disconnectReason: String?
+    var batteryLevel: Int?
+    var firmwareVersion: String?
+    var modelNumber: String?
+
+    var connectedDeviceName: String? {
+        connectedPeripheral?.name
+    }
+
+    var connectedDeviceType: DeviceType {
+        selectedDeviceType
+    }
 
     private static let iso8601Formatter = Foundation.ISO8601DateFormatter()
 
@@ -60,6 +71,22 @@ final class BluetoothAudioService: NSObject {
         case omi
         case plaud
         case unknown
+
+        var displayName: String {
+            switch self {
+            case .omi: return "Omi"
+            case .plaud: return "Plaud"
+            case .unknown: return "BLE Device"
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .omi: return "headphones"
+            case .plaud: return "waveform"
+            case .unknown: return "antenna.radiowaves.left.and.right"
+            }
+        }
     }
     private var selectedDeviceType: DeviceType = .unknown
 
@@ -74,6 +101,9 @@ final class BluetoothAudioService: NSObject {
         discoveredDevices.removeAll()
         discoveredServices.removeAll()
         discoveredCharacteristics.removeAll()
+        batteryLevel = nil
+        firmwareVersion = nil
+        modelNumber = nil
 
         // 既に接続されているデバイスがあれば切断
         if let peripheral = connectedPeripheral {
@@ -307,6 +337,7 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
             self.isConnected = true
             self.connectionState = .connected
             self.isScanning = false
+            self.connectedPeripheral = peripheral
             self.stopScanning()
             self.errorMessage = nil
             self.disconnectReason = nil
@@ -362,6 +393,9 @@ extension BluetoothAudioService: CBCentralManagerDelegate {
             self.connectedPeripheral = nil
             self.audioCharacteristic = nil
             self.selectedDeviceType = .unknown
+            self.batteryLevel = nil
+            self.firmwareVersion = nil
+            self.modelNumber = nil
 
             // 自動再接続を試みる（エラーがある場合のみ）
             if error != nil && self.retryCount < self.maxRetryCount {
@@ -483,7 +517,9 @@ extension BluetoothAudioService: CBPeripheralDelegate {
                         self.audioCharacteristic = characteristic
                         print("    ✅ オーディオキャラクタリスティックとして設定しました")
                     }
-                } else if characteristic.properties.contains(.read) {
+                }
+
+                if characteristic.properties.contains(.read) {
                     // 読み取り可能なキャラクタリスティックを読み出して試す
                     print("    → 読み取りを試みます...")
                     peripheral.readValue(for: characteristic)
@@ -514,6 +550,10 @@ extension BluetoothAudioService: CBPeripheralDelegate {
             }
 
             print("📥 データを受信: \(data.count) bytes, キャラクタリスティック: \(characteristic.uuid.uuidString)")
+
+            if self.handleDeviceInfoValue(data, for: characteristic.uuid) {
+                return
+            }
 
             // 音声データを処理
             self.handleAudioData(data)
@@ -556,6 +596,22 @@ extension BluetoothAudioService: CBPeripheralDelegate {
             // 録音中ならバッファに追加
             audioBuffer.append(data)
             print("   バッファサイズ: \(audioBuffer.count) bytes, 録音時間: \(recordingDuration)s")
+        }
+    }
+
+    private func handleDeviceInfoValue(_ data: Data, for uuid: CBUUID) -> Bool {
+        switch uuid.uuidString.uppercased() {
+        case "2A19":
+            batteryLevel = data.first.map { min(100, max(0, Int($0))) }
+            return true
+        case "2A26":
+            firmwareVersion = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return true
+        case "2A24":
+            modelNumber = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return true
+        default:
+            return false
         }
     }
 }

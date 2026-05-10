@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Memora Bot Server – Docker Compose
+#
+# Quick start:
+#   cp .env.example .env   # then edit .env with your API keys
+#   docker compose up -d
+#
+# All environment variables are defined in .env.example.
+# ---------------------------------------------------------------------------
+version: "3.9"
+
+services:
+  bot-server:
+    build: .
+    container_name: memora-bot-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - API_KEY=${API_KEY:-changeme}
+      - S3_ENDPOINT=${S3_ENDPOINT:-}
+      - S3_BUCKET=${S3_BUCKET:-memora-bot-recordings}
+      - S3_REGION=${S3_REGION:-us-east-1}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-}
+      - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+      - ZOOM_CLIENT_ID=${ZOOM_CLIENT_ID:-}
+      - ZOOM_CLIENT_SECRET=${ZOOM_CLIENT_SECRET:-}
+      - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID:-}
+      - TEAMS_CLIENT_SECRET=${TEAMS_CLIENT_SECRET:-}
+    volumes:
+      - ./recordings:/app/recordings
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

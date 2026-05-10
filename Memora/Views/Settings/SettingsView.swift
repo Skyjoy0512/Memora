@@ -20,6 +20,8 @@ struct SettingsView: View {
                 CustomTemplateSection(state: state)
                 NotionIntegrationSection(state: state)
                 GoogleMeetSection(state: state)
+                MeetingCaptureSection()
+                BotMeetingSection(state: state)
                 MemorySettingsSection()
                 UsageInstructionsSection()
                 DataManagementSection(state: state)
