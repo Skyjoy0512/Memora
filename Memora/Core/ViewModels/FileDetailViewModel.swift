@@ -3,9 +3,30 @@ import SwiftData
 import Observation
 import UIKit
 
+// MARK: - Generation State
+
+enum GenerationState: String, CaseIterable {
+    case notGenerated
+    case choosingMode
+    case choosingTemplate
+    case choosingModel
+    case loading
+    case generated
+}
+
 @Observable
 @MainActor
 final class FileDetailViewModel {
+
+    // MARK: - Generation State
+
+    var generationState: GenerationState {
+        if showGenerationFlow { return .choosingMode }
+        if isTranscribing || isSummarizing { return .loading }
+        if summaryResult != nil || audioFile.isSummarized { return .generated }
+        if transcriptResult != nil || audioFile.isTranscribed { return .generated }
+        return .notGenerated
+    }
 
     // MARK: - Audio Playback State
     var isPlaying = false
