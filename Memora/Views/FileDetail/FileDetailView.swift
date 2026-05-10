@@ -22,6 +22,12 @@ struct FileDetailView: View {
     @State private var isLinkingEvent = false
     @State private var cachedProjectTitle: String?
 
+    // MARK: - Generation Sheet State
+    @State private var showTemplateSheet = false
+    @State private var showModelSheet = false
+    @State private var selectedTemplate: GenerationTemplate = .summary
+    @State private var selectedModel: AIModelType = .chatGPT5
+
     var currentProvider: AIProvider {
         AIProvider(rawValue: selectedProvider) ?? .openai
     }
@@ -138,10 +144,52 @@ struct FileDetailView: View {
 
             // Ask Anything Overlay (floating)
             askAnythingOverlay
-        }
-        .sheet(isPresented: $vm.showGenerationFlow) {
-            GenerationFlowSheet(isPresented: $vm.showGenerationFlow) { config in
-                vm.startSummarization(with: config)
+
+            // MARK: Generation Sheet Overlays
+
+            // Generation Mode Sheet
+            if vm.showGenerationFlow {
+                GenerationModeSheet(
+                    isPresented: $vm.showGenerationFlow,
+                    showTemplateSheet: $showTemplateSheet,
+                    onStartGeneration: { config in
+                        vm.startSummarization(with: config)
+                    }
+                )
+                .zIndex(10)
+            }
+
+            // Template Selection Sheet
+            if showTemplateSheet {
+                TemplateSelectSheet(
+                    isPresented: $showTemplateSheet,
+                    showModelSheet: $showModelSheet,
+                    selectedTemplate: $selectedTemplate,
+                    selectedModel: $selectedModel,
+                    onStartGeneration: { config in
+                        vm.startSummarization(with: config)
+                    }
+                )
+                .zIndex(10)
+            }
+
+            // AI Model Selection Sheet
+            if showModelSheet {
+                AIModelSelectSheet(
+                    isPresented: $showModelSheet,
+                    selectedModel: $selectedModel,
+                    onStartGeneration: { config in
+                        vm.startSummarization(with: config)
+                    }
+                )
+                .zIndex(10)
+            }
+
+            // Loading Skeleton Overlay
+            if vm.isSummarizing {
+                generationLoadingSkeleton
+                    .zIndex(5)
+            }
             }
         }
         .sheet(isPresented: $vm.showShareSheet) {
@@ -775,6 +823,42 @@ struct FileDetailView: View {
         }
 
         return .memo
+    }
+
+    // MARK: - Loading Skeleton
+
+    /// 生成中ローディングスケルトン — タイトル + 大きなカード + 横長バー
+    private var generationLoadingSkeleton: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            VStack(alignment: .leading, spacing: MemoraSpacing.md) {
+                // Title skeleton bars
+                skeletonBar(width: 200, height: 21)
+                skeletonBar(width: 140, height: 14)
+
+                // Large content skeleton card
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(hex: "D9D9D9"))
+                    .frame(height: 180)
+
+                // Horizontal skeleton bars
+                skeletonBar(width: nil, height: 14)
+                skeletonBar(width: nil, height: 14)
+                skeletonBar(width: 260, height: 14)
+            }
+            .padding(MemoraSpacing.lg)
+            .background(MemoraColor.surfaceCard)
+            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+            .padding(.horizontal, MemoraSpacing.md)
+            .padding(.bottom, 180)
+        }
+    }
+
+    private func skeletonBar(width: CGFloat?, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: height / 2)
+            .fill(Color(hex: "D9D9D9"))
+            .frame(width: width, height: height)
+            .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
     }
 }
 
