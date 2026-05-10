@@ -24,7 +24,8 @@ struct ContentView: View {
                     pendingOpenedAudioFileID: $pendingOpenedAudioFileID,
                     isTabBarHidden: $isTabBarHidden,
                     triggerRecording: $triggerRecording,
-                    triggerFileImport: $triggerFileImport
+                    triggerFileImport: $triggerFileImport,
+                    selectedTab: $selectedTab
                 )
                 .tabItem { Label("Files", systemImage: "folder.fill") }
                 .tag(0)
@@ -46,9 +47,10 @@ struct ContentView: View {
                     .tag(4)
             }
             .tint(MemoraColor.interactivePrimary)
+            .toolbar(selectedTab == 0 ? .hidden : .visible, for: .tabBar)
 
-            // FAB (only on Files tab, hidden on detail pages)
-            if selectedTab == 0 && !isTabBarHidden {
+            // FAB is now handled internally by HomeView
+            if false && selectedTab == 0 && !isTabBarHidden {
                 fabView
                     .transition(.scale.combined(with: .opacity))
             }
