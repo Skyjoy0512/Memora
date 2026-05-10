@@ -34,16 +34,16 @@ struct TranscriptContentView: View {
                     )
                 }
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("文字起こし")
-                        .font(MemoraTypography.headline)
+                        .font(.system(size: 13, weight: .semibold))
 
                     Text(result.text)
-                        .font(MemoraTypography.body)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.primary)
-                        .lineSpacing(6)
+                        .lineSpacing(5)
                 }
-                .padding()
+                .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(MemoraColor.divider.opacity(0.05))
                 .clipShape(.rect(cornerRadius: MemoraRadius.md))
@@ -64,33 +64,29 @@ struct SpeakerSegmentView: View {
         Button {
             onTap?(segment)
         } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Image(systemName: "play.circle")
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
-
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
                     if !segment.speakerLabel.isEmpty {
                         Text(segment.speakerLabel)
-                            .font(MemoraTypography.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundStyle(MemoraColor.textSecondary)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(MemoraColor.textPrimary)
                     }
 
                     Spacer()
 
                     Text(formatTime(segment.startTime))
-                        .font(MemoraTypography.caption1)
-                        .foregroundStyle(MemoraColor.textSecondary)
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(Color(hex: "58585A"))
                 }
 
                 Text(segment.text)
-                    .font(MemoraTypography.body)
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.primary)
+                    .lineSpacing(4)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, MemoraSpacing.xs)
-            .padding(.horizontal, MemoraSpacing.sm)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 4)
             .background(isPlaying ? MemoraColor.accentBlue.opacity(0.08) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
         }
@@ -98,9 +94,10 @@ struct SpeakerSegmentView: View {
     }
 
     private func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
+        let hours = Int(time) / 3600
+        let minutes = (Int(time) % 3600) / 60
         let seconds = Int(time) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 

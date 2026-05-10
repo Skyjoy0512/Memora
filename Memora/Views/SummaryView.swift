@@ -101,13 +101,13 @@ struct SummaryContentView: View {
     private func summaryCard(title: String, icon: String, content: String) -> some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
             Label(title, systemImage: icon)
-                .font(MemoraTypography.headline)
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(MemoraColor.textPrimary)
 
             Text(content)
-                .font(MemoraTypography.body)
+                .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(.primary)
-                .lineSpacing(6)
+                .lineSpacing(5)
         }
         .padding(MemoraSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -129,7 +129,7 @@ struct SummaryContentView: View {
                         .frame(width: 20, alignment: .trailing)
 
                     Text(point)
-                        .font(MemoraTypography.body)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.primary)
                 }
             }
@@ -153,7 +153,7 @@ struct SummaryContentView: View {
                         .foregroundStyle(MemoraColor.accentGreen)
 
                     Text(decision)
-                        .font(MemoraTypography.body)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.primary)
                 }
             }
@@ -177,7 +177,7 @@ struct SummaryContentView: View {
                         .foregroundStyle(MemoraColor.textSecondary)
 
                     Text(item)
-                        .font(MemoraTypography.body)
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(.primary)
                 }
             }
