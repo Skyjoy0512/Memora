@@ -6,6 +6,10 @@ import os.log
 @Observable
 final class DebugLogger {
     static let shared = DebugLogger()
+    static let detailedSTTLoggingKey = "detailedSTTLoggingEnabled"
+    static var isDetailedSTTLoggingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: detailedSTTLoggingKey)
+    }
 
     private static let iso8601Formatter: Foundation.ISO8601DateFormatter = {
         let f = Foundation.ISO8601DateFormatter()
@@ -14,6 +18,12 @@ final class DebugLogger {
     }()
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.memora.Memora", category: "Performance")
+    private let noisySTTCategories: Set<String> = [
+        "STTBackend",
+        "STTService",
+        "Diarization",
+        "STTDiagnostics"
+    ]
     var logs: [DebugLogEntry] = []
     private var appStartTime: Date?
 
@@ -50,6 +60,8 @@ final class DebugLogger {
 
     /// 一般ログ追加
     func addLog(_ category: String, _ message: String, level: LogLevel = .info) {
+        guard shouldRecord(category: category, level: level) else { return }
+
         let entry = DebugLogEntry(
             id: UUID().uuidString,
             timestamp: Date(),
@@ -74,6 +86,12 @@ final class DebugLogger {
         case .error:
             logger.error("\(category): \(message)")
         }
+    }
+
+    private func shouldRecord(category: String, level: LogLevel) -> Bool {
+        guard noisySTTCategories.contains(category) else { return true }
+        guard level == .debug || level == .info else { return true }
+        return Self.isDetailedSTTLoggingEnabled
     }
 
     /// ログをクリア
@@ -186,4 +204,9 @@ enum LogLevel: String, Codable, CaseIterable {
     case info = "info"
     case warning = "warning"
     case error = "error"
+}
+
+func STTConsoleLog(_ message: @autoclosure () -> String) {
+    guard DebugLogger.isDetailedSTTLoggingEnabled else { return }
+    print(message())
 }

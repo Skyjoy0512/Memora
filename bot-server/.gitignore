@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Runtime data
+recordings/
+
+# Logs
+*.log
+logs/
+
+# Environment (also covered by root .gitignore)
+.env
+.env.*
+!.env.example

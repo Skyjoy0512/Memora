@@ -161,16 +161,22 @@ final class FileDetailViewModel {
     }
 
     func seekToTime(_ time: TimeInterval) {
-        seek(to: time)
         if !isPlaying, let url = audioURL {
-            do {
-                try audioPlayer.play(url: url)
-                isPlaying = true
-                startPlaybackTimer()
-            } catch {
-                errorMessage = "再生に失敗しました: \(error.localizedDescription)"
-                showErrorAlert = true
+            Task {
+                do {
+                    try await audioPlayer.load(url: url)
+                    await audioPlayer.seek(to: time)
+                    playbackPosition = time
+                    await audioPlayer.play()
+                    isPlaying = true
+                    startPlaybackTimer()
+                } catch {
+                    errorMessage = "再生に失敗しました: \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
+        } else {
+            seek(to: time)
         }
     }
 
@@ -212,7 +218,10 @@ final class FileDetailViewModel {
     // MARK: - Summarization
 
     func startSummarization(with config: GenerationConfig = GenerationConfig()) {
-        guard !currentAPIKey.isEmpty else {
+        let provider = config.aiProvider ?? currentProvider
+        let apiKey = apiKey(for: provider)
+
+        guard !provider.requiresAPIKey || !apiKey.isEmpty else {
             errorMessage = "API キーが設定されていません。設定画面から API キーを入力してください。"
             showErrorAlert = true
             return
@@ -253,14 +262,27 @@ final class FileDetailViewModel {
                 audioFile: self.audioFile,
                 transcriptText: transcriptText,
                 segments: segments,
-                apiKey: self.currentAPIKey,
-                provider: self.currentProvider,
+                apiKey: apiKey,
+                provider: provider,
                 config: config
             )
 
             for await event in events {
                 self.handleSummarizationPipelineEvent(event)
             }
+        }
+    }
+
+    private func apiKey(for provider: AIProvider) -> String {
+        switch provider {
+        case .openai:
+            return KeychainService.load(key: .apiKeyOpenAI)
+        case .gemini:
+            return KeychainService.load(key: .apiKeyGemini)
+        case .deepseek:
+            return KeychainService.load(key: .apiKeyDeepSeek)
+        case .local:
+            return ""
         }
     }
 

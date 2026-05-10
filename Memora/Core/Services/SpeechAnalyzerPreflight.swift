@@ -217,8 +217,7 @@ final class SpeechAnalyzerPreflight: Sendable {
         start: ContinuousClock.Instant
     ) -> SpeechAnalyzerDiagnostics {
         let duration = start.duration(to: ContinuousClock.now)
-        let ms = Double(duration.components.seconds) * 1000.0
-            + Double(duration.components.attoseconds) / 1_000_000_000_000.0
+        let ms = DurationFormatter.milliseconds(duration)
 
         return SpeechAnalyzerDiagnostics(
             isTranscriberAvailable: isAvailable,

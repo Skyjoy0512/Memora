@@ -27,10 +27,30 @@ enum CalendarError: LocalizedError {
     }
 }
 
+// MARK: - CalendarMeeting
+
+/// 会議キャプチャ用のカレンダー予定モデル。
+struct CalendarMeeting: Identifiable {
+    let id: String
+    let title: String
+    let platform: MeetingPlatform
+    let url: String
+    let startDate: Date
+    let durationMinutes: Int
+
+    var formattedStartTime: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "M/d (EEE) HH:mm"
+        return formatter.string(from: startDate)
+    }
+}
+
 // MARK: - CalendarService
 
 /// EventKit をラップし、カレンダーイベントの取得・AudioFile との紐付けを提供するサービス。
 @MainActor
+@Observable
 final class CalendarService {
 
     @ObservationIgnored
@@ -126,6 +146,48 @@ final class CalendarService {
 
         // 最も近いイベントを返す
         return candidates.first
+    }
+
+    // MARK: - Meeting Capture
+
+    /// 会議URLを持つ今後のイベントを CalendarMeeting として取得する。
+    /// - Parameter days: 現在から何日先まで取得するか（デフォルト 7 日）
+    /// - Returns: 開始日時昇順の CalendarMeeting 配列
+    func fetchUpcomingMeetings(within days: Int = 7) -> [CalendarMeeting] {
+        let events = fetchUpcomingEvents(daysAhead: days)
+        return events.compactMap { event -> CalendarMeeting? in
+            guard let url = extractMeetingURL(from: event) else { return nil }
+            let urlString = url.absoluteString
+            let platform = parseMeetingPlatform(from: urlString)
+            let duration: Int
+            if let start = event.startDate, let end = event.endDate {
+                duration = max(1, Int(end.timeIntervalSince(start) / 60))
+            } else {
+                duration = 60
+            }
+            return CalendarMeeting(
+                id: event.calendarItemIdentifier,
+                title: event.title ?? "（無題）",
+                platform: platform,
+                url: urlString,
+                startDate: event.startDate,
+                durationMinutes: duration
+            )
+        }
+    }
+
+    /// URL 文字列から MeetingPlatform を判定する。
+    func parseMeetingPlatform(from urlString: String) -> MeetingPlatform {
+        let lowercased = urlString.lowercased()
+        if lowercased.contains("zoom.us") {
+            return .zoom
+        } else if lowercased.contains("meet.google.com") {
+            return .googleMeet
+        } else if lowercased.contains("teams.microsoft.com") {
+            return .teams
+        } else {
+            return .other
+        }
     }
 
     // MARK: - Link / Unlink

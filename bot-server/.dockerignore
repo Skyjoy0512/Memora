@@ -1,0 +1,14 @@
+node_modules/
+src/
+scripts/
+.env
+.env.example
+.git/
+*.md
+*.log
+.DS_Store
+docker-compose.yml
+Dockerfile
+tsconfig.json
+.gitignore
+.npmrc

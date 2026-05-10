@@ -35,6 +35,7 @@ targets:
       TARGETED_DEVICE_FAMILY: "1,2"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       INFOPLIST_FILE: Memora/Resources/Info.plist
+      CODE_SIGN_ENTITLEMENTS: Memora/Memora.entitlements
       CODE_SIGN_STYLE: Automatic
       CODE_SIGN_IDENTITY: "iPhone Developer"
       DEVELOPMENT_TEAM: 4R82H2PVGL
@@ -45,6 +46,23 @@ targets:
       INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
       ENABLE_PREVIEWS: YES
       DEVELOPMENT_ASSET_PATHS: "\"Memora/Resources/Preview Content\""
+  MemoraBroadcastExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: MemoraBroadcastExtension
+        includes: ["**/*.swift"]
+    settings:
+      PRODUCT_NAME: MemoraBroadcastExtension
+      PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora.MemoraBroadcastExtension
+      SWIFT_VERSION: 5.5
+      INFOPLIST_FILE: MemoraBroadcastExtension/Info.plist
+      CODE_SIGN_ENTITLEMENTS: MemoraBroadcastExtension/MemoraBroadcastExtension.entitlements
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "iPhone Developer"
+      DEVELOPMENT_TEAM: 4R82H2PVGL
+      GENERATE_INFOPLIST_FILE: NO
   MemoraTests:
     type: bundle.unit-test
     platform: iOS

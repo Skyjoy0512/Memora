@@ -20,6 +20,8 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
     }()
 
     private var isPrepared = false
+    private var speakerCountManagers: [Int: OfflineDiarizerManager] = [:]
+    private var preparedSpeakerCounts = Set<Int>()
 
     func detectSpeakers(
         audioURL: URL,
@@ -32,43 +34,56 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
             // numSpeakers が指定されていれば専用の manager を構築
             let effectiveManager: OfflineDiarizerManager
             if let numSpeakers {
-                var config = OfflineDiarizerConfig()
-                config.clustering.threshold = 0.38
-                config.clustering.numSpeakers = numSpeakers
-                effectiveManager = OfflineDiarizerManager(config: config)
-                print("[Diarization] numSpeakers=\(numSpeakers) 指定 — 専用 manager 構築")
-                DebugLogger.shared.addLog("Diarization", "numSpeakers=\(numSpeakers) 指定 — 専用 manager 構築", level: .info)
-                try await effectiveManager.prepareModels()
+                effectiveManager = manager(forSpeakerCount: numSpeakers)
+                if !preparedSpeakerCounts.contains(numSpeakers) {
+                    STTConsoleLog("[Diarization] numSpeakers=\(numSpeakers) 指定 — 専用 manager prepare 開始")
+                    DebugLogger.shared.addLog("Diarization", "numSpeakers=\(numSpeakers) 指定 — 専用 manager prepare 開始", level: .info)
+                    try await effectiveManager.prepareModels()
+                    preparedSpeakerCounts.insert(numSpeakers)
+                }
             } else {
                 if !isPrepared {
-                    print("[Diarization] FluidAudio model prepare 開始")
+                    STTConsoleLog("[Diarization] FluidAudio model prepare 開始")
                     DebugLogger.shared.addLog("Diarization", "FluidAudio model prepare 開始", level: .info)
                     try await manager.prepareModels()
                     isPrepared = true
-                    print("[Diarization] FluidAudio model prepare 完了")
+                    STTConsoleLog("[Diarization] FluidAudio model prepare 完了")
                     DebugLogger.shared.addLog("Diarization", "FluidAudio model prepare 完了", level: .info)
                 }
                 effectiveManager = manager
             }
 
-            print("[Diarization] 話者分離開始 — \(audioURL.lastPathComponent)")
+            STTConsoleLog("[Diarization] 話者分離開始 — \(audioURL.lastPathComponent)")
             DebugLogger.shared.addLog("Diarization", "話者分離開始 — \(audioURL.lastPathComponent)", level: .info)
             let result = try await effectiveManager.process(audioURL)
-            print("[Diarization] 話者分離完了 — \(result.segments.count)セグメント, スピーカー: \(Set(result.segments.map(\.speakerId)).sorted())")
+            STTConsoleLog("[Diarization] 話者分離完了 — \(result.segments.count)セグメント, スピーカー: \(Set(result.segments.map(\.speakerId)).sorted())")
             DebugLogger.shared.addLog("Diarization", "話者分離完了 — \(result.segments.count)セグメント", level: .info)
 
             let built = buildSegmentsFromDiarization(
                 diarizationSegments: result.segments,
                 sttSegments: segments
             )
-            print("[Diarization] セグメント再構築完了 — \(built.count)セグメント, ラベル: \(built.map(\.speakerLabel))")
+            STTConsoleLog("[Diarization] セグメント再構築完了 — \(built.count)セグメント, ラベル: \(built.map(\.speakerLabel))")
             return built
 
         } catch {
-            print("[Diarization] ★ FluidAudio エラー: \(error)")
+            STTConsoleLog("[Diarization] ★ FluidAudio エラー: \(error)")
             DebugLogger.shared.addLog("Diarization", "FluidAudio エラー: \(error.localizedDescription)", level: .error)
             return fallbackSegments(for: segments)
         }
+    }
+
+    private func manager(forSpeakerCount speakerCount: Int) -> OfflineDiarizerManager {
+        if let manager = speakerCountManagers[speakerCount] {
+            return manager
+        }
+
+        var config = OfflineDiarizerConfig()
+        config.clustering.threshold = 0.38
+        config.clustering.numSpeakers = speakerCount
+        let manager = OfflineDiarizerManager(config: config)
+        speakerCountManagers[speakerCount] = manager
+        return manager
     }
 
     // MARK: - Diarization-First Segment Building
@@ -106,10 +121,18 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
         let speakerIds = Set(turns.map(\.speakerId)).sorted()
         DebugLogger.shared.addLog("Diarization", "話者ターン数: \(turns.count), スピーカー: \(speakerIds)", level: .info)
 
+        if canAssignByTime(sttSegments) {
+            let timeAssigned = assignSegmentsByTimeOverlap(sttSegments: sttSegments, turns: turns)
+            if !timeAssigned.isEmpty {
+                DebugLogger.shared.addLog("Diarization", "時刻 overlap によるセグメント割当完了 — \(timeAssigned.count)セグメント", level: .info)
+                return timeAssigned
+            }
+        }
+
         // 2. 時間比例でテキスト行数を配分
         let allocation = allocateLines(to: turns, totalLines: textLines.count)
 
-        print("[Diarization] 行数配分: \(allocation.map { "\($0.speakerId)=\($0.lineCount)行" }.joined(separator: ", "))")
+        STTConsoleLog("[Diarization] 行数配分: \(allocation.map { "\($0.speakerId)=\($0.lineCount)行" }.joined(separator: ", "))")
 
         // 3. 順序通りテキストを割り当ててセグメント構築
         var result: [TranscriptionSegment] = []
@@ -132,7 +155,7 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
         }
 
         // 余った行があれば最後のセグメントに追加
-        if lineIndex < textLines.count, var last = result.last {
+        if lineIndex < textLines.count, let last = result.last {
             let remaining = textLines[lineIndex...].joined(separator: "\n")
             result[result.count - 1] = TranscriptionSegment(
                 id: last.id,
@@ -145,6 +168,101 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
 
         DebugLogger.shared.addLog("Diarization", "セグメント再構築完了 — \(result.count)セグメント", level: .info)
         return result.isEmpty ? fallbackSegments(for: sttSegments) : result
+    }
+
+    private func canAssignByTime(_ segments: [TranscriptionSegment]) -> Bool {
+        let timedSegments = segments.filter { $0.endSec > $0.startSec && !$0.text.isEmpty }
+        return timedSegments.count >= 2
+    }
+
+    private func assignSegmentsByTimeOverlap(
+        sttSegments: [TranscriptionSegment],
+        turns: [SpeakerTurn]
+    ) -> [TranscriptionSegment] {
+        guard !turns.isEmpty else { return [] }
+
+        let assigned = sttSegments.compactMap { segment -> TranscriptionSegment? in
+            guard !segment.text.isEmpty else { return nil }
+            let bestTurn = bestOverlappingTurn(for: segment, turns: turns)
+            let speakerId = bestTurn?.speakerId ?? nearestTurn(to: segment, turns: turns).speakerId
+            return TranscriptionSegment(
+                id: segment.id,
+                speakerLabel: speakerId,
+                startSec: segment.startSec,
+                endSec: segment.endSec,
+                text: segment.text
+            )
+        }
+
+        return mergeAdjacentSpeakerSegments(assigned)
+    }
+
+    private func bestOverlappingTurn(
+        for segment: TranscriptionSegment,
+        turns: [SpeakerTurn]
+    ) -> SpeakerTurn? {
+        turns
+            .map { turn in
+                (turn: turn, overlap: overlapSeconds(segment: segment, turn: turn))
+            }
+            .filter { $0.overlap > 0 }
+            .max { $0.overlap < $1.overlap }?
+            .turn
+    }
+
+    private func nearestTurn(
+        to segment: TranscriptionSegment,
+        turns: [SpeakerTurn]
+    ) -> SpeakerTurn {
+        let midpoint = (segment.startSec + segment.endSec) / 2
+        return turns.min { lhs, rhs in
+            distance(from: midpoint, to: lhs) < distance(from: midpoint, to: rhs)
+        } ?? turns[0]
+    }
+
+    private func overlapSeconds(segment: TranscriptionSegment, turn: SpeakerTurn) -> Double {
+        let start = max(segment.startSec, Double(turn.startTimeSeconds))
+        let end = min(segment.endSec, Double(turn.endTimeSeconds))
+        return max(0, end - start)
+    }
+
+    private func distance(from time: Double, to turn: SpeakerTurn) -> Double {
+        if time < Double(turn.startTimeSeconds) {
+            return Double(turn.startTimeSeconds) - time
+        }
+        if time > Double(turn.endTimeSeconds) {
+            return time - Double(turn.endTimeSeconds)
+        }
+        return 0
+    }
+
+    private func mergeAdjacentSpeakerSegments(_ segments: [TranscriptionSegment]) -> [TranscriptionSegment] {
+        guard let first = segments.first else { return [] }
+
+        var result: [TranscriptionSegment] = []
+        var current = first
+
+        for segment in segments.dropFirst() {
+            let sameSpeaker = segment.speakerLabel == current.speakerLabel
+            let closeInTime = segment.startSec - current.endSec <= 1.0
+            if sameSpeaker && closeInTime {
+                current = TranscriptionSegment(
+                    id: current.id,
+                    speakerLabel: current.speakerLabel,
+                    startSec: current.startSec,
+                    endSec: max(current.endSec, segment.endSec),
+                    text: [current.text, segment.text]
+                        .filter { !$0.isEmpty }
+                        .joined(separator: "\n")
+                )
+            } else {
+                result.append(current)
+                current = segment
+            }
+        }
+
+        result.append(current)
+        return result
     }
 
     /// 各ターンに配分するテキスト行数を計算する。

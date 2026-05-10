@@ -191,6 +191,40 @@ struct STTLanguageNormalizerTests {
     }
 }
 
+struct TranscriptPostProcessorTests {
+
+    @Test("文字起こし全文の余分な空白と句読点を整える")
+    func cleanFullText() {
+        let processor = TranscriptPostProcessor()
+        let result = processor.process(TranscriptionResult(fullText: "今日は  テスト です。。\n\n\nよろしく？？"))
+
+        #expect(result.fullText == "今日はテストです。\n\nよろしく？")
+    }
+
+    @Test("話者セグメントの時刻とラベルを保持して本文だけ整える")
+    func cleanSegmentsPreservingMetadata() {
+        let processor = TranscriptPostProcessor()
+        let result = processor.process(TranscriptionResult(
+            fullText: "えー\n今日は 会議 です",
+            segments: [
+                TranscriptionSegment(
+                    id: "a",
+                    speakerLabel: "Speaker 1",
+                    startSec: 1.0,
+                    endSec: 2.0,
+                    text: "今日は 会議 です。。"
+                )
+            ]
+        ))
+
+        #expect(result.segments.first?.id == "a")
+        #expect(result.segments.first?.speakerLabel == "Speaker 1")
+        #expect(result.segments.first?.startSec == 1.0)
+        #expect(result.segments.first?.endSec == 2.0)
+        #expect(result.segments.first?.text == "今日は会議です。")
+    }
+}
+
 // MARK: - SpeechAnalyzerFeatureFlag Default Tests
 
 struct SpeechAnalyzerFeatureFlagTests {
