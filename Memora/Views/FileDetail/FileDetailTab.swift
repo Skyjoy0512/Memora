@@ -12,11 +12,11 @@ enum FileDetailTab: String, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .summary:
-            return "Summary"
+            return "要約"
         case .transcript:
-            return "Transcript"
+            return "文字起こし"
         case .memo:
-            return "Memo"
+            return "メモ"
         }
     }
 
@@ -28,6 +28,16 @@ enum FileDetailTab: String, CaseIterable, Identifiable, Hashable {
             return "text.alignleft"
         case .memo:
             return "square.and.pencil"
+        }
+    }
+
+    /// Returns the tabs that should be visible for a given generation state.
+    static func availableTabs(for state: GenerationState) -> [FileDetailTab] {
+        switch state {
+        case .notGenerated, .loading:
+            return [.transcript, .memo]
+        case .generated, .choosingMode, .choosingTemplate, .choosingModel:
+            return [.summary, .transcript, .memo]
         }
     }
 }
