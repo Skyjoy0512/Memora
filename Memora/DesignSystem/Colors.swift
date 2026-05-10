@@ -146,4 +146,30 @@ enum MemoraColor {
 
     // ── Skeleton ─────────────────────────────────────────────
     static let skeletonShimmer = adaptiveColor(light: "E8E8EA", dark: "3A3A3C")
+
+    // ── UI Reproduction Spec Tokens ──────────────────────────
+    /// メイン画面背景 #ECECEC
+    static let surfaceBackground = adaptiveColor(light: "ECECEC", dark: "000000")
+    /// ピル/検索バー背景 #D9D9D9 / #DDDDDE
+    static let surfacePill = adaptiveColor(light: "D9D9D9", dark: "3A3A3C")
+    /// ピル/検索バー背景（明るい側）#DDDDDE
+    static let surfacePillLight = adaptiveColor(light: "DDDDDE", dark: "48484A")
+    /// 円ボタン内側背景 #B2B2B2
+    static let circleButtonInner = adaptiveColor(light: "B2B2B2", dark: "636366")
+    /// ドラッグインジケータ #A7A7A7
+    static let dragIndicator = adaptiveColor(light: "A7A7A7", dark: "636366")
+    /// 処理中タイトルテキスト #C8C8C8
+    static let processingText = adaptiveColor(light: "C8C8C8", dark: "8E8E93")
+    /// スペック指定セカンダリテキスト #58585A
+    static let textSecondarySpec = adaptiveColor(light: "58585A", dark: "98989D")
+    /// 破壊的操作の背景 #FF3030
+    static let destructiveBackground = adaptiveColor(light: "FF3030", dark: "FF453A")
+    /// スケルトン背景 #D9D9D9
+    static let skeletonBase = adaptiveColor(light: "D9D9D9", dark: "3A3A3C")
+    /// スケルトン背景（明るい側）#F3F3F3
+    static let skeletonLight = adaptiveColor(light: "F3F3F3", dark: "2C2C2E")
+    /// 補助面 #F4F4F4
+    static let surfaceQuaternary = adaptiveColor(light: "F4F4F4", dark: "2C2C2E")
+    /// 選択タブ背景 #D9D9D9 エリア
+    static let tabSelectedBg = adaptiveColor(light: "D9D9D9", dark: "4A4A4C")
 }
