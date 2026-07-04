@@ -50,20 +50,24 @@ struct AskAIView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                headerView
                 scopeSelector
                 sessionStrip
                 chatScrollView
                 thinkingIndicator
+            }
+            .safeAreaInset(edge: .bottom) {
                 inputBar
             }
+            .background(Color(uiColor: .systemBackground))
             .navigationTitle("Ask AI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("閉じる") { dismiss() }
+                ToolbarItem(placement: .topBarLeading) {
+                    Text(currentProvider.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button("新規") {
                         startNewSession()
                     }

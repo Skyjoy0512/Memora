@@ -13,7 +13,7 @@ struct BotMeetingScheduleView: View {
                 actionSection
             }
             .scrollContentBackground(.hidden)
-            .background(MemoraColor.surfacePrimary)
+            .background(Color(uiColor: .systemBackground))
             .navigationTitle("Bot 会議予約")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

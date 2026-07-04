@@ -76,8 +76,7 @@ struct DeviceDetailView: View {
 
     var body: some View {
         ZStack {
-            // Background per spec: #ECECEC
-            Color(hex: "ECECEC").ignoresSafeArea()
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -104,8 +103,8 @@ struct DeviceDetailView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(MemoraColor.textPrimary)
-                    .frame(width: 60, height: 60)
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
                     .liquidGlass(cornerRadius: 30)
             }
 
@@ -120,8 +119,8 @@ struct DeviceDetailView: View {
     private var titleRow: some View {
         HStack {
             Text("PlaudNote Pro")
-                .font(.system(size: 36, weight: .bold))
-                .foregroundStyle(MemoraColor.textPrimary)
+                .font(.largeTitle.bold())
+                .foregroundStyle(.primary)
             Spacer()
         }
         .padding(.horizontal, 24)
@@ -135,7 +134,7 @@ struct DeviceDetailView: View {
             .resizable()
             .scaledToFit()
             .frame(width: 200, height: 200)
-            .foregroundStyle(MemoraColor.textSecondary)
+            .foregroundStyle(.secondary)
             .padding(.top, 40)
     }
 
@@ -148,7 +147,7 @@ struct DeviceDetailView: View {
             Text(batteryText)
                 .font(.system(size: 20, weight: .bold))
         }
-        .foregroundStyle(MemoraColor.textPrimary)
+        .foregroundStyle(.primary)
         .padding(.top, 16)
     }
 
@@ -157,13 +156,13 @@ struct DeviceDetailView: View {
     private var pageIndicatorRow: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(MemoraColor.textPrimary)
+                .fill(Color.primary)
                 .frame(width: 8, height: 8)
             Circle()
-                .fill(Color(hex: "D9D9D9"))
+                .fill(Color.secondary.opacity(0.25))
                 .frame(width: 8, height: 8)
             Circle()
-                .fill(Color(hex: "D9D9D9"))
+                .fill(Color.secondary.opacity(0.25))
                 .frame(width: 8, height: 8)
         }
         .padding(.top, 12)
@@ -177,9 +176,9 @@ struct DeviceDetailView: View {
             infoRow(title: "シリアル番号", value: serialNumber, showSeparator: true)
             infoRow(title: "ファームウェアバージョン", value: firmwareVersionText, showSeparator: false)
         }
-        .background(MemoraColor.surfacePrimary)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .padding(.horizontal, 48)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.horizontal, 24)
         .padding(.top, 32)
     }
 
@@ -188,13 +187,13 @@ struct DeviceDetailView: View {
             HStack {
                 Text(title)
                     .font(.system(size: 15))
-                    .foregroundStyle(Color(hex: "58585A"))
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 Text(value)
                     .font(.system(size: 15))
-                    .foregroundStyle(MemoraColor.textPrimary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.trailing)
             }
             .frame(height: 88)
@@ -215,16 +214,15 @@ struct DeviceDetailView: View {
             unlinkPlaud()
         } label: {
             Text("ペアリングを解除")
-                .font(.system(size: 17, weight: .bold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 96)
-                .background(Color(hex: "FF3030"))
-                .clipShape(Capsule())
+                .frame(height: 52)
+                .background(Color.red)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .padding(.horizontal, 48)
+        .padding(.horizontal, 24)
         .padding(.top, 24)
-        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
 
     // MARK: - Actions

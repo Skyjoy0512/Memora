@@ -69,7 +69,7 @@ struct MeetingCaptureProgressView: View {
             .padding(.bottom, 40)
         }
         .padding()
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
         .presentationBackground(.ultraThinMaterial)
     }
 

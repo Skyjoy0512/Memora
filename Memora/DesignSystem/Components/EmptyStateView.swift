@@ -8,27 +8,15 @@ struct EmptyStateView: View {
     var buttonAction: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: MemoraSpacing.phi4) {
-            Image(systemName: icon)
-                .font(.system(size: 32))
-                .foregroundStyle(MemoraColor.textTertiary)
-
-            VStack(spacing: MemoraSpacing.phi2) {
-                Text(title)
-                    .font(MemoraTypography.chatSegment)
-                    .foregroundStyle(MemoraColor.textPrimary)
-
-                Text(description)
-                    .font(MemoraTypography.chatBody)
-                    .foregroundStyle(MemoraColor.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-
+        ContentUnavailableView {
+            Label(title, systemImage: icon)
+        } description: {
+            Text(description)
+        } actions: {
             if let buttonTitle, let buttonAction {
-                PillButton(title: buttonTitle, action: buttonAction, style: .primary)
-                    .padding(.horizontal, MemoraSpacing.xl)
+                Button(buttonTitle, action: buttonAction)
+                    .buttonStyle(.borderedProminent)
             }
         }
-        .padding(MemoraSpacing.xxl)
     }
 }

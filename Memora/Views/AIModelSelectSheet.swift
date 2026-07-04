@@ -213,7 +213,7 @@ struct AIModelSelectSheet: View {
 
 #Preview {
     ZStack {
-        Color(hex: "ECECEC").ignoresSafeArea()
+        Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
         AIModelSelectSheet(
             isPresented: .constant(true),
             selectedModel: .constant(.chatGPT5),

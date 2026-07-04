@@ -153,7 +153,7 @@ struct RecordingView: View {
                 .padding(.bottom, MemoraSpacing.xxxl)
             }
         }
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle("録音")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

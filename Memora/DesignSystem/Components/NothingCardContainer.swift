@@ -46,14 +46,13 @@ struct NothingCardContainer<Content: View>: View {
         content()
             .padding(variant.padding)
             .background(
-                MemoraColor.surfaceCard,
+                Color(uiColor: .secondarySystemGroupedBackground),
                 in: RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: variant.cornerRadius, style: .continuous)
-                    .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
+                    .stroke(Color(uiColor: .separator).opacity(0.35), lineWidth: 0.5)
             }
-            .shadow(color: MemoraColor.shadowLight, radius: 6, x: 0, y: 2)
     }
 }
 

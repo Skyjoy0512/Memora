@@ -254,7 +254,7 @@ struct TemplateSelectSheet: View {
 
 #Preview {
     ZStack {
-        Color(hex: "ECECEC").ignoresSafeArea()
+        Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
         TemplateSelectSheet(
             isPresented: .constant(true),
             showModelSheet: .constant(false),

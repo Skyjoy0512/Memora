@@ -54,7 +54,7 @@ struct OnboardingView: View {
             .padding(.horizontal, MemoraSpacing.xl)
             .padding(.bottom, MemoraSpacing.xl)
         }
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
     }
 
     // MARK: - Page Content

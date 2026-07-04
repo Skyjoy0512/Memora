@@ -201,7 +201,7 @@ extension View {
 
 #Preview {
     ZStack {
-        Color(hex: "ECECEC").ignoresSafeArea()
+        Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
         GenerationModeSheet(
             isPresented: .constant(true),
             showTemplateSheet: .constant(false),

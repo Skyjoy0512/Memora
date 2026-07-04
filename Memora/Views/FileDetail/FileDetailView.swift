@@ -101,8 +101,7 @@ struct FileDetailView: View {
     private func mainContent(vm: FileDetailViewModel) -> some View {
         @Bindable var vm = vm
         ZStack(alignment: .bottom) {
-            // Background
-            Color(hex: "ECECEC")
+            Color(uiColor: .systemGroupedBackground)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -338,18 +337,10 @@ struct FileDetailView: View {
                     selectedTab = tab
                 } label: {
                     Text(tab.title)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(MemoraColor.textPrimary)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 8)
-                        .background(
-                            isSelected
-                                ? Color(hex: "D9D9D9")
-                                : Color.clear
-                        )
-                        .clipShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .tint(isSelected ? .accentColor : .secondary)
             }
         }
     }

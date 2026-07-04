@@ -9,76 +9,58 @@ struct TodoRowView: View {
     let onComplete: () -> Void
 
     var body: some View {
-        HStack(spacing: MemoraSpacing.sm) {
-            // Check circle — Nothing style
+        HStack(alignment: .top, spacing: 12) {
             Button {
                 onComplete()
             } label: {
-                ZStack {
-                    Circle()
-                        .strokeBorder(
-                            todo.isCompleted ? Color.clear : MemoraColor.accentNothing,
-                            lineWidth: 2
-                        )
-                        .frame(width: 24, height: 24)
-
-                    if todo.isCompleted {
-                        Circle()
-                            .fill(MemoraColor.accentGreen)
-                            .frame(width: 24, height: 24)
-                            .nothingGlow(.subtle)
-
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
+                Image(systemName: todo.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(todo.isCompleted ? .green : .secondary)
+                    .frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(todo.isCompleted ? "未完了に戻す" : "完了にする")
 
-            // Content
-            VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(todo.title)
-                    .font(MemoraTypography.chatBody)
-                    .foregroundStyle(todo.isCompleted ? MemoraColor.textTertiary : MemoraColor.textPrimary)
+                    .font(.body)
+                    .foregroundStyle(todo.isCompleted ? .secondary : .primary)
                     .strikethrough(todo.isCompleted)
 
                 if let parentTitle, !parentTitle.isEmpty {
                     Label("親: \(parentTitle)", systemImage: "arrow.turn.down.right")
-                        .font(MemoraTypography.chatToken)
-                        .foregroundStyle(MemoraColor.textTertiary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if !todo.isCompleted {
-                    HStack(spacing: MemoraSpacing.xs) {
+                    HStack(spacing: 8) {
                         if let assignee = todo.assignee, !assignee.isEmpty {
                             Label(assignee, systemImage: "person.crop.circle")
-                                .font(MemoraTypography.chatToken)
-                                .foregroundStyle(MemoraColor.textSecondary)
                         }
 
                         if let speaker = todo.speaker, !speaker.isEmpty {
                             Label(speaker, systemImage: "person.fill")
-                                .font(MemoraTypography.chatToken)
-                                .foregroundStyle(MemoraColor.textSecondary)
                         }
 
                         if let dueDate = todo.dueDate {
                             Label(dueDateString(dueDate), systemImage: "calendar")
-                                .font(MemoraTypography.chatToken)
-                                .foregroundStyle(isOverdue(dueDate) ? MemoraColor.accentRed : MemoraColor.textSecondary)
+                                .foregroundStyle(isOverdue(dueDate) ? .red : .secondary)
                         }
 
                         if let priority = Priority(rawValue: todo.priority) {
                             priorityDot(priority)
                         }
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
             }
 
             Spacer()
         }
-        .padding(.vertical, MemoraSpacing.xxxs)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
     }
 
@@ -105,11 +87,11 @@ struct TodoRowView: View {
     private func priorityDot(_ priority: Priority) -> some View {
         switch priority {
         case .high:
-            AccentDotIndicator(color: MemoraColor.accentRed, size: 8, glowing: false)
+            Circle().fill(.red).frame(width: 8, height: 8)
         case .medium:
-            Circle().fill(MemoraColor.accentBlue).frame(width: 8, height: 8)
+            Circle().fill(.blue).frame(width: 8, height: 8)
         case .low:
-            Circle().fill(MemoraColor.textTertiary).frame(width: 8, height: 8)
+            Circle().fill(.secondary).frame(width: 8, height: 8)
         }
     }
 }

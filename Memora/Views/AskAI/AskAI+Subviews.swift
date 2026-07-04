@@ -68,12 +68,25 @@ extension AskAIView {
 extension AskAIView {
     var scopeSelector: some View {
         ScrollView(.horizontal) {
-            NothingTabPicker(selection: $activeScope, options: availableScopes.map {
-                .init(value: $0.scope, label: $0.title)
-            }, size: .compact)
-            .padding(.horizontal, MemoraSpacing.lg)
-            .padding(.vertical, MemoraSpacing.xs)
+            HStack(spacing: 8) {
+                ForEach(availableScopes) { option in
+                    Button {
+                        activeScope = option.scope
+                    } label: {
+                        Text(option.title)
+                            .font(.subheadline)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .tint(activeScope == option.scope ? .accentColor : .secondary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
         }
+        .scrollIndicators(.hidden)
     }
 }
 
@@ -81,36 +94,31 @@ extension AskAIView {
 
 extension AskAIView {
     var sessionStrip: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Session")
-                    .font(MemoraTypography.chatLabel)
-                    .foregroundStyle(MemoraColor.textSecondary)
+                Text(currentSession?.title ?? "新しい会話")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
                 if !sessions.isEmpty {
                     Text("\(sessions.count)件")
-                        .font(MemoraTypography.chatToken)
-                        .foregroundStyle(MemoraColor.textTertiary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, MemoraSpacing.lg)
+            .padding(.horizontal)
 
             ScrollView(.horizontal) {
-                HStack(spacing: MemoraSpacing.xs) {
+                HStack(spacing: 8) {
                     Button {
                         startNewSession()
                     } label: {
                         Label("新規チャット", systemImage: "plus")
-                            .font(MemoraTypography.chatToken)
-                            .foregroundStyle(MemoraColor.textPrimary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(MemoraColor.interactiveSecondaryBorder.opacity(0.15))
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
 
                     ForEach(sessions) { session in
                         Button {
@@ -118,25 +126,18 @@ extension AskAIView {
                             loadMessages(for: session)
                         } label: {
                             Text(session.title)
-                                .font(MemoraTypography.chatToken)
-                                .foregroundStyle(activeSessionID == session.id ? MemoraColor.interactivePrimaryLabel : MemoraColor.textPrimary)
                                 .lineLimit(1)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(activeSessionID == session.id ? MemoraColor.interactivePrimary : Color.clear)
-                                .clipShape(Capsule())
-                                .overlay {
-                                    Capsule()
-                                        .stroke(activeSessionID == session.id ? Color.clear : MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
-                                }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .tint(activeSessionID == session.id ? .accentColor : .secondary)
                     }
                 }
-                .padding(.horizontal, MemoraSpacing.lg)
+                .padding(.horizontal)
             }
+            .scrollIndicators(.hidden)
         }
-        .padding(.bottom, MemoraSpacing.sm)
+        .padding(.bottom, 8)
     }
 }
 
@@ -146,7 +147,7 @@ extension AskAIView {
     var chatScrollView: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: MemoraSpacing.lg) {
+                VStack(spacing: 16) {
                     if messages.isEmpty {
                         suggestionsGrid
                     }
@@ -159,7 +160,7 @@ extension AskAIView {
                         .frame(height: 1)
                         .id("bottom")
                 }
-                .padding(.bottom, MemoraSpacing.md)
+                .padding(.bottom, 16)
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
@@ -180,36 +181,28 @@ extension AskAIView {
 
 extension AskAIView {
     var suggestionsGrid: some View {
-        VStack(spacing: MemoraSpacing.xs) {
+        VStack(spacing: 8) {
             ForEach(suggestions, id: \.self) { text in
                 Button {
                     inputText = text
                     sendMessage(text)
                 } label: {
-                    HStack(spacing: MemoraSpacing.xs) {
+                    HStack(spacing: 8) {
                         Image(systemName: "lightbulb")
-                            .font(.system(size: 16))
-                            .foregroundStyle(MemoraColor.textTertiary)
+                            .foregroundStyle(.secondary)
                         Text(text)
-                            .font(MemoraTypography.chatToken)
-                            .foregroundStyle(MemoraColor.textPrimary)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
                             .lineLimit(2)
                         Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.pill, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: MemoraRadius.pill, style: .continuous)
-                            .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
-                    }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
             }
         }
-        .padding(.horizontal, MemoraSpacing.lg)
-        .padding(.top, MemoraSpacing.lg)
+        .padding(.horizontal)
+        .padding(.top, 16)
     }
 }
 
@@ -219,15 +212,15 @@ extension AskAIView {
     @ViewBuilder
     var thinkingIndicator: some View {
         if isLoading {
-            HStack(spacing: MemoraSpacing.sm) {
+            HStack(spacing: 12) {
                 Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
-                    .font(MemoraTypography.chatBody)
-                    .foregroundStyle(MemoraColor.textSecondary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 ThinkingDots()
                 Spacer()
             }
-            .padding(.horizontal, MemoraSpacing.lg)
-            .padding(.bottom, MemoraSpacing.sm)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
     }
 }
@@ -236,9 +229,8 @@ extension AskAIView {
 
 extension AskAIView {
     var inputBar: some View {
-        HStack(spacing: MemoraSpacing.sm) {
+        HStack(spacing: 10) {
             TextField("質問を入力...", text: $inputText, axis: .vertical)
-                .font(MemoraTypography.chatBody)
                 .lineLimit(1...3)
                 .textFieldStyle(.plain)
                 .submitLabel(.send)
@@ -247,11 +239,11 @@ extension AskAIView {
                 }
 
             Text(currentProvider.rawValue)
-                .font(MemoraTypography.chatToken)
-                .foregroundStyle(MemoraColor.textTertiary)
-                .padding(.horizontal, MemoraSpacing.xs)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 6)
-                .background(MemoraColor.interactiveSecondaryBorder.opacity(0.15))
+                .background(Color(uiColor: .tertiarySystemFill))
                 .clipShape(Capsule())
 
             Button {
@@ -263,17 +255,17 @@ extension AskAIView {
             }
             .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
         }
-        .padding(.horizontal, MemoraSpacing.lg)
-        .padding(.vertical, MemoraSpacing.md)
-        .background(MemoraColor.surfaceCard)
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
+        .liquidGlass(cornerRadius: 22, opacity: 0.28, shadowRadius: 4)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
     }
 
     private var sendButtonColor: Color {
         inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading
-            ? MemoraColor.textTertiary
-            : MemoraColor.interactivePrimary
+            ? Color.secondary
+            : Color.accentColor
     }
 }

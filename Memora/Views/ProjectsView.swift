@@ -14,78 +14,62 @@ struct ProjectsView: View {
         self._isTabBarHidden = isTabBarHidden
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: MemoraSpacing.md),
-        GridItem(.flexible(), spacing: MemoraSpacing.md)
-    ]
-
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            List {
                 if let errorMessage = viewModel.lastErrorMessage {
                     InlineErrorMessage(message: errorMessage)
-                        .padding(.horizontal, MemoraSpacing.md)
-                        .padding(.top, MemoraSpacing.sm)
                 }
 
                 if isInitialLoading {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: MemoraSpacing.md) {
-                            ForEach(0..<4, id: \.self) { _ in
-                                SkeletonProjectCard()
-                            }
-                        }
-                        .padding(.horizontal, MemoraSpacing.md)
-                        .padding(.top, MemoraSpacing.sm)
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
                     }
                 } else if viewModel.projects.isEmpty {
-                    // 空の状態
-                    VStack(spacing: MemoraSpacing.xxl) {
-                        Spacer()
-
-                        EmptyStateView(
-                            icon: "folder",
-                            title: "プロジェクト",
-                            description: "プロジェクトを作成して録音を整理しましょう",
-                            buttonTitle: "プロジェクトを作成",
-                            buttonAction: { showCreateProjectView = true }
-                        )
-                    }
+                    ContentUnavailableView(
+                        "プロジェクトはまだありません",
+                        systemImage: "folder",
+                        description: Text("プロジェクトを作成して録音を整理しましょう。"),
+                        actions: {
+                            Button("プロジェクトを作成") {
+                                showCreateProjectView = true
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    )
                 } else {
-                    // プロジェクト一覧 — 2-column grid
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: MemoraSpacing.md) {
-                            ForEach(viewModel.projects) { project in
-                                Button {
-                                    selectedProject = project
-                                } label: {
-                                    ProjectCard(project: project, fileCount: fileCount(for: project))
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityHint("プロジェクトを開く")
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        if let index = viewModel.projects.firstIndex(of: project) {
-                                            deleteProjects(at: IndexSet(integer: index))
-                                        }
-                                    } label: {
-                                        Label("削除", systemImage: "trash")
+                    Section {
+                        ForEach(viewModel.projects) { project in
+                            Button {
+                                selectedProject = project
+                            } label: {
+                                ProjectRow(project: project, fileCount: fileCount(for: project))
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("プロジェクトを開く")
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    if let index = viewModel.projects.firstIndex(of: project) {
+                                        deleteProjects(at: IndexSet(integer: index))
                                     }
+                                } label: {
+                                    Label("削除", systemImage: "trash")
                                 }
                             }
                         }
-                        .padding(.horizontal, MemoraSpacing.md)
-                        .padding(.top, MemoraSpacing.sm)
                     }
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("プロジェクト")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: { showCreateProjectView = true }) {
                         Image(systemName: "plus")
-                            .foregroundStyle(MemoraColor.interactivePrimary)
                     }
                     .accessibilityLabel("プロジェクトを作成")
                 }
@@ -129,109 +113,47 @@ struct InlineErrorMessage: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: MemoraSpacing.sm) {
+        HStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(MemoraColor.accentRed)
+                .foregroundStyle(.red)
 
             Text(message)
-                .font(MemoraTypography.chatToken)
-                .foregroundStyle(MemoraColor.accentRed)
+                .font(.footnote)
+                .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, MemoraSpacing.md)
-        .padding(.vertical, MemoraSpacing.sm)
-        .background(MemoraColor.accentRed.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.sm))
     }
 }
-
-// MARK: - Project Card (Nothing Style)
-
-struct ProjectCard: View {
-    let project: Project
-    var fileCount: Int = 0
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-            // Icon
-            Image(systemName: "folder.fill")
-                .font(.system(size: MemoraSize.iconMedium))
-                .foregroundStyle(MemoraColor.textTertiary)
-
-            // Title
-            Text(project.title)
-                .font(MemoraTypography.chatBody)
-                .foregroundStyle(MemoraColor.textPrimary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-
-            Spacer(minLength: MemoraSpacing.xxs)
-
-            // Footer: date + file count badge
-            HStack {
-                Text(formatDate(project.updatedAt))
-                    .font(MemoraTypography.chatToken)
-                    .foregroundStyle(MemoraColor.textTertiary)
-
-                Spacer()
-
-                if fileCount > 0 {
-                    Text("\(fileCount)")
-                        .font(MemoraTypography.chatToken)
-                        .foregroundStyle(MemoraColor.interactivePrimary)
-                        .padding(.horizontal, MemoraSpacing.xs)
-                        .padding(.vertical, MemoraSpacing.xxxs)
-                        .background(MemoraColor.interactiveHoverBg)
-                        .clipShape(Capsule())
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: MemoraSpacing.xxl * 3, alignment: .topLeading)
-        .nothingCard(.standard)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(project.title)、\(fileCount)ファイル")
-    }
-
-    private static let projectDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MM/dd HH:mm"
-        return f
-    }()
-
-    private func formatDate(_ date: Date) -> String {
-        Self.projectDateFormatter.string(from: date)
-    }
-}
-
-// MARK: - Legacy Row (kept for backward compatibility)
 
 struct ProjectRow: View {
     let project: Project
     var fileCount: Int = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xxxs) {
-            Text(project.title)
-                .font(MemoraTypography.chatBody)
-                .foregroundStyle(MemoraColor.textPrimary)
-                .lineLimit(1)
+        HStack(spacing: 12) {
+            Image(systemName: "folder")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 28)
 
-            HStack(spacing: MemoraSpacing.xs) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(project.title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
                 Text(formatDate(project.updatedAt))
-                    .font(MemoraTypography.chatToken)
-                    .foregroundStyle(MemoraColor.textTertiary)
-
-                if fileCount > 0 {
-                    Text("\(fileCount)ファイル")
-                        .font(MemoraTypography.chatToken)
-                        .foregroundStyle(MemoraColor.textTertiary)
-                }
-
-                Spacer()
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+
+            Spacer()
+
+            Text("\(fileCount)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, MemoraSpacing.xs)
+        .padding(.vertical, 4)
     }
 
     private static let projectDateFormatter: DateFormatter = {

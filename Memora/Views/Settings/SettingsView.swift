@@ -31,9 +31,7 @@ struct SettingsView: View {
                 DeveloperFeaturesSection(state: state)
                 DebugSection(state: state)
             }
-            .tint(MemoraColor.accentNothing)
-            .scrollContentBackground(.hidden)
-            .background(MemoraColor.surfacePrimary)
+            .listStyle(.insetGrouped)
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
         }

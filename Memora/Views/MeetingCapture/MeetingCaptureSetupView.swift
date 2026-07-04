@@ -49,7 +49,7 @@ struct MeetingCaptureSetupView: View {
             actionSection
         }
         .scrollContentBackground(.hidden)
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
         .navigationTitle("会議キャプチャ")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

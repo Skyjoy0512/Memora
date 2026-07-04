@@ -50,7 +50,7 @@ struct BotMeetingStatusView: View {
 
             Spacer()
         }
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
     }
 
     private var meetingListView: some View {
@@ -61,7 +61,7 @@ struct BotMeetingStatusView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
     }
 
     private func meetingRow(_ meeting: ScheduledBotMeeting) -> some View {

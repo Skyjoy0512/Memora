@@ -64,7 +64,7 @@ struct MeetingHistoryView: View {
 
             Spacer()
         }
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
     }
 
     // MARK: - Meeting List
@@ -85,7 +85,7 @@ struct MeetingHistoryView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(MemoraColor.surfacePrimary)
+        .background(Color(uiColor: .systemBackground))
     }
 
     private func meetingRow(_ meeting: UnifiedMeeting) -> some View {

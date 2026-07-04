@@ -23,24 +23,17 @@ struct ToDoView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if incompleteTodos.isEmpty && completedTodos.isEmpty {
-                    emptyState
-                } else {
-                    todoList
-                }
-            }
+            todoContent
             .navigationTitle("ToDo")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showAddSheet = true
                     } label: {
                         Image(systemName: "plus")
-                            .font(MemoraTypography.phiBody)
-                            .foregroundStyle(MemoraColor.accentNothing)
                     }
+                    .accessibilityLabel("ToDoを追加")
                 }
             }
             .sheet(isPresented: $showAddSheet) {
@@ -54,19 +47,22 @@ struct ToDoView: View {
 
     // MARK: - Empty State
 
-    private var emptyState: some View {
-        VStack(spacing: MemoraSpacing.xxxl) {
-            Spacer()
-
-            EmptyStateView(
-                icon: "checklist",
-                title: "ToDoはまだありません",
-                description: "議事録から自動で抽出されます",
-                buttonTitle: "手動で追加",
-                buttonAction: { showAddSheet = true }
+    @ViewBuilder
+    private var todoContent: some View {
+        if incompleteTodos.isEmpty && completedTodos.isEmpty {
+            ContentUnavailableView(
+                "ToDoはまだありません",
+                systemImage: "checklist",
+                description: Text("議事録から自動抽出するか、手動で追加できます。"),
+                actions: {
+                    Button("ToDoを追加") {
+                        showAddSheet = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             )
-
-            Spacer()
+        } else {
+            todoList
         }
     }
 
@@ -77,26 +73,19 @@ struct ToDoView: View {
             if !incompleteTodos.isEmpty {
                 Section {
                     ForEach(incompleteTodos) { todo in
-                        Button {
-                            editingTodo = todo
-                        } label: {
-                            TodoRowView(
-                                todo: todo,
-                                parentTitle: parentTitle(for: todo),
-                                onComplete: {
-                                    MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
-                                        todo.isCompleted.toggle()
-                                        todo.completedAt = todo.isCompleted ? Date() : nil
-                                    }
+                        TodoRowView(
+                            todo: todo,
+                            parentTitle: parentTitle(for: todo),
+                            onComplete: {
+                                MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
+                                    todo.isCompleted.toggle()
+                                    todo.completedAt = todo.isCompleted ? Date() : nil
                                 }
-                            )
-                            .nothingCard(.minimal)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Todo を編集")
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: MemoraSpacing.xxxs, leading: MemoraSpacing.md, bottom: MemoraSpacing.xxxs, trailing: MemoraSpacing.md))
+                            }
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { editingTodo = todo }
+                        .accessibilityHint("ToDoを編集")
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             deleteButton(todo)
                         }
@@ -104,47 +93,33 @@ struct ToDoView: View {
                             completeButton(todo)
                         }
                     }
-                } header: {
-                    GlassSectionHeader(title: "未完了", icon: "circle")
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                }
+                } header: { Text("未完了") }
             }
 
             if !completedTodos.isEmpty {
                 Section {
                     ForEach(completedTodos) { todo in
-                        Button {
-                            editingTodo = todo
-                        } label: {
-                            TodoRowView(
-                                todo: todo,
-                                parentTitle: parentTitle(for: todo),
-                                onComplete: {
-                                    MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
-                                        todo.isCompleted.toggle()
-                                        todo.completedAt = todo.isCompleted ? Date() : nil
-                                    }
+                        TodoRowView(
+                            todo: todo,
+                            parentTitle: parentTitle(for: todo),
+                            onComplete: {
+                                MemoraAnimation.animate(reduceMotion, using: MemoraAnimation.springSnappy) {
+                                    todo.isCompleted.toggle()
+                                    todo.completedAt = todo.isCompleted ? Date() : nil
                                 }
-                            )
-                            .nothingCard(.minimal)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Todo を編集")
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: MemoraSpacing.xxxs, leading: MemoraSpacing.md, bottom: MemoraSpacing.xxxs, trailing: MemoraSpacing.md))
+                            }
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { editingTodo = todo }
+                        .accessibilityHint("ToDoを編集")
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             deleteButton(todo)
                         }
                     }
-                } header: {
-                    GlassSectionHeader(title: "完了済み", icon: "checkmark.circle")
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                }
+                } header: { Text("完了済み") }
             }
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Swipe Actions
@@ -159,7 +134,7 @@ struct ToDoView: View {
             Label(todo.isCompleted ? "未完了に戻す" : "完了",
                   systemImage: todo.isCompleted ? "xmark.circle" : "checkmark.circle")
         }
-        .tint(todo.isCompleted ? MemoraColor.textSecondary : MemoraColor.accentGreen)
+        .tint(todo.isCompleted ? .secondary : .green)
     }
 
     private func deleteButton(_ todo: TodoItem) -> some View {
