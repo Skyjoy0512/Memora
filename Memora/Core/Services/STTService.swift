@@ -708,6 +708,14 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
     var checkpointHooks: STTCheckpointHooks?
 
+    private func audioFileDuration(for url: URL) async -> TimeInterval {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration) else {
+            return 0
+        }
+        return CMTimeGetSeconds(duration)
+    }
+
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
     private let diarizationService: SpeakerDiarizationProtocol = {
@@ -815,10 +823,10 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     }
 
 
-    private func makeFingerprint(url: URL, chunkCount: Int) async -> String {
+    func makeFingerprint(url: URL, chunkCount: Int) async -> String {
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? -1
         let duration = Int(await audioFileDuration(for: url))
-        return "\\(size)-\\(duration)-\\(chunkCount)"
+        return "\(size)-\(duration)-\(chunkCount)"
     }
 
     private func runTask(
@@ -858,7 +866,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 let saved = await hooks.load(fingerprint) 
                 restoredResults = saved.mapValues { $0.toTranscriptionResult() } 
                 if !restoredResults.isEmpty { 
-                    DebugLogger.shared.addLog("STTService", "チェックポイント復元 — \\(restoredResults.count)/\\(preparedChunks.count) チャンクを再利用", level: .info) 
+                    DebugLogger.shared.addLog("STTService", "チェックポイント復元 — \(restoredResults.count)/\(preparedChunks.count) チャンクを再利用", level: .info) 
                 } 
             }
             let totalChunks = max(preparedChunks.count, 1)
