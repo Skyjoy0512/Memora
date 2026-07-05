@@ -481,7 +481,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     var supportsTranscription: Bool {
         switch self {
         case .openai: return true
-        case .gemini: return false
+        case .gemini: return true
         case .deepseek: return false
         case .local: return false
         }
@@ -490,7 +490,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     var transcriptionProvider: AIProvider? {
         switch self {
         case .openai: return .openai
-        case .gemini: return nil
+        case .gemini: return .gemini
         case .deepseek: return nil
         case .local: return nil
         }
