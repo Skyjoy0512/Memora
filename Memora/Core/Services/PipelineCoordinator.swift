@@ -407,6 +407,14 @@ final class PipelineCoordinator {
         while job.canRetry || transcriptResult != nil {
             do {
                 DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し (attempt \(job.retryCount + 1))", level: .info)
+                let checkpointStore = TranscriptionCheckpointStore(modelContext: self.modelContext)
+                if let stt = transcriptionEngine.sttService as? STTService {
+                    stt.checkpointHooks = STTCheckpointHooks(
+                        load: { fp in await MainActor.run { checkpointStore.load(audioFileID: audioFile.id, fingerprint: fp) } },
+                        save: { fp, total, idx, r in await MainActor.run { checkpointStore.save(audioFileID: audioFile.id, fingerprint: fp, totalChunks: total, chunkIndex: idx, result: r) } },
+                        clear: { await MainActor.run { checkpointStore.delete(audioFileID: audioFile.id) } }
+                    )
+                }
                 transcriptResult = try await transcriptionEngine.transcribe(audioURL: audioURL, language: nil, referenceSpeakerCount: effectiveSpeakerCount)
                 break
             } catch is CancellationError {

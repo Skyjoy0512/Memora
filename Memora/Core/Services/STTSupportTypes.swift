@@ -531,3 +531,195 @@ final class STTDiagnosticsLog: @unchecked Sendable {
         return try? JSONDecoder().decode(STTBackendDiagnosticEntry.self, from: data)
     }
 }
+
+// MARK: - Streaming Transcript Merger (PR-B10)
+
+/// チャンク結果を逐次受け取り、オフセット加算しながら
+/// 全文とセグメントを積み上げる。全 TranscriptionResult を配列保持しない。
+struct StreamingTranscriptMerger {
+    private(set) var fullTextParts: [String] = []
+    private(set) var segments: [TranscriptionSegment] = []
+    private var detectedLanguage: String?
+
+    mutating func append(chunk: AudioChunk, result: TranscriptionResult) {
+        if detectedLanguage == nil, !result.language.isEmpty {
+            detectedLanguage = result.language
+        }
+        let offset = chunk.startSec
+        fullTextParts.append(result.fullText)
+        for seg in result.segments {
+            segments.append(TranscriptionSegment(
+                id: seg.id,
+                speakerLabel: seg.speakerLabel,
+                startSec: seg.startSec + offset,
+                endSec: seg.endSec + offset,
+                text: seg.text
+            ))
+        }
+    }
+
+    func finalize(preferredLanguage: String? = nil) -> TranscriptionResult {
+        let language = preferredLanguage.map(STTLanguageNormalizer.baseLanguageCode(for:))
+            ?? detectedLanguage
+            ?? "ja"
+        return TranscriptionResult(
+            fullText: fullTextParts.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
+            language: language,
+            segments: segments
+        )
+    }
+}
+
+// MARK: - Transcription Estimate (PR-B11)
+
+/// 文字起こし開始前の事前見積もり情報。
+/// plan() の総時間・チャンク数・概算処理時間を提供する。
+struct TranscriptionEstimate: Sendable {
+    let sourceURL: URL
+    let totalDuration: TimeInterval
+    let chunkCount: Int
+    /// 概算処理時間（秒）。ローカルは 1chunk ≒ 90秒、API は並列 4 で 1chunk ≒ 30秒 で見積もる。
+    let estimatedProcessingSeconds: TimeInterval
+    /// 長時間（3時間超）かどうか。呼び出し元が確認ダイアログを出すかの判定に使う。
+    var isVeryLong: Bool { totalDuration >= 60 * 60 * 3 }
+    /// ユーザー表示用の確認メッセージ
+    var alertMessage: String {
+        let hours = Int(totalDuration / 3600)
+        let minutes = Int(estimatedProcessingSeconds / 60)
+        let minText = minutes > 0 ? "約\(minutes)分" : "1分未満"
+        return "この録音は約\(hours)時間で、文字起こしに時間がかかります（推定\(minText)）。\nバックグラウンドでも継続しますが、端末の充電を推奨します。\n開始しますか？"
+    }
+
+    init(sourceURL: URL, totalDuration: TimeInterval, chunkCount: Int, isAPIMode: Bool) {
+        self.sourceURL = sourceURL
+        self.totalDuration = totalDuration
+        self.chunkCount = chunkCount
+        if isAPIMode && chunkCount > 1 {
+            // API 並列（最大4並列）を考慮した概算
+            self.estimatedProcessingSeconds = Double(chunkCount) * 30 / min(4, Double(chunkCount))
+        } else {
+            self.estimatedProcessingSeconds = Double(chunkCount) * 90
+        }
+    }
+}
+
+// MARK: - Deadline Utility (PR-B3)
+
+struct DeadlineExceededError: Error, LocalizedError {
+    let seconds: TimeInterval
+    var errorDescription: String? { "処理が \(Int(seconds)) 秒以内に完了しませんでした" }
+}
+
+/// 非協力的な async 作業に期限を課す。
+/// - resume は厳密に1回（期限後に届いた結果/エラーは破棄）。
+/// - 期限発火時: operation Task に cancel を送り、onDeadline を実行してから throw する。
+func withDeadline<T: Sendable>(
+    seconds: TimeInterval,
+    onDeadline: (@Sendable () -> Void)? = nil,
+    operation: @escaping @Sendable () async throws -> T
+) async throws -> T {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+        let lock = NSLock()
+        var resumed = false
+
+        @Sendable func resumeOnce(_ body: () -> Void) {
+            lock.lock()
+            let shouldRun = !resumed
+            resumed = true
+            lock.unlock()
+            if shouldRun { body() }
+        }
+
+        let work = Task {
+            do {
+                let value = try await operation()
+                resumeOnce { continuation.resume(returning: value) }
+            } catch {
+                resumeOnce { continuation.resume(throwing: error) }
+            }
+        }
+
+        let deadlineItem = DispatchWorkItem(qos: .userInitiated) {
+            resumeOnce {
+                work.cancel()
+                onDeadline?()
+                continuation.resume(throwing: DeadlineExceededError(seconds: seconds))
+            }
+        }
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(
+            deadline: .now() + seconds,
+            execute: deadlineItem
+        )
+
+        // 正常完了時にタイマーを掃除する監視タスク
+        Task {
+            _ = await work.result
+            deadlineItem.cancel()
+        }
+    }
+}
+
+// MARK: - Tail Silence Probe (PR-B4)
+
+enum AudioSilenceProbe {
+    /// 指定区間の平均 RMS（0.0〜1.0 近似）を返す。読めない場合は nil。
+    /// 長時間読込を避けるため最大 60 秒 / 4096 frame バッファで走査する。
+    static func averageRMS(url: URL, startSec: Double, endSec: Double) -> Float? {
+        guard endSec > startSec else { return nil }
+        do {
+            let file = try AVAudioFile(forReading: url)
+            let format = file.processingFormat
+            let sampleRate = format.sampleRate
+            let clampedEnd = min(endSec, startSec + 60)
+            let startFrame = AVAudioFramePosition(startSec * sampleRate)
+            let frameCount = AVAudioFrameCount((clampedEnd - startSec) * sampleRate)
+            guard frameCount > 0, startFrame < file.length else { return nil }
+            file.framePosition = min(startFrame, file.length - 1)
+
+            var sumSquares: Double = 0
+            var totalFrames: Double = 0
+            let bufferSize: AVAudioFrameCount = 4096
+            var remaining = min(frameCount, AVAudioFrameCount(file.length - file.framePosition))
+
+            while remaining > 0 {
+                let thisRead = min(bufferSize, remaining)
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: thisRead) else { return nil }
+                try file.read(into: buffer, frameCount: thisRead)
+                guard buffer.frameLength > 0, let channel = buffer.floatChannelData?[0] else { break }
+                for i in 0..<Int(buffer.frameLength) {
+                    let v = Double(channel[i])
+                    sumSquares += v * v
+                }
+                totalFrames += Double(buffer.frameLength)
+                remaining -= buffer.frameLength
+            }
+            guard totalFrames > 0 else { return nil }
+            return Float((sumSquares / totalFrames).squareRoot())
+        } catch {
+            return nil
+        }
+    }
+}
+
+// MARK: - Checkpoint Hooks (PR-C1 / B8)
+
+/// STTService へのチェックポイント操作注入用コールバック。
+/// 成功時に clear、失敗時は残す（次回再開のため）。
+struct STTCheckpointHooks: Sendable {
+    /// 完了済みチャンク結果を返す（fingerprint 不一致処理は hook 実装側の責務）。
+    let load: @Sendable (_ fingerprint: String) async -> [Int: CheckpointChunkResult]
+    /// チャンク完了ごとに呼ばれる。
+    let save: @Sendable (_ fingerprint: String, _ totalChunks: Int, _ chunkIndex: Int, _ result: CheckpointChunkResult) async -> Void
+    /// 全体成功時に呼ばれる。
+    let clear: @Sendable () async -> Void
+}
+
+// MARK: - Checkpoint DTO Conversion
+
+// MARK: - Checkpoint Hooks (PR-B8)
+
+struct STTCheckpointHooks: Sendable {
+    let load: @Sendable (_ fingerprint: String) async -> [Int: CheckpointChunkResult]
+    let save: @Sendable (_ fingerprint: String, _ totalChunks: Int, _ chunkIndex: Int, _ result: CheckpointChunkResult) async -> Void
+    let clear: @Sendable () async -> Void
+}

@@ -706,6 +706,8 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// 文字起こし時の話者分離で numSpeakers として使用。
     var referenceSpeakerCount: Int?
 
+    var checkpointHooks: STTCheckpointHooks?
+
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
     private let diarizationService: SpeakerDiarizationProtocol = {
@@ -812,6 +814,13 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         }
     }
 
+
+    private func makeFingerprint(url: URL, chunkCount: Int) async -> String {
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? -1
+        let duration = Int(await audioFileDuration(for: url))
+        return "\\(size)-\\(duration)-\\(chunkCount)"
+    }
+
     private func runTask(
         handle: STTTaskHandle,
         configuration: STTExecutionConfiguration
@@ -843,6 +852,15 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             STTConsoleLog("[MemoraSTT] runTask: チャンク数 \(preparedChunks.count)")
             DebugLogger.shared.addLog("STTService", "チャンク数: \(preparedChunks.count)", level: .info)
             var chunkResults: [TranscriptionResult] = []
+            var restoredResults: [Int: TranscriptionResult] = [:] 
+            if let hooks = checkpointHooks { 
+                let fingerprint = await makeFingerprint(url: handle.audioURL, chunkCount: preparedChunks.count) 
+                let saved = await hooks.load(fingerprint) 
+                restoredResults = saved.mapValues { $0.toTranscriptionResult() } 
+                if !restoredResults.isEmpty { 
+                    DebugLogger.shared.addLog("STTService", "チェックポイント復元 — \\(restoredResults.count)/\\(preparedChunks.count) チャンクを再利用", level: .info) 
+                } 
+            }
             let totalChunks = max(preparedChunks.count, 1)
             let processingConfiguration = configuration
             let progressThrottler = STTProgressThrottler.forTranscription(
@@ -868,6 +886,12 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             } else {
                 for (index, chunk) in preparedChunks.enumerated() {
                     try Task.checkCancellation()
+
+                    if let reused = restoredResults[chunk.index] {
+                        chunkResults.append(reused)
+                        handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: reused))
+                        continue
+                    }
 
                     DebugLogger.shared.addLog("STTService", "chunk \(index)/\(preparedChunks.count) 開始 — \(chunk.url.lastPathComponent)", level: .info)
                     handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
@@ -903,6 +927,10 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     DebugLogger.shared.addLog("STTService", "chunk \(index) 完了 — \(result.fullText.count)文字", level: .info)
                     chunkResults.append(result)
                     handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
+                    if let hooks = checkpointHooks {
+                        let fingerprint = await makeFingerprint(url: handle.audioURL, chunkCount: preparedChunks.count)
+                        await hooks.save(fingerprint, preparedChunks.count, chunk.index, CheckpointChunkResult(from: result))
+                    }
 
                     // Live Activity 進捗更新
                     let overallProgress = 0.12 + (0.78 * Double(index + 1) / Double(totalChunks))
@@ -918,6 +946,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 }
             }
 
+            if let hooks = checkpointHooks { await hooks.clear() }
             let mergedResult = postProcessor.process(merge(
                 chunks: preparedChunks,
                 results: chunkResults,

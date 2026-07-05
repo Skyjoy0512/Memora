@@ -26,7 +26,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol {
     var isTranscribing = false
     var progress = 0.0
 
-    private let sttService: STTServiceProtocol = STTService()
+    let sttService: STTServiceProtocol = STTService()
 
     /// progress 更新の最小差分。これ未満の変動は SwiftUI 再描画をスキップする。
     private static let progressThreshold: Double = 0.005
