@@ -89,7 +89,6 @@
 		6093007D06CA8B7F2CC4FC72 /* TranscriptionActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9ADC874D923AE036F52EBBF /* TranscriptionActivity.swift */; };
 		6100BEF364E1DF98D99B75D5 /* AskAICompactBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387A58D2EFA9330B094F3FBB /* AskAICompactBar.swift */; };
 		6188C2D8C1816146CFAB7C8D /* OpenAIExportDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3345B61561D96543AAEE5780 /* OpenAIExportDTOs.swift */; };
-		629085659B3ED7E0D20C8563 /* GenerationFlowNavigationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992891BFA5A8146401E31807 /* GenerationFlowNavigationSheet.swift */; };
 		6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */; };
 		63F7A371BEA5A5F9DCB2A864 /* GoogleMeetSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E1EAA44923AAC97B043AC2E /* GoogleMeetSection.swift */; };
 		652B802EE53163A85DF7118F /* SummarizationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */; };
@@ -355,7 +354,6 @@
 		90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceConnectionView.swift; sourceTree = "<group>"; };
 		949CE2F0FBD00A67C0BA2D5B /* AudioFileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileTests.swift; sourceTree = "<group>"; };
 		9800CBF7FC2E10F3BB0F4ECC /* OnlineMeetingCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineMeetingCapture.swift; sourceTree = "<group>"; };
-		992891BFA5A8146401E31807 /* GenerationFlowNavigationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationFlowNavigationSheet.swift; sourceTree = "<group>"; };
 		993889AA8AAD6E9D84376916 /* KnowledgeQueryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeQueryService.swift; sourceTree = "<group>"; };
 		9A28393773CC00F5CE77856E /* RealtimeTranscriptionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeTranscriptionView.swift; sourceTree = "<group>"; };
 		9A456B5536BB720E54CD2148 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
@@ -571,7 +569,6 @@
 				7F366D454C3871B21F0C2D19 /* FileDetailHelpers.swift */,
 				844995F52A29BEBC35A2F097 /* FileDetailTab.swift */,
 				5B7A8D8D865F4595CBC083CF /* FileDetailView.swift */,
-				992891BFA5A8146401E31807 /* GenerationFlowNavigationSheet.swift */,
 				D5FF11FEE9F28D618CF8CD30 /* MemoTab.swift */,
 				FDB6935CD2B944757167CE6A /* PlayerControls.swift */,
 				36AAB95E7016C21328C79A94 /* SummaryTab.swift */,
@@ -1154,7 +1151,6 @@
 				911075AEC625F34B18E6E227 /* FluidAudioDiarizationService.swift in Sources */,
 				B7C9B4E80415D94285879733 /* Gemma4BenchmarkView.swift in Sources */,
 				584CA9EF763EAFA8FFD032B8 /* Gemma4ExperimentalProvider.swift in Sources */,
-				629085659B3ED7E0D20C8563 /* GenerationFlowNavigationSheet.swift in Sources */,
 				7D25FCE82F72A98E51C64618 /* GenerationFlowSheet.swift in Sources */,
 				08B4E4CDA11F065608FC8F58 /* GenerationModeSheet.swift in Sources */,
 				FA8ED350EB2BC33523250658 /* GlassCardModifier.swift in Sources */,
