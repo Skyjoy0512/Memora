@@ -69,17 +69,26 @@ struct AudioFileRow: View {
                 }
             }
 
-            // Row 3: Status chips
+            // Row 3: Status chips (PR-A6: ProcessingStatusCenter 連動)
             if hasStatusChips {
                 HStack(spacing: MemoraSpacing.xxs) {
-                    if audioFile.isTranscribed {
-                        StatusChip(title: "文字起こし済", color: MemoraColor.accentGreen)
-                    } else {
-                        StatusChip(title: "未文字起こし", color: MemoraColor.textTertiary)
-                    }
-
-                    if audioFile.isSummarized {
-                        StatusChip(title: "要約済", color: MemoraColor.accentGreen)
+                    let phase = ProcessingStatusCenter.shared.phase(for: audioFile.id)
+                    switch phase {
+                    case .transcribing(let p):
+                        ProcessingChip(title: "文字起こし中 \(Int(p * 100))%", color: MemoraColor.accentBlue)
+                    case .summarizing(let p):
+                        ProcessingChip(title: "要約中 \(Int(p * 100))%", color: MemoraColor.accentBlue)
+                    case .failed(let jobType):
+                        StatusChip(title: jobType == "transcription" ? "文字起こし失敗" : "要約失敗", color: MemoraColor.accentRed)
+                    case nil:
+                        if audioFile.isTranscribed {
+                            StatusChip(title: "文字起こし済", color: MemoraColor.accentGreen)
+                        } else {
+                            StatusChip(title: "未文字起こし", color: MemoraColor.textTertiary)
+                        }
+                        if audioFile.isSummarized {
+                            StatusChip(title: "要約済", color: MemoraColor.accentGreen)
+                        }
                     }
                 }
             }
@@ -150,6 +159,27 @@ struct AudioFileRow: View {
 }
 
 // MARK: - Status Chip
+
+/// 処理中の進捗を表示するチップ（スピナー付き）
+struct ProcessingChip: View {
+    let title: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ProgressView()
+                .controlSize(.mini)
+            Text(title)
+                .font(MemoraTypography.chatToken)
+                .foregroundStyle(MemoraColor.textSecondary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .overlay { Capsule().stroke(color.opacity(0.5), lineWidth: 1) }
+        .clipShape(Capsule())
+    }
+}
 
 struct StatusChip: View {
     let title: String
