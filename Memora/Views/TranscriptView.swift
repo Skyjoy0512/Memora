@@ -21,17 +21,58 @@ struct TranscriptContentView: View {
     let result: TranscriptResult
     var showSegments = true
     var currentPlaybackTime: TimeInterval = -1
+    var isPlaying: Bool = false
     var onSegmentTap: ((SpeakerSegment) -> Void)? = nil
+
+    @State private var autoFollow = true
+
+    private var currentPlayingIndex: Int? {
+        guard isPlaying, currentPlaybackTime >= 0 else { return nil }
+        return result.segments.firstIndex { seg in
+            currentPlaybackTime >= seg.startTime && currentPlaybackTime < seg.endTime
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
             if showSegments && !result.segments.isEmpty {
-                ForEach(Array(result.segments.enumerated()), id: \.offset) { index, seg in
-                    SpeakerSegmentView(
-                        segment: seg,
-                        isPlaying: currentPlaybackTime >= seg.startTime && currentPlaybackTime < seg.endTime,
-                        onTap: onSegmentTap
-                    )
+                ZStack(alignment: .bottomTrailing) {
+                    ScrollViewReader { proxy in
+                        ForEach(Array(result.segments.enumerated()), id: \.offset) { index, seg in
+                            SpeakerSegmentView(
+                                segment: seg,
+                                isPlaying: currentPlaybackTime >= seg.startTime && currentPlaybackTime < seg.endTime,
+                                onTap: onSegmentTap
+                            )
+                            .id(index)
+                        }
+                        .onChange(of: currentPlayingIndex) { _, newIndex in
+                            guard autoFollow, let newIndex else { return }
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                proxy.scrollTo(newIndex, anchor: .center)
+                            }
+                        }
+                        .simultaneousGesture(
+                            DragGesture().onChanged { _ in
+                                autoFollow = false
+                            }
+                        )
+                    }
+
+                    if !autoFollow && currentPlayingIndex != nil {
+                        Button {
+                            autoFollow = true
+                        } label: {
+                            Label("現在位置へ", systemImage: "arrow.down.to.line")
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                        }
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 8)
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {

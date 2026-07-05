@@ -47,7 +47,8 @@ struct TranscriptTab: View {
                 } else {
                     TranscriptContentView(
                         result: result,
-                        currentPlaybackTime: vm.playbackPosition
+                        currentPlaybackTime: vm.playbackPosition,
+                        isPlaying: vm.isPlaying
                     ) { segment in
                         vm.seekToTime(segment.startTime)
                     }
