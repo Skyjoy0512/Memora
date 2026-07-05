@@ -531,3 +531,41 @@ final class STTDiagnosticsLog: @unchecked Sendable {
         return try? JSONDecoder().decode(STTBackendDiagnosticEntry.self, from: data)
     }
 }
+
+// MARK: - Streaming Transcript Merger (PR-B10)
+
+/// チャンク結果を逐次受け取り、オフセット加算しながら
+/// 全文とセグメントを積み上げる。全 TranscriptionResult を配列保持しない。
+struct StreamingTranscriptMerger {
+    private(set) var fullTextParts: [String] = []
+    private(set) var segments: [TranscriptionSegment] = []
+    private var detectedLanguage: String?
+
+    mutating func append(chunk: AudioChunk, result: TranscriptionResult) {
+        if detectedLanguage == nil, !result.language.isEmpty {
+            detectedLanguage = result.language
+        }
+        let offset = chunk.startSec
+        fullTextParts.append(result.fullText)
+        for seg in result.segments {
+            segments.append(TranscriptionSegment(
+                id: seg.id,
+                speakerLabel: seg.speakerLabel,
+                startSec: seg.startSec + offset,
+                endSec: seg.endSec + offset,
+                text: seg.text
+            ))
+        }
+    }
+
+    func finalize(preferredLanguage: String? = nil) -> TranscriptionResult {
+        let language = preferredLanguage.map(STTLanguageNormalizer.baseLanguageCode(for:))
+            ?? detectedLanguage
+            ?? "ja"
+        return TranscriptionResult(
+            fullText: fullTextParts.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
+            language: language,
+            segments: segments
+        )
+    }
+}
