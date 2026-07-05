@@ -74,9 +74,16 @@ struct SpeakerSegmentView: View {
 
                     Spacer()
 
-                    Text(formatTime(segment.startTime))
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(Color(hex: "58585A"))
+                    if segment.isEstimatedTiming {
+                        Text("約 " + formatTime(segment.startTime))
+                            .font(.system(size: 11, weight: .regular))
+                            .italic()
+                            .foregroundStyle(MemoraColor.textTertiary)
+                    } else {
+                        Text(formatTime(segment.startTime))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(Color(hex: "58585A"))
+                    }
                 }
 
                 Text(segment.text)
@@ -111,13 +118,15 @@ struct SpeakerSegmentView: View {
                         speakerLabel: "Speaker 1",
                         startTime: 0,
                         endTime: 5,
-                        text: "今日はプロジェクトの進捗について議論します。"
+                        text: "今日はプロジェクトの進捗について議論します。",
+                        isEstimatedTiming: false
                     ),
                     SpeakerSegment(
                         speakerLabel: "Speaker 2",
                         startTime: 5,
                         endTime: 10,
-                        text: "了解しました。まず現状から確認しましょう。"
+                        text: "了解しました。まず現状から確認しましょう。",
+                        isEstimatedTiming: false
                     )
                 ],
                 duration: 60

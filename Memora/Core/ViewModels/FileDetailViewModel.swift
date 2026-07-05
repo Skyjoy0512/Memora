@@ -721,7 +721,8 @@ final class FileDetailViewModel {
                     speakerLabel: transcript.speakerLabels[i],
                     startTime: transcript.segmentStartTimes[i],
                     endTime: transcript.segmentEndTimes[i],
-                    text: transcript.segmentTexts[i]
+                    text: transcript.segmentTexts[i],
+                    isEstimatedTiming: false
                 ))
             }
         }

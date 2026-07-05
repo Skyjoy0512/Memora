@@ -12,6 +12,7 @@ struct SpeakerSegment {
     let startTime: TimeInterval
     let endTime: TimeInterval
     let text: String
+    let isEstimatedTiming: Bool
 }
 
 struct TranscriptResult {
@@ -32,7 +33,8 @@ struct TranscriptResult {
                 speakerLabel: $0.speakerLabel,
                 startTime: $0.startSec,
                 endTime: $0.endSec,
-                text: $0.text
+                text: $0.text,
+                isEstimatedTiming: $0.isEstimatedTiming
             )
         }
         self.duration = duration
@@ -48,7 +50,8 @@ struct TranscriptResult {
                     speakerLabel: segment.speakerLabel,
                     startSec: segment.startTime,
                     endSec: segment.endTime,
-                    text: segment.text
+                    text: segment.text,
+                    isEstimatedTiming: segment.isEstimatedTiming
                 )
             }
         )
