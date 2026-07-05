@@ -645,3 +645,16 @@ enum AudioSilenceProbe {
         }
     }
 }
+
+// MARK: - Checkpoint Hooks
+
+/// STTService へのチェックポイント操作注入用コールバック。
+/// 成功時に clear、失敗時は残す（次回再開のため）。
+struct STTCheckpointHooks: Sendable {
+    /// 完了済みチャンク結果を返す（fingerprint 不一致処理は hook 実装側の責務）。
+    let load: @Sendable (_ fingerprint: String) async -> [Int: CheckpointChunkResult]
+    /// チャンク完了ごとに呼ばれる。
+    let save: @Sendable (_ fingerprint: String, _ totalChunks: Int, _ chunkIndex: Int, _ result: CheckpointChunkResult) async -> Void
+    /// 全体成功時に呼ばれる。
+    let clear: @Sendable () async -> Void
+}

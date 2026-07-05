@@ -727,6 +727,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// Plaud 等の参照データから抽出した話者数ヒント。
     /// 文字起こし時の話者分離で numSpeakers として使用。
     var referenceSpeakerCount: Int?
+
+    /// チェックポイント操作用フック。PipelineCoordinator が注入する。
+    /// nil の場合は checkpoint 機能は無効（何もしない）。
+    var checkpointHooks: STTCheckpointHooks?
+
     /// メモリ警告時に API 並列度を 4→1 に下げるフラグ（PR-B11）
     private var underMemoryPressure = false
 
@@ -793,6 +798,20 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             chunkCount: plan.count,
             isAPIMode: transcriptionMode == .api
         )
+    }
+
+    private func audioFileDuration(for url: URL) async -> TimeInterval {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration) else {
+            return 0
+        }
+        return CMTimeGetSeconds(duration)
+    }
+
+    func makeFingerprint(url: URL, chunkCount: Int) async -> String {
+        let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? -1
+        let duration = Int(await audioFileDuration(for: url))
+        return "\(size)-\(duration)-\(chunkCount)"
     }
 
     @MainActor
@@ -918,6 +937,15 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
 
+            // checkpoint: fingerprint 生成と復元
+            let fingerprint = await makeFingerprint(url: handle.audioURL, chunkCount: plan.count)
+            let restoredResults = await checkpointHooks?.load(fingerprint) ?? [:]
+            if !restoredResults.isEmpty {
+                DebugLogger.shared.addLog("STTService",
+                    "チェックポイント復元 — \(restoredResults.count)/\(plan.count) チャンクを再利用",
+                    level: .info)
+            }
+
             var merger = StreamingTranscriptMerger()
 
             if processingConfiguration.transcriptionMode == .api && plan.count > 1 {
@@ -934,6 +962,27 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 // 直列経路: 1チャンクずつ export → transcribe → append → cleanup
                 for slice in plan.slices {
                     try Task.checkCancellation()
+
+                    // checkpoint: 復元済みチャンクはスキップ
+                    if let savedResult = restoredResults[slice.index] {
+                        let result = savedResult.toTranscriptionResult()
+                        merger.append(chunk: AudioChunk(index: slice.index, startSec: slice.startSec, endSec: slice.endSec, url: handle.audioURL, isTemporary: false), result: result)
+                        DebugLogger.shared.addLog("STTService", "chunk \(slice.index) 復元済み（スキップ）", level: .info)
+                        handle.yield(.audioChunkCompleted(chunkIndex: slice.index, result: result))
+
+                        // Live Activity 進捗更新（復元チャンクでも更新）
+                        let overallProgress = 0.12 + (0.78 * Double(slice.index + 1) / Double(totalChunks))
+                        if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: slice.index + 1, totalChunks: totalChunks) {
+                            await MainActor.run {
+                                TranscriptionLiveActivity.update(
+                                    progress: overallProgress,
+                                    currentChunk: slice.index + 1,
+                                    totalChunks: totalChunks
+                                )
+                            }
+                        }
+                        continue
+                    }
 
                     DebugLogger.shared.addLog("STTService", "chunk \(slice.index)/\(plan.count) 開始", level: .info)
                     handle.yield(.audioChunkStarted(chunkIndex: slice.index))
@@ -975,6 +1024,9 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     DebugLogger.shared.addLog("STTService", "chunk \(slice.index) 完了 — \(result.fullText.count)文字", level: .info)
                     handle.yield(.audioChunkCompleted(chunkIndex: slice.index, result: result))
 
+                    // checkpoint: チャンク結果を保存
+                    await checkpointHooks?.save(fingerprint, plan.count, slice.index, CheckpointChunkResult(from: result))
+
                     // Live Activity 進捗更新
                     let overallProgress = 0.12 + (0.78 * Double(slice.index + 1) / Double(totalChunks))
                     if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: slice.index + 1, totalChunks: totalChunks) {
@@ -988,6 +1040,12 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     }
                 }
             }
+
+            // checkpoint: 全チャンク完了 — クリア
+            await checkpointHooks?.clear()
+
+            // checkpoint: 全チャンク完了 — クリア
+            await checkpointHooks?.clear()
 
             let mergedResult = postProcessor.process(merger.finalize(preferredLanguage: handle.language))
             STTConsoleLog("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
