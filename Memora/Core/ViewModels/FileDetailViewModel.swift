@@ -87,6 +87,10 @@ final class FileDetailViewModel {
 
     // Settings (passed from View's @AppStorage)
     private var currentProvider: AIProvider
+    private var summarizationProvider: AIProvider {
+        let raw = UserDefaults.standard.string(forKey: "summarizationProvider") ?? "Gemini"
+        return AIProvider(rawValue: raw) ?? .gemini
+    }
     private var currentTranscriptionMode: TranscriptionMode
     private var currentAPIKey: String
 
@@ -239,7 +243,7 @@ final class FileDetailViewModel {
     // MARK: - Summarization
 
     func startSummarization(with config: GenerationConfig = GenerationConfig()) {
-        let provider = currentProvider
+        let provider = summarizationProvider
         let apiKey = apiKey(for: provider)
 
         guard !provider.requiresAPIKey || !apiKey.isEmpty else {

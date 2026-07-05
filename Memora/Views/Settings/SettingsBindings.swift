@@ -14,6 +14,7 @@ final class SettingsState {
 
     // MARK: - AI Provider
     var selectedProvider: String = "OpenAI"
+    var summarizationProvider: String = "Gemini"
     var apiKeyOpenAI: String = ""
     var apiKeyGemini: String = ""
     var apiKeyDeepSeek: String = ""
@@ -65,6 +66,10 @@ final class SettingsState {
         AIProvider(rawValue: selectedProvider) ?? .openai
     }
 
+    var currentSummarizationProvider: AIProvider {
+        AIProvider(rawValue: summarizationProvider) ?? .gemini
+    }
+
     var currentTranscriptionMode: TranscriptionMode {
         TranscriptionMode(rawValue: transcriptionMode) ?? .local
     }
@@ -111,6 +116,7 @@ final class SettingsState {
         self.transcriptionMode = UserDefaults.standard.string(forKey: "transcriptionMode") ?? "ローカル"
         self.memoryPrivacyMode = UserDefaults.standard.string(forKey: "memoryPrivacyMode") ?? MemoryPrivacyMode.standard.rawValue
         self.selectedProvider = UserDefaults.standard.string(forKey: "selectedProvider") ?? "OpenAI"
+        self.summarizationProvider = UserDefaults.standard.string(forKey: "summarizationProvider") ?? "Gemini"
 
         // Keychain から API キーを読み込み
         self.apiKeyOpenAI = KeychainService.load(key: .apiKeyOpenAI)

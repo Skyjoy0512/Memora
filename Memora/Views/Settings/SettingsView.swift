@@ -16,6 +16,7 @@ struct SettingsView: View {
             List {
                 TranscriptionSettingsSection(state: state)
                 AIProviderSection(state: state)
+                SummarizationProviderSection(state: state)
                 APIKeySection(state: state)
                 CustomTemplateSection(state: state)
                 NotionIntegrationSection(state: state)

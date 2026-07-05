@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		505B8F384AE440839DCFAA69 /* SummarizationProviderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F80B9832E2034FDE8C16873C /* SummarizationProviderSection.swift */; };
 		91FC31F4937940FA9357DE39 /* TranscriptionCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F83302784B4945A26D2272 /* TranscriptionCheckpointTests.swift */; };
 
 		28E78FB5DDED495FAE034EF9 /* STTTestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3041A210B4FC481A9FE8783A /* STTTestDoubles.swift */; };
@@ -247,6 +248,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F80B9832E2034FDE8C16873C /* SummarizationProviderSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationProviderSection.swift; sourceTree = "<group>"; };
 		E4F83302784B4945A26D2272 /* TranscriptionCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/TranscriptionCheckpointTests.swift"; sourceTree = "<group>"; };
 
 		3041A210B4FC481A9FE8783A /* STTTestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/STTTestDoubles.swift"; sourceTree = "<group>"; };
@@ -935,6 +937,7 @@
 			isa = PBXGroup;
 			children = (
 				20DE1429871D58BB5961A4F4 /* AIProviderSection.swift */,
+				F80B9832E2034FDE8C16873C /* SummarizationProviderSection.swift */,
 				CCD7331935FC980D189F38A5 /* APIKeySection.swift */,
 				E7CCBD44F3E8F4023DBCC8E8 /* BLEDebugSection.swift */,
 				EF6C36CC980D1CFD0B71B54B /* BotMeetingSection.swift */,
@@ -1111,6 +1114,7 @@
 			files = (
 				46FFBCB3A92E1959F687C00C /* AIModelSelectSheet.swift in Sources */,
 				716AD96FA68C58491297E213 /* AIProviderSection.swift in Sources */,
+				505B8F384AE440839DCFAA69 /* SummarizationProviderSection.swift in Sources */,
 				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
 				B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */,
 				98357AA2B184F5867EE551A8 /* AccentDotIndicator.swift in Sources */,
