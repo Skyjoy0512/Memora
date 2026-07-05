@@ -32,12 +32,8 @@ enum FileDetailTab: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Returns the tabs that should be visible for a given generation state.
+    /// タブは常時3つ固定。生成状態による増減はさせない（PLAUD 同等の予測可能性）。
     static func availableTabs(for state: GenerationState) -> [FileDetailTab] {
-        switch state {
-        case .notGenerated, .loading:
-            return [.transcript, .memo]
-        case .generated, .choosingMode, .choosingTemplate, .choosingModel:
-            return [.summary, .transcript, .memo]
-        }
+        FileDetailTab.allCases
     }
 }
