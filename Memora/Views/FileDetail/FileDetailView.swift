@@ -133,12 +133,7 @@ struct FileDetailView: View {
                     .padding(.top, MemoraSpacing.md)
                     .padding(.bottom, 180)
                 }
-                .onChange(of: vm.generationState) { _, newState in
-                    let available = FileDetailTab.availableTabs(for: newState)
-                    if !available.contains(selectedTab) {
-                        selectedTab = available.first ?? .transcript
-                    }
-                }
+
             }
 
             // Ask Anything Overlay (floating)
