@@ -569,3 +569,36 @@ struct StreamingTranscriptMerger {
         )
     }
 }
+
+// MARK: - Transcription Estimate (PR-B11)
+
+/// 文字起こし開始前の事前見積もり情報。
+/// plan() の総時間・チャンク数・概算処理時間を提供する。
+struct TranscriptionEstimate: Sendable {
+    let sourceURL: URL
+    let totalDuration: TimeInterval
+    let chunkCount: Int
+    /// 概算処理時間（秒）。ローカルは 1chunk ≒ 90秒、API は並列 4 で 1chunk ≒ 30秒 で見積もる。
+    let estimatedProcessingSeconds: TimeInterval
+    /// 長時間（3時間超）かどうか。呼び出し元が確認ダイアログを出すかの判定に使う。
+    var isVeryLong: Bool { totalDuration >= 60 * 60 * 3 }
+    /// ユーザー表示用の確認メッセージ
+    var alertMessage: String {
+        let hours = Int(totalDuration / 3600)
+        let minutes = Int(estimatedProcessingSeconds / 60)
+        let minText = minutes > 0 ? "約\(minutes)分" : "1分未満"
+        return "この録音は約\(hours)時間で、文字起こしに時間がかかります（推定\(minText)）。\nバックグラウンドでも継続しますが、端末の充電を推奨します。\n開始しますか？"
+    }
+
+    init(sourceURL: URL, totalDuration: TimeInterval, chunkCount: Int, isAPIMode: Bool) {
+        self.sourceURL = sourceURL
+        self.totalDuration = totalDuration
+        self.chunkCount = chunkCount
+        if isAPIMode && chunkCount > 1 {
+            // API 並列（最大4並列）を考慮した概算
+            self.estimatedProcessingSeconds = Double(chunkCount) * 30 / min(4, Double(chunkCount))
+        } else {
+            self.estimatedProcessingSeconds = Double(chunkCount) * 90
+        }
+    }
+}

@@ -705,6 +705,8 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// Plaud 等の参照データから抽出した話者数ヒント。
     /// 文字起こし時の話者分離で numSpeakers として使用。
     var referenceSpeakerCount: Int?
+    /// メモリ警告時に API 並列度を 4→1 に下げるフラグ（PR-B11）
+    private var underMemoryPressure = false
 
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
@@ -722,6 +724,16 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     ) {
         self.readiness = readiness
         self.chunkerFactory = chunkerFactory
+
+        // メモリ警告時の observer を登録（PR-B11: 並列度を自動で下げる）
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.underMemoryPressure = true
+            DebugLogger.shared.addLog("STTService", "メモリ警告受信 — 並列度を下げます", level: .warning)
+        }
     }
 
     func updateConfiguration(
@@ -739,6 +751,23 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         configurationLock.unlock()
     }
 
+
+    /// 文字起こし開始前の事前見積もり（PR-B11）。
+    /// plan() から総時間・チャンク数・概算処理時間を返す。
+    /// 長時間ファイルの確認ダイアログ表示に使う。
+    func estimateTranscription(
+        fileURL: URL,
+        transcriptionMode: TranscriptionMode = .local
+    ) async throws -> TranscriptionEstimate {
+        let chunker = chunkerFactory()
+        let plan = try await chunker.plan(fileURL: fileURL)
+        return TranscriptionEstimate(
+            sourceURL: fileURL,
+            totalDuration: plan.totalDuration,
+            chunkCount: plan.count,
+            isAPIMode: transcriptionMode == .api
+        )
+    }
     func startTranscription(
         audioURL: URL,
         language: String?
@@ -999,7 +1028,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     ) async throws {
         DebugLogger.shared.addLog("STTService", "並列チャンク処理開始 — \(plan.count)チャンク（ストリーミング）", level: .info)
 
-        let maxConcurrentChunks = min(4, max(1, plan.count))
+        let maxConcurrentChunks = underMemoryPressure ? 1 : min(4, max(1, plan.count))
         let sliceBatches = plan.slices.chunked(into: maxConcurrentChunks)
         var completedCount = 0
 
