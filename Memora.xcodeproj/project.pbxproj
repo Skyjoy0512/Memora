@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		91FC31F4937940FA9357DE39 /* TranscriptionCheckpointTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4F83302784B4945A26D2272 /* TranscriptionCheckpointTests.swift */; };
+
+		28E78FB5DDED495FAE034EF9 /* STTTestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3041A210B4FC481A9FE8783A /* STTTestDoubles.swift */; };
+
+		B8E418D63E0942AD9696219C /* STTStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C242054B54A19A93F53B4 /* STTStreamingTests.swift */; };
+
+		C611DD91A5A7452787F4A417 /* AudioSilenceProbeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA2E71C7BD4472FA425F488 /* AudioSilenceProbeTests.swift */; };
+
 		009DB53F268A6E387B25209A /* CustomTemplateSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6187B003903E1F63D198757 /* CustomTemplateSection.swift */; };
 		019AB95CA09A9287444B0A47 /* PhotoAttachmentPreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201B15B5FF906C61211E3F62 /* PhotoAttachmentPreviewSheet.swift */; };
 		064758E3B9EAA481C111A22B /* PlaudExportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */; };
@@ -239,6 +247,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E4F83302784B4945A26D2272 /* TranscriptionCheckpointTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/TranscriptionCheckpointTests.swift"; sourceTree = "<group>"; };
+
+		3041A210B4FC481A9FE8783A /* STTTestDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/STTTestDoubles.swift"; sourceTree = "<group>"; };
+
+		DF9C242054B54A19A93F53B4 /* STTStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/STTStreamingTests.swift"; sourceTree = "<group>"; };
+
+		0BA2E71C7BD4472FA425F488 /* AudioSilenceProbeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoraTests/Services/AudioSilenceProbeTests.swift"; sourceTree = "<group>"; };
+
 		02F81CCC3A4D19FFB63F51DF /* LocalRetrievalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalRetrievalEngine.swift; sourceTree = "<group>"; };
 		02FD1468C844C4AFEF5495C5 /* CustomBottomGlassSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomBottomGlassSheet.swift; sourceTree = "<group>"; };
 		058B06299797571747E4B64C /* SpeakerDiarizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerDiarizationService.swift; sourceTree = "<group>"; };
@@ -1076,6 +1092,10 @@
 				D883A6572307EB3C8854848C /* OpenAIExportServiceTests.swift in Sources */,
 				C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */,
 				7EAA607ED871E0A46CD65BE0 /* STTPreflightTests.swift in Sources */,
+				91FC31F4937940FA9357DE39 /* TranscriptionCheckpointTests.swift in Sources */,
+				28E78FB5DDED495FAE034EF9 /* STTTestDoubles.swift in Sources */,
+				B8E418D63E0942AD9696219C /* STTStreamingTests.swift in Sources */,
+				C611DD91A5A7452787F4A417 /* AudioSilenceProbeTests.swift in Sources */,
 				C5997B50D2631671D3608529 /* SummarizationEngineTests.swift in Sources */,
 				A05D9CF869BDFE089C043795 /* TaskPlannerServiceTests.swift in Sources */,
 				BFDFF0B53584B39B312F07AB /* TestHelpers.swift in Sources */,
