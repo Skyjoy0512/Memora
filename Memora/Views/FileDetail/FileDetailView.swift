@@ -300,8 +300,17 @@ struct FileDetailView: View {
                 }
                 .accessibilityLabel("共有")
 
-                Button {
-                    vm.showDeleteAlert = true
+                Menu {
+                    Button {
+                        vm.showShareSheet = true
+                    } label: {
+                        Label("エクスポート", systemImage: "square.and.arrow.up")
+                    }
+                    Button(role: .destructive) {
+                        vm.showDeleteAlert = true
+                    } label: {
+                        Label("削除", systemImage: "trash")
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .medium))
