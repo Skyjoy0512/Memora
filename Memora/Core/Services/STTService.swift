@@ -482,15 +482,11 @@ private final class STTBackendExecutor {
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        // continuation + DispatchWorkItem でタイムアウトを実装。
-        // withThrowingTaskGroup は全子タスク完了を待つため、
-        // detectSpeakers が非協力的だとタイムアウトが効かない。
-        try await withCheckedThrowingContinuation {
-            (continuation: CheckedContinuation<TranscriptionResult, Error>) in
-            let callbackLock = NSLock()
-            var didResume = false
-
-            let transcriptionTask = Task {
+        // PR-B3: withDeadline 共通ユーティリティでタイムアウトを実装。
+        // SpeechAnalyzer は cooperative cancellation に応答するため
+        // withDeadline の Task.cancel で停止可能。
+        do {
+            return try await withDeadline(seconds: 60) {
                 try await self.transcribeWithSpeechAnalyzer(
                     audioURL: audioURL,
                     locale: locale,
@@ -498,46 +494,9 @@ private final class STTBackendExecutor {
                     partialResult: partialResult
                 )
             }
-
-            // 60秒タイムアウト
-            let timeoutWorkItem = DispatchWorkItem(qos: .userInitiated) {
-                callbackLock.lock()
-                let shouldResume = !didResume
-                didResume = true
-                callbackLock.unlock()
-                if shouldResume {
-                    transcriptionTask.cancel()
-                    DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer 60秒タイムアウト", level: .warning)
-                    continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
-                }
-            }
-            DispatchQueue.global(qos: .userInitiated).asyncAfter(
-                deadline: .now() + 60,
-                execute: timeoutWorkItem
-            )
-
-            Task {
-                do {
-                    let result = try await transcriptionTask.value
-                    timeoutWorkItem.cancel()
-                    callbackLock.lock()
-                    let shouldResume = !didResume
-                    didResume = true
-                    callbackLock.unlock()
-                    if shouldResume {
-                        continuation.resume(returning: result)
-                    }
-                } catch {
-                    timeoutWorkItem.cancel()
-                    callbackLock.lock()
-                    let shouldResume = !didResume
-                    didResume = true
-                    callbackLock.unlock()
-                    if shouldResume {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
+        } catch is DeadlineExceededError {
+            DebugLogger.shared.addLog("STTBackend", "SpeechAnalyzer 60秒タイムアウト", level: .warning)
+            throw OnDeviceTranscriptionTimeoutError()
         }
     }
 
@@ -1169,58 +1128,18 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         timeout: TimeInterval = 300
     ) async -> [TranscriptionSegment] {
         DebugLogger.shared.addLog("STTService", "全体ファイル話者分離開始 — \(segments.count)セグメント, numSpeakers: \(numSpeakers?.description ?? "auto"), timeout: \(timeout)s", level: .info)
-        let result = await withTimeout(seconds: timeout) {
-            await self.diarizationService.detectSpeakers(audioURL: audioURL, segments: segments, numSpeakers: numSpeakers)
-        }
-        switch result {
-        case .success(let speakers):
+        do {
+            let speakers = try await withDeadline(seconds: timeout) {
+                await self.diarizationService.detectSpeakers(audioURL: audioURL, segments: segments, numSpeakers: numSpeakers)
+            }
             DebugLogger.shared.addLog("STTService", "全体ファイル話者分離完了 — \(speakers.count)セグメント", level: .info)
             return speakers
-        case .timedOut:
+        } catch {
             DebugLogger.shared.addLog("STTService", "全体ファイル話者分離タイムアウト (\(timeout)s)", level: .warning)
             return segments
         }
     }
 
-    private func withTimeout<T>(
-        seconds: TimeInterval,
-        operation: @escaping () async -> T
-    ) async -> TimeoutResult<T> {
-        await withCheckedContinuation { continuation in
-            let lock = NSLock()
-            var completed = false
-
-            let task = Task {
-                let result = await operation()
-                lock.lock()
-                guard !completed else {
-                    lock.unlock()
-                    return
-                }
-                completed = true
-                lock.unlock()
-                continuation.resume(returning: .success(result))
-            }
-
-            _ = Task {
-                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                lock.lock()
-                guard !completed else {
-                    lock.unlock()
-                    return
-                }
-                completed = true
-                lock.unlock()
-                task.cancel()
-                continuation.resume(returning: .timedOut)
-            }
-        }
-    }
-
-    private enum TimeoutResult<T> {
-        case success(T)
-        case timedOut
-    }
 }
 
 private extension Array {

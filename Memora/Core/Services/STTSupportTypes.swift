@@ -531,3 +531,59 @@ final class STTDiagnosticsLog: @unchecked Sendable {
         return try? JSONDecoder().decode(STTBackendDiagnosticEntry.self, from: data)
     }
 }
+
+// MARK: - Deadline Utility (PR-B3)
+
+struct DeadlineExceededError: Error, LocalizedError {
+    let seconds: TimeInterval
+    var errorDescription: String? { "処理が \(Int(seconds)) 秒以内に完了しませんでした" }
+}
+
+/// 非協力的な async 作業に期限を課す。
+/// - resume は厳密に1回（期限後に届いた結果/エラーは破棄）。
+/// - 期限発火時: operation Task に cancel を送り、onDeadline を実行してから throw する。
+func withDeadline<T: Sendable>(
+    seconds: TimeInterval,
+    onDeadline: (@Sendable () -> Void)? = nil,
+    operation: @escaping @Sendable () async throws -> T
+) async throws -> T {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<T, Error>) in
+        let lock = NSLock()
+        var resumed = false
+
+        @Sendable func resumeOnce(_ body: () -> Void) {
+            lock.lock()
+            let shouldRun = !resumed
+            resumed = true
+            lock.unlock()
+            if shouldRun { body() }
+        }
+
+        let work = Task {
+            do {
+                let value = try await operation()
+                resumeOnce { continuation.resume(returning: value) }
+            } catch {
+                resumeOnce { continuation.resume(throwing: error) }
+            }
+        }
+
+        let deadlineItem = DispatchWorkItem(qos: .userInitiated) {
+            resumeOnce {
+                work.cancel()
+                onDeadline?()
+                continuation.resume(throwing: DeadlineExceededError(seconds: seconds))
+            }
+        }
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(
+            deadline: .now() + seconds,
+            execute: deadlineItem
+        )
+
+        // 正常完了時にタイマーを掃除する監視タスク
+        Task {
+            _ = await work.result
+            deadlineItem.cancel()
+        }
+    }
+}
