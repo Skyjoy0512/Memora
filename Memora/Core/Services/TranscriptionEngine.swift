@@ -131,4 +131,17 @@ final class TranscriptionEngine: TranscriptionEngineProtocol {
         }
         return CMTimeGetSeconds(duration)
     }
+
+    /// 後付け話者分離の facade ブリッジ。
+    func detectSpeakersPostHoc(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        numSpeakers: Int?
+    ) async -> [TranscriptionSegment] {
+        await (sttService as? STTService)?.detectSpeakersPostHoc(
+            audioURL: audioURL,
+            segments: segments,
+            numSpeakers: numSpeakers
+        ) ?? segments
+    }
 }

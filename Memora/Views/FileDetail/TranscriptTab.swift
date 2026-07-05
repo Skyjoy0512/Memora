@@ -137,6 +137,9 @@ struct TranscriptTab: View {
                 }
             }
 
+            // 後付け話者分離（Transcript タブ内）
+            postHocDiarizationCard
+
             // 話者登録（Transcript タブ内）
             speakerRegistrationCard
         }
@@ -185,6 +188,50 @@ struct TranscriptTab: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(MemoraColor.surfaceSecondary)
             .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
+    }
+
+    // MARK: - Post-hoc Diarization Card
+
+    @ViewBuilder
+    private var postHocDiarizationCard: some View {
+        if let result = vm.transcriptResult, !result.segments.isEmpty {
+            let speakerCount = Set(result.segments.map { $0.speakerLabel }.filter { !$0.isEmpty }).count
+            if speakerCount <= 1 {
+                detailCard {
+                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
+                        Label("話者を分離", systemImage: "person.2.wave.2")
+                            .font(MemoraTypography.headline)
+
+                        if vm.isDiarizing {
+                            HStack(spacing: MemoraSpacing.sm) {
+                                ProgressView()
+                                Text("話者を解析中… \(vm.diarizationElapsedSec)秒")
+                                    .font(MemoraTypography.caption1)
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                Spacer()
+                                Button("中止") { vm.cancelPostHocDiarization() }
+                                    .font(MemoraTypography.caption1)
+                            }
+                            Text("録音の長さによっては数分かかります。この画面を開いたままお待ちください。")
+                                .font(MemoraTypography.caption2)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("この文字起こしにはまだ話者ラベルがありません。音声を解析して「Speaker 1 / Speaker 2 …」のラベルを付けられます。")
+                                .font(MemoraTypography.caption1)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                vm.runPostHocDiarization()
+                            } label: {
+                                Text("話者分離を実行")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder

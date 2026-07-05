@@ -1356,6 +1356,32 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         }
     }
 
+
+    // MARK: - Post-hoc Speaker Diarization (opt-in)
+
+    /// 保存済み transcript のセグメントに対する後付け話者分離。
+    /// 文字起こしパイプラインとは独立に呼び出せる。
+    /// - Returns: 話者ラベルを付与したセグメント。タイムアウト/失敗時は入力をそのまま返す。
+    func detectSpeakersPostHoc(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        numSpeakers: Int? = nil,
+        timeout: TimeInterval = 300
+    ) async -> [TranscriptionSegment] {
+        guard FileManager.default.fileExists(atPath: audioURL.path), !segments.isEmpty else {
+            return segments
+        }
+        DebugLogger.shared.addLog("STTService",
+            "後付け話者分離 開始 — \(segments.count)セグメント",
+            level: .info)
+        return await detectSpeakersWithTimeout(
+            audioURL: audioURL,
+            segments: segments,
+            numSpeakers: numSpeakers,
+            timeout: timeout
+        )
+    }
+
     private enum TimeoutResult<T> {
         case success(T)
         case timedOut

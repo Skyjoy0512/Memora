@@ -36,6 +36,9 @@ final class FileDetailViewModel {
 
     // MARK: - Transcription State
     var isTranscribing = false
+    var isDiarizing = false
+    var diarizationElapsedSec = 0
+    private var diarizationTask: Task<Void, Never>?
     var transcriptionProgress = 0.0
 
     // MARK: - Summarization State
@@ -241,6 +244,99 @@ final class FileDetailViewModel {
     }
 
     // MARK: - Summarization
+
+    // MARK: - Post-hoc Diarization
+
+    func runPostHocDiarization() {
+        guard !isDiarizing else { return }
+        guard let url = audioURL else {
+            errorMessage = "音声URLがありません"
+            showErrorAlert = true
+            return
+        }
+        guard let result = transcriptResult, !result.segments.isEmpty else {
+            errorMessage = "先に文字起こしを実行してください"
+            showErrorAlert = true
+            return
+        }
+
+        isDiarizing = true
+        diarizationElapsedSec = 0
+
+        let ticker = Task { @MainActor [weak self] in
+            while !(Task.isCancelled) {
+                try? await Task.sleep(for: .seconds(1))
+                self?.diarizationElapsedSec += 1
+            }
+        }
+
+        diarizationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                ticker.cancel()
+                self.isDiarizing = false
+            }
+
+            let coreSegments = result.segments.enumerated().map { index, seg in
+                TranscriptionSegment(
+                    id: "segment-\(index)",
+                    speakerLabel: seg.speakerLabel,
+                    startSec: seg.startTime,
+                    endSec: seg.endTime,
+                    text: seg.text,
+                    isEstimatedTiming: seg.isEstimatedTiming
+                )
+            }
+
+            let labeled = await self.pipelineCoordinator.detectSpeakersPostHoc(
+                audioURL: url,
+                segments: coreSegments,
+                numSpeakers: self.audioFile.referenceSpeakerCount
+            )
+
+            guard !Task.isCancelled else { return }
+
+            let distinctSpeakers = Set(labeled.map { $0.speakerLabel }.filter { !$0.isEmpty })
+            guard distinctSpeakers.count >= 1 else {
+                self.errorMessage = "話者を検出できませんでした。もう一度お試しください。"
+                self.showErrorAlert = true
+                return
+            }
+
+            self.persistDiarizedSegments(labeled)
+            self.loadSavedTranscript()
+            self.successMessage = "話者分離が完了しました(\(distinctSpeakers.count) 人を検出)"
+            self.showSuccessAlert = true
+        }
+    }
+
+    func cancelPostHocDiarization() {
+        diarizationTask?.cancel()
+        diarizationTask = nil
+        isDiarizing = false
+    }
+
+    private func persistDiarizedSegments(_ labeled: [TranscriptionSegment]) {
+        let targetID = audioFile.id
+        var descriptor = FetchDescriptor<Transcript>(
+            predicate: #Predicate { $0.audioFileID == targetID }
+        )
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+        descriptor.fetchLimit = 1
+        guard let transcript = try? modelContext.fetch(descriptor).first else { return }
+
+        transcript.speakerLabels = labeled.map(\.speakerLabel)
+        transcript.segmentStartTimes = labeled.map(\.startSec)
+        transcript.segmentEndTimes = labeled.map(\.endSec)
+        transcript.segmentTexts = labeled.map(\.text)
+
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = "話者ラベルの保存に失敗しました: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+    }
 
     func startSummarization(with config: GenerationConfig = GenerationConfig()) {
         let provider = summarizationProvider

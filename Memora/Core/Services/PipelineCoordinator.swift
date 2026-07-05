@@ -718,4 +718,19 @@ final class PipelineCoordinator {
             }
         }
     }
+
+    // MARK: - Post-hoc Diarization
+
+    /// 後付け話者分離の pass-through。
+    func detectSpeakersPostHoc(
+        audioURL: URL,
+        segments: [TranscriptionSegment],
+        numSpeakers: Int?
+    ) async -> [TranscriptionSegment] {
+        await transcriptionEngine.detectSpeakersPostHoc(
+            audioURL: audioURL,
+            segments: segments,
+            numSpeakers: numSpeakers
+        )
+    }
 }
