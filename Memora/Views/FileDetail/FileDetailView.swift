@@ -207,6 +207,11 @@ struct FileDetailView: View {
             Text("この録音ファイルを削除しますか？")
         }
         .alert("エラー", isPresented: $vm.showErrorAlert) {
+            Button("再試行") {
+                vm.retryLastFailedJob()
+                vm.errorMessage = nil
+                vm.recoveryAction = nil
+            }
             Button("OK", role: .cancel) {
                 vm.errorMessage = nil
                 vm.recoveryAction = nil
