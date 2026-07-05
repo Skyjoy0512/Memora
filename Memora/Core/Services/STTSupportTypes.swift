@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import SwiftUI
 import Speech
@@ -599,6 +600,48 @@ struct TranscriptionEstimate: Sendable {
             self.estimatedProcessingSeconds = Double(chunkCount) * 30 / min(4, Double(chunkCount))
         } else {
             self.estimatedProcessingSeconds = Double(chunkCount) * 90
+        }
+    }
+}
+
+// MARK: - Tail Silence Probe (PR-B4)
+
+enum AudioSilenceProbe {
+    /// 指定区間の平均 RMS（0.0〜1.0 近似）を返す。読めない場合は nil。
+    /// 長時間読込を避けるため最大 60 秒／4096 frame バッファで走査する。
+    static func averageRMS(url: URL, startSec: Double, endSec: Double) -> Float? {
+        guard endSec > startSec else { return nil }
+        do {
+            let file = try AVAudioFile(forReading: url)
+            let format = file.processingFormat
+            let sampleRate = format.sampleRate
+            let clampedEnd = min(endSec, startSec + 60)
+            let startFrame = AVAudioFramePosition(startSec * sampleRate)
+            let frameCount = AVAudioFrameCount((clampedEnd - startSec) * sampleRate)
+            guard frameCount > 0, startFrame < file.length else { return nil }
+            file.framePosition = min(startFrame, file.length - 1)
+
+            var sumSquares: Double = 0
+            var totalFrames: Double = 0
+            let bufferSize: AVAudioFrameCount = 4096
+            var remaining = min(frameCount, AVAudioFrameCount(file.length - file.framePosition))
+
+            while remaining > 0 {
+                let thisRead = min(bufferSize, remaining)
+                guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: thisRead) else { return nil }
+                try file.read(into: buffer, frameCount: thisRead)
+                guard buffer.frameLength > 0, let channel = buffer.floatChannelData?[0] else { break }
+                for i in 0..<Int(buffer.frameLength) {
+                    let v = Double(channel[i])
+                    sumSquares += v * v
+                }
+                totalFrames += Double(buffer.frameLength)
+                remaining -= buffer.frameLength
+            }
+            guard totalFrames > 0 else { return nil }
+            return Float((sumSquares / totalFrames).squareRoot())
+        } catch {
+            return nil
         }
     }
 }
