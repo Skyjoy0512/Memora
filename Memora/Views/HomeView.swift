@@ -366,11 +366,14 @@ struct HomeView: View {
             }
         } else if filteredFiles.isEmpty {
             Section {
-                ContentUnavailableView(
-                    searchText.isEmpty && !hasActiveFilters ? "録音ファイルはまだありません" : "一致するファイルがありません",
-                    systemImage: "waveform",
-                    description: Text(searchText.isEmpty && !hasActiveFilters ? "右上の追加ボタンから録音または読み込みを開始できます。" : "検索語句やフィルターを変更してください。")
-                )
+                ContentUnavailableView {
+                    Label(
+                        searchText.isEmpty && !hasActiveFilters ? "録音ファイルはまだありません" : "一致するファイルがありません",
+                        systemImage: "waveform"
+                    )
+                } description: {
+                    Text(searchText.isEmpty && !hasActiveFilters ? "右上の追加ボタンから録音または読み込みを開始できます。" : "検索語句やフィルターを変更してください。")
+                }
             }
         } else {
             Section {
@@ -394,16 +397,15 @@ struct HomeView: View {
     private var projectsSection: some View {
         if projects.isEmpty {
             Section {
-                ContentUnavailableView(
-                    "プロジェクトはまだありません",
-                    systemImage: "folder",
-                    description: Text("プロジェクトを作成して録音を整理できます。"),
-                    actions: {
-                        Button("プロジェクトを作成") {
-                            showCreateProject = true
-                        }
+                ContentUnavailableView {
+                    Label("プロジェクトはまだありません", systemImage: "folder")
+                } description: {
+                    Text("プロジェクトを作成して録音を整理できます。")
+                } actions: {
+                    Button("プロジェクトを作成") {
+                        showCreateProject = true
                     }
-                )
+                }
             }
         } else {
             Section {
@@ -480,7 +482,7 @@ struct HomeView: View {
 
                 if isSelectMode {
                     Image(systemName: selectedFileIDs.contains(file.id) ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(selectedFileIDs.contains(file.id) ? .tint : .secondary)
+                        .foregroundStyle(selectedFileIDs.contains(file.id) ? Color.accentColor : Color.secondary)
                 }
             }
             .contentShape(Rectangle())

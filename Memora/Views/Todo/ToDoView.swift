@@ -50,17 +50,16 @@ struct ToDoView: View {
     @ViewBuilder
     private var todoContent: some View {
         if incompleteTodos.isEmpty && completedTodos.isEmpty {
-            ContentUnavailableView(
-                "ToDoはまだありません",
-                systemImage: "checklist",
-                description: Text("議事録から自動抽出するか、手動で追加できます。"),
-                actions: {
-                    Button("ToDoを追加") {
-                        showAddSheet = true
-                    }
-                    .buttonStyle(.borderedProminent)
+            ContentUnavailableView {
+                Label("ToDoはまだありません", systemImage: "checklist")
+            } description: {
+                Text("議事録から自動抽出するか、手動で追加できます。")
+            } actions: {
+                Button("ToDoを追加") {
+                    showAddSheet = true
                 }
-            )
+                .buttonStyle(.borderedProminent)
+            }
         } else {
             todoList
         }

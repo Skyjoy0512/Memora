@@ -28,17 +28,16 @@ struct ProjectsView: View {
                         Spacer()
                     }
                 } else if viewModel.projects.isEmpty {
-                    ContentUnavailableView(
-                        "プロジェクトはまだありません",
-                        systemImage: "folder",
-                        description: Text("プロジェクトを作成して録音を整理しましょう。"),
-                        actions: {
-                            Button("プロジェクトを作成") {
-                                showCreateProjectView = true
-                            }
-                            .buttonStyle(.borderedProminent)
+                    ContentUnavailableView {
+                        Label("プロジェクトはまだありません", systemImage: "folder")
+                    } description: {
+                        Text("プロジェクトを作成して録音を整理しましょう。")
+                    } actions: {
+                        Button("プロジェクトを作成") {
+                            showCreateProjectView = true
                         }
-                    )
+                        .buttonStyle(.borderedProminent)
+                    }
                 } else {
                     Section {
                         ForEach(viewModel.projects) { project in
