@@ -50,7 +50,7 @@ struct HomeView: View {
     @State private var selectedHomeSegment: HomeSegment = .files
     @State private var showDeviceDetails = false
     @State private var showCreateProject = false
-    @State private var showMeetingCapture = false
+    @State private var isFABExpanded = false
     @State private var selectedProject: Project?
 
     private typealias SortOption = HomeViewModel.SortOption
@@ -92,7 +92,15 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            homeList
+            ZStack(alignment: .bottomTrailing) {
+                homeList
+
+                if !isSelectMode {
+                    FABMenu(isExpanded: $isFABExpanded, items: fabItems)
+                        .padding(.trailing, MemoraSpacing.lg)
+                        .padding(.bottom, MemoraSpacing.lg)
+                }
+            }
                 .navigationTitle("ホーム")
                 .searchable(text: $searchText, prompt: "検索")
                 .toolbar { homeToolbar }
@@ -144,9 +152,6 @@ struct HomeView: View {
                 handleImportResult(result)
             }
             .sheet(isPresented: $showGoogleMeetImport) {
-                GoogleMeetImportView()
-            }
-            .sheet(isPresented: $showMeetingCapture) {
                 GoogleMeetImportView()
             }
             .alert("インポートエラー", isPresented: Binding(
@@ -241,39 +246,33 @@ struct HomeView: View {
         }
     }
 
+    private var fabItems: [FABMenu.FABItem] {
+        [
+            .init(icon: "mic.fill", label: "録音を開始") {
+                MemoraHaptics.medium()
+                showRecordingView = true
+            },
+            .init(icon: "square.and.arrow.down", label: "ファイルを読み込む") {
+                showFileImporter = true
+            },
+            .init(icon: "waveform", label: "PLAUD から同期") {
+                showDeviceDetails = true
+            },
+            .init(icon: "person.2.waveform", label: "会議を取り込む") {
+                showGoogleMeetImport = true
+            }
+        ]
+    }
+
     @ToolbarContentBuilder
     private var homeToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button {
-                    showRecordingView = true
-                } label: {
-                    Label("録音を開始", systemImage: "mic")
-                }
-
-                Button {
-                    showFileImporter = true
-                } label: {
-                    Label("ファイルを読み込む", systemImage: "square.and.arrow.down")
-                }
-
-                Button {
-                    showMeetingCapture = true
-                } label: {
-                    Label("会議を取り込む", systemImage: "person.2.waveform")
-                }
-
-                Divider()
-
-                Button {
-                    showCreateProject = true
-                } label: {
-                    Label("プロジェクトを作成", systemImage: "folder.badge.plus")
-                }
+            Button {
+                showCreateProject = true
             } label: {
                 Image(systemName: "plus")
             }
-            .accessibilityLabel("追加")
+            .accessibilityLabel("プロジェクトを作成")
         }
 
         ToolbarItem(placement: .topBarLeading) {
