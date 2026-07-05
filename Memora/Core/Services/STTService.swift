@@ -170,6 +170,10 @@ private final class STTBackendExecutor {
         self.configuration = configuration
     }
 
+
+    deinit {
+        cancelRecognitionTask()
+    }
     func transcribe(
         audioURL: URL,
         language: String?,
@@ -387,7 +391,7 @@ private final class STTBackendExecutor {
                 guard shouldResume else { return }
                 STTConsoleLog("[MemoraSTT] SFSpeechRecognizer タイムアウト (\(timeoutSeconds)s) — onDevice: \(forceOnDevice)")
                 DebugLogger.shared.addLog("STTBackend", "SFSpeechRecognizer タイムアウト (\(timeoutSeconds)s) — onDevice: \(forceOnDevice)", level: .warning)
-                self?.clearRecognitionTask()
+                self?.cancelRecognitionTask()
                 continuation.resume(throwing: OnDeviceTranscriptionTimeoutError())
             }
             DispatchQueue.global(qos: .userInitiated).asyncAfter(
@@ -398,6 +402,13 @@ private final class STTBackendExecutor {
             let task = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 // 成功またはエラー時はタイマーをキャンセル
                 timeoutWorkItem.cancel()
+                
+                // タイムアウト/キャンセル確定後のコールバックは partial を含め一切処理しない
+                callbackLock.lock()
+                let alreadyResumed = didResume
+                callbackLock.unlock()
+                if alreadyResumed { return }
+                
 
                 if let error {
                     callbackLock.lock()
