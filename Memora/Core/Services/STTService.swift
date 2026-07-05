@@ -817,7 +817,6 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         configuration: STTExecutionConfiguration
     ) async throws -> TranscriptionResult {
         let chunker = chunkerFactory()
-        var preparedChunks: [AudioChunk] = []
 
         STTConsoleLog("[MemoraSTT] runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)")
         DebugLogger.shared.addLog("STTService", "runTask 開始 — taskId: \(handle.taskId), url: \(handle.audioURL.lastPathComponent)", level: .info)
@@ -829,21 +828,13 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             STTConsoleLog("[MemoraSTT] runTask: .transcriptionProgress(0.02) を yield")
             handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: 0.02))
 
-            preparedChunks = try await chunker.analyzeAndChunk(fileURL: handle.audioURL) { completed, total in
-                let progress = total > 0 ? Double(completed) / Double(total) : 1
-                handle.yield(.transcriptionProgress(taskId: handle.taskId, progress: min(0.12, 0.12 * progress)))
-                handle.yield(
-                    .audioChunkProgress(
-                        chunkIndex: max(0, completed - 1),
-                        progress: progress
-                    )
-                )
-            }
+            // plan: ファイル書き出しなしでチャンク境界を計算（軽量）
+            let plan = try await chunker.plan(fileURL: handle.audioURL)
+            let totalChunks = max(plan.count, 1)
 
-            STTConsoleLog("[MemoraSTT] runTask: チャンク数 \(preparedChunks.count)")
-            DebugLogger.shared.addLog("STTService", "チャンク数: \(preparedChunks.count)", level: .info)
-            var chunkResults: [TranscriptionResult] = []
-            let totalChunks = max(preparedChunks.count, 1)
+            STTConsoleLog("[MemoraSTT] runTask: チャンク計画 \(plan.count)（遅延生成）")
+            DebugLogger.shared.addLog("STTService", "チャンク計画: \(plan.count)（遅延生成）", level: .info)
+
             let processingConfiguration = configuration
             let progressThrottler = STTProgressThrottler.forTranscription(
                 mode: processingConfiguration.transcriptionMode,
@@ -858,32 +849,40 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
 
-            if processingConfiguration.transcriptionMode == .api && preparedChunks.count > 1 {
-                chunkResults = try await processChunksConcurrently(
-                    preparedChunks: preparedChunks,
+            var merger = StreamingTranscriptMerger()
+
+            if processingConfiguration.transcriptionMode == .api && plan.count > 1 {
+                // 並列経路: merger を inout で渡して逐次蓄積
+                try await processChunksConcurrently(
+                    plan: plan,
+                    chunker: chunker,
+                    merger: &merger,
                     handle: handle,
                     configuration: processingConfiguration,
                     totalChunks: totalChunks
                 )
             } else {
-                for (index, chunk) in preparedChunks.enumerated() {
+                // 直列経路: 1チャンクずつ export → transcribe → append → cleanup
+                for slice in plan.slices {
                     try Task.checkCancellation()
 
-                    DebugLogger.shared.addLog("STTService", "chunk \(index)/\(preparedChunks.count) 開始 — \(chunk.url.lastPathComponent)", level: .info)
-                    handle.yield(.audioChunkStarted(chunkIndex: chunk.index))
+                    DebugLogger.shared.addLog("STTService", "chunk \(slice.index)/\(plan.count) 開始", level: .info)
+                    handle.yield(.audioChunkStarted(chunkIndex: slice.index))
+
+                    let chunk = try await chunker.exportSlice(slice, from: plan)
 
                     let engine = STTBackendExecutor(
-                        taskId: "\(handle.taskId)-chunk-\(chunk.index)",
+                        taskId: "\(handle.taskId)-chunk-\(slice.index)",
                         configuration: processingConfiguration
                     )
                     let result = try await engine.transcribe(
                         audioURL: chunk.url,
                         language: handle.language,
                         progress: { chunkProgress in
-                            let overall = (Double(index) + chunkProgress) / Double(totalChunks)
+                            let overall = (Double(slice.index) + chunkProgress) / Double(totalChunks)
                             let progress = 0.12 + (0.78 * overall)
                             if progressThrottler.shouldEmitProgress(progress) {
-                                handle.yield(.audioChunkProgress(chunkIndex: chunk.index, progress: chunkProgress))
+                                handle.yield(.audioChunkProgress(chunkIndex: slice.index, progress: chunkProgress))
                                 handle.yield(
                                     .transcriptionProgress(
                                         taskId: handle.taskId,
@@ -899,18 +898,21 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                         }
                     )
 
-                    STTConsoleLog("[MemoraSTT] runTask: chunk \(index) 完了 — text: \(result.fullText.prefix(40))")
-                    DebugLogger.shared.addLog("STTService", "chunk \(index) 完了 — \(result.fullText.count)文字", level: .info)
-                    chunkResults.append(result)
-                    handle.yield(.audioChunkCompleted(chunkIndex: chunk.index, result: result))
+                    merger.append(chunk: chunk, result: result)
+                    // 処理済みチャンクの一時ファイルを即削除（メモリ&ディスク解放）
+                    await chunker.cleanupChunk(chunk)
+
+                    STTConsoleLog("[MemoraSTT] runTask: chunk \(slice.index) 完了 — text: \(result.fullText.prefix(40))")
+                    DebugLogger.shared.addLog("STTService", "chunk \(slice.index) 完了 — \(result.fullText.count)文字", level: .info)
+                    handle.yield(.audioChunkCompleted(chunkIndex: slice.index, result: result))
 
                     // Live Activity 進捗更新
-                    let overallProgress = 0.12 + (0.78 * Double(index + 1) / Double(totalChunks))
-                    if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: index + 1, totalChunks: totalChunks) {
+                    let overallProgress = 0.12 + (0.78 * Double(slice.index + 1) / Double(totalChunks))
+                    if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: slice.index + 1, totalChunks: totalChunks) {
                         await MainActor.run {
                             TranscriptionLiveActivity.update(
                                 progress: overallProgress,
-                                currentChunk: index + 1,
+                                currentChunk: slice.index + 1,
                                 totalChunks: totalChunks
                             )
                         }
@@ -918,11 +920,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 }
             }
 
-            let mergedResult = postProcessor.process(merge(
-                chunks: preparedChunks,
-                results: chunkResults,
-                preferredLanguage: handle.language
-            ))
+            let mergedResult = postProcessor.process(merger.finalize(preferredLanguage: handle.language))
             STTConsoleLog("[MemoraSTT] runTask: merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント")
             DebugLogger.shared.addLog("STTService", "merge 完了 — \(mergedResult.fullText.count)文字, \(mergedResult.segments.count)セグメント", level: .info)
 
@@ -966,22 +964,18 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 )
             }
             STTConsoleLog("[MemoraSTT] runTask: finish() 完了")
-            // 成功時: 一時ファイルを同期待ちで削除
-            await chunker.cleanup(chunks: preparedChunks)
             return finalResult
         } catch is CancellationError {
             DebugLogger.shared.addLog("STTService", "runTask cancelled — taskId: \(handle.taskId)", level: .warning)
             handle.yield(.transcriptionCancelled(taskId: handle.taskId))
             handle.finish()
             await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
-            await chunker.cleanup(chunks: preparedChunks)
             throw CancellationError()
         } catch let coreError as CoreError {
             DebugLogger.shared.addLog("STTService", "runTask CoreError — taskId: \(handle.taskId): \(coreError.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
             handle.finish()
             await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
-            await chunker.cleanup(chunks: preparedChunks)
             throw coreError
         } catch {
             let mappedError = STTErrorMapper.mapToCoreError(error)
@@ -989,34 +983,50 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: mappedError))
             handle.finish()
             await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
-            await chunker.cleanup(chunks: preparedChunks)
             throw mappedError
         }
     }
 
-    /// API モードでチャンクを並列処理する。
-    /// ネットワーク I/O が支配的な API 認識は並列化で大幅に高速化する。
+    /// API モードでチャンクを並列処理する（ストリーミング版）。
+    /// plan の slices をバッチに分け、バッチ単位で export → 並列文字起こし → merge → cleanup。
     private func processChunksConcurrently(
-        preparedChunks: [AudioChunk],
+        plan: AudioChunkPlan,
+        chunker: AudioChunkerProtocol,
+        merger: inout StreamingTranscriptMerger,
         handle: STTTaskHandle,
         configuration: STTExecutionConfiguration,
         totalChunks: Int
-    ) async throws -> [TranscriptionResult] {
-        DebugLogger.shared.addLog("STTService", "並列チャンク処理開始 — \(preparedChunks.count)チャンク", level: .info)
+    ) async throws {
+        DebugLogger.shared.addLog("STTService", "並列チャンク処理開始 — \(plan.count)チャンク（ストリーミング）", level: .info)
 
-        let maxConcurrentChunks = min(4, max(1, preparedChunks.count))
-        let chunkBatches = Array(preparedChunks.enumerated()).chunked(into: maxConcurrentChunks)
-        var orderedResults = Array<TranscriptionResult?>(repeating: nil, count: preparedChunks.count)
+        let maxConcurrentChunks = min(4, max(1, plan.count))
+        let sliceBatches = plan.slices.chunked(into: maxConcurrentChunks)
         var completedCount = 0
 
-        for batch in chunkBatches {
-            let batchResults = try await withThrowingTaskGroup(
-                of: (index: Int, result: TranscriptionResult).self
+        for batch in sliceBatches {
+            // 1. バッチ分のチャンクを export（遅延生成）
+            let chunks: [(Int, AudioChunk)] = try await withThrowingTaskGroup(
+                of: (Int, AudioChunk).self
             ) { group in
-                for (index, chunk) in batch {
+                for slice in batch {
+                    group.addTask {
+                        let chunk = try await chunker.exportSlice(slice, from: plan)
+                        return (slice.index, chunk)
+                    }
+                }
+                var acc: [(Int, AudioChunk)] = []
+                for try await r in group { acc.append(r) }
+                return acc.sorted { $0.0 < $1.0 }
+            }
+
+            // 2. 並列で文字起こし
+            let results: [(Int, TranscriptionResult)] = try await withThrowingTaskGroup(
+                of: (Int, TranscriptionResult).self
+            ) { group in
+                for (index, chunk) in chunks {
                     group.addTask {
                         let engine = STTBackendExecutor(
-                            taskId: "\(handle.taskId)-chunk-\(chunk.index)",
+                            taskId: "\(handle.taskId)-chunk-\(index)",
                             configuration: configuration
                         )
                         let result = try await engine.transcribe(
@@ -1028,19 +1038,17 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                         return (index, result)
                     }
                 }
-
-                var results = [(index: Int, result: TranscriptionResult)]()
-                for try await entry in group {
-                    results.append(entry)
-                }
-                return results
+                var acc: [(Int, TranscriptionResult)] = []
+                for try await r in group { acc.append(r) }
+                return acc.sorted { $0.0 < $1.0 }
             }
 
-            for (index, result) in batchResults {
-                orderedResults[index] = result
+            // 3. 結果を merger に逐次追加 + 進捗更新 + cleanup
+            for (i, (index, result)) in results.enumerated() {
+                let chunk = chunks.first(where: { $0.0 == index })!.1
+                merger.append(chunk: chunk, result: result)
                 completedCount += 1
                 let overall = 0.12 + (0.78 * Double(completedCount) / Double(totalChunks))
-                let currentCompletedCount = completedCount
                 handle.yield(.transcriptionProgress(
                     taskId: handle.taskId,
                     progress: overall
@@ -1052,7 +1060,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 await MainActor.run {
                     TranscriptionLiveActivity.update(
                         progress: overall,
-                        currentChunk: currentCompletedCount,
+                        currentChunk: completedCount,
                         totalChunks: totalChunks
                     )
                 }
@@ -1062,13 +1070,12 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     level: .info
                 )
             }
-        }
 
-        let results = orderedResults.compactMap { $0 }
-        guard results.count == preparedChunks.count else {
-            throw CoreError.transcriptionError(.transcriptionFailed("Missing transcription chunk result"))
+            // 4. バッチ分の一時ファイルを削除
+            for (_, chunk) in chunks {
+                await chunker.cleanupChunk(chunk)
+            }
         }
-        return results
     }
 
     private func merge(
