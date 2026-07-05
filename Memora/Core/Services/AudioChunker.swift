@@ -3,13 +3,37 @@ import Foundation
 
 typealias AudioChunkProgressHandler = @Sendable (_ completed: Int, _ total: Int) -> Void
 
+/// チャンクの境界だけを持つ軽量プラン（ファイル書き出しはしない）
+struct AudioChunkPlan: Sendable {
+    struct Slice: Sendable {
+        let index: Int
+        let startSec: Double
+        let endSec: Double
+    }
+    let sourceURL: URL
+    let totalDuration: Double
+    let slices: [Slice]
+    var count: Int { slices.count }
+    var isSingleChunk: Bool { slices.count == 1 }
+}
+
 protocol AudioChunkerProtocol: Sendable {
+    /// 従来 API（短尺・後方互換のため残す）
     func analyzeAndChunk(
         fileURL: URL,
         onProgress: AudioChunkProgressHandler?
     ) async throws -> [AudioChunk]
 
+    /// 新API: 計画だけ作る（書き出さない・軽い）
+    func plan(fileURL: URL) async throws -> AudioChunkPlan
+
+    /// 新API: 1スライスだけを一時ファイルへ書き出す（呼ばれた時に初めて書く）
+    func exportSlice(_ slice: AudioChunkPlan.Slice, from plan: AudioChunkPlan) async throws -> AudioChunk
+
     func cleanup(chunks: [AudioChunk]) async
+
+    /// 単一チャンクの後始末（逐次処理用）
+    func cleanupChunk(_ chunk: AudioChunk) async
 }
 
 extension AudioChunkerProtocol {
@@ -64,6 +88,8 @@ final class AudioChunker: AudioChunkerProtocol {
     // SFSpeechRecognizer が確実に処理できるチャンクサイズ（90秒）
     private let standardChunkDuration: TimeInterval = 90
     private let smallChunkDuration: TimeInterval = 90
+
+    // MARK: - Legacy API (後方互換)
 
     func analyzeAndChunk(
         fileURL: URL,
@@ -137,12 +163,79 @@ final class AudioChunker: AudioChunkerProtocol {
         return chunks
     }
 
+    // MARK: - Streaming API (PR-B9)
+
+    func plan(fileURL: URL) async throws -> AudioChunkPlan {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw AudioChunkerError.fileNotFound
+        }
+
+        let asset = AVURLAsset(url: fileURL)
+        guard let loadedDuration = try? await asset.load(.duration) else {
+            throw AudioChunkerError.durationUnavailable
+        }
+
+        let duration = CMTimeGetSeconds(loadedDuration)
+        guard duration.isFinite, duration >= 0 else {
+            throw AudioChunkerError.durationUnavailable
+        }
+
+        if duration < shortThreshold {
+            return AudioChunkPlan(
+                sourceURL: fileURL,
+                totalDuration: duration,
+                slices: [.init(index: 0, startSec: 0, endSec: duration)]
+            )
+        }
+
+        let chunkDuration = duration < longThreshold ? standardChunkDuration : smallChunkDuration
+        var slices: [AudioChunkPlan.Slice] = []
+        var startSec = 0.0
+        var index = 0
+        while startSec < duration {
+            let endSec = min(startSec + chunkDuration, duration)
+            slices.append(.init(index: index, startSec: startSec, endSec: endSec))
+            index += 1
+            startSec = endSec
+        }
+        return AudioChunkPlan(sourceURL: fileURL, totalDuration: duration, slices: slices)
+    }
+
+    func exportSlice(_ slice: AudioChunkPlan.Slice, from plan: AudioChunkPlan) async throws -> AudioChunk {
+        // 単一チャンク（短尺）は元ファイルをそのまま使い書き出さない
+        if plan.isSingleChunk {
+            return AudioChunk(
+                index: 0,
+                startSec: 0,
+                endSec: plan.totalDuration,
+                url: plan.sourceURL,
+                isTemporary: false
+            )
+        }
+        let asset = AVURLAsset(url: plan.sourceURL)
+        let url = try await exportChunk(from: asset, start: slice.startSec, end: slice.endSec, index: slice.index)
+        return AudioChunk(
+            index: slice.index,
+            startSec: slice.startSec,
+            endSec: slice.endSec,
+            url: url,
+            isTemporary: true
+        )
+    }
+
     func cleanup(chunks: [AudioChunk]) async {
         let temporaryChunks = chunks.filter(\.isTemporary)
         for chunk in temporaryChunks {
             try? FileManager.default.removeItem(at: chunk.url)
         }
     }
+
+    func cleanupChunk(_ chunk: AudioChunk) async {
+        guard chunk.isTemporary else { return }
+        try? FileManager.default.removeItem(at: chunk.url)
+    }
+
+    // MARK: - Private
 
     private func exportChunk(
         from asset: AVURLAsset,
