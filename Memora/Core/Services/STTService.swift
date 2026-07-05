@@ -719,6 +719,10 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// メモリ警告時に API 並列度を 4→1 に下げるフラグ（PR-B11）
     private var underMemoryPressure = false
 
+
+    /// isIdleTimerDisabled の参照カウント。複数タスク同時実行時に
+    /// 先に終わったタスクが画面ロック抑止を解除してしまう問題を防ぐ。
+    private var idleTimerHoldCount = 0
     private let readiness: STTReadinessProtocol
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
     private let diarizationService: SpeakerDiarizationProtocol = {
@@ -779,6 +783,20 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             isAPIMode: transcriptionMode == .api
         )
     }
+
+    @MainActor
+    private func acquireIdleTimerHold() {
+        idleTimerHoldCount += 1
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    @MainActor
+    private func releaseIdleTimerHold() {
+        idleTimerHoldCount = max(0, idleTimerHoldCount - 1)
+        if idleTimerHoldCount == 0 {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+    }
     func startTranscription(
         audioURL: URL,
         language: String?
@@ -796,13 +814,16 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
         // バックグラウンドタスクを登録: アプリがバックグラウンドに移行しても文字起こしを継続
         // 画面自動ロックを防止: 文字起こし中は画面を点灯したままにする
+        await MainActor.run { self.acquireIdleTimerHold() }
         let bgId = await MainActor.run {
-            UIApplication.shared.isIdleTimerDisabled = true
-            return UIApplication.shared.beginBackgroundTask(
+            UIApplication.shared.beginBackgroundTask(
                 withName: "MemoraSTT-\(handle.taskId)"
-            ) { [weak self] in
-                // 有効期限切れ時: タスクをキャンセル
-                self?.endBackgroundTask(taskId: handle.taskId)
+            ) { [weak self, weak handle] in
+                DebugLogger.shared.addLog("STTService", "backgroundTask 期限切れ — タスクをキャンセル: \(handle?.taskId ?? "?")", level: .warning)
+                Task { [weak self, weak handle] in
+                    await handle?.cancel()
+                    await self?.endBackgroundTaskOnMain(taskId: handle?.taskId)
+                }
             }
         }
         if bgId != .invalid {
@@ -828,11 +849,8 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 STTConsoleLog("[MemoraSTT] バックグラウンドタスクエラー: \(error.localizedDescription)")
             }
             self?.removeTask(taskId: handle.taskId)
-            self?.endBackgroundTask(taskId: handle.taskId)
-            // 画面自動ロックを再開
-            await MainActor.run {
-                UIApplication.shared.isIdleTimerDisabled = false
-            }
+            await self?.endBackgroundTaskOnMain(taskId: handle.taskId)
+            await MainActor.run { self?.releaseIdleTimerHold() }
         }
 
         return (handle, handle.events)
@@ -1197,14 +1215,18 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         stateLock.unlock()
     }
 
-    private func endBackgroundTask(taskId: String) {
-        stateLock.lock()
-        let bgId = backgroundTaskIdentifiers.removeValue(forKey: taskId)
-        stateLock.unlock()
-        if let bgId, bgId != .invalid {
+    private func endBackgroundTaskOnMain(taskId: String?) async {
+        guard let taskId else { return }
+        let bgId: UIBackgroundTaskIdentifier? = {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            return backgroundTaskIdentifiers.removeValue(forKey: taskId)
+        }()
+        guard let bgId, bgId != .invalid else { return }
+        await MainActor.run {
             UIApplication.shared.endBackgroundTask(bgId)
-            DebugLogger.shared.addLog("STTService", "endBackgroundTask: \(taskId)", level: .info)
         }
+        DebugLogger.shared.addLog("STTService", "endBackgroundTask: \(taskId)", level: .info)
     }
 
     /// FluidAudio（CoreML / ANE）による全体ファイル話者分離。
