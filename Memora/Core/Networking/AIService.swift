@@ -481,7 +481,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     var supportsTranscription: Bool {
         switch self {
         case .openai: return true
-        case .gemini: return false
+        case .gemini: return true
         case .deepseek: return false
         case .local: return false
         }
@@ -490,7 +490,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
     var transcriptionProvider: AIProvider? {
         switch self {
         case .openai: return .openai
-        case .gemini: return nil
+        case .gemini: return .gemini
         case .deepseek: return nil
         case .local: return nil
         }
@@ -887,7 +887,7 @@ final class GeminiService: LLMProvider {
             ]
         ]
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
+        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -941,7 +941,7 @@ final class GeminiService: LLMProvider {
             ]
         ]
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
+        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -988,7 +988,7 @@ final class GeminiService: LLMProvider {
                     "parts": [
                         ["text": prompt],
                         ["inline_data": [
-                            "mime_type": "audio/mp4a",
+                            "mime_type": "audio/mp4",
                             "data": audioData.base64EncodedString()
                         ]]
                     ]
@@ -1001,7 +1001,7 @@ final class GeminiService: LLMProvider {
             ]
         ]
 
-        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-1.5-flash:generateContent?key=\(apiKey)")!)
+        var request = URLRequest(url: URL(string: "\(baseURL)/models/gemini-2.5-flash:generateContent?key=\(apiKey)")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)

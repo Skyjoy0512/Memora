@@ -80,6 +80,23 @@ struct AIProviderSection: View {
                 costInfo(for: state.currentProvider)
             }
             .padding(.vertical, MemoraSpacing.xxxs)
+
+            if state.currentProvider == .gemini && state.currentProvider.supportsTranscription {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: MemoraSpacing.xs) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(MemoraColor.accentRed)
+                        Text("Google の AI 改善に利用される可能性があります")
+                            .font(MemoraTypography.caption1)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(MemoraColor.accentRed)
+                    }
+                    Text("機微な内容の文字起こしには使用しないでください。オンデバイス（ローカル）の文字起こしを推奨します。")
+                        .font(MemoraTypography.caption1)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, MemoraSpacing.xxxs)
+            }
         } header: {
             GlassSectionHeader(title: "AI プロバイダー選択", icon: "cpu")
         }

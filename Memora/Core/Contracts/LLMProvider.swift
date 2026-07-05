@@ -76,7 +76,7 @@ enum LLMProviderKind: String, Codable, CaseIterable, Identifiable {
     var supportsTranscription: Bool {
         switch self {
         case .openai: return true
-        case .gemini: return false
+        case .gemini: return true
         case .deepseek: return false
         case .local: return false
         }
