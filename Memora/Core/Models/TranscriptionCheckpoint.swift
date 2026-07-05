@@ -32,6 +32,7 @@ struct CheckpointChunkResult: Codable, Sendable {
         let startSec: Double
         let endSec: Double
         let text: String
+        let isEstimatedTiming: Bool
     }
     let fullText: String
     let language: String
@@ -46,7 +47,8 @@ struct CheckpointChunkResult: Codable, Sendable {
                 speakerLabel: $0.speakerLabel,
                 startSec: $0.startSec,
                 endSec: $0.endSec,
-                text: $0.text
+                text: $0.text,
+                isEstimatedTiming: $0.isEstimatedTiming
             )
         }
     }
@@ -61,7 +63,8 @@ struct CheckpointChunkResult: Codable, Sendable {
                     speakerLabel: $0.speakerLabel,
                     startSec: $0.startSec,
                     endSec: $0.endSec,
-                    text: $0.text
+                    text: $0.text,
+                    isEstimatedTiming: $0.isEstimatedTiming
                 )
             }
         )

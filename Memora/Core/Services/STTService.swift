@@ -663,7 +663,8 @@ private final class STTBackendExecutor {
                 speakerLabel: "Speaker 1",
                 startSec: start,
                 endSec: end,
-                text: line
+                text: line,
+                isEstimatedTiming: true
             )
         }
     }

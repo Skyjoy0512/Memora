@@ -162,13 +162,16 @@ public struct TranscriptionSegment: Sendable, Identifiable, Equatable {
     public let startSec: Double
     public let endSec: Double
     public let text: String
+    /// タイミングが実測でなく推定（等分割フォールバック）であることを示す。
+    public let isEstimatedTiming: Bool
 
-    public init(id: String, speakerLabel: String, startSec: Double, endSec: Double, text: String) {
+    public init(id: String, speakerLabel: String, startSec: Double, endSec: Double, text: String, isEstimatedTiming: Bool = false) {
         self.id = id
         self.speakerLabel = speakerLabel
         self.startSec = startSec
         self.endSec = endSec
         self.text = text
+        self.isEstimatedTiming = isEstimatedTiming
     }
 }
 
