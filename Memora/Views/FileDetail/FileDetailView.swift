@@ -23,8 +23,6 @@ struct FileDetailView: View {
     @State private var cachedProjectTitle: String?
 
     // MARK: - Generation Sheet State
-    @State private var showTemplateSheet = false
-    @State private var showModelSheet = false
     @State private var selectedTemplate: GenerationTemplate = .summary
     @State private var selectedModel: AIModelType = .chatGPT5
 
@@ -141,47 +139,44 @@ struct FileDetailView: View {
                 }
             }
 
+            // MARK: Generation Sheet (PR-A3: overlay → .sheet に統一)
+
             // Ask Anything Overlay (floating)
             askAnythingOverlay
 
-            // MARK: Generation Sheet Overlays
-
-            // Generation Mode Sheet
-            if vm.showGenerationFlow {
-                GenerationModeSheet(
-                    isPresented: $vm.showGenerationFlow,
-                    showTemplateSheet: $showTemplateSheet,
-                    onStartGeneration: { config in
-                        vm.startSummarization(with: config)
+            .sheet(isPresented: $vm.showGenerationFlow) {
+                ZStack {
+                    if showTemplateSheet {
+                        TemplateSelectSheet(
+                            isPresented: $showTemplateSheet,
+                            showModelSheet: $showModelSheet,
+                            selectedTemplate: $selectedTemplate,
+                            selectedModel: $selectedModel,
+                            onStartGeneration: { config in
+                                vm.startSummarization(with: config)
+                                showModelSheet = false
+                                showTemplateSheet = false
+                            }
+                        )
+                    } else if showModelSheet {
+                        AIModelSelectSheet(
+                            isPresented: $showModelSheet,
+                            selectedModel: $selectedModel,
+                            onStartGeneration: { config in
+                                vm.startSummarization(with: config)
+                                showModelSheet = false
+                            }
+                        )
+                    } else {
+                        GenerationModeSheet(
+                            isPresented: $vm.showGenerationFlow,
+                            showTemplateSheet: $showTemplateSheet,
+                            onStartGeneration: { config in
+                                vm.startSummarization(with: config)
+                            }
+                        )
                     }
-                )
-                .zIndex(10)
-            }
-
-            // Template Selection Sheet
-            if showTemplateSheet {
-                TemplateSelectSheet(
-                    isPresented: $showTemplateSheet,
-                    showModelSheet: $showModelSheet,
-                    selectedTemplate: $selectedTemplate,
-                    selectedModel: $selectedModel,
-                    onStartGeneration: { config in
-                        vm.startSummarization(with: config)
-                    }
-                )
-                .zIndex(10)
-            }
-
-            // AI Model Selection Sheet
-            if showModelSheet {
-                AIModelSelectSheet(
-                    isPresented: $showModelSheet,
-                    selectedModel: $selectedModel,
-                    onStartGeneration: { config in
-                        vm.startSummarization(with: config)
-                    }
-                )
-                .zIndex(10)
+                }
             }
 
             // Loading Skeleton Overlay
