@@ -32,6 +32,36 @@ enum MemoraSchemaV1: VersionedSchema {
     ]
 }
 
+// MARK: - Schema V2 (PR-C1)
+
+/// V2: TranscriptionCheckpoint を追加。
+enum MemoraSchemaV2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
+
+    static let models: [any PersistentModel.Type] = [
+        AudioFile.self,
+        Transcript.self,
+        Project.self,
+        MeetingNote.self,
+        MeetingMemo.self,
+        PhotoAttachment.self,
+        KnowledgeChunk.self,
+        AskAISession.self,
+        AskAIMessage.self,
+        MemoryProfile.self,
+        MemoryFact.self,
+        TodoItem.self,
+        ProcessingJob.self,
+        WebhookSettings.self,
+        PlaudSettings.self,
+        CalendarEventLink.self,
+        GoogleMeetSettings.self,
+        NotionSettings.self,
+        CustomSummaryTemplate.self,
+        TranscriptionCheckpoint.self
+    ]
+}
+
 // MARK: - Migration Plan
 
 /// スキーママイグレーションプラン。
@@ -56,11 +86,14 @@ enum MemoraSchemaV1: VersionedSchema {
 /// ```
 enum MemoraMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [MemoraSchemaV1.self]
+        [MemoraSchemaV1.self, MemoraSchemaV2.self]
     }
 
     static let stages: [MigrationStage] = [
-        // V1 のみ。将来のスキーマ変更時に段階を追加する。
+        MigrationStage.lightweight(
+            fromVersion: MemoraSchemaV1.self,
+            toVersion: MemoraSchemaV2.self
+        )
     ]
 
     /// マイグレーションプラン未適用のストア（初期導入前）を許容
