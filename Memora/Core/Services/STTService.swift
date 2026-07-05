@@ -287,12 +287,23 @@ private final class STTBackendExecutor {
             let lastEnd = transcription.segments.last?.endSec ?? 0
             let coverage = chunkDuration > 1.0 ? lastEnd / chunkDuration : 1.0
             if coverage < 0.8 {
-                DebugLogger.shared.addLog(
-                    "STTBackend",
-                    "低カバレッジ (\(String(format: "%.0f", coverage * 100))%) — server でリトライ",
-                    level: .warning
-                )
-                throw OnDeviceTranscriptionTimeoutError()
+                // 未カバー区間が実質無音なら server 再試行しない（PR-B4）
+                let tailRMS = AudioSilenceProbe.averageRMS(url: audioURL, startSec: lastEnd, endSec: chunkDuration)
+                let silenceThreshold: Float = 0.008
+                if let tailRMS, tailRMS < silenceThreshold {
+                    DebugLogger.shared.addLog(
+                        "STTBackend",
+                        "低カバレッジ (\(String(format: "%.0f", coverage * 100))%) だが末尾は無音 (RMS=\(String(format: "%.4f", tailRMS))) — server 再試行をスキップ",
+                        level: .info
+                    )
+                } else {
+                    DebugLogger.shared.addLog(
+                        "STTBackend",
+                        "低カバレッジ (\(String(format: "%.0f", coverage * 100))%) — server でリトライ (tailRMS=\(tailRMS.map { String(format: "%.4f", $0) } ?? "n/a"))",
+                        level: .warning
+                    )
+                    throw OnDeviceTranscriptionTimeoutError()
+                }
             }
 
             let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
