@@ -14,22 +14,40 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                // 文字起こしと AI
                 TranscriptionSettingsSection(state: state)
                 AIProviderSection(state: state)
                 APIKeySection(state: state)
                 CustomTemplateSection(state: state)
-                NotionIntegrationSection(state: state)
-                GoogleMeetSection(state: state)
-                MeetingCaptureSection()
-                BotMeetingSection(state: state)
+
+                // 連携
+                NavigationLink {
+                    IntegrationsSettingsView(state: state)
+                } label: {
+                    Label("連携", systemImage: "link")
+                }
+
+                // AI メモリ
                 MemorySettingsSection()
+
+                // 高度な設定
+                NavigationLink {
+                    AdvancedSettingsView(state: state)
+                } label: {
+                    Label("高度な設定", systemImage: "gearshape.2")
+                }
+
+                // ヘルプ
                 UsageInstructionsSection()
-                DataManagementSection(state: state)
-                DeviceConnectionSection()
-                RealtimeTranscriptionSection()
-                BLEDebugSection()
-                DeveloperFeaturesSection(state: state)
-                DebugSection(state: state)
+
+                #if DEBUG
+                // 開発者
+                NavigationLink {
+                    DeveloperSettingsView(state: state)
+                } label: {
+                    Label("開発者", systemImage: "hammer")
+                }
+                #endif
             }
             .listStyle(.insetGrouped)
             .navigationTitle("設定")
