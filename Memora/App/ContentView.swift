@@ -26,6 +26,8 @@ struct ContentView: View {
     @State private var showRecordingView = false
     @State private var showFileImporter = false
     @State private var showV6Paywall = false
+    @State private var showMeetingCapture = false
+    @State private var meetingCaptureViewModel = MeetingCaptureViewModel()
     @State private var importErrorMessage: String?
 
     private var importContentTypes: [UTType] {
@@ -47,6 +49,9 @@ struct ContentView: View {
                     },
                     onImport: {
                         showFileImporter = true
+                    },
+                    onMeetingCapture: {
+                        showMeetingCapture = true
                     }
                 )
                 .navigationBarBackButtonHidden()
@@ -59,6 +64,9 @@ struct ContentView: View {
             }
             .disabled(isV6AuthPending)
             .accessibilityHidden(isV6AuthPending)
+            .sheet(isPresented: $showMeetingCapture) {
+                MeetingCaptureSetupView(viewModel: meetingCaptureViewModel)
+            }
             .fileImporter(
                 isPresented: $showFileImporter,
                 allowedContentTypes: importContentTypes,
@@ -104,6 +112,7 @@ struct ContentView: View {
         .task {
             DebugLogger.shared.markLaunchStep("ContentView.task")
             configureV6Island()
+            configureMeetingCaptureIfNeeded()
             try? await Task.sleep(for: .seconds(1.5))
             configureCaptureRegistryIfNeeded()
             DebugLogger.shared.markLaunchStep("CaptureSourceRegistry 設定完了（遅延）")
@@ -122,6 +131,12 @@ struct ContentView: View {
         v6Island.onOpenRecording = { showRecordingView = true }
         v6Island.onOpenAskTab = { selectedTab = 2 }
         v6Island.onOpenAskSource = { _ in selectedTab = 2 }
+    }
+
+    private func configureMeetingCaptureIfNeeded() {
+        meetingCaptureViewModel.configure(captureService: SystemAudioCaptureService())
+        meetingCaptureViewModel.configure(modelContext: modelContext)
+        meetingCaptureViewModel.configureBotService(BotMeetingService(), modelContext: modelContext)
     }
 
     // MARK: - Capture Sources
