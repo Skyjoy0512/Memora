@@ -24,6 +24,7 @@ enum V6Color {
     // Lines / borders
     static let line = Color(hex: "E5E5EA")         // hairline / divider
     static let neutralBorder = Color(hex: "C7C7CC") // wireframe / disabled border
+    static let cardBorderInactive = Color(hex: "F0F0F0") // unselected plan card border
 
     // Accents
     static let accent = Color(hex: "FF3030")        // record / live state
