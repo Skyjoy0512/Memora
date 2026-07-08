@@ -17,8 +17,10 @@ struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBluetoothConfigured = false
     @Query private var googleSettingsList: [GoogleMeetSettings]
+    @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @State private var selectedTab: Int = 0
     @State private var pendingOpenedAudioFileID: UUID?
+    @State private var openedAudioFile: AudioFile?
     @State private var isTabBarHidden = false
     @State private var triggerRecording = false
     @State private var triggerFileImport = false
@@ -52,6 +54,9 @@ struct ContentView: View {
                     },
                     onMeetingCapture: {
                         showMeetingCapture = true
+                    },
+                    onOpenFileDetail: { file in
+                        openedAudioFile = file
                     }
                 )
                 .navigationBarBackButtonHidden()
@@ -60,6 +65,10 @@ struct ContentView: View {
                         selectedTab = 0
                         pendingOpenedAudioFileID = savedAudioFile.id
                     }
+                }
+                .navigationDestination(item: $openedAudioFile) { file in
+                    FileDetailView(audioFile: file)
+                        .toolbar(.hidden, for: .tabBar)
                 }
             }
             .disabled(isV6AuthPending)
@@ -122,6 +131,13 @@ struct ContentView: View {
             guard let message else { return }
             v6Island.showSnackbar(message)
             v6ToastMessage = nil
+        }
+        .onChange(of: pendingOpenedAudioFileID) { _, fileID in
+            guard let fileID else { return }
+            if let file = audioFiles.first(where: { $0.id == fileID }) {
+                openedAudioFile = file
+            }
+            pendingOpenedAudioFileID = nil
         }
     }
 
