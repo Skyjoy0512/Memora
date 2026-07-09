@@ -5,10 +5,10 @@ import PhotosUI
 
 struct ProjectDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(V6RecordingSessionController.self) private var recordingSession
     let project: Project
     @State private var viewModel = ProjectDetailViewModel()
     @State private var showEditProjectView = false
-    @State private var showRecordingView = false
     @State private var selectedAudioFile: AudioFile?
     @State private var showAskAI = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
@@ -23,9 +23,6 @@ struct ProjectDetailView: View {
         }
         .navigationDestination(isPresented: $showEditProjectView) {
             EditProjectView(project: project)
-        }
-        .navigationDestination(isPresented: $showRecordingView) {
-            RecordingView(initialProject: project)
         }
         .sheet(isPresented: $showAskAI) {
             AskAIView(scope: .project(projectId: project.id))
@@ -49,7 +46,7 @@ struct ProjectDetailView: View {
             viewModel.loadProjectFiles(projectID: project.id)
             viewModel.loadPhotoAttachments(projectID: project.id)
         }
-        .onChange(of: showRecordingView) { _, isPresented in
+        .onChange(of: recordingSession.wantsPresentation) { _, isPresented in
             if !isPresented {
                 viewModel.loadProjectFiles(projectID: project.id)
             }
@@ -107,7 +104,7 @@ struct ProjectDetailView: View {
                     .font(MemoraTypography.phiBody)
                     .foregroundStyle(MemoraColor.textSecondary)
 
-                PillButton(title: "録音を開始", action: { showRecordingView = true }, style: .primary)
+                PillButton(title: "録音を開始", action: { recordingSession.requestPresentation(projectID: project.id) }, style: .primary)
                     .padding(.horizontal, MemoraSpacing.md)
 
                 Text("録音を開始してファイルを追加しましょう")
@@ -162,7 +159,7 @@ struct ProjectDetailView: View {
             }
         }
         ToolbarItem(placement: .primaryAction) {
-            Button(action: { showRecordingView = true }) {
+            Button(action: { recordingSession.requestPresentation(projectID: project.id) }) {
                 Image(systemName: "mic")
             }
         }
@@ -369,7 +366,7 @@ final class ProjectDetailViewModel {
             projectFiles = try audioFileRepository.fetchByProject(projectID)
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "ファイルの読み込みに失敗しました。もう一度お試しください。"
+            lastErrorMessage = "ファイルの読み込みに失敗しました。もう一度お試しください。(\(error.localizedDescription))"
             print("ファイル読み込みエラー: \(error.localizedDescription)")
         }
     }
@@ -389,7 +386,7 @@ final class ProjectDetailViewModel {
             projectFiles.removeAll(where: { $0.id == file.id })
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "ファイルの削除に失敗しました。もう一度お試しください。"
+            lastErrorMessage = "ファイルの削除に失敗しました。もう一度お試しください。(\(error.localizedDescription))"
             print("ファイル削除エラー: \(error.localizedDescription)")
         }
     }

@@ -10,6 +10,8 @@ struct ContentView: View {
         throw CaptureError.importSinkNotConfigured
     })
     @State private var v6Island = V6IslandController()
+    @State private var v6RecordingSession = V6RecordingSessionController()
+    @State private var v6GenerationSession = V6GenerationSessionController()
     @AppStorage(V6AuthStorageKey.stage) private var v6AuthStageRaw = V6AuthStage.onboarding.rawValue
     @AppStorage(V6AuthStorageKey.isPro) private var v6IsPro = false
     @AppStorage(V6AuthStorageKey.loginEmail) private var v6LoginEmail = ""
@@ -25,7 +27,8 @@ struct ContentView: View {
     @State private var triggerRecording = false
     @State private var triggerFileImport = false
     @State private var v6ToastMessage: String?
-    @State private var showRecordingView = false
+    @State private var showGenerationProgress = false
+    @State private var generatingAudioFile: AudioFile?
     @State private var showFileImporter = false
     @State private var showV6Paywall = false
     @State private var showMeetingCapture = false
@@ -40,6 +43,13 @@ struct ContentView: View {
         (V6AuthStage(rawValue: v6AuthStageRaw) ?? .onboarding) != .done
     }
 
+    private var showRecordingCover: Binding<Bool> {
+        Binding(
+            get: { v6RecordingSession.wantsPresentation },
+            set: { v6RecordingSession.wantsPresentation = $0 }
+        )
+    }
+
     var body: some View {
         ZStack {
             NavigationStack {
@@ -47,7 +57,7 @@ struct ContentView: View {
                     selectedTab: $selectedTab,
                     showPaywall: $showV6Paywall,
                     onStartRecording: {
-                        showRecordingView = true
+                        v6RecordingSession.requestPresentation()
                     },
                     onImport: {
                         showFileImporter = true
@@ -60,12 +70,6 @@ struct ContentView: View {
                     }
                 )
                 .navigationBarBackButtonHidden()
-                .navigationDestination(isPresented: $showRecordingView) {
-                    RecordingView { savedAudioFile in
-                        selectedTab = 0
-                        pendingOpenedAudioFileID = savedAudioFile.id
-                    }
-                }
                 .navigationDestination(item: $openedAudioFile) { file in
                     FileDetailView(audioFile: file)
                         .toolbar(.hidden, for: .tabBar)
@@ -73,6 +77,34 @@ struct ContentView: View {
             }
             .disabled(isV6AuthPending)
             .accessibilityHidden(isV6AuthPending)
+            .fullScreenCover(isPresented: showRecordingCover) {
+                V6RecordingView { savedAudioFile in
+                    v6RecordingSession.wantsPresentation = false
+                    beginGeneration(for: savedAudioFile)
+                }
+                .environment(v6RecordingSession)
+            }
+            .fullScreenCover(isPresented: $showGenerationProgress) {
+                V6GenerationProgressView(
+                    onSkip: {
+                        showGenerationProgress = false
+                        v6GenerationSession.detach()
+                        if let file = generatingAudioFile {
+                            selectedTab = 0
+                            openedAudioFile = file
+                        }
+                    },
+                    onBackground: {
+                        showGenerationProgress = false
+                    },
+                    onCompleted: { file in
+                        showGenerationProgress = false
+                        selectedTab = 0
+                        openedAudioFile = file
+                    }
+                )
+                .environment(v6GenerationSession)
+            }
             .sheet(isPresented: $showMeetingCapture) {
                 MeetingCaptureSetupView(viewModel: meetingCaptureViewModel)
             }
@@ -118,9 +150,13 @@ struct ContentView: View {
         .environment(bluetoothService)
         .environment(captureRegistry)
         .environment(v6Island)
+        .environment(v6RecordingSession)
+        .environment(v6GenerationSession)
         .task {
             DebugLogger.shared.markLaunchStep("ContentView.task")
             configureV6Island()
+            configureV6RecordingSession()
+            configureV6GenerationSession()
             configureMeetingCaptureIfNeeded()
             try? await Task.sleep(for: .seconds(1.5))
             configureCaptureRegistryIfNeeded()
@@ -144,9 +180,41 @@ struct ContentView: View {
     // MARK: - V6 Dynamic Island
 
     private func configureV6Island() {
-        v6Island.onOpenRecording = { showRecordingView = true }
+        v6Island.onOpenRecording = { v6RecordingSession.requestPresentation() }
+        v6Island.onOpenGeneration = { showGenerationProgress = true }
         v6Island.onOpenAskTab = { selectedTab = 2 }
         v6Island.onOpenAskSource = { _ in selectedTab = 2 }
+    }
+
+    // MARK: - V6 Recording / Generation
+
+    private func configureV6RecordingSession() {
+        v6RecordingSession.configure(audioFileRepository: AudioFileRepository(modelContext: modelContext))
+    }
+
+    private func configureV6GenerationSession() {
+        v6GenerationSession.onCompleted = { file in
+            v6Island.exitLiveGeneration()
+            // Progress screen still visible: it handles its own foreground completion via
+            // `onCompleted`, so avoid a redundant island snackbar (matches `.dc.html`'s
+            // modal==='generating' branch, which transitions silently instead of toasting).
+            guard !showGenerationProgress else { return }
+            v6Island.showSnackbar(
+                "要約が完成しました",
+                tone: .success,
+                actionLabel: "開く",
+                action: {
+                    selectedTab = 0
+                    openedAudioFile = file
+                }
+            )
+        }
+    }
+
+    private func beginGeneration(for file: AudioFile) {
+        generatingAudioFile = file
+        v6GenerationSession.start(audioFile: file, modelContext: modelContext)
+        showGenerationProgress = true
     }
 
     private func configureMeetingCaptureIfNeeded() {

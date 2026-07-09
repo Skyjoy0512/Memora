@@ -11,11 +11,14 @@ struct RecordingResult: Sendable {
 @MainActor
 protocol AudioRecorderProtocol: Sendable {
     var isRecording: Bool { get }
+    var isPaused: Bool { get }
     var recordingTime: TimeInterval { get }
 
     func startRecording() throws
     func stopRecording() throws -> URL
     func cancelRecording()
+    func pauseRecording()
+    func resumeRecording()
 
     func startRecording() async throws
     func stopRecording() async throws -> RecordingResult
@@ -26,6 +29,7 @@ protocol AudioRecorderProtocol: Sendable {
 @Observable
 final class AudioRecorder: NSObject, AudioRecorderProtocol {
     var isRecording = false
+    var isPaused = false
     var recordingTime: TimeInterval = 0
 
     private var recorder: AVAudioRecorder?
@@ -73,8 +77,24 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         recordingURL = nil
         recordingFileID = nil
         isRecording = false
+        isPaused = false
         stopMetering()
         finishAudioLevels()
+    }
+
+    func pauseRecording() {
+        guard let recorder, isRecording, !isPaused else { return }
+        recorder.pause()
+        isPaused = true
+        meteringTimer?.invalidate()
+        meteringTimer = nil
+    }
+
+    func resumeRecording() {
+        guard let recorder, isRecording, isPaused else { return }
+        recorder.record()
+        isPaused = false
+        startMetering()
     }
 
     func audioLevels() -> AsyncStream<Float> {
@@ -133,6 +153,7 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
             recordingURL = fileURL
             recordingFileID = fileID
             isRecording = true
+            isPaused = false
             recordingTime = 0
             startMetering()
         } catch let error as RecordingError {
@@ -154,6 +175,7 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         self.recordingURL = nil
         self.recordingFileID = nil
         isRecording = false
+        isPaused = false
 
         // MainActor.run を使用して非同期にクリーンアップ
         Task { @MainActor [weak self] in
