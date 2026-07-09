@@ -1,143 +1,87 @@
 import SwiftUI
 
-// MARK: - Header View (ChatGPT-aligned minimal header)
+// MARK: - V6 Header ("Ask" + 新しい会話)
 
 extension AskAIView {
-    var headerView: some View {
-        VStack(alignment: .leading, spacing: MemoraSpacing.xs) {
-            HStack(alignment: .top, spacing: MemoraSpacing.sm) {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .foregroundStyle(MemoraColor.textTertiary)
-                    .font(.title3)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(scopeDescription)
-                        .font(MemoraTypography.chatBody)
-                        .foregroundStyle(MemoraColor.textPrimary)
-
-                    Text(currentSession?.title ?? "新しい会話")
-                        .font(MemoraTypography.chatToken)
-                        .foregroundStyle(MemoraColor.textSecondary)
-                }
-
-                Spacer()
-
-                Text(currentProvider.rawValue)
-                    .font(MemoraTypography.chatToken)
-                    .foregroundStyle(MemoraColor.textSecondary)
+    var v6Header: some View {
+        HStack {
+            Text("Ask")
+                .font(.system(size: 30, weight: .bold))
+                .tracking(-0.6)
+                .foregroundStyle(V6Color.ink)
+            Spacer()
+            Button {
+                startNewSession()
+            } label: {
+                Text("＋ 新しい会話")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(V6Color.ink)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(MemoraColor.interactiveSecondaryBorder.opacity(0.3))
-                    .clipShape(Capsule())
+                    .padding(.vertical, 8)
+                    .background(V6Color.soft, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
             }
-
-            if !sourceBadges.isEmpty {
-                ScrollView(.horizontal) {
-                    HStack(spacing: MemoraSpacing.xs) {
-                        ForEach(sourceBadges) { badge in
-                            Label(badge.label, systemImage: badge.systemImage)
-                                .font(MemoraTypography.chatToken)
-                                .foregroundStyle(MemoraColor.textSecondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(MemoraColor.interactiveHoverBg)
-                                .clipShape(Capsule())
-                                .overlay {
-                                    Capsule()
-                                        .stroke(MemoraColor.interactiveSecondaryBorder, lineWidth: 1)
-                                }
-                        }
-                    }
-                }
-            }
-
-            if let infoMessage {
-                Text(infoMessage)
-                    .font(MemoraTypography.chatToken)
-                    .foregroundStyle(MemoraColor.textSecondary)
-            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, MemoraSpacing.lg)
-        .padding(.top, MemoraSpacing.md)
-        .padding(.bottom, MemoraSpacing.sm)
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 6)
     }
 }
 
-// MARK: - Scope Selector (ChatGPT SegmentedControl pill)
+// MARK: - V6 Scope Tabs (全体 / プロジェクト / ファイル — underline style, matches File Detail tabs)
 
 extension AskAIView {
-    var scopeSelector: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                ForEach(availableScopes) { option in
-                    Button {
-                        activeScope = option.scope
-                    } label: {
-                        Text(option.title)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .tint(activeScope == option.scope ? .accentColor : .secondary)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
-        .scrollIndicators(.hidden)
+    private var projectScopeOption: AskAIScopeOption? {
+        availableScopes.first { if case .project = $0.scope { return true } else { return false } }
     }
-}
 
-// MARK: - Session Strip (ChatGPT Token/Chip group)
+    private var fileScopeOption: AskAIScopeOption? {
+        availableScopes.first { if case .file = $0.scope { return true } else { return false } }
+    }
 
-extension AskAIView {
-    var sessionStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(currentSession?.title ?? "新しい会話")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if !sessions.isEmpty {
-                    Text("\(sessions.count)件")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+    var v6ScopeTabs: some View {
+        HStack(spacing: 24) {
+            v6ScopeTab(title: "全体", scope: .global)
+            if let projectScopeOption {
+                v6ScopeTab(title: "プロジェクト", scope: projectScopeOption.scope)
             }
-            .padding(.horizontal)
-
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    Button {
-                        startNewSession()
-                    } label: {
-                        Label("新規チャット", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-
-                    ForEach(sessions) { session in
-                        Button {
-                            activeSessionID = session.id
-                            loadMessages(for: session)
-                        } label: {
-                            Text(session.title)
-                                .lineLimit(1)
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        .tint(activeSessionID == session.id ? .accentColor : .secondary)
-                    }
-                }
-                .padding(.horizontal)
+            if let fileScopeOption {
+                v6ScopeTab(title: "ファイル", scope: fileScopeOption.scope)
             }
-            .scrollIndicators(.hidden)
         }
-        .padding(.bottom, 8)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 6)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(V6Color.soft).frame(height: 1)
+        }
+    }
+
+    private func v6ScopeTab(title: String, scope: ChatScope) -> some View {
+        let isActive = scopeKey(for: activeScope) == scopeKey(for: scope)
+        return Button {
+            activeScope = scope
+        } label: {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isActive ? V6Color.ink : V6Color.quiet)
+                .padding(.bottom, 9)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(isActive ? V6Color.ink : .clear)
+                        .frame(height: 2)
+                }
+        }
+        .buttonStyle(.plain)
+    }
+
+    var v6ScopeCaption: some View {
+        Text(scopeDescription)
+            .font(.system(size: 11.5))
+            .foregroundStyle(V6Color.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 18)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
     }
 }
 
@@ -146,20 +90,28 @@ extension AskAIView {
 extension AskAIView {
     var chatScrollView: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 16) {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
                     if messages.isEmpty {
-                        suggestionsGrid
+                        v6SuggestionsList
                     }
 
                     ForEach(messages) { message in
-                        MessageBubbleView(message: message)
+                        MessageBubbleView(
+                            message: message,
+                            onTaskify: { taskifyMessage($0) },
+                            onOpenSource: { onOpenSourceTitle?($0.title) }
+                        )
                     }
 
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom")
+                    if isLoading {
+                        v6SendingIndicator
+                    }
+
+                    Color.clear.frame(height: 1).id("bottom")
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
                 .padding(.bottom, 16)
             }
             .scrollDismissesKeyboard(.interactively)
@@ -175,97 +127,93 @@ extension AskAIView {
             }
         }
     }
+
+    private var v6SendingIndicator: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { _ in
+                Circle().fill(V6Color.neutralBorder).frame(width: 6, height: 6)
+            }
+        }
+    }
 }
 
-// MARK: - Suggestions Grid (ChatGPT Token/Chip group)
+// MARK: - Empty State + Suggested Prompts
 
 extension AskAIView {
-    var suggestionsGrid: some View {
-        VStack(spacing: 8) {
+    var v6SuggestionsList: some View {
+        VStack(spacing: 10) {
+            Text("気になることを聞いてみましょう")
+                .font(.system(size: 13))
+                .lineSpacing(6)
+                .foregroundStyle(V6Color.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 6)
+
             ForEach(suggestions, id: \.self) { text in
                 Button {
-                    inputText = text
                     sendMessage(text)
                 } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lightbulb")
-                            .foregroundStyle(.secondary)
-                        Text(text)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                        Spacer(minLength: 0)
-                    }
+                    Text(text)
+                        .font(.system(size: 13.5))
+                        .foregroundStyle(V6Color.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(V6Color.faint, in: RoundedRectangle(cornerRadius: V6Radius.providerButton, style: .continuous))
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
+                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal)
-        .padding(.top, 16)
+        .padding(.top, 10)
     }
 }
 
-// MARK: - Thinking Indicator
+// MARK: - Input Bar
 
 extension AskAIView {
-    @ViewBuilder
-    var thinkingIndicator: some View {
-        if isLoading {
-            HStack(spacing: 12) {
-                Text(currentProvider == .local ? "Warming up local model..." : "Thinking...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                ThinkingDots()
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-    }
-}
-
-// MARK: - Input Bar (ChatGPT-aligned)
-
-extension AskAIView {
-    var inputBar: some View {
-        HStack(spacing: 10) {
-            TextField("質問を入力...", text: $inputText, axis: .vertical)
-                .lineLimit(1...3)
-                .textFieldStyle(.plain)
+    var v6InputBar: some View {
+        VStack(spacing: 10) {
+            TextField("メッセージを入力", text: $inputText, axis: .vertical)
+                .font(.system(size: 14))
+                .lineLimit(1...4)
                 .submitLabel(.send)
-                .onSubmit {
+                .onSubmit { sendMessage(inputText) }
+
+            HStack {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(V6Color.quiet)
+                Spacer()
+                Button {
                     sendMessage(inputText)
+                } label: {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 30, height: 30)
+                        .background(v6SendButtonColor, in: Circle())
                 }
-
-            Text(currentProvider.rawValue)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color(uiColor: .tertiarySystemFill))
-                .clipShape(Capsule())
-
-            Button {
-                sendMessage(inputText)
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(sendButtonColor)
+                .buttonStyle(.plain)
+                .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
             }
-            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(.regularMaterial)
-        .liquidGlass(cornerRadius: 22, opacity: 0.28, shadowRadius: 4)
-        .padding(.horizontal, 12)
+        .background(V6Color.white)
+        .overlay {
+            RoundedRectangle(cornerRadius: V6Radius.cardAlt, style: .continuous)
+                .stroke(Color(hex: "ECECEC"), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 1)
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
         .padding(.bottom, 8)
     }
 
-    private var sendButtonColor: Color {
+    private var v6SendButtonColor: Color {
         inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading
-            ? Color.secondary
-            : Color.accentColor
+            ? V6Color.neutralBorder
+            : V6Color.ink
     }
 }

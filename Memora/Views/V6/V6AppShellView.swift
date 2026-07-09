@@ -526,29 +526,12 @@ struct V6AppShellView: View {
     }
 
     private var askScreen: some View {
-        V6PlainScreen(title: "Ask") {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 10) {
-                    Text("先週決まったことは？")
-                        .font(.system(size: 13))
-                        .foregroundStyle(V6Color.muted)
-                    Spacer()
-                }
-                .padding(14)
-                .background(V6Color.soft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("プロダクト定例では、録音後の生成導線を短くし、File Detail に要約・文字起こし・メモを集約する方針が確認されています。")
-                        .font(.system(size: 15))
-                        .lineSpacing(6)
-                        .foregroundStyle(V6Color.ink)
-                    HStack(spacing: 8) {
-                        V6CitationChip("プロダクト定例MTG")
-                        V6CitationChip("ユーザーインタビュー")
-                    }
-                }
+        AskAIView(scope: .global) { title in
+            if let file = audioFiles.first(where: { $0.title == title }) {
+                onOpenFileDetail(file)
             }
         }
+        .padding(.bottom, 88)
     }
 
     private var settingsScreen: some View {
@@ -1208,23 +1191,6 @@ private struct V6TaskAddSheet: View {
                 .background(selectedProjectID == projectID ? V6Color.ink : V6Color.soft, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
         }
         .buttonStyle(.plain)
-    }
-}
-
-private struct V6CitationChip: View {
-    let title: String
-
-    init(_ title: String) {
-        self.title = title
-    }
-
-    var body: some View {
-        Text(title)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(V6Color.ink)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(V6Color.soft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

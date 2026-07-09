@@ -164,6 +164,27 @@ extension AskAIView {
         }
     }
 
+    func taskifyMessage(_ message: AskAIConversationMessage) {
+        let firstLine = message.content
+            .split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true)
+            .first.map(String.init) ?? message.content
+        let title = firstLine.trimmingCharacters(in: CharacterSet(charactersIn: "・- ").union(.whitespaces))
+        guard !title.isEmpty else { return }
+
+        var sourceAudioFileID: UUID?
+        var projectID: UUID?
+        switch activeScope {
+        case .file(let fileId): sourceAudioFileID = fileId
+        case .project(let projectId): projectID = projectId
+        case .global: break
+        }
+
+        let todo = TodoItem(title: title, projectID: projectID, sourceAudioFileID: sourceAudioFileID)
+        modelContext.insert(todo)
+        try? modelContext.save()
+        infoMessage = "タスクに追加しました"
+    }
+
     func createSession(titleSeed: String, scope: ChatScope) -> AskAISession {
         let title = makeSessionTitle(from: titleSeed)
         let session = AskAISession(
