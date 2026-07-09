@@ -33,6 +33,8 @@ final class FileDetailViewModel {
     var playbackPosition: TimeInterval = 0
     var audioDuration: TimeInterval = 0
     var audioURL: URL?
+    var playbackRate: Float = 1.0
+    private static let playbackRateSteps: [Float] = [1.0, 1.25, 1.5, 2.0, 0.75]
 
     // MARK: - Transcription State
     var isTranscribing = false
@@ -186,6 +188,14 @@ final class FileDetailViewModel {
         if audioDuration > 0 {
             audioPlayer.seek(to: time)
         }
+    }
+
+    func cyclePlaybackSpeed() {
+        let steps = Self.playbackRateSteps
+        let currentIndex = steps.firstIndex(of: playbackRate) ?? 0
+        let nextRate = steps[(currentIndex + 1) % steps.count]
+        playbackRate = nextRate
+        audioPlayer.setRate(nextRate)
     }
 
     func seekToTime(_ time: TimeInterval) {

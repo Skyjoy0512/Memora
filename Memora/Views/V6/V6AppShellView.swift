@@ -774,7 +774,7 @@ private struct V6HomeFilterSheet: View {
     }
 }
 
-private struct V6FileMoreSheet: View {
+struct V6FileMoreSheet: View {
     let onRename: () -> Void
     let onMove: () -> Void
     let onDelete: () -> Void

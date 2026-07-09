@@ -36,7 +36,7 @@ struct ProjectDetailView: View {
             photoPreviewSheet
         }
         .navigationDestination(item: $selectedAudioFile) { file in
-            FileDetailView(audioFile: file)
+            V6FileDetailView(audioFile: file)
         }
         .task {
             viewModel.configure(

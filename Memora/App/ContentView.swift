@@ -71,7 +71,7 @@ struct ContentView: View {
                 )
                 .navigationBarBackButtonHidden()
                 .navigationDestination(item: $openedAudioFile) { file in
-                    FileDetailView(audioFile: file)
+                    V6FileDetailView(audioFile: file)
                         .toolbar(.hidden, for: .tabBar)
                 }
             }
