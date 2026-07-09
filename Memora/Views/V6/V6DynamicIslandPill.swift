@@ -255,6 +255,7 @@ private struct V6IslandFrame: Equatable {
 private struct V6PulsingDot: View {
     let color: Color
     let isPulsing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dimmed = false
 
     var body: some View {
@@ -269,7 +270,7 @@ private struct V6PulsingDot: View {
     }
 
     private func startPulsing() {
-        guard isPulsing else { return }
+        guard isPulsing, !reduceMotion else { return }
         withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
             dimmed = true
         }

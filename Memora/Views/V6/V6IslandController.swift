@@ -161,6 +161,9 @@ final class V6IslandController {
         askSourceLabel = sourceLabel
     }
 
+    /// Dismissing Ask must not silently drop a live recording running in the background
+    /// (`.dc.html`: "a recording in progress must survive an Ask-AI interaction" — returns to
+    /// `liveRecording`, not `idle`, once the Ask overlay closes).
     func dismissAsk() {
         askListenTask?.cancel()
         askAnswerTask?.cancel()
@@ -168,7 +171,7 @@ final class V6IslandController {
         isAskListening = false
         askQueryLabel = ""
         askAnswerText = nil
-        mode = .idle
+        mode = isRecordingActiveInBackground ? .liveRecording : .idle
     }
 
     /// Brief white full-expand transition before switching to the Ask tab (`.dc.html` `doMorphToAsk`, 460ms).

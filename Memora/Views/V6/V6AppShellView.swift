@@ -110,8 +110,18 @@ struct V6AppShellView: View {
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: isFabMenuOpen)
         .onChange(of: selectedTab) { _, _ in
+            // Tab switching resets any open modal/sheet (`.dc.html`: "activeTab change clears modal/exportOpen").
             isFabMenuOpen = false
             showPaywall = false
+            isHomeFilterMenuOpen = false
+            fileMoreMenuTarget = nil
+            fileRenameTarget = nil
+            fileMoveTarget = nil
+            fileDeleteTarget = nil
+            isTaskAddSheetOpen = false
+            showDeviceConnection = false
+            showDeleteDataConfirm = false
+            selectedProject = nil
         }
         .sheet(isPresented: $showPaywall) {
             V6PaywallSheet(isPro: $isPro)
