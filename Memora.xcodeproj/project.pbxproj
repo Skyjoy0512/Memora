@@ -156,7 +156,6 @@
 		AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */; };
 		AA4AD4D41818BA29DECFB4FD /* V6AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EADB067D428F55CCEE82DFA /* V6AuthFlowView.swift */; };
 		AC077218DC20C6F70A9DEF1F /* V6AccountPlanSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0850111EF75C27905C2B8ADA /* V6AccountPlanSection.swift */; };
-		ACF056CA3670BE68450DC56C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED62F2878E7E55820B267A8 /* SettingsView.swift */; };
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
 		B289435D7C45DCB84E2E1031 /* NothingTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB27B6DAAB0BDC34E0BBAF5 /* NothingTabPicker.swift */; };
 		B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD7331935FC980D189F38A5 /* APIKeySection.swift */; };
@@ -475,7 +474,6 @@
 		F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudSettings.swift; sourceTree = "<group>"; };
 		FA7E242D95B2B86EDB58ECD4 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
 		FDC6535DDE4D1AFC10D90EE8 /* TemplateSelectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSelectSheet.swift; sourceTree = "<group>"; };
-		FED62F2878E7E55820B267A8 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FFB8C8F488D70DEAD81255F0 /* MeetingCaptureSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCaptureSetupView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -982,7 +980,6 @@
 				1D29E695672907D45D929D22 /* NotionIntegrationSection.swift */,
 				3BC7AD585A7F1F6AF9941FAE /* RealtimeTranscriptionSection.swift */,
 				7F2BE99C7A1DDBDB30ED1E1E /* SettingsBindings.swift */,
-				FED62F2878E7E55820B267A8 /* SettingsView.swift */,
 				BD235306CCDC52CC9446F4E2 /* SummarizationProviderSection.swift */,
 				245685702E8E7F87FDF4D122 /* TranscriptionSettingsSection.swift */,
 				51DD24AAC5DFB9FB95D8838F /* UsageInstructionsSection.swift */,
@@ -1301,7 +1298,6 @@
 				D4896E11EF6257D8A35E374D /* ScheduledBotMeeting.swift in Sources */,
 				BAEC7E4EF7E7077936C2A4C3 /* ScreenshotMatchedSkeleton.swift in Sources */,
 				87C15F2C40E94991DFC7B758 /* SettingsBindings.swift in Sources */,
-				ACF056CA3670BE68450DC56C /* SettingsView.swift in Sources */,
 				85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */,
 				7F6EBE5AEF20C4E83BDBD1F4 /* SkeletonAudioFileRow.swift in Sources */,
 				E73CCF1294886F5DF097CFC5 /* SkeletonProjectCard.swift in Sources */,

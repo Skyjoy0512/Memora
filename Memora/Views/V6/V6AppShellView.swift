@@ -15,11 +15,15 @@ struct V6AppShellView: View {
     let onMeetingCapture: () -> Void
     let onOpenFileDetail: (AudioFile) -> Void
 
+    @AppStorage(V6AuthStorageKey.stage) private var authStageRaw = V6AuthStage.done.rawValue
     @AppStorage(V6AuthStorageKey.isPro) private var isPro = false
     @AppStorage(V6AuthStorageKey.loginEmail) private var loginEmail = ""
+    @AppStorage("v6NotifEnabled") private var notifEnabled = false
+    @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var todos: [TodoItem]
+    @Query private var notionSettingsList: [NotionSettings]
     @State private var isFabMenuOpen = false
     @State private var homeFilter: V6HomeFilter = .files
     @State private var isHomeFilterMenuOpen = false
@@ -33,6 +37,8 @@ struct V6AppShellView: View {
     @State private var selectedProject: Project?
     @State private var isTaskAddSheetOpen = false
     @State private var isDoneTasksExpanded = false
+    @State private var showDeviceConnection = false
+    @State private var showDeleteDataConfirm = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BluetoothAudioService.self) private var bluetoothService
     @Environment(\.modelContext) private var modelContext
@@ -536,34 +542,129 @@ struct V6AppShellView: View {
 
     private var settingsScreen: some View {
         V6PlainScreen(title: "設定") {
-            VStack(spacing: 20) {
-                VStack(spacing: 0) {
-                    V6SettingsRow(title: "プラン", value: isPro ? "Pro" : "Free", leading: "sparkles") {
+            VStack(alignment: .leading, spacing: 18) {
+                V6SettingsGroup(title: "アカウント") {
+                    V6SettingsRow(title: loginEmail.isEmpty ? "未設定" : loginEmail) {}
+                    V6SettingsBadgeRow(title: "プラン", badgeText: isPro ? "Pro" : "Free", badgeColor: isPro ? V6Color.success : V6Color.ink) {
                         showPaywall = true
                     }
-                    V6SettingsRow(title: "ログイン", value: loginEmail.isEmpty ? "未設定" : loginEmail, leading: "person.crop.circle") {}
                 }
 
-                VStack(spacing: 0) {
-                    V6SettingsRow(title: "文字起こし", value: "ChatGPT-5", leading: "waveform") {}
-                    V6SettingsRow(title: "通知", value: "オン", leading: "bell") {}
-                    V6SettingsRow(title: "デバイス連携", value: bluetoothService.isConnected ? "接続済み" : "未接続", leading: "dot.radiowaves.left.and.right") {}
-                    V6SettingsRow(title: "データ管理", value: "", leading: "externaldrive") {}
+                V6SettingsGroup(title: "デバイス") {
+                    Button {
+                        showDeviceConnection = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("PLAUD / Omi デバイス管理")
+                                .font(.system(size: 15))
+                                .foregroundStyle(V6Color.ink)
+                            Spacer()
+                            Circle()
+                                .fill(bluetoothService.isConnected ? V6Color.success : V6Color.neutralBorder)
+                                .frame(width: 6, height: 6)
+                            Text(bluetoothService.isConnected ? "接続済み" : "接続 ›")
+                                .font(.system(size: 13))
+                                .foregroundStyle(bluetoothService.isConnected ? V6Color.success : V6Color.muted)
+                            V6DisclosureChevron()
+                        }
+                        .padding(.vertical, 13)
+                        .padding(.horizontal, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
 
-                Button {
-                    isPro = false
-                    loginEmail = ""
-                } label: {
-                    Text("ログアウト")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(V6Color.danger)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 16)
+                V6SettingsGroup(title: "ストレージ") {
+                    V6SettingsRow(title: "添付の保存先", value: isPro ? "クラウド" : "この端末（Proでクラウド）") {
+                        showPaywall = true
+                    }
                 }
-                .buttonStyle(.plain)
+
+                V6SettingsGroup(title: "通知") {
+                    HStack {
+                        Text("プッシュ通知")
+                            .font(.system(size: 15))
+                            .foregroundStyle(V6Color.ink)
+                        Spacer()
+                        Toggle("", isOn: $notifEnabled)
+                            .labelsHidden()
+                            .tint(V6Color.ink)
+                    }
+                    .padding(.vertical, 13)
+                    .padding(.horizontal, 14)
+                }
+
+                V6SettingsGroup(title: "連携") {
+                    V6SettingsRow(title: "Notion に書き出す", value: (notionSettingsList.first?.isConfigured ?? false) ? "接続済み" : "未接続") {}
+                    V6SettingsRow(title: "ChatGPT に共有", value: KeychainService.load(key: .apiKeyOpenAI).isEmpty ? "未接続" : "接続済み") {}
+                }
+
+                V6SettingsGroup(title: "文字起こし・要約") {
+                    V6SettingsRow(title: "AI モデル", value: selectedProvider) {}
+                    V6SettingsRow(title: "要約テンプレート", value: "議事録") {}
+                }
+
+                V6SettingsGroup(title: "その他") {
+                    Button {
+                        showDeleteDataConfirm = true
+                    } label: {
+                        Text("データを削除")
+                            .font(.system(size: 15))
+                            .foregroundStyle(V6Color.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 13)
+                            .padding(.horizontal, 14)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                V6SettingsGroup(title: "アカウント操作") {
+                    Button {
+                        logout()
+                    } label: {
+                        Text("ログアウト")
+                            .font(.system(size: 15))
+                            .foregroundStyle(V6Color.danger)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 13)
+                            .padding(.horizontal, 14)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
+        .navigationDestination(isPresented: $showDeviceConnection) {
+            DeviceConnectionView()
+        }
+        .overlay {
+            if showDeleteDataConfirm {
+                V6DeleteAllDataConfirm(
+                    onCancel: { showDeleteDataConfirm = false },
+                    onConfirm: {
+                        deleteAllData()
+                        showDeleteDataConfirm = false
+                    }
+                )
+            }
+        }
+    }
+
+    private func logout() {
+        isPro = false
+        loginEmail = ""
+        authStageRaw = V6AuthStage.login.rawValue
+    }
+
+    private func deleteAllData() {
+        try? modelContext.delete(model: AudioFile.self)
+        try? modelContext.delete(model: Project.self)
+        try? modelContext.delete(model: TodoItem.self)
+        try? modelContext.delete(model: AskAISession.self)
+        try? modelContext.delete(model: AskAIMessage.self)
+        try? modelContext.delete(model: MeetingMemo.self)
+        try? modelContext.save()
     }
 
     private func projectTitle(for projectID: UUID?) -> String {
@@ -1194,19 +1295,33 @@ private struct V6TaskAddSheet: View {
     }
 }
 
+private struct V6SettingsGroup<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(V6Color.muted)
+                .padding(.leading, 4)
+
+            VStack(spacing: 0) {
+                content
+            }
+            .background(V6Color.faint, in: RoundedRectangle(cornerRadius: V6Radius.cardAlt, style: .continuous))
+        }
+    }
+}
+
 private struct V6SettingsRow: View {
     let title: String
-    let value: String
-    let leading: String
+    var value: String = ""
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: leading)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(V6Color.ink)
-                    .frame(width: 24)
+            HStack(spacing: 8) {
                 Text(title)
                     .font(.system(size: 15))
                     .foregroundStyle(V6Color.ink)
@@ -1219,10 +1334,82 @@ private struct V6SettingsRow: View {
                 }
                 V6DisclosureChevron()
             }
-            .padding(.vertical, 16)
+            .padding(.vertical, 13)
+            .padding(.horizontal, 14)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct V6SettingsBadgeRow: View {
+    let title: String
+    let badgeText: String
+    let badgeColor: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 15))
+                    .foregroundStyle(V6Color.ink)
+                Spacer()
+                Text(badgeText)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(badgeColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                V6DisclosureChevron()
+            }
+            .padding(.vertical, 13)
+            .padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct V6DeleteAllDataConfirm: View {
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4).ignoresSafeArea()
+                .onTapGesture(perform: onCancel)
+
+            VStack(spacing: 16) {
+                VStack(spacing: 6) {
+                    Text("すべてのデータを削除しますか？")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(V6Color.ink)
+                    Text("録音・文字起こし・タスクなど全ての記録が完全に削除され、元に戻せません。")
+                        .font(.system(size: 12.5))
+                        .lineSpacing(4)
+                        .foregroundStyle(V6Color.muted)
+                        .multilineTextAlignment(.center)
+                }
+                HStack(spacing: 8) {
+                    Button("キャンセル", action: onCancel)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(V6Color.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(V6Color.fillStrong, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
+                    Button("削除", action: onConfirm)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(V6Color.accent, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
+                }
+            }
+            .padding(20)
+            .background(V6Color.white, in: RoundedRectangle(cornerRadius: V6Radius.providerButton, style: .continuous))
+            .padding(.horizontal, 40)
+        }
     }
 }
 
