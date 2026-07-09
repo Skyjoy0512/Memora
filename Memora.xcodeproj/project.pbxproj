@@ -107,7 +107,6 @@
 		782D73661FAC73DEA06D7420 /* SpeechAnalyzerPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */; };
 		7A48D24FB2DBF1C85D58B93A /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74128D7D550FF22B353C8B5A /* LocalLLMProvider.swift */; };
 		7BA9C541672D7E0652F64067 /* STTStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E4C9D26709B3B1E7C7E8E2 /* STTStreamingTests.swift */; };
-		7C73C0F01BDD12A446A541FF /* TodoEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CE8A1CA959283232B76817 /* TodoEditSheet.swift */; };
 		7C8353E619EB1248FD827F65 /* NothingDotMatrixModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC24BF762478AA119742B5A9 /* NothingDotMatrixModifier.swift */; };
 		7D25FCE82F72A98E51C64618 /* GenerationFlowSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 391D18337003343A19FF438F /* GenerationFlowSheet.swift */; };
 		7EAA607ED871E0A46CD65BE0 /* STTPreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0ED0108BC9A5810D057A9E8 /* STTPreflightTests.swift */; };
@@ -148,7 +147,6 @@
 		A05D9CF869BDFE089C043795 /* TaskPlannerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0847C3DDA2C5BE49253D10FF /* TaskPlannerServiceTests.swift */; };
 		A0C2830EC408A00821FB7C5F /* WebhookSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */; };
 		A11B7F318597F0CDD7517A89 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED6B4AB0C91A41CD45DAECA3 /* KeychainService.swift */; };
-		A1C2781A9F25CB47BFAB1E70 /* TodoRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2423758F5579E2DAE59939E /* TodoRowView.swift */; };
 		A4D5B536984B05B400C1748D /* HomeViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3114A00A5EF9D97405BFC124 /* HomeViewModelTests.swift */; };
 		A58F5BE79ACA1D8107B3EF4A /* GenericFileSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA43CEB6CA859CECA3B1C02D /* GenericFileSourceTests.swift */; };
 		A5FA434177661AF5A987B3E8 /* BLEDebugSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CCBD44F3E8F4023DBCC8E8 /* BLEDebugSection.swift */; };
@@ -223,7 +221,6 @@
 		EC820453F18508011070BBE8 /* CaptureSourceRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E24B5AED846ABFFE334327 /* CaptureSourceRegistry.swift */; };
 		EFA5562EBC3DC1C03B08619F /* MemoraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */; };
 		F05F9B5636A2DC4C69EF20EF /* AudioFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B8C2466FE7F2C1FE124533 /* AudioFile.swift */; };
-		F10D3D8C768805BA15E639EA /* ToDoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4E214185EA5F3F3B3792A13 /* ToDoView.swift */; };
 		F19B32803F3828945C9A7EE0 /* SummarizationProviderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD235306CCDC52CC9446F4E2 /* SummarizationProviderSection.swift */; };
 		F221C4147CF458964504B116 /* OmiSupportTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */; };
 		F405875B8E512D03E69DDCEE /* FloatingGlassTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0D2DD160DF4AF641FD9CD52 /* FloatingGlassTabBar.swift */; };
@@ -354,7 +351,6 @@
 		6E1EAA44923AAC97B043AC2E /* GoogleMeetSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMeetSection.swift; sourceTree = "<group>"; };
 		74128D7D550FF22B353C8B5A /* LocalLLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMProvider.swift; sourceTree = "<group>"; };
 		755864C95532C2BDE870B429 /* AskAI+Subviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AskAI+Subviews.swift"; sourceTree = "<group>"; };
-		75CE8A1CA959283232B76817 /* TodoEditSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoEditSheet.swift; sourceTree = "<group>"; };
 		7691401262A0B113E3DDF25A /* MinimumTapTargetModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimumTapTargetModifier.swift; sourceTree = "<group>"; };
 		76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableGlassEffect.swift; sourceTree = "<group>"; };
 		773B63CD77365964D9709168 /* CaptureSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSource.swift; sourceTree = "<group>"; };
@@ -455,7 +451,6 @@
 		E1CC0D8E52BCD6A484080FC4 /* MemorySettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsSection.swift; sourceTree = "<group>"; };
 		E30C7430ADCB255F705240F9 /* NotionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotionSettings.swift; sourceTree = "<group>"; };
 		E37BBEF978E82980F741AB32 /* CoreDependency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDependency.swift; sourceTree = "<group>"; };
-		E4E214185EA5F3F3B3792A13 /* ToDoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToDoView.swift; sourceTree = "<group>"; };
 		E569AC7DB0D33CF3AC8D23A9 /* OmiSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmiSupportTypes.swift; sourceTree = "<group>"; };
 		E654E470C2522C1CF1333F13 /* FeatureDependencySurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureDependencySurface.swift; sourceTree = "<group>"; };
 		E758217C18CCA3F1E9828B21 /* AskAIRetrievalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIRetrievalService.swift; sourceTree = "<group>"; };
@@ -470,7 +465,6 @@
 		EFBD0F5F237593A207E44875 /* TaskPlannerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPlannerService.swift; sourceTree = "<group>"; };
 		F1AC57E13F6533FE2F26F55F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		F21EE7F002FD01C0D547BA99 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
-		F2423758F5579E2DAE59939E /* TodoRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoRowView.swift; sourceTree = "<group>"; };
 		F2A94BAE45FDD030ED97DD7A /* WebhookSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookSettings.swift; sourceTree = "<group>"; };
 		F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmiAdapter.swift; sourceTree = "<group>"; };
 		F71A1815288589FC9C4308AE /* MemorySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsView.swift; sourceTree = "<group>"; };
@@ -856,9 +850,6 @@
 		A6AA2C3BDBC03B548D1F46B0 /* Todo */ = {
 			isa = PBXGroup;
 			children = (
-				75CE8A1CA959283232B76817 /* TodoEditSheet.swift */,
-				F2423758F5579E2DAE59939E /* TodoRowView.swift */,
-				E4E214185EA5F3F3B3792A13 /* ToDoView.swift */,
 			);
 			path = Todo;
 			sourceTree = "<group>";
@@ -1328,12 +1319,9 @@
 				87AAFF280720E9CF570F19F9 /* TaskPlannerService.swift in Sources */,
 				56019584B1A6E164252E04F1 /* TemplateSelectSheet.swift in Sources */,
 				138438B18A6184D433C6A5CC /* ThinkingDots.swift in Sources */,
-				F10D3D8C768805BA15E639EA /* ToDoView.swift in Sources */,
 				51671FD441BABE4D6F1C8682 /* ToastOverlay.swift in Sources */,
 				1E89A5B881A2CCF3ED1E53E1 /* InlineErrorMessage.swift in Sources */,
-				7C73C0F01BDD12A446A541FF /* TodoEditSheet.swift in Sources */,
 				29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */,
-				A1C2781A9F25CB47BFAB1E70 /* TodoRowView.swift in Sources */,
 				BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */,
 				A6C48A7289705CB67173D399 /* TranscriptTab.swift in Sources */,
 				6093007D06CA8B7F2CC4FC72 /* TranscriptionActivity.swift in Sources */,

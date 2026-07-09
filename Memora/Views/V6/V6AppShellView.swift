@@ -31,6 +31,8 @@ struct V6AppShellView: View {
     @State private var fileMoveSelection: Project?
     @State private var fileDeleteTarget: AudioFile?
     @State private var selectedProject: Project?
+    @State private var isTaskAddSheetOpen = false
+    @State private var isDoneTasksExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BluetoothAudioService.self) private var bluetoothService
     @Environment(\.modelContext) private var modelContext
@@ -421,20 +423,106 @@ struct V6AppShellView: View {
         .padding(.bottom, 110)
     }
 
+    private var overdueTodos: [TodoItem] {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        return todos.filter { !$0.isCompleted && ($0.dueDate.map { $0 < startOfToday } ?? false) }
+    }
+
+    private var todayTodos: [TodoItem] {
+        todos.filter { !$0.isCompleted && $0.dueDate.map { Calendar.current.isDateInToday($0) } == true }
+    }
+
+    private var upcomingTodos: [TodoItem] {
+        todos.filter { todo in
+            guard !todo.isCompleted else { return false }
+            guard let due = todo.dueDate else { return true }
+            return !Calendar.current.isDateInToday(due) && due >= Calendar.current.startOfDay(for: Date())
+        }
+    }
+
+    private var doneTodos: [TodoItem] {
+        todos.filter(\.isCompleted)
+    }
+
     private var tasksScreen: some View {
         V6PlainScreen(title: "タスク") {
-            VStack(alignment: .leading, spacing: 0) {
-                V6SectionLabel("今日")
+            VStack(alignment: .leading, spacing: 20) {
                 if todos.isEmpty {
-                    V6TaskRow(title: "プロダクト方針を確認する", source: "プロダクト定例MTG", done: false)
-                    V6TaskRow(title: "次回インタビュー候補をまとめる", source: "ユーザーインタビュー", done: false)
+                    V6TasksEmptyState()
                 } else {
-                    ForEach(todos.prefix(8)) { todo in
-                        V6TaskRow(title: todo.title, source: projectTitle(for: todo.projectID), done: todo.isCompleted)
+                    if !overdueTodos.isEmpty {
+                        V6TaskGroup(label: "期限切れ", labelColor: V6Color.accent, todos: overdueTodos, sourceTitle: sourceTitle, onToggle: toggleTodo, onOpenSource: openTodoSource)
+                    }
+                    if !todayTodos.isEmpty {
+                        V6TaskGroup(label: "今日", labelColor: V6Color.quiet, todos: todayTodos, sourceTitle: sourceTitle, onToggle: toggleTodo, onOpenSource: openTodoSource)
+                    }
+                    if !upcomingTodos.isEmpty {
+                        V6TaskGroup(label: "今後", labelColor: V6Color.quiet, todos: upcomingTodos, sourceTitle: sourceTitle, onToggle: toggleTodo, onOpenSource: openTodoSource)
+                    }
+                    if !doneTodos.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Button {
+                                isDoneTasksExpanded.toggle()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Text("完了（\(doneTodos.count)）")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(V6Color.quiet)
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(V6Color.quiet)
+                                        .rotationEffect(.degrees(isDoneTasksExpanded ? 0 : -90))
+                                }
+                            }
+                            .buttonStyle(.plain)
+
+                            if isDoneTasksExpanded {
+                                V6TaskGroup(label: nil, labelColor: V6Color.quiet, todos: doneTodos, sourceTitle: sourceTitle, onToggle: toggleTodo, onOpenSource: openTodoSource)
+                            }
+                        }
                     }
                 }
+
+                Button {
+                    isTaskAddSheetOpen = true
+                } label: {
+                    Text("＋ タスクを追加")
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundStyle(V6Color.quiet)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(V6Color.soft, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
         }
+        .sheet(isPresented: $isTaskAddSheetOpen) {
+            V6TaskAddSheet(projects: projects) { title, dueDate, projectID in
+                let todo = TodoItem(title: title, dueDate: dueDate, projectID: projectID)
+                modelContext.insert(todo)
+                try? modelContext.save()
+            }
+            .presentationDetents([.height(420)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func sourceTitle(for todo: TodoItem) -> String {
+        if let fileID = todo.sourceAudioFileID, let file = audioFiles.first(where: { $0.id == fileID }) {
+            return file.title
+        }
+        return projectTitle(for: todo.projectID)
+    }
+
+    private func toggleTodo(_ todo: TodoItem) {
+        todo.isCompleted.toggle()
+        todo.completedAt = todo.isCompleted ? Date() : nil
+        try? modelContext.save()
+    }
+
+    private func openTodoSource(_ todo: TodoItem) {
+        guard let fileID = todo.sourceAudioFileID, let file = audioFiles.first(where: { $0.id == fileID }) else { return }
+        onOpenFileDetail(file)
     }
 
     private var askScreen: some View {
@@ -890,29 +978,236 @@ private struct V6SectionLabel: View {
     }
 }
 
+private struct V6TaskGroup: View {
+    let label: String?
+    let labelColor: Color
+    let todos: [TodoItem]
+    let sourceTitle: (TodoItem) -> String
+    let onToggle: (TodoItem) -> Void
+    let onOpenSource: (TodoItem) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let label {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(labelColor)
+            }
+            VStack(spacing: 0) {
+                ForEach(todos) { todo in
+                    V6TaskRow(todo: todo, source: sourceTitle(todo), onToggle: { onToggle(todo) }, onOpenSource: { onOpenSource(todo) })
+                }
+            }
+        }
+    }
+}
+
 private struct V6TaskRow: View {
-    let title: String
+    let todo: TodoItem
     let source: String
-    let done: Bool
+    let onToggle: () -> Void
+    let onOpenSource: () -> Void
+
+    private var dueLabel: String {
+        if todo.isCompleted { return "完了" }
+        guard let due = todo.dueDate else { return "期限なし" }
+        let calendar = Calendar.current
+        if calendar.isDateInToday(due) { return "期限: 今日" }
+        if calendar.isDateInYesterday(due) { return "期限: 昨日" }
+        if calendar.isDateInTomorrow(due) { return "期限: 明日" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return "期限: \(formatter.string(from: due))"
+    }
+
+    private var isOverdue: Bool {
+        guard !todo.isCompleted, let due = todo.dueDate else { return false }
+        return due < Calendar.current.startOfDay(for: Date())
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(done ? V6Color.ink : .clear)
-                .overlay(Circle().stroke(done ? V6Color.ink : Color(hex: "C7C7CC"), lineWidth: 1.5))
-                .frame(width: 17, height: 17)
-                .padding(.top, 1)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(V6Font.rowTitle)
-                    .foregroundStyle(done ? V6Color.muted : V6Color.ink)
-                Text(source)
-                    .font(.system(size: 12))
-                    .foregroundStyle(V6Color.quiet)
+            Button(action: onToggle) {
+                Circle()
+                    .fill(todo.isCompleted ? V6Color.ink : .clear)
+                    .overlay(Circle().stroke(todo.isCompleted ? V6Color.ink : V6Color.neutralBorder, lineWidth: 1.6))
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(todo.title)
+                    .font(.system(size: 14.5, weight: .medium))
+                    .foregroundStyle(todo.isCompleted ? V6Color.muted : V6Color.ink)
+                    .strikethrough(todo.isCompleted)
+                HStack(spacing: 6) {
+                    Button(action: onOpenSource) {
+                        Text(source)
+                            .font(.system(size: 12))
+                            .foregroundStyle(V6Color.muted)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                    Circle().fill(V6Color.neutralBorder).frame(width: 3, height: 3)
+                    Text(dueLabel)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(isOverdue ? V6Color.accent : V6Color.muted)
+                }
             }
             Spacer()
         }
         .padding(.vertical, 14)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(V6Color.faint).frame(height: 1)
+        }
+    }
+}
+
+private struct V6TasksEmptyState: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle().fill(V6Color.faint).frame(width: 52, height: 52)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(V6Color.ink)
+            }
+            Text("未完了のタスクはありません")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(V6Color.ink)
+            Text("録音や会議の中から新しいタスクが見つかると、ここに表示されます。")
+                .font(.system(size: 12.5))
+                .lineSpacing(5)
+                .foregroundStyle(V6Color.muted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 50)
+        .padding(.horizontal, 20)
+    }
+}
+
+private enum V6TaskDueOption {
+    case today
+    case tomorrow
+    case custom
+    case none
+}
+
+private struct V6TaskAddSheet: View {
+    let projects: [Project]
+    let onAdd: (String, Date?, UUID?) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var text = ""
+    @State private var dueOption: V6TaskDueOption = .today
+    @State private var customDate = Date()
+    @State private var selectedProjectID: UUID?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("タスクを追加")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(V6Color.ink)
+
+            TextField("タスク内容を入力", text: $text)
+                .font(.system(size: 14.5))
+                .padding(13)
+                .background(V6Color.white)
+                .overlay {
+                    RoundedRectangle(cornerRadius: V6Radius.cardAlt, style: .continuous)
+                        .stroke(V6Color.line, lineWidth: 1)
+                }
+
+            Text("期限")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(V6Color.muted)
+
+            HStack(spacing: 6) {
+                dueChip("今日", option: .today)
+                dueChip("明日", option: .tomorrow)
+                dueChip("日付指定", option: .custom)
+                dueChip("期限なし", option: .none)
+            }
+
+            if dueOption == .custom {
+                DatePicker("", selection: $customDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+            }
+
+            if !projects.isEmpty {
+                Text("プロジェクト")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(V6Color.muted)
+
+                HStack(spacing: 6) {
+                    projectChip("なし", projectID: nil)
+                    ForEach(projects) { project in
+                        projectChip(project.title, projectID: project.id)
+                    }
+                }
+            }
+
+            Button {
+                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { return }
+                onAdd(trimmed, resolvedDueDate, selectedProjectID)
+                dismiss()
+            } label: {
+                Text("追加")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(V6Color.ink, in: RoundedRectangle(cornerRadius: V6Radius.cardAlt, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+    }
+
+    private var resolvedDueDate: Date? {
+        let calendar = Calendar.current
+        switch dueOption {
+        case .today: return calendar.startOfDay(for: Date())
+        case .tomorrow: return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))
+        case .custom: return calendar.startOfDay(for: customDate)
+        case .none: return nil
+        }
+    }
+
+    private func dueChip(_ title: String, option: V6TaskDueOption) -> some View {
+        Button {
+            dueOption = option
+        } label: {
+            Text(title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(dueOption == option ? .white : V6Color.ink)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 9)
+                .background(dueOption == option ? V6Color.ink : V6Color.soft, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func projectChip(_ title: String, projectID: UUID?) -> some View {
+        Button {
+            selectedProjectID = projectID
+        } label: {
+            Text(title)
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(selectedProjectID == projectID ? .white : V6Color.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(selectedProjectID == projectID ? V6Color.ink : V6Color.soft, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 

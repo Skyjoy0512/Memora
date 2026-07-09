@@ -644,7 +644,8 @@ final class PipelineCoordinator {
                 assignee: planned.assignee,
                 speaker: planned.assignee,
                 priority: planned.priority.rawValue,
-                relativeDueDate: planned.relativeDueDate?.rawValue
+                relativeDueDate: planned.relativeDueDate?.rawValue,
+                sourceAudioFileID: sourceFileId
             )
             modelContext.insert(parent)
 
@@ -652,7 +653,8 @@ final class PipelineCoordinator {
                 let child = TodoItem(
                     title: sub.title,
                     notes: sub.citation,
-                    parentID: parent.id
+                    parentID: parent.id,
+                    sourceAudioFileID: sourceFileId
                 )
                 modelContext.insert(child)
             }

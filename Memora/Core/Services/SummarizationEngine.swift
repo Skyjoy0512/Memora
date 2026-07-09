@@ -191,7 +191,8 @@ final class SummarizationEngine: SummarizationEngineProtocol {
                 assignee: assignee,
                 speaker: speaker,
                 priority: "medium",
-                projectID: nil
+                projectID: nil,
+                sourceAudioFileID: sourceFileId
             )
             modelContext.insert(todo)
         }

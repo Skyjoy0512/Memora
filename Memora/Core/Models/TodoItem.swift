@@ -13,6 +13,7 @@ public final class TodoItem {
     var relativeDueDate: String?
     var projectID: UUID?
     var parentID: UUID?
+    var sourceAudioFileID: UUID?
     var isCompleted: Bool = false
     var createdAt: Date
     var completedAt: Date?
@@ -26,7 +27,8 @@ public final class TodoItem {
         dueDate: Date? = nil,
         relativeDueDate: String? = nil,
         projectID: UUID? = nil,
-        parentID: UUID? = nil
+        parentID: UUID? = nil,
+        sourceAudioFileID: UUID? = nil
     ) {
         self.id = UUID()
         self.title = title
@@ -38,6 +40,7 @@ public final class TodoItem {
         self.relativeDueDate = relativeDueDate
         self.projectID = projectID
         self.parentID = parentID
+        self.sourceAudioFileID = sourceAudioFileID
         self.createdAt = Date()
     }
 }

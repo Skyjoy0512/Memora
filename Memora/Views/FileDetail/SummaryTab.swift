@@ -82,20 +82,27 @@ struct SummaryTab: View {
                     V6SummarySection(title: "次のアクション") {
                         VStack(spacing: 12) {
                             ForEach(result.actionItems, id: \.self) { action in
+                                let isTaskified = vm.taskifiedActionTexts.contains(action)
                                 HStack(spacing: 8) {
                                     Text(action)
                                         .font(.system(size: 14))
                                         .foregroundStyle(V6Color.ink)
                                     Spacer()
-                                    Text("タスク化")
-                                        .font(.system(size: 11.5, weight: .semibold))
-                                        .foregroundStyle(V6Color.ink)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                                .stroke(V6Color.ink, lineWidth: 1)
-                                        }
+                                    Button {
+                                        vm.taskifyActionItem(action)
+                                    } label: {
+                                        Text(isTaskified ? "追加済み" : "タスク化")
+                                            .font(.system(size: 11.5, weight: .semibold))
+                                            .foregroundStyle(isTaskified ? V6Color.quiet : V6Color.ink)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 5)
+                                            .overlay {
+                                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                    .stroke(isTaskified ? V6Color.neutralBorder : V6Color.ink, lineWidth: 1)
+                                            }
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isTaskified)
                                 }
                             }
                         }
