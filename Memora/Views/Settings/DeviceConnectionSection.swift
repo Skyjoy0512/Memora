@@ -12,6 +12,14 @@ struct DeviceConnectionSection: View {
 
     var body: some View {
         Section {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Omi は Bluetooth Low Energy（BLE）で直接接続します。")
+                    .font(MemoraTypography.caption1)
+                Text("PLAUDなどのレコーダーは、各アプリやFilesから書き出した音声・JSON・TXTファイルをホームのファイル読み込みで取り込めます。")
+                    .font(MemoraTypography.caption1)
+                    .foregroundStyle(.secondary)
+            }
+
             if !omiAdapter.sdkAvailable {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Omi Swift SDK が未設定です")
@@ -140,7 +148,7 @@ struct DeviceConnectionSection: View {
                 }
             }
         } header: {
-            GlassSectionHeader(title: "Omi 接続", icon: "headphones")
+            GlassSectionHeader(title: "録音デバイス", icon: "headphones")
         }
     }
 }

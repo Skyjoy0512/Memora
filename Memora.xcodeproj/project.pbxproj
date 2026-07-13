@@ -212,6 +212,8 @@
 		DF3C4EF825F95EA41E303DBF /* DeviceConnectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90319B078F7AF12E0E2D146F /* DeviceConnectionView.swift */; };
 		E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F88239E9736BD88127DA7CF2 /* PlaudSettings.swift */; };
 		E410D4D2DB0A17C46B31A024 /* PlaudImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E18D3E00732A71CB8A413E6 /* PlaudImportService.swift */; };
+		ECA899D64CF848F697283F35 /* ImportRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B18191F73324864A0281C5F /* ImportRouter.swift */; };
+		2AE00304F821447280A3E602 /* ImportRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 665161B7F35842A392312262 /* ImportRouterTests.swift */; };
 		E58B0992DD53733CBB12F7DE /* FileDetailHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F366D454C3871B21F0C2D19 /* FileDetailHelpers.swift */; };
 		E73CCF1294886F5DF097CFC5 /* SkeletonProjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13A198FF7BB4D7F734439746 /* SkeletonProjectCard.swift */; };
 		E93121C82A1D17B692B1CE0C /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */; };
@@ -381,6 +383,8 @@
 		9C11AD42B19158882B877B1D /* CalendarEventLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarEventLink.swift; sourceTree = "<group>"; };
 		9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTSupportTypes.swift; sourceTree = "<group>"; };
 		9E18D3E00732A71CB8A413E6 /* PlaudImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudImportService.swift; sourceTree = "<group>"; };
+		0B18191F73324864A0281C5F /* ImportRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRouter.swift; sourceTree = "<group>"; };
+		665161B7F35842A392312262 /* ImportRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRouterTests.swift; sourceTree = "<group>"; };
 		9E2676B0A3FF3CCCB12C4736 /* MeetingCaptureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCaptureViewModel.swift; sourceTree = "<group>"; };
 		9F18FDF85B122CB5DB69E438 /* DeveloperFeaturesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperFeaturesSection.swift; sourceTree = "<group>"; };
 		A0D2DD160DF4AF641FD9CD52 /* FloatingGlassTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGlassTabBar.swift; sourceTree = "<group>"; };
@@ -684,6 +688,7 @@
 		345340EB32FFC99C3344F792 /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				AFF17E800EDF49928DD044FE /* Capture */,
 				CE3B825F616D090FBEB31CB1 /* Contracts */,
 				AAA29B6187B411700E874C1A /* Models */,
 				38C374DDEF23A65411819DCF /* Networking */,
@@ -692,6 +697,14 @@
 				326F8DFE600109A52BEC818C /* ViewModels */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		AFF17E800EDF49928DD044FE /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				0B18191F73324864A0281C5F /* ImportRouter.swift */,
+			);
+			path = Capture;
 			sourceTree = "<group>";
 		};
 		38C374DDEF23A65411819DCF /* Networking */ = {
@@ -768,6 +781,7 @@
 				578CADDA2E5E15C0BDC288E0 /* FileDetailViewModelTests.swift */,
 				3114A00A5EF9D97405BFC124 /* HomeViewModelTests.swift */,
 				A7C606CEF85C1406BC777BC4 /* ProjectsViewModelTests.swift */,
+				665161B7F35842A392312262 /* ImportRouterTests.swift */,
 				9A456B5536BB720E54CD2148 /* TestHelpers.swift */,
 				3198A76799E51BC9678E0DEE /* Models */,
 				8C961D33C3564C2473C2DA5E /* Repositories */,
@@ -1105,6 +1119,7 @@
 				CE33BBC7E9FDD342715A4099 /* TodoItemRepositoryTests.swift in Sources */,
 				37B189A82F502FD789C37D22 /* TodoItemTests.swift in Sources */,
 				3C911511079A36C412B15845 /* TranscriptTests.swift in Sources */,
+				2AE00304F821447280A3E602 /* ImportRouterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1249,6 +1264,7 @@
 				DC40C87BAF5C918F56E3E4B5 /* PipelineCoordinator.swift in Sources */,
 				064758E3B9EAA481C111A22B /* PlaudExportModels.swift in Sources */,
 				E410D4D2DB0A17C46B31A024 /* PlaudImportService.swift in Sources */,
+				ECA899D64CF848F697283F35 /* ImportRouter.swift in Sources */,
 				CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */,
 				30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */,
 				E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */,

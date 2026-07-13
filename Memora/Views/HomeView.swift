@@ -27,6 +27,7 @@ struct HomeView: View {
     @State private var showFileImporter = false
     @State private var showGoogleMeetImport = false
     @State private var importErrorMessage: String?
+    @State private var importStatusMessage: String?
 
     // 検索・フィルタリング用
     @State private var searchText = ""
@@ -56,7 +57,7 @@ struct HomeView: View {
     private typealias SortOption = HomeViewModel.SortOption
 
     private var importContentTypes: [UTType] {
-        [.mpeg4Audio, .wav, .mp3, .aiff, .json, .plainText].compactMap { $0 }
+        [.mpeg4Audio, .wav, .mp3, .aiff, .audio, .json, .plainText].compactMap { $0 }
     }
 
     init(pendingOpenedAudioFileID: Binding<UUID?> = .constant(nil), isTabBarHidden: Binding<Bool> = .constant(false), triggerRecording: Binding<Bool> = .constant(false), triggerFileImport: Binding<Bool> = .constant(false)) {
@@ -201,6 +202,18 @@ struct HomeView: View {
                 guard newValue else { return }
                 triggerFileImport = false
                 showFileImporter = true
+            }
+            .overlay(alignment: .bottom) {
+                if let importStatusMessage {
+                    Text(importStatusMessage)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(.black.opacity(0.82), in: Capsule())
+                        .padding(.bottom, 24)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
             .onChange(of: searchText) { _, _ in
                 searchDebounceTask?.cancel()
@@ -628,85 +641,116 @@ struct HomeView: View {
         switch result {
         case .success(let urls):
             guard !urls.isEmpty else { return }
-            let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "aiff", "aac"]
-            let audioURLs = urls.filter { audioExtensions.contains($0.pathExtension.lowercased()) }
-            let otherURLs = urls.filter { !audioExtensions.contains($0.pathExtension.lowercased()) }
-
-            for url in audioURLs {
-                importAudioFile(from: url)
-            }
-            if !otherURLs.isEmpty {
-                importPlaudFiles(otherURLs)
-            }
+            importRoutes(ImportRouter.route(urls))
         case .failure(let error):
             print("[HomeView] File import failed: \(error.localizedDescription)")
             importErrorMessage = "ファイルの選択に失敗しました。もう一度お試しください。"
         }
     }
 
-    private func importAudioFile(from url: URL) {
-        do {
-            let audioFile = try AudioFileImportService.importAudio(
-                from: url,
-                modelContext: modelContext,
-                requiresSecurityScopedAccess: true
-            )
-            pendingOpenedAudioFileID = audioFile.id
-        } catch {
-            print("[HomeView] Audio file import failed: \(error.localizedDescription)")
-            importErrorMessage = "音声ファイルのインポートに失敗しました。もう一度お試しください。"
-        }
-    }
-
-    private func importPlaudFiles(_ urls: [URL]) {
+    private func importRoutes(_ routes: [ImportRouter.Route]) {
+        var importedCount = 0
+        var failureCount = 0
         var lastImportedID: UUID?
-        for url in urls {
-            let ext = url.pathExtension.lowercased()
-            if ext == "json" {
-                if let file = importPlaudJSON(url: url) { lastImportedID = file.id }
-            } else {
-                if let file = importPlaudText(url: url) { lastImportedID = file.id }
+
+        for route in routes {
+            do {
+                let importedFile: AudioFile
+                switch route {
+                case let .plaudExport(audio, json):
+                    importedFile = try PlaudImportService.importFromExport(
+                        audioURL: audio,
+                        metadataURL: json,
+                        modelContext: modelContext
+                    )
+                case let .plaudTranscript(audio, textURL):
+                    importedFile = try AudioFileImportService.importAudio(
+                        from: audio,
+                        modelContext: modelContext,
+                        requiresSecurityScopedAccess: true
+                    )
+                    importedCount += 1
+                    lastImportedID = importedFile.id
+                    do {
+                        PlaudImportService.attachReferenceTranscript(
+                            importedFile,
+                            text: try readText(from: textURL),
+                            modelContext: modelContext
+                        )
+                    } catch {
+                        failureCount += 1
+                        print("[HomeView] Reference transcript import failed: \(error.localizedDescription)")
+                    }
+                    continue
+                case let .audioOnly(audio):
+                    importedFile = try AudioFileImportService.importAudio(
+                        from: audio,
+                        modelContext: modelContext,
+                        requiresSecurityScopedAccess: true
+                    )
+                case let .textOnly(file):
+                    importedFile = try importTextOnly(file)
+                }
+                importedCount += 1
+                lastImportedID = importedFile.id
+            } catch {
+                failureCount += 1
+                print("[HomeView] File import failed: \(error.localizedDescription)")
             }
         }
-        if let lastImportedID { pendingOpenedAudioFileID = lastImportedID }
+
+        if let lastImportedID {
+            pendingOpenedAudioFileID = lastImportedID
+        }
+        viewModel.loadAudioFiles()
+        updateFilteredFiles()
+        showImportStatus(importedCount: importedCount, failureCount: failureCount)
     }
 
-    private func importPlaudJSON(url: URL) -> AudioFile? {
-        do {
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
-            let data = try Data(contentsOf: url)
-            let export = try JSONDecoder().decode(PlaudExportFile.self, from: data)
-            let title = export.title ?? url.deletingPathExtension().lastPathComponent
-            let text = export.transcript?.isEmpty == false ? export.transcript! : (export.summary ?? "")
-            let file = PlaudImportService.importTextOnly(title: title, textContent: text, modelContext: modelContext)
+    private func importTextOnly(_ url: URL) throws -> AudioFile {
+        let text = try readText(from: url)
+        if url.pathExtension.lowercased() == "json",
+           let export = try? JSONDecoder().decode(PlaudExportFile.self, from: Data(text.utf8)) {
+            let transcript = export.transcript?.isEmpty == false ? export.transcript! : (export.summary ?? "")
+            let file = PlaudImportService.importTextOnly(
+                title: export.title ?? url.deletingPathExtension().lastPathComponent,
+                textContent: transcript,
+                modelContext: modelContext
+            )
             if let summary = export.summary, !summary.isEmpty {
                 file.summary = summary
                 file.isSummarized = true
-                try? modelContext.save()
             }
+            if let createdAt = export.createdAt {
+                file.createdAt = createdAt
+            }
+            try modelContext.save()
             return file
-        } catch {
-            print("[HomeView] Plaud JSON import failed: \(error.localizedDescription)")
-            importErrorMessage = "Plaud ファイルのインポートに失敗しました。もう一度お試しください。"
-            return nil
         }
+
+        return PlaudImportService.importTextOnly(
+            title: url.deletingPathExtension().lastPathComponent,
+            textContent: text,
+            modelContext: modelContext
+        )
     }
 
-    private func importPlaudText(url: URL) -> AudioFile? {
-        do {
-            let didAccess = url.startAccessingSecurityScopedResource()
-            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
-            let text = try String(contentsOf: url, encoding: .utf8)
-            return PlaudImportService.importTextOnly(
-                title: url.deletingPathExtension().lastPathComponent,
-                textContent: text,
-                modelContext: modelContext
-            )
-        } catch {
-            print("[HomeView] Plaud text import failed: \(error.localizedDescription)")
-            importErrorMessage = "Plaud ファイルのインポートに失敗しました。もう一度お試しください。"
-            return nil
+    private func readText(from url: URL) throws -> String {
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func showImportStatus(importedCount: Int, failureCount: Int) {
+        var message = "\(importedCount)件を取り込みました"
+        if failureCount > 0 {
+            message += "（\(failureCount)件失敗）"
+        }
+        importStatusMessage = message
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            importStatusMessage = nil
         }
     }
 

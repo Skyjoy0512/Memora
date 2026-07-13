@@ -5,24 +5,26 @@ import SwiftData
 
 struct DeveloperFeaturesSection: View {
     @Bindable var state: SettingsState
+#if DEBUG
     @Environment(\.modelContext) private var modelContext
     @Query private var plaudSettingsList: [PlaudSettings]
 
     private var plaudSettings: PlaudSettings? {
         plaudSettingsList.first
     }
+#endif
 
     var body: some View {
         Section {
-            // Plaud エクスポートインポート説明
+            // 書き出しファイルの取り込み説明
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "doc.badge.plus")
                         .foregroundStyle(MemoraColor.accentBlue)
-                    Text("Plaud エクスポートインポート")
+                    Text("書き出しファイルの取り込み")
                         .font(MemoraTypography.subheadline)
                 }
-                Text("FAB の「Plaud」ボタンから Plaud アプリのエクスポートファイル（JSON/TXT）をインポートできます。")
+                Text("PLAUDアプリの書き出しを含む音声・JSON・TXTファイルは、ホームのファイル読み込みから取り込めます。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             }
@@ -97,7 +99,8 @@ struct DeveloperFeaturesSection: View {
             }
             .padding(.vertical, MemoraSpacing.xxxs)
 
-            // Plaud 連携 Toggle
+            // 非公式 API を使う開発用のログイン・同期 UI
+#if DEBUG
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
                 set: { newValue in
@@ -123,9 +126,11 @@ struct DeveloperFeaturesSection: View {
             if plaudSettings?.isEnabled ?? false {
                 plaudSettingsContent
             }
+#endif
         }
     }
 
+#if DEBUG
     @ViewBuilder
     private var plaudSettingsContent: some View {
         if state.isLoggedIn {
@@ -417,4 +422,5 @@ struct DeveloperFeaturesSection: View {
         formatter.locale = Locale(identifier: "ja_JP")
         return formatter.string(from: date)
     }
+#endif
 }
