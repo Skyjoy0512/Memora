@@ -1,199 +1,131 @@
-# Memora 開発運用ガイド（MCP / 並列開発 / 2026-03 更新）
+# Memora 開発運用ガイド（2026-07 改訂 / worktree並列開発版）
 
 ## 0. 目的
-- Memora を「MCP 前提」で高速に開発する。
-- GitHub での PR 運用を標準化し、ローカルでの手動マージを極力なくす。
-- Figma デザインを SwiftUI に再現しつつ、LiftKit の設計思想を使って黄金比ベースで整える。
+- SwiftUI本番アプリを安定させつつ、`apps/mobile-expo` のRN移行を並行して進める。
+- **worktree × 複数セッション**（Claude Code / Codex）を並列開発の標準とする。
+- 1セッションの儀式コストを下げ、PRの回転速度を上げる。
 
 ## 1. コミュニケーションルール
-- 回答・進捗報告・完了報告は日本語で行う。
-- 実装前に「やること」「変更対象ファイル」「変更しないファイル」を宣言する。
-- ログやエラー原文は英語のまま引用してよいが、解釈は日本語で記述する。
-- 変更は最小差分を原則とし、依頼範囲外のついでリファクタはしない。
+- 回答・進捗報告・完了報告は日本語。ログ・エラー原文は英語のまま引用可。
+- 実装前に「やること / 変更するファイル / 変更しないファイル」を1回だけ短く宣言する。
+- 変更は最小差分。依頼範囲外のついでリファクタはしない。
+- 証拠なしの「動作したはず」報告は禁止。実行したコマンドと結果を書く。目視できなかったものは「未確認」と明記する。
 
-## 2. 現在の技術前提（このリポジトリ基準）
-- iOS target: 17.0（`project.yml`）
-- Xcode: 26.3（ローカル確認済み）
-- 実装: SwiftUI + SwiftData + MVVM ベース
-- ディレクトリ責務:
-  - `Memora/App`: App 起動・ライフサイクル
-  - `Memora/Core/Services`: 録音・再生・STT・要約などのドメインサービス
-  - `Memora/Core/Models`: SwiftData モデル
-  - `Memora/Core/ViewModels`: 画面状態管理
-  - `Memora/Views`: UI
+## 2. 技術前提とディレクトリ責務
+- iOS target 17.0 / Xcode 26.x / SwiftUI + SwiftData + MVVM。
+- RN側: Expo SDK 57 / React Native 0.86 / TypeScript。
 
-## 3. MCP / ツール運用方針
+| パス | 責務 |
+|---|---|
+| `Memora/App` | 起動・ライフサイクル・ModelContainer |
+| `Memora/Core/Services` | 録音・再生・STT・要約などドメインサービス |
+| `Memora/Core/Models` | SwiftDataモデル |
+| `Memora/Core/ViewModels` | 画面状態管理 |
+| `Memora/Core/Adapters` | 共有ストア⇔リポジトリのアダプタ |
+| `Memora/Views` | SwiftUI UI |
+| `Packages/MemoraSharedData` | SwiftUI/RN共有のストア契約・移行ロジック |
+| `apps/mobile-expo/src` `app` | RN画面・コンポーネント・デザイントークン |
+| `apps/mobile-expo/modules/memora-native` | Expoネイティブモジュール（ブリッジ） |
+| `apps/mobile-expo/ios` | RN iOSホスト（**Git管理下。`expo prebuild --clean` 禁止**） |
+| `bot-server` | 会議Bot Node/TSサービス |
+| `docs` | 計画・決定記録 |
 
-### 3.1 Superpowers（開発プロセスの型）
-- Claude Code では plugin として利用する。
-- 推奨インストール:
+## 3. 並列開発の運用（worktree × セッション）
+
+### 3.1 基本形
+- **1セッション = 1レーン = 1 worktree**。worktreeは `../Memora-<slug>` に作る。
 ```bash
-/plugin install superpowers@claude-plugins-official
+git worktree add ../Memora-<slug> -b <type>/<slug> origin/main
 ```
-- 基本フロー:
-  1. brainstorming
-  2. writing-plans
-  3. using-git-worktrees
-  4. subagent-driven-development
-  5. test-driven-development
-  6. requesting-code-review
+- **1 PR = 1目的は維持**。ただし **1セッションで同一レーン内の小PRを連続して複数出してよい**（PRを小さく保ったままセッションを使い切る）。
+- セッション開始時に担当レーンを宣言し、他レーンのファイルは触らない。
 
-### 3.1.1 Swift Agent Skills（Swift 専門スキルカタログ）
-- `twostraws/swift-agent-skills` は「単体スキル」ではなく、Swift 向け skill 集のディレクトリとして扱う。
-- 運用ルール:
-  - いきなり全導入せず、用途ごとに 1 つずつ評価して採用する。
-  - 採用前に README / ライセンス / 更新状況を確認する。
-  - 第三者 skill は必ず内容をレビューしてから使う（盲目的に実行しない）。
-- Memora の初期採用候補:
-  - SwiftUI: `twostraws/SwiftUI-Agent-Skill`
-  - SwiftData: `twostraws/SwiftData-Agent-Skill`
-  - Concurrency: `twostraws/Swift-Concurrency-Agent-Skill`
-  - Testing: `twostraws/Swift-Testing-Agent-Skill`
-- スキルを増やしすぎると文脈が散るため、常時有効は上記 4 系統までを目安にする。
+### 3.2 レーン定義
+| Lane | 対象 | 備考 |
+|---|---|---|
+| A: SwiftUI UI | `Memora/Views/**` | |
+| B: 音声/STT | `Memora/Core/Services/Audio*`, `STT*`, `TranscriptionEngine.swift` | §8の保護ルール適用 |
+| C: モデル/状態 | `Memora/Core/Models/**`, `ViewModels/**`, `Contracts/**`, `Adapters/**` | |
+| D: 基盤/統合 | `Memora/App/**`, `project.yml`, `*.xcodeproj`, `.github/**`, entitlements, Info.plist | **pbxproj/CIはLane Dのみ** |
+| E: QA/運用 | テスト、CI結果確認、リリースノート | |
+| F: RN UI | `apps/mobile-expo/src/**`, `app/**` | |
+| G: RNネイティブ | `apps/mobile-expo/modules/**`, `apps/mobile-expo/ios/**` | ビルドは分離DerivedData（`qa:ios:build`） |
+| H: 共有データ | `Packages/MemoraSharedData/**` | C/Gと跨ぐ場合は基盤PR→機能PRに分割 |
+| I: Botサーバー | `bot-server/**` | |
 
-### 3.2 XcodeBuildMCP（iOS 開発の主ツール）
-- Codex / Claude から同じ MCP サーバーを使う。
-- 推奨（npx 経由）:
+- 複数レーンが必要な作業は「基盤PR → 機能PR」の順に分割する。
+- 同じレーンを2セッションに同時に割り当てない。
+
+### 3.3 レーン別 検証マトリクス（触った範囲だけ検証する）
+| 触った範囲 | 必須検証 |
+|---|---|
+| F（RN UI） | `npm run typecheck` + `npx expo export --platform web` |
+| G（RNネイティブ） | 上記 + `npm run qa:ios:build` |
+| H（共有データ） | `swift test --package-path Packages/MemoraSharedData` + 影響側のビルド |
+| A/C/D（SwiftUI/Core） | `xcodebuild -project Memora.xcodeproj -scheme Memora -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build` |
+| B（STT） | 上記 + §8の報告義務 |
+| I（bot-server） | `npm run build` |
+| docsのみ | `git diff --check` のみ |
+- 全レーン共通: `git diff --check`。**触っていない範囲の検証は省略してよい**（CIが最終ゲート）。
+
+### 3.4 セッションの型（軽量化）
+1. `git fetch origin` → worktree作成（または既存worktreeで `git pull`）
+2. レーン宣言 + やること宣言（短く）
+3. 実装 → レーン別検証 → コミット → **即push → 即PR作成 → auto-merge設定**
+4. 同一レーンで次の小タスクがあれば同セッションで続行（新ブランチを積む）
+5. セッション末尾: 完了報告（§6）。**docsへのセッションログ追記は「設計判断があった時だけ」**。進捗の正本はPRとIssueに置く。
+
+## 4. GitHub運用
+- `main` への直接push禁止。Squash merge標準。CI green + auto-merge。
+- ブランチ命名: `feat|fix|chore/<slug>`（Issueがあれば `<type>/<issue-id>-<slug>`）。
+- **ローカルに作ったブランチは当日中にpushしてPRにする**（未pushの巨大checkpointを作らない）。
+- マージ済み・不要ブランチは定期的に掃除する:
 ```bash
-codex mcp add XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp
-claude mcp add XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp
+git fetch -p && git branch --merged main | grep -v main | xargs git branch -d
+git worktree prune
 ```
-- 作業開始時の標準手順（CLI でも MCP でも同じ意図）:
-  1. `doctor`（環境確認）
-  2. `discover_projs`（対象プロジェクト検出）
-  3. `list_schemes`（Scheme 特定）
-  4. `session_show_defaults` → 必要なら `session_set_defaults`
-  5. `build_sim` / `test_sim`
-- 不具合調査時は `start_sim_log_cap` / `stop_sim_log_cap` を優先して証拠を残す。
 
-### 3.3 vibe-kanban（可視化と並列実行）
-- 起動:
-```bash
-npx vibe-kanban
-```
-- 運用ルール:
-  - 1 Issue = 1 Workspace = 1 ブランチ
-  - Workspace ごとに担当エージェントを固定する
-  - レビューコメントは PR ではなく、まず Workspace の diff 上で返す
-  - PR 作成後は GitHub 側で Auto-merge を使う
+## 5. ツール
+- **XcodeBuildMCP**: iOSビルド・シミュレータ操作・ログ取得に使用（`doctor` → `build_sim` / `test_sim`、調査時は `start_sim_log_cap`）。
+- PM系: Epic分解は `/pm-breakdown`、割当は `/pm-assign`（`docs/pm-agent-workflow.md`）。
+- 大きなEpicで必要な場合のみAgent Teams（`docs/agent-teams-playbook.md`）。日常は worktree × セッション を優先する。
 
-### 3.4 CCpocket（モバイルからの進行・承認）
-- 外出中の「確認」「軽微指示」「再実行トリガー」用途に限定する。
-- 秘密情報の入力・本番デプロイ操作はモバイル経由で行わない。
-- 重要判断は必ず GitHub Issue / PR コメントに残す（チャットのみで完結させない）。
+## 6. 完了報告テンプレート（軽量版）
+- 変更概要（1〜3行）
+- 変更ファイル
+- 実行した検証（コマンド → pass/fail）
+- 未確認事項
+- PR URL / 次のタスク
 
-### 3.5 Claude Agent Teams（Lead + Teammates）
-- Agent Teams を並列開発の第一選択とする（複雑なEpicのみ）。
-- Lead は PM 役として、Issue 分解・割当・進捗統合を行う。
-- 詳細運用は `docs/agent-teams-playbook.md` を参照。
-
-## 4. GitHub 運用（ローカル手動マージ最小化）
-
-実際の自動反映手順は `docs/parallel-development-automation.md` を参照する。
-
-### 4.1 必須設定（`main`）
-- Branch protection を有効化
-- Required status checks を必須化
-- Require pull request before merging を有効化
-- Auto-merge を有効化
-- 可能なら Merge queue を有効化
-- Squash merge を標準化（履歴を単純化）
-- GitHub Project V2 は任意（未設定でも Issue/PR ラベル運用で並列開発は可能）
-
-### 4.2 ブランチ命名
-- `feat/<issue-id>-<slug>`
-- `fix/<issue-id>-<slug>`
-- `chore/<issue-id>-<slug>`
-
-### 4.3 PR ルール
-- 1 PR 1 目的（巨大 PR 禁止）
-- 変更ファイルの責務が複数レーンにまたがる場合は PR を分割
-- CI green + review 完了後に Auto-merge を設定
-
-## 5. 並列開発の責務分割（Memora 用）
-
-### 5.1 レーン定義
-- Lane A: UI 実装
-  - 対象: `Memora/Views/**`
-- Lane B: 音声/STT
-  - 対象: `Memora/Core/Services/Audio*`, `Memora/Core/Services/STT*`, `Memora/Core/Services/TranscriptionEngine.swift`
-- Lane C: モデル/状態管理
-  - 対象: `Memora/Core/Models/**`, `Memora/Core/ViewModels/**`, `Memora/Core/Contracts/**`
-- Lane D: アプリ基盤/統合
-  - 対象: `Memora/App/**`, `project.yml`, `Memora.xcodeproj/**`, `.github/**`
-- Lane E: QA/運用
-  - 対象: テスト、ログ収集、CI、リリースノート、回帰確認
-
-### 5.2 競合回避ルール
-- 1 Issue で触るレーンは原則 1 つ。
-- 複数レーンが必要な作業は「基盤 PR → 機能 PR」の順で分割。
-- `project.pbxproj` と CI は Lane D のみが変更する。
-
-## 6. Figma + MCP + LiftKit 運用（黄金比補正）
-
-### 6.1 前提
-- Figma MCP は接続済み前提で使う。
-- Auto Layout が崩れている画面は、実装前に Figma 側で構造を補正してから着手する。
-- 補正できない場合は assumptions を明示して実装する。
-
-### 6.2 LiftKit の扱い
-- LiftKit は「設計思想の参照」として使う。
-- 現行 LiftKit は README 上で production 非推奨の注意があるため、Memora に直接依存として入れない。
-- 利用対象:
-  - スケール/余白/比率のルール
-  - Figma 上の再設計指針
-
-### 6.3 黄金比トークン（SwiftUI 側の推奨値）
-- 比率定数: `phi = 1.618`
-- Spacing scale（px）: `5, 8, 13, 21, 34, 55`
-- Corner radius（px）: `8, 13, 21`
-- Typography scale（pt）: `12, 14, 17, 21, 26, 34`
-- 行間の目安: `fontSize * 1.45 ~ 1.62`
-
-### 6.4 UI レビュー時の合格条件
-- 余白がトークンスケールに乗っている
-- 主要コンテナ比が 1:1.618 近傍（許容差 ±8%）
-- 視覚重心が崩れていない
-- iOS 可用性を満たす（最小タップ領域 44pt）
-
-## 7. 作業開始チェックリスト
-1. `git fetch origin`
-2. `git switch -c <type>/<issue-id>-<slug>`
-3. MCP 健全性確認（`doctor` 相当）
-4. 対象 Issue の受け入れ条件を貼る
-5. 実装開始
-
-## 8. 完了報告テンプレート（必須）
-- 変更概要
-- 変更ファイル一覧
-- 影響範囲
-- 実行した確認（build/test/log）
-- 未確認事項（実機確認が必要な点）
-- 次の PR でやること
-
-## 8.1 PMエージェント運用
-- Epic分解と担当割り当ては `docs/pm-agent-workflow.md` を参照する。
-- Claude Code では `/pm-breakdown` と `/pm-assign` を使ってIssue分解・再アサインを行う。
-
-## 9. 禁止事項
-- `main` への直接 push
+## 7. 禁止事項
+- `main` への直接push
 - 担当レーン外の無断変更
-- 証拠なしの「動作したはず」報告
+- 未pushの巨大checkpointコミット（1 PR = 1目的の破壊）
+- 証拠なしの完了報告
 - 仕様変更をコード先行で進めること
+- `apps/mobile-expo` での `expo prebuild --clean`（手書きiOSホストが消える）
 
-## 10. 文字起こしコア保護ルール
-- 文字起こし機能は Memora のコア機能として扱う。詳細は `docs/transcription-core-boundary.md` を参照する。
-- 事前に「文字起こし/STT を変更する」という明示依頼がない限り、次のファイルは編集しない:
-  - `Memora/Core/Services/STTService.swift`
-  - `Memora/Core/Services/STTSupportTypes.swift`
-  - `Memora/Core/Services/SpeakerDiarizationService.swift`
-  - `Memora/Core/Services/SpeakerProfileStore.swift`
-  - `Memora/Core/Services/TranscriptionEngine.swift`
-  - `Memora/Core/Networking/AIService.swift`
-  - `Memora/Core/Contracts/CoreDTOs.swift`
-- 文字起こしコアを変更する場合は必ず以下を報告する:
-  - 変更したバックエンド選択順
-  - SpeechAnalyzer / SFSpeechRecognizer / API のどこに影響するか
-  - 話者分離と保存フォーマットへの影響
-  - build/test/log の確認結果
-- Omi 参照で検討する機能は、まずドキュメントに落としてから実装に進む。特に話者埋め込み、話者登録、自分の声ラベル付けは UI 先行で入れない。
+## 8. 文字起こしコア保護ルール
+文字起こしはMemoraのコア機能。詳細は `docs/transcription-core-boundary.md`。
+明示依頼がない限り、次のファイルは編集しない:
+- `Memora/Core/Services/STTService.swift`
+- `Memora/Core/Services/STTSupportTypes.swift`
+- `Memora/Core/Services/SpeakerDiarizationService.swift`
+- `Memora/Core/Services/SpeakerProfileStore.swift`
+- `Memora/Core/Services/TranscriptionEngine.swift`
+- `Memora/Core/Networking/AIService.swift`
+- `Memora/Core/Contracts/CoreDTOs.swift`
+
+STTコアを変更する場合は必ず報告する: バックエンド選択順の変更点 / SpeechAnalyzer・SFSpeechRecognizer・APIのどこに影響するか / 話者分離と保存フォーマットへの影響 / build・test・logの確認結果。
+
+## 9. デザイントークン（黄金比）
+- 比率 `phi = 1.618` / Spacing `5, 8, 13, 21, 34, 55` / Radius `8, 13, 21` / Type `12, 14, 17, 21, 26, 34` / 行間 `×1.45〜1.62`
+- RN側の正本は `apps/mobile-expo/src/design/tokens.ts`（旧V6トークン名は廃止済み。復活させない）。
+- UIレビュー合格条件: 余白がスケールに乗る / 最小タップ領域44pt / 視覚重心が崩れない。
+
+## 10. ドキュメントの正本順序
+矛盾したら上を優先する。
+1. `docs/Memora_Product_North_Star.md` — プロダクト方針
+2. `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md` — SwiftUI側の現在地
+3. `docs/react-native-expo-migration-plan.md` — RN移行の現在地（ログは肥大化させず、判断だけ記録）
+4. 各決定記録（`react-native-swiftdata-target-sharing-decision.md`, `app-store-review-readiness.md`, `online-meeting-capture-plan.md`）
