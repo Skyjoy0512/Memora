@@ -128,6 +128,8 @@ Temporary Items
 .claude/cache/*
 .claude/worktrees/
 .claude/skills/
+.claude/settings.local.json
+apps/mobile-expo/.claude/
 
 # AI tool configs (not project source)
 .adal/

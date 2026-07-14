@@ -400,9 +400,8 @@ final class PipelineCoordinator {
         var transcriptResult: TranscriptResult?
         var lastError: Error?
 
-        // Plaid 参照データから話者数を取得（AudioFile → docs/ 自動検索の順）
-        let effectiveSpeakerCount = audioFile.referenceSpeakerCount
-            ?? Self.loadReferenceFromDocs(audioFileName: audioFile.title).flatMap { Self.extractSpeakerCount(from: $0) }
+        // 参照データは、インポート処理またはテストが AudioFile へ明示的に注入した場合のみ使用する。
+        let effectiveSpeakerCount = Self.referenceSpeakerCount(for: audioFile)
 
         let checkpointStore = TranscriptionCheckpointStore()
         let checkpointAudioFileID = audioFile.id
@@ -472,11 +471,8 @@ final class PipelineCoordinator {
         await checkpointHooks.clear()
         reindexKnowledge(for: audioFile)
 
-        // PlaudNote 参照データとの比較ログ出力
-        // 1. AudioFile に referenceTranscript が設定されていれば使用
-        // 2. 未設定なら docs/ からファイル名マッチで自動検索（DEBUG のみ）
-        let referenceText = audioFile.referenceTranscript
-            ?? Self.loadReferenceFromDocs(audioFileName: audioFile.title)
+        // 参照データとの比較ログ出力。通常録音には外部・Bundle由来の値を補完しない。
+        let referenceText = Self.referenceTranscript(for: audioFile)
         if let reference = referenceText, !reference.isEmpty {
             logDiarizationComparison(
                 reference: reference,
@@ -540,44 +536,17 @@ final class PipelineCoordinator {
         }
     }
 
-    // MARK: - Reference Data Auto-Loading
+    // MARK: - Reference Data
 
-    /// 参照テキストを検索: バンドルリソース → docs/ パス（Mac のみ）
-    private static func loadReferenceFromDocs(audioFileName: String) -> String? {
-        // 1. アプリバンドルから "reference-transcript" リソースを検索
-        if let url = Bundle.main.url(forResource: "reference-transcript", withExtension: "txt") {
-            if let content = try? String(contentsOf: url, encoding: .utf8) {
-                print("[Pipeline] 参照データ検出: Bundle resource")
-                return content
-            }
-        }
+    /// 参照データはインポート処理またはテストが AudioFile に明示的に設定したものだけを返す。
+    /// Bundle、リポジトリ上の資料、開発者マシンのパスは探索しない。
+    static func referenceTranscript(for audioFile: AudioFile) -> String? {
+        audioFile.referenceTranscript
+    }
 
-        #if DEBUG
-        // 2. Mac の docs/ パス（シミュレータ or Mac アプリ向け）
-        let docsPath = "/Users/hashimotokenichi/Desktop/Memora/docs/reference-diarization/plaud"
-        let fm = FileManager.default
-
-        guard let files = try? fm.contentsOfDirectory(atPath: docsPath) else {
-            return nil
-        }
-
-        let normalizedAudio = audioFileName.lowercased()
-        for file in files {
-            guard file.hasSuffix("-transcript.txt") || file.hasSuffix(".txt") else { continue }
-            let normalizedFile = file.lowercased()
-            if normalizedAudio.count >= 5 {
-                let prefix = String(normalizedAudio.prefix(5))
-                if normalizedFile.contains(prefix) {
-                    let fullPath = docsPath + "/" + file
-                    if let content = try? String(contentsOfFile: fullPath, encoding: .utf8) {
-                        print("[Pipeline] 参照データ検出: \(file)")
-                        return content
-                    }
-                }
-            }
-        }
-        #endif
-        return nil
+    /// 話者数ヒントも明示的に注入された値だけを使用する。
+    static func referenceSpeakerCount(for audioFile: AudioFile) -> Int? {
+        audioFile.referenceSpeakerCount
     }
 
     /// テキストから話者数を抽出（"Speaker N" パターン）

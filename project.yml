@@ -24,8 +24,6 @@ targets:
     sources:
       - path: Memora
         includes: ["**/*.swift"]
-      - path: Memora/Resources/reference-transcript.txt
-        buildPhase: resources
       - path: Memora/Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
@@ -76,6 +74,8 @@ targets:
     sources:
       - path: MemoraTests
         includes: ["**/*.swift"]
+      - path: MemoraTests/Fixtures/reference-transcript-fixture.txt
+        buildPhase: resources
     dependencies:
       - target: Memora
     settings:

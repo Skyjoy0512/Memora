@@ -4,165 +4,41 @@
 ![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
 ![SwiftUI](https://img.shields.io/badge/SwiftUI-red.svg)
 
-## 概要
+## 現在の実装
 
-Memora は iPhone で議事録、文字起こし、要約を簡単に行えるアプリです。会議、講義、インタビューなど、様々な場面での記録作業を効率化します。
+- iOS 17 以上向けの SwiftUI アプリです。SwiftData、録音・音声インポート、文字起こし、要約、話者分離、検索・エクスポートの実装を含みます。
+- `apps/mobile-expo` に React Native / Expo の段階移行用アプリがあります。ネイティブブリッジは、アプリ sandbox の音声・JSONメタデータと非機密の UserDefaults 設定を扱います。既存 SwiftData、STT、Keychain、AI プロバイダーは未接続です。
+- Xcode プロジェクトの正本は `project.yml` です。構成を変更したら `xcodegen generate` を実行してください。
 
-## 特徴
-
-- **シンプルで洗練された UI**: ミニマルで使いやすいデザイン
-- **iOS ネイティブの操作感**: 自然なスワイプ、タップ操作
-- **モノトーン基調**: 目に優しく、プロフェッショナルな見た目
-- **段階的な実装**: まずは基本的な機能から、徐々に拡張機能へ
-
-## 想定される機能
-
-### 基本機能
-- 📝 **議事録作成**: 会議の記録を簡単に管理
-- 🎤 **録音機能**: 音声をクリアに録音
-- 📄 **文字起こし**: 音声をテキストに変換
-- 📊 **要約**: 長い会議の内容を要約
-- 🎙️ **話者分離**: Speaker 1 / Speaker 2 などのラベル付け
-
-### 拡張機能（将来的）
-- 🤖 **Ask AI**: 文字起こし内容に AI で質問
-- 📎 **添付資料**: 資料を録音と紐付け
-- 📤 **エクスポート**: テキスト、PDF 形式で出力
-- ☁️ **iCloud 同期**: デバイス間で同期
-
-## 開発状況
-
-**現在のフェーズ**: 初期設計・準備完了
-
-### 完了済み
-- ✅ プロジェクト構成の設計
-- ✅ アーキテクチャ設計
-- ✅ ドキュメント整備
-- ✅ GitHub リポジトリ連携
-- ⏳ Xcode プロジェクト作成（次に実装予定）
-
-### 進行中
-- ⏳ 基本的な UI 実装
-- ⏳ データモデル実装
-
-## 開発方針
-
-### iOS First
-- プラットフォームは iOS を第一優先
-- iOS ネイティブの機能を最大限活用
-
-### SwiftUI Center
-- UI フレームワークは SwiftUI を中心に
-- iOS 17+ をターゲットに最新機能を活用
-
-### シンプルで保守しやすい構成
-- 過度な抽象化を避ける
-- まずは動くものを作る
-- 将来の拡張性より現在のわかりやすさを優先
-
-## プロジェクト構成
+## リポジトリ構成
 
 ```
-Memora/
-├── Memora/                    # メインアプリソース
-│   ├── Views/                 # SwiftUI ビュー
-│   ├── Models/                # データモデル
-│   ├── ViewModels/            # MVVM ビューモデル
-│   ├── Services/              # 各種サービス
-│   └── Utilities/             # ユーティリティ
-├── docs/                      # ドキュメント
-│   ├── architecture.md        # アーキテクチャ設計
-│   ├── todo.md               # タスク管理
-│   └── handoff.md            # 引き継ぎ情報
-└── CLAUDE.md                  # Claude Code 協働ルール
+Memora/                 # iOS アプリ
+MemoraTests/            # iOS テスト
+apps/mobile-expo/       # React Native / Expo アプリ
+Packages/MemoraSharedData/
+docs/                   # 設計・移行資料
+project.yml             # XcodeGen の正本
 ```
 
-## Claude Code での開発
+## セットアップ
 
-このプロジェクトは Claude Code を使用して開発されています。基本的な使い方：
+前提条件: macOS、Xcode（iOS 17 以上の Simulator runtime を含む）、XcodeGen。
 
-### 設計・計画
+```bash
+git clone https://github.com/Skyjoy0512/Memora.git
+cd Memora
+xcodegen generate
+open Memora.xcodeproj
 ```
-"Home 画面の UI を設計して"
-```
-
-### 実装
-```
-"RecordingViewModel を実装して"
-```
-
-### レビュー
-```
-"RecordingViewModel のコードをレビューして"
-```
-
-### タスク管理
-```
-"現在のタスク状況を教えて"
-```
-
-## 技術スタック
-
-- **言語**: Swift 5.9+
-- **UI フレームワーク**: SwiftUI
-- **プラットフォーム**: iOS (iOS 17+)
-- **開発環境**: Xcode 15+ / VS Code
-- **アシスタント**: Claude Code
-- **データ永続化**: SwiftData（計画中）
-
-## 開始方法
-
-### 前提条件
-- macOS
-- Xcode 15 以上
-- iOS 17 シミュレータ
-
-### セットアップ手順
-
-1. **リポジトリのクローン**
-   ```bash
-   git clone https://github.com/Skyjoy0512/Memora.git
-   cd Memora
-   ```
-
-2. **Xcode でプロジェクトを開く**
-   ```bash
-   open Memora.xcodeproj
-   ```
-
-3. **シミュレータで実行**
-   - Xcode で Run ボタン（▶️）をクリック
-
-## 並行開発（Mac / Windows）
-
-このプロジェクトは Windows と macOS の両方で並行して開発できます：
-
-- **Windows 側**: 設計・計画・ドキュメント管理
-- **macOS 側**: Xcode での実装・テスト
-- **GitHub**: マスターとしてコードを共有
 
 ## ドキュメント
 
-- [アーキテクチャ設計](docs/architecture.md) - プロジェクトの技術的な設計
 - [文字起こしコア境界](docs/transcription-core-boundary.md) - STT コアの保護ルールと拡張方針
-- [React Native / Expo 移行計画](docs/react-native-expo-migration-plan.md) - SwiftUI から RN/Expo へ段階移行するための計画・進捗・LLM 引き継ぎ
-- [React Native SwiftData 共有方針](docs/react-native-swiftdata-target-sharing-decision.md) - RN target から既存 SwiftData を安全に参照するための判断記録
-- [共有 Swift Package skeleton](Packages/MemoraSharedData/Package.swift) - SwiftData 本体を移動する前の共有 DTO/store 契約
-- [タスク管理](docs/todo.md) - 開発タスクの進捗管理
-- [引き継ぎ情報](docs/handoff.md) - プロジェクトの引き継ぎ用情報
+- [React Native / Expo 移行計画](docs/react-native-expo-migration-plan.md) - RN/Expo の移行範囲・現在地・引き継ぎ
+- [React Native SwiftData 共有方針](docs/react-native-swiftdata-target-sharing-decision.md) - SwiftData を安全に参照するための判断記録
+- [共有 Swift Package skeleton](Packages/MemoraSharedData/Package.swift) - 共有 DTO/store 契約
 
 ## ライセンス
 
-このプロジェクトは現在開発初期段階です。ライセンスはリリース時に決定予定です。
-
-## 貢献
-
-現在、開発初期段階のため貢献の受け入れは準備中です。開発が進んだら Issue や Pull Request を受け付ける予定です。
-
-## 連絡先
-
-質問・フィードバックは Issue でお待ちしています。
-
----
-
-**Memora** - 議事録作成をもっと簡単に、もっと自然に。
+ライセンスはリリース時に決定予定です。

@@ -12,7 +12,6 @@
 		064758E3B9EAA481C111A22B /* PlaudExportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2C3CAC104F0C3298858354 /* PlaudExportModels.swift */; };
 		075C54796A265C1F2B04F49F /* CoreDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E9796D5726B2525EE2F548 /* CoreDTOs.swift */; };
 		08B4E4CDA11F065608FC8F58 /* GenerationModeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3429AC84877E980089BED48F /* GenerationModeSheet.swift */; };
-		0A09A745F3B9829B0726D48E /* reference-transcript.txt in Resources */ = {isa = PBXBuildFile; fileRef = DEB691198E4D17B2BBF998A5 /* reference-transcript.txt */; };
 		0BC193ECC1BD670242A3A175 /* AskAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 838240CE110D3C7FE538A7AF /* AskAIView.swift */; };
 		0E33024B7FF19AD20468B113 /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D0EAD651844A6FFE02F2C5 /* DebugLogger.swift */; };
 		0E7E8C0DD478CC4EBBF96236 /* BotMeetingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A18C315944E21216824C4B8B /* BotMeetingService.swift */; };
@@ -56,6 +55,7 @@
 		3F9A8CAB57D40F024F9AD44D /* AskAIMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC77E5857DB3C055D86CB10E /* AskAIMessage.swift */; };
 		401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07E5C5F5EFD8C4ED016ECBE /* AIService.swift */; };
 		40EE0B1CA88F93E004F40EAB /* BotMeetingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C36CC980D1CFD0B71B54B /* BotMeetingSection.swift */; };
+		4246F60D9BB10F619856F8CB /* reference-transcript-fixture.txt in Resources */ = {isa = PBXBuildFile; fileRef = 0689974434B0E0D7FC72B5F6 /* reference-transcript-fixture.txt */; };
 		4376A83B27208632BEF8E2A4 /* ModelStoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF5A5E79DBE3EA817D3853EA /* ModelStoreService.swift */; };
 		460F2DA802173031D3719347 /* GoogleMeetImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593575E8712968D35F6E0646 /* GoogleMeetImportView.swift */; };
 		461BEA23B7F7092161DBE9FE /* BotMeetingStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 329415FCEFDE50168067F05B /* BotMeetingStatusView.swift */; };
@@ -64,6 +64,7 @@
 		4810FEE82F8B80B2A4147460 /* GlassSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC644CDA461B640802896FA /* GlassSectionHeader.swift */; };
 		48EA3BFDB0B4B64161F3D163 /* NothingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F2F17C0A7DBC410BF42854 /* NothingTheme.swift */; };
 		497D3594A8F025A99C6C1E20 /* MeetingCaptureSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F592E227266496B12D42DF9 /* MeetingCaptureSection.swift */; };
+		4A1FE07070E44EFDDAD80190 /* PipelineReferenceDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22A7FA247F81475BB0ED07E /* PipelineReferenceDataTests.swift */; };
 		4B2FB3B3F180F86650116B15 /* LocalDataDeletionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619DB118A6C306D3EF2CD58E /* LocalDataDeletionService.swift */; };
 		4E6D4F58ACEEDCBEBD180442 /* PlaudMCPTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDCF0FB4AF99D4EA87A476EF /* PlaudMCPTypesTests.swift */; };
 		4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */; };
@@ -264,6 +265,7 @@
 		058B06299797571747E4B64C /* SpeakerDiarizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerDiarizationService.swift; sourceTree = "<group>"; };
 		05F244D1A1FA7CEC0E301089 /* PlaudRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudRecording.swift; sourceTree = "<group>"; };
 		0670AAEC136AC56AB7E46D3F /* LiquidGlassModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassModifier.swift; sourceTree = "<group>"; };
+		0689974434B0E0D7FC72B5F6 /* reference-transcript-fixture.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "reference-transcript-fixture.txt"; sourceTree = "<group>"; };
 		0763E82A297466BE405D31EA /* V6DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V6DesignTokens.swift; sourceTree = "<group>"; };
 		07A0D42867DF06711C803A32 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
 		0847C3DDA2C5BE49253D10FF /* TaskPlannerServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskPlannerServiceTests.swift; sourceTree = "<group>"; };
@@ -406,6 +408,7 @@
 		A0D2DD160DF4AF641FD9CD52 /* FloatingGlassTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingGlassTabBar.swift; sourceTree = "<group>"; };
 		A18C315944E21216824C4B8B /* BotMeetingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BotMeetingService.swift; sourceTree = "<group>"; };
 		A21AB562D6232BB8A00C6224 /* SummarizationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngineTests.swift; sourceTree = "<group>"; };
+		A22A7FA247F81475BB0ED07E /* PipelineReferenceDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineReferenceDataTests.swift; sourceTree = "<group>"; };
 		A2466748385FEC20514F77FE /* GlassPillButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassPillButton.swift; sourceTree = "<group>"; };
 		A2F2F17C0A7DBC410BF42854 /* NothingTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NothingTheme.swift; sourceTree = "<group>"; };
 		A2F47E203AD2644B6EB1CADD /* MeetingNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNote.swift; sourceTree = "<group>"; };
@@ -466,7 +469,6 @@
 		DA571A46847D132339E20442 /* ProjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDetailView.swift; sourceTree = "<group>"; };
 		DB40DDE449A3128087A977E0 /* CoreErrors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreErrors.swift; sourceTree = "<group>"; };
 		DC6F625D29885A3C2B9D7361 /* ProjectPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPickerSheet.swift; sourceTree = "<group>"; };
-		DEB691198E4D17B2BBF998A5 /* reference-transcript.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "reference-transcript.txt"; sourceTree = "<group>"; };
 		E0ED0108BC9A5810D057A9E8 /* STTPreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTPreflightTests.swift; sourceTree = "<group>"; };
 		E1C413D352E596E90736EC8B /* GoogleMeetService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMeetService.swift; sourceTree = "<group>"; };
 		E1CC0D8E52BCD6A484080FC4 /* MemorySettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsSection.swift; sourceTree = "<group>"; };
@@ -817,6 +819,7 @@
 				A7C606CEF85C1406BC777BC4 /* ProjectsViewModelTests.swift */,
 				9A456B5536BB720E54CD2148 /* TestHelpers.swift */,
 				88EE035C7A97E17886D2F2E3 /* Adapters */,
+				9E48985F262F89DD7C88FC29 /* Fixtures */,
 				3198A76799E51BC9678E0DEE /* Models */,
 				8C961D33C3564C2473C2DA5E /* Repositories */,
 				8C3A1CF1D3922E2D7D111184 /* Services */,
@@ -869,7 +872,6 @@
 			isa = PBXGroup;
 			children = (
 				92B449C470AECA84F4204374 /* PrivacyInfo.xcprivacy */,
-				DEB691198E4D17B2BBF998A5 /* reference-transcript.txt */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -885,6 +887,7 @@
 				B5166D43C1DBD7461F99AE4C /* NetworkClientTests.swift */,
 				855C85865B09046C10B73313 /* OpenAIExportServiceTests.swift */,
 				AF106F713A7D8A1486AD89C3 /* PersistentStoreSafetyServiceTests.swift */,
+				A22A7FA247F81475BB0ED07E /* PipelineReferenceDataTests.swift */,
 				E0ED0108BC9A5810D057A9E8 /* STTPreflightTests.swift */,
 				EFB351463211868036AE25D4 /* STTServiceRecoveryTests.swift */,
 				32E4C9D26709B3B1E7C7E8E2 /* STTStreamingTests.swift */,
@@ -903,6 +906,14 @@
 				DA39BD91FCB01D63A19ECAEA /* TodoItemRepositoryTests.swift */,
 			);
 			path = Repositories;
+			sourceTree = "<group>";
+		};
+		9E48985F262F89DD7C88FC29 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				0689974434B0E0D7FC72B5F6 /* reference-transcript-fixture.txt */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		AAA29B6187B411700E874C1A /* Models */ = {
@@ -1088,6 +1099,7 @@
 			buildConfigurationList = 6ED078B8459B6A40B768A461 /* Build configuration list for PBXNativeTarget "MemoraTests" */;
 			buildPhases = (
 				74388CD0145315306034EF43 /* Sources */,
+				082748AEDC352869CEC01F79 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1151,12 +1163,19 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		082748AEDC352869CEC01F79 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4246F60D9BB10F619856F8CB /* reference-transcript-fixture.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		694A62020A75542297EC37FD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				6D8105B94C57377B4543725F /* PrivacyInfo.xcprivacy in Resources */,
-				0A09A745F3B9829B0726D48E /* reference-transcript.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1185,6 +1204,7 @@
 				28293DF8E1B518096DF90853 /* NetworkClientTests.swift in Sources */,
 				D883A6572307EB3C8854848C /* OpenAIExportServiceTests.swift in Sources */,
 				D75364698877F2A708F0AE91 /* PersistentStoreSafetyServiceTests.swift in Sources */,
+				4A1FE07070E44EFDDAD80190 /* PipelineReferenceDataTests.swift in Sources */,
 				EC8EB5AC0D4F467DC0F59E63 /* PlaudCloudSyncLedgerTests.swift in Sources */,
 				4E6D4F58ACEEDCBEBD180442 /* PlaudMCPTypesTests.swift in Sources */,
 				C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */,
