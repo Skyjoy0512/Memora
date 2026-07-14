@@ -61,6 +61,7 @@ export const colors = {
 
   overlay:        'rgba(0,0,0,0.40)',
   overlayLight:   'rgba(0,0,0,0.20)',
+
 } as const;
 
 // ── Colors (Dark) ──────────────────────────────────────────
