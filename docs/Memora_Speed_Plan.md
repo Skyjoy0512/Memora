@@ -112,18 +112,27 @@
 **目的:** オフライン会議以外もカバー範囲を広げる。
 
 ### この Epic でやること
-- online meeting coverage の方針整理
+- online meeting capture contract の hardening
+- Chrome 拡張での tab audio capture / chunk upload / recovery
+- cloud transcription / summary worker
+- Google Meet / Zoom / Teams の post-meeting artifact import
+- visible participant Bot の platform adapter
 - calendar awareness
-- post-meeting artifact import
-- Apple Watch remote record
-- desktop / web helper の方針
+- Apple Watch remote / standalone record
+- desktop helper
 
 ### Done 条件
-- 「将来どう広げるか」が設計として固まる
-- ただし本格実装は P0/P1 の後
+- Chromeで60分会議を録音し、transcript / summary / todo が生成される
+- 同じ会議が Memora の1つの File Detail に入る
+- post-meeting artifact import が最低1プラットフォームで動く
+- visible participant Bot が最低1経路で end-to-end 動く
+- consent / retention / delete がユーザーから確認できる
 
 ### Status
-- IN_PROGRESS（Google Meet インポート UI 完了）
+- IN_PROGRESS（Google Meet インポート UI、Bot server / iOS scheduling skeleton あり。実参加 adapter と Chrome 拡張は未着手）
+
+### Source of truth
+- `docs/online-meeting-capture-plan.md`
 
 ---
 
@@ -144,11 +153,13 @@
 
 ## 3. Claude が今すぐやる順番
 
-1. **Epic A を終わらせる**
-2. Epic B を始める
-3. Epic C を始める
-4. Epic D に進む
-5. Epic E/F は設計メモまでで止める
+1. 完了済み Epic A〜D の回帰を守る
+2. Epic E の capture contract hardening
+3. Chrome capture PoC
+4. chunk upload + transcription / summary worker
+5. Google Meet productization / artifact import
+6. participant Bot MVP
+7. Epic F は Capture Expansion の product path が成立するまで後ろに置く
 
 ## 4. 1セッションのルール
 
@@ -178,4 +189,6 @@
 - AskAI の質が低いなら **Epic B に戻る**
 - タスク分解と memory は **Epic B の後**
 - Notion / ChatGPT 連携は **Epic C の後**
-- online meeting / watch / sign in / paywall は **後ろ**
+- online meeting は `online-meeting-capture-plan.md` の OM-0 → OM-8 順
+- watch は Chrome / Bot と独立した target として進め、STT コアへ直接入れない
+- sign in / paywall は Capture Expansion の product path が成立するまで後ろ

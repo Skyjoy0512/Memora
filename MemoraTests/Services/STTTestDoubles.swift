@@ -14,7 +14,17 @@ final class FakeReadiness: STTReadinessProtocol, @unchecked Sendable {
 /// 固定チャンク構成を返すフェイク。実音声ファイル不要。
 final class FakeChunker: AudioChunkerProtocol, @unchecked Sendable {
     let chunks: [AudioChunk]
-    private(set) var cleanupCalled = false
+    private let lock = NSLock()
+    private var cleanupCalledStorage = false
+    private var cleanedChunkIndicesStorage: [Int] = []
+
+    var cleanupCalled: Bool {
+        lock.withLock { cleanupCalledStorage }
+    }
+
+    var cleanedChunkIndices: [Int] {
+        lock.withLock { cleanedChunkIndicesStorage }
+    }
 
     init(chunks: [AudioChunk]) { self.chunks = chunks }
 
@@ -38,6 +48,17 @@ final class FakeChunker: AudioChunkerProtocol, @unchecked Sendable {
         return chunk
     }
 
-    func cleanup(chunks: [AudioChunk]) async { cleanupCalled = true }
-    func cleanupChunk(_ chunk: AudioChunk) async {}
+    func cleanup(chunks: [AudioChunk]) async {
+        lock.withLock {
+            cleanupCalledStorage = true
+            cleanedChunkIndicesStorage.append(contentsOf: chunks.map(\.index))
+        }
+    }
+
+    func cleanupChunk(_ chunk: AudioChunk) async {
+        lock.withLock {
+            cleanupCalledStorage = true
+            cleanedChunkIndicesStorage.append(chunk.index)
+        }
+    }
 }

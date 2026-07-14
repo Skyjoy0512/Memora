@@ -145,8 +145,21 @@ enum CaptureFileEvent {
 
 // MARK: - Capture Error
 
-enum CaptureError: Error {
+enum CaptureError: Error, LocalizedError, Equatable {
     case modelContextNotConfigured
+    case unsupportedFormat(String)
+    case importSinkNotConfigured
+
+    var errorDescription: String? {
+        switch self {
+        case .modelContextNotConfigured:
+            return "ModelContext が設定されていません"
+        case .unsupportedFormat(let fileExtension):
+            return "対応していない音声形式です: \(fileExtension)"
+        case .importSinkNotConfigured:
+            return "音声ファイルの取込先が設定されていません"
+        }
+    }
 }
 
 // MARK: - RPSystemBroadcastPickerView Wrapper

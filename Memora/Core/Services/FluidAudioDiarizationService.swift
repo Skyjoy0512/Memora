@@ -190,7 +190,8 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
                 speakerLabel: speakerId,
                 startSec: segment.startSec,
                 endSec: segment.endSec,
-                text: segment.text
+                text: segment.text,
+                isEstimatedTiming: segment.isEstimatedTiming
             )
         }
 
@@ -253,7 +254,8 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
                     endSec: max(current.endSec, segment.endSec),
                     text: [current.text, segment.text]
                         .filter { !$0.isEmpty }
-                        .joined(separator: "\n")
+                        .joined(separator: "\n"),
+                    isEstimatedTiming: current.isEstimatedTiming || segment.isEstimatedTiming
                 )
             } else {
                 result.append(current)
@@ -347,7 +349,8 @@ final class FluidAudioDiarizationService: SpeakerDiarizationProtocol {
                 speakerLabel: "Speaker 1",
                 startSec: segment.startSec,
                 endSec: segment.endSec,
-                text: segment.text
+                text: segment.text,
+                isEstimatedTiming: segment.isEstimatedTiming
             )
         }
     }

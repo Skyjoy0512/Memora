@@ -14,15 +14,15 @@ struct DeveloperFeaturesSection: View {
 
     var body: some View {
         Section {
-            // Plaud エクスポートインポート説明
+            // PLAUD cloud import
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "doc.badge.plus")
+                    Image(systemName: "icloud.and.arrow.down")
                         .foregroundStyle(MemoraColor.accentBlue)
-                    Text("Plaud エクスポートインポート")
+                    Text("PLAUDクラウド同期")
                         .font(MemoraTypography.subheadline)
                 }
-                Text("FAB の「Plaud」ボタンから Plaud アプリのエクスポートファイル（JSON/TXT）をインポートできます。")
+                Text("PLAUDアカウントを認可すると、新しい録音・文字起こし・要約をMemoraへ取り込めます。")
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             }
@@ -107,9 +107,6 @@ struct DeveloperFeaturesSection: View {
                     } else if newValue {
                         let newSettings = PlaudSettings()
                         newSettings.isEnabled = true
-                        newSettings.apiServer = state.plaudApiServer
-                        newSettings.email = state.plaudEmail
-                        KeychainService.save(key: .plaudPassword, value: state.plaudPassword)
                         newSettings.autoSyncEnabled = state.plaudAutoSyncEnabled
                         modelContext.insert(newSettings)
                     } else {
@@ -124,6 +121,9 @@ struct DeveloperFeaturesSection: View {
                 plaudSettingsContent
             }
         }
+        .task {
+            state.isLoggedIn = PlaudMCPOAuthService().account().isConnected
+        }
     }
 
     @ViewBuilder
@@ -133,7 +133,7 @@ struct DeveloperFeaturesSection: View {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(MemoraColor.accentGreen)
-                    Text("ログイン中: \(plaudSettings?.email ?? "")")
+                    Text("PLAUDに接続済み")
                         .font(MemoraTypography.subheadline)
                 }
 
@@ -150,7 +150,7 @@ struct DeveloperFeaturesSection: View {
 
                 Button(action: {
                     Task {
-                        await syncPlaudRecordings()
+                        await syncPlaudCloudRecordings()
                     }
                 }) {
                     HStack {
@@ -178,35 +178,13 @@ struct DeveloperFeaturesSection: View {
                 }
             }
         } else {
-            Picker("API サーバー", selection: $state.plaudApiServer) {
-                Text("api.plaud.ai").tag("api.plaud.ai")
-                Text("api-euc1.plaud.ai").tag("api-euc1.plaud.ai")
-                Text("カスタム").tag("custom")
-            }
-            .pickerStyle(.menu)
-
-            if state.plaudApiServer == "custom" {
-                TextField("カスタム API サーバー", text: $state.plaudServerURL)
-                    .textFieldStyle(.plain)
-                    .autocapitalization(.none)
-                    .keyboardType(.URL)
-            }
-
-            TextField("メールアドレス", text: $state.plaudEmail)
-                .textFieldStyle(.plain)
-                .autocapitalization(.none)
-                .keyboardType(.emailAddress)
-
-            SecureField("パスワード", text: $state.plaudPassword)
-                .textFieldStyle(.plain)
-
             Button(action: {
                 Task {
-                    await loginPlaud()
+                    await connectPlaudCloud()
                 }
             }) {
                 HStack {
-                    Text("ログイン")
+                    Text("PLAUDに接続")
                     if state.isPlaudSyncing {
                         Spacer()
                         ProgressView()
@@ -214,68 +192,56 @@ struct DeveloperFeaturesSection: View {
                     }
                 }
             }
-            .disabled(state.isPlaudSyncing || state.plaudEmail.isEmpty || state.plaudPassword.isEmpty)
+            .disabled(state.isPlaudSyncing)
         }
     }
 
     // MARK: - Plaud Actions
 
-    private func loginPlaud() async {
+    private func connectPlaudCloud() async {
         state.isPlaudSyncing = true
-
-        do {
-            let service = PlaudService()
-
-            // API サーバーを決定
-            let server = state.plaudApiServer == "custom" ? state.plaudServerURL : state.plaudApiServer
-
-            // ログイン
-            let authResponse = try await service.login(
-                apiServer: server,
-                email: state.plaudEmail,
-                password: state.plaudPassword
-            )
-
-            // ユーザー情報を取得
-            let userInfo = try await service.getUserInfo(
-                apiServer: server,
-                token: authResponse.accessToken
-            )
-
-            // 設定を保存
-            var settings: PlaudSettings
-
-            if let existing = plaudSettings {
-                settings = existing
-            } else {
-                settings = PlaudSettings()
-                settings.isEnabled = true
-                modelContext.insert(settings)
-            }
-
-            settings.apiServer = server
-            settings.email = state.plaudEmail
-            KeychainService.save(key: .plaudPassword, value: state.plaudPassword)
-            KeychainService.save(key: .plaudAccessToken, value: authResponse.accessToken)
-            KeychainService.save(key: .plaudRefreshToken, value: authResponse.refreshToken)
-            KeychainService.saveDate(key: .plaudTokenExpiresAt, value: authResponse.calculatedExpiresAt)
-            settings.userId = userInfo.id
-            settings.updatedAt = Date()
-
-            try? modelContext.save()
-
-            state.isLoggedIn = true
-            state.plaudSyncStatus = "ログインに成功しました"
-        } catch {
-            state.plaudSyncStatus = "ログインに失敗しました。メールアドレスとパスワードを確認してください。"
-            print("Plaudログインエラー: \(error.localizedDescription)")
+        defer {
+            state.isPlaudSyncing = false
+            state.showPlaudStatusAlert = true
         }
+        do {
+            try await PlaudMCPOAuthService().connect()
+            if let settings = plaudSettings {
+                settings.isEnabled = true
+                settings.updatedAt = Date()
+                try modelContext.save()
+            }
+            state.isLoggedIn = true
+            state.plaudSyncStatus = "PLAUDに接続しました"
+        } catch {
+            state.plaudSyncStatus = error.localizedDescription
+        }
+    }
 
-        state.isPlaudSyncing = false
-        state.showPlaudStatusAlert = true
+    private func syncPlaudCloudRecordings() async {
+        state.isPlaudSyncing = true
+        defer {
+            state.isPlaudSyncing = false
+            state.showPlaudStatusAlert = true
+        }
+        do {
+            let result = try await PlaudCloudSyncService(modelContext: modelContext).sync()
+            if let settings = plaudSettings {
+                settings.lastSyncAt = Date()
+                settings.updatedAt = Date()
+                try modelContext.save()
+            }
+            var message = "\(result.importedCount)件の録音を取り込みました"
+            if result.skippedCount > 0 { message += "（\(result.skippedCount)件は同期済み）" }
+            if result.failedCount > 0 { message += "（\(result.failedCount)件は失敗）" }
+            state.plaudSyncStatus = message
+        } catch {
+            state.plaudSyncStatus = error.localizedDescription
+        }
     }
 
     private func logoutPlaud() {
+        PlaudMCPOAuthService().disconnect()
         if let settings = plaudSettings {
             KeychainService.delete(key: .plaudAccessToken)
             KeychainService.delete(key: .plaudRefreshToken)
@@ -286,128 +252,6 @@ struct DeveloperFeaturesSection: View {
 
         state.isLoggedIn = false
         state.plaudPassword = ""
-    }
-
-    private func syncPlaudRecordings() async {
-        state.isPlaudSyncing = true
-
-        guard let settings = plaudSettings else {
-            state.plaudSyncStatus = "設定が見つかりません"
-            state.isPlaudSyncing = false
-            state.showPlaudStatusAlert = true
-            return
-        }
-
-        // トークンが期限切れならリフレッシュ
-        if settings.shouldRefreshToken {
-            do {
-                let service = PlaudService()
-                let refreshToken = KeychainService.load(key: .plaudRefreshToken)
-                let authResponse = try await service.refreshToken(
-                    apiServer: settings.apiServer,
-                    refreshToken: refreshToken
-                )
-
-                KeychainService.save(key: .plaudAccessToken, value: authResponse.accessToken)
-                KeychainService.save(key: .plaudRefreshToken, value: authResponse.refreshToken)
-                KeychainService.saveDate(key: .plaudTokenExpiresAt, value: authResponse.calculatedExpiresAt)
-                settings.updatedAt = Date()
-                try? modelContext.save()
-            } catch {
-                // リフレッシュ失敗
-                state.plaudSyncStatus = "セッションの更新に失敗しました。再度ログインしてください。"
-                print("Plaudトークンリフレッシュエラー: \(error.localizedDescription)")
-                state.isPlaudSyncing = false
-                state.showPlaudStatusAlert = true
-                return
-            }
-        }
-
-        do {
-            let service = PlaudService()
-            let recordings = try await service.syncRecordings(
-                apiServer: settings.apiServer,
-                token: KeychainService.load(key: .plaudAccessToken)
-            )
-
-            var importedCount = 0
-            var skippedCount = 0
-
-            for recording in recordings {
-                // 既にインポート済みか確認（タイトルと作成日時で判定）
-                let alreadyExists: Bool
-                do {
-                    let existing = try modelContext.fetch(
-                        FetchDescriptor<AudioFile>(
-                            predicate: #Predicate { audioFile in
-                                audioFile.title == recording.title &&
-                                audioFile.createdAt == recording.createdAt
-                            }
-                        )
-                    ).first
-                    alreadyExists = existing != nil
-                } catch {
-                    alreadyExists = false
-                }
-
-                if alreadyExists {
-                    skippedCount += 1
-                    continue
-                }
-
-                // 音声ファイルをダウンロードして Memora に保存
-                let audioUrl = try await service.importRecordingToMemora(
-                    recording: recording,
-                    apiServer: settings.apiServer,
-                    token: KeychainService.load(key: .plaudAccessToken)
-                )
-
-                // AudioFile を作成
-                let audioFile = AudioFile(
-                    title: recording.title,
-                    audioURL: audioUrl.path
-                )
-                audioFile.createdAt = recording.createdAt
-                audioFile.duration = recording.duration
-
-                // Plaud から要約があれば設定
-                if let summary = recording.summary {
-                    audioFile.summary = summary
-                    audioFile.isSummarized = true
-                }
-
-                modelContext.insert(audioFile)
-
-                // 文字起こしがあれば参照文字起こしとして保存
-                if let transcriptText = recording.transcript, !transcriptText.isEmpty {
-                    audioFile.referenceTranscript = transcriptText
-                    // isTranscribed = true にはしない（Memora 側文字起こしではない）
-                }
-
-                importedCount += 1
-            }
-
-            try modelContext.save()
-
-            // 最終同期日時を更新
-            if let settings = plaudSettings {
-                settings.lastSyncAt = Date()
-                settings.updatedAt = Date()
-                try? modelContext.save()
-            }
-
-            var statusMessage = "\(importedCount) 件の録音をインポートしました"
-            if skippedCount > 0 {
-                statusMessage += "（\(skippedCount) 件は既存のためスキップ）"
-            }
-            state.plaudSyncStatus = statusMessage
-        } catch {
-            state.plaudSyncStatus = "同期に失敗しました。しばらくしてから再度お試しください。"
-            print("Plaud同期エラー: \(error.localizedDescription)")
-        }
-
-        state.isPlaudSyncing = false
-        state.showPlaudStatusAlert = true
     }
 
     private func formatDate(_ date: Date) -> String {

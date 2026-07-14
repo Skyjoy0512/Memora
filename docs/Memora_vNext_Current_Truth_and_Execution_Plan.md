@@ -24,14 +24,15 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 - **P1: iOS 26 / HIG 準拠の UI 再設計**
 - **P2: Ask AI を “使える” 状態にする**
 - **P3: ローカル LLM 実行基盤（Gemma 系）**
+- **P4: Capture Expansion（Chrome / Bot / Watch / desktop）**
 
 ### いまはやらない / 後回し
 - サインイン
 - ペイウォール
 - 本格クラウド同期
-- オンライン会議 bot
-- Apple Watch 単体録音
-- Web / macOS 専用最適化
+- 全プラットフォームの同時実装
+- browser automation だけに依存する production Bot
+- Chrome / Bot 専用の別 STT コア
 
 ---
 
@@ -45,6 +46,14 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 - `KnowledgeChunk` と `KnowledgeIndexingService` があり、summary / memo / todo / photo OCR / reference transcript を検索文脈化できる土台がある。
 - Ask AI は file / project / global の 3 scope UI と、`KnowledgeQueryService` ベースの context assembly をすでに持つ。
 - Notion export と OpenAI Files upload は File Detail の export 導線から到達できる。
+- `bot-server` には会議予約、scheduler、録音、S3 upload、webhook の骨格がある。
+- iOS 側には Bot 設定、予約、状態確認、完了音声 import の UI / service / model がある。
+
+### Capture Expansion の未完了部分
+- Chrome 拡張は未着手。
+- Google Meet / Zoom / Teams の server adapter は stub で、実参加や artifact 取得は未実装。
+- Bot job はメモリ保存、固定 duration、join failure 継続など production 前に直すべき箇所がある。
+- Apple Watch は remote record / 単体録音の詳細設計と target が未着手。
 
 ### まだ危ないところ
 - `SpeechAnalyzerFeatureFlag` は「実機での EXC_BREAKPOINT クラッシュ回避のためデフォルト OFF」になっている。
@@ -158,9 +167,16 @@ Memora は **PLAUD NOTE ライクな、iOS-first / local-first の meeting OS** 
 
 ### Later / Parking Lot
 - [x] D1. Notion / external knowledge export → Notion export + OpenAI Files upload 導線を確認（2026-04-28）
-- [ ] D2. Online meeting capture
-- [ ] D3. Apple Watch remote recording
-- [ ] D4. Sign in / paywall / cloud sync
+- [ ] **D2a. Online meeting capture contract を harden する**
+- [ ] **D2b. Chrome 拡張で会議録音 → upload → 要約を完成させる**
+- [ ] **D2c. Meet / Zoom / Teams の事後 artifact import を実装する**
+- [ ] **D2d. Participant Bot を1プラットフォームで end-to-end 実装する**
+- [ ] D3a. Apple Watch remote recording
+- [ ] D3b. Apple Watch standalone recording + iPhone transfer
+- [ ] D4. iOS keyboard transcript insertion
+- [ ] D5. Sign in / paywall / cloud sync
+
+オンライン会議の詳細設計と PR 順は `docs/online-meeting-capture-plan.md` を source of truth とする。
 
 ---
 
@@ -406,6 +422,34 @@ Gemma 4 をローカル実行できる将来形に備えつつ、実験フラグ
 
 ---
 
+### D2. Online meeting capture
+
+#### 目的
+ユーザーが参加中の会議は Chrome 拡張で録音し、不在会議は platform artifact または参加 Bot で取得して、同じ File Detail / Ask AI 体験へ流す。
+
+#### 実装順
+1. server / iOS contract、job 永続化、状態遷移、signed webhook を直す。
+2. Chrome MV3 + `tabCapture` + offscreen document の録音 PoC。
+3. chunk upload、再送、server-side transcription / summary。
+4. Google Meet の product path を完成。
+5. Meet / Zoom / Teams の事後 artifact adapter。
+6. `MeetingPlatformAdapter` の背後に participant Bot を追加。
+
+#### ガードレール
+- 録音開始はユーザー操作または事前予約 + organizer consent を必須にする。
+- join 失敗時に録音成功扱いへ進めない。
+- hidden recording を作らない。
+- Chrome / Bot 専用の transcript model や STT orchestration を作らない。
+- browser automation は experimental fallback に限定する。
+
+#### 受け入れ条件
+- Chromeで60分会議を録音・復旧・uploadできる。
+- transcript / summary / todo が生成され、Memoraの1つの File Detailへ入る。
+- Botが最低1経路で waiting room / rejected / recording / completed を正しく扱う。
+- consent / retention / delete / provider送信先が確認できる。
+
+---
+
 ## 8. Claude の優先順
 
 **常にこの順番で進める。**
@@ -421,6 +465,13 @@ Gemma 4 をローカル実行できる将来形に備えつつ、実験フラグ
 9. C2
 10. C3
 11. C4
+12. D2a
+13. D2b
+14. D2c
+15. D2d
+16. D3a
+17. D3b
+18. D4
 
 ---
 

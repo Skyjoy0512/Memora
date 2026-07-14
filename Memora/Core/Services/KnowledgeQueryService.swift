@@ -79,7 +79,7 @@ final class KnowledgeQueryService {
                 title: chunkTitle(sourceType: chunk.sourceType, scopeName: scopeName),
                 body: chunk.text,
                 systemImage: sourceImage(for: chunk.sourceType),
-                shortLabel: chunk.sourceTypeRaw.capitalized
+                shortLabel: sourceLabel(for: chunk.sourceType)
             ) {
                 sources.append(source)
             }
@@ -254,10 +254,10 @@ final class KnowledgeQueryService {
                 let image = sourceImage(for: chunk.sourceType)
                 if let source = makeContextSource(
                     type: chunk.sourceTypeRaw,
-                    title: "\(file.title) / \(chunk.sourceTypeRaw.capitalized)",
+                    title: chunkTitle(sourceType: chunk.sourceType, scopeName: file.title),
                     body: chunk.text,
                     systemImage: image,
-                    shortLabel: chunk.sourceTypeRaw.capitalized
+                    shortLabel: sourceLabel(for: chunk.sourceType)
                 ) {
                     sources.append(source)
                 }
@@ -318,7 +318,7 @@ final class KnowledgeQueryService {
                 title: chunkTitle(sourceType: chunk.sourceType, scopeName: project?.title ?? "Project"),
                 body: chunk.text,
                 systemImage: sourceImage(for: chunk.sourceType),
-                shortLabel: chunk.sourceTypeRaw.capitalized
+                shortLabel: sourceLabel(for: chunk.sourceType)
             ) {
                 sources.append(source)
             }
@@ -388,7 +388,7 @@ final class KnowledgeQueryService {
                 title: chunkTitle(sourceType: chunk.sourceType, scopeName: "Global"),
                 body: chunk.text,
                 systemImage: sourceImage(for: chunk.sourceType),
-                shortLabel: chunk.sourceTypeRaw.capitalized
+                shortLabel: sourceLabel(for: chunk.sourceType)
             ) {
                 sources.append(source)
             }
@@ -729,16 +729,19 @@ final class KnowledgeQueryService {
         }
     }
 
-    private func chunkTitle(sourceType: KnowledgeChunkSourceType, scopeName: String) -> String {
-        let label: String
+    private func sourceLabel(for sourceType: KnowledgeChunkSourceType) -> String {
         switch sourceType {
-        case .summary: label = "Summary"
-        case .transcript: label = "Transcript"
-        case .memo: label = "Memo"
-        case .todo: label = "Todo"
-        case .photoOCR: label = "Photo OCR"
-        case .referenceTranscript: label = "Reference"
+        case .summary: return "Summary"
+        case .transcript: return "Transcript"
+        case .memo: return "Memo"
+        case .todo: return "Todo"
+        case .photoOCR: return "OCR"
+        case .referenceTranscript: return "Reference"
         }
+    }
+
+    private func chunkTitle(sourceType: KnowledgeChunkSourceType, scopeName: String) -> String {
+        let label = sourceType == .photoOCR ? "Photo OCR" : sourceLabel(for: sourceType)
         return "\(scopeName) / \(label)"
     }
 

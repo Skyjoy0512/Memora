@@ -8,7 +8,7 @@ import omi_lib
 @MainActor
 @Observable
 final class OmiAdapter {
-    typealias AudioImportHandler = @Sendable (URL, String?) async throws -> OmiImportedAudio
+    typealias AudioImportHandler = @MainActor @Sendable (URL, String?) async throws -> OmiImportedAudio
 
     private(set) var discoveredDevices: [OmiDeviceDescriptor] = []
     private(set) var isScanning = false
@@ -52,6 +52,15 @@ final class OmiAdapter {
     func configureAudioImportHandler(_ handler: @escaping AudioImportHandler) {
         audioImportHandler = handler
     }
+
+    #if DEBUG
+    func testImportAudioForCaptureSource(audioURL: URL, title: String?) async throws -> OmiImportedAudio {
+        guard let audioImportHandler else {
+            throw OmiCaptureSourceError.importHandlerNotConfigured
+        }
+        return try await audioImportHandler(audioURL, title)
+    }
+    #endif
 
     func startScan() {
         guard sdkAvailable else {
@@ -249,5 +258,80 @@ final class OmiAdapter {
 
     private func omiImportTitle(for descriptor: OmiDeviceDescriptor) -> String {
         "\(descriptor.stableDisplayName) \(Self.omiDateFormatter.string(from: Date()))"
+    }
+}
+
+extension OmiAdapter: CaptureSource {
+    var sourceType: SourceType { .omi }
+
+    var tier: ConnectionTier { .bleDirect }
+
+    var captureDevices: [CaptureDevice] {
+        discoveredDevices.map {
+            CaptureDevice(
+                id: $0.id,
+                displayName: $0.stableDisplayName,
+                sourceType: .omi,
+                tier: .bleDirect
+            )
+        }
+    }
+
+    var captureConnectionState: CaptureConnectionState {
+        switch connectionState {
+        case .disconnected:
+            return .idle
+        case .scanning:
+            return .discovering
+        case .connecting:
+            return .connecting
+        case .connected:
+            return .connected
+        case .importingAudio:
+            return .syncing
+        case .unavailable:
+            return .unavailable
+        }
+    }
+
+    func configure(sink: @escaping ImportSink) {
+        configureAudioImportHandler { audioURL, title in
+            let audioFile = try await sink(audioURL, title)
+            audioFile.sourceTypeRaw = SourceType.omi.rawValue
+            return OmiImportedAudio(
+                audioFileID: audioFile.id,
+                title: audioFile.title,
+                importedAt: Date()
+            )
+        }
+    }
+
+    func startDiscovery() async {
+        startScan()
+    }
+
+    func stopDiscovery() {
+        stopScan()
+    }
+
+    func connect(to device: CaptureDevice) async throws {
+        guard let descriptor = discoveredDevices.first(where: { $0.id == device.id }) else {
+            throw OmiCaptureSourceError.deviceNotFound(device.id)
+        }
+        connect(to: descriptor)
+    }
+}
+
+enum OmiCaptureSourceError: LocalizedError, Equatable {
+    case deviceNotFound(String)
+    case importHandlerNotConfigured
+
+    var errorDescription: String? {
+        switch self {
+        case .deviceNotFound(let id):
+            return "Omi デバイスが見つかりません: \(id)"
+        case .importHandlerNotConfigured:
+            return "Omi 音声 importer が未設定です"
+        }
     }
 }

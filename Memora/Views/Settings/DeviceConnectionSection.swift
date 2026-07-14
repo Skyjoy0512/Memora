@@ -4,15 +4,19 @@ import SwiftData
 // MARK: - Device Connection Section (Omi)
 
 struct DeviceConnectionSection: View {
-    @Environment(OmiAdapter.self) private var omiAdapter
+    @Environment(CaptureSourceRegistry.self) private var captureRegistry
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MemoryFact.key) private var memoryFacts: [MemoryFact]
     @Query(sort: \MemoryProfile.createdAt, order: .forward) private var memoryProfiles: [MemoryProfile]
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = MemoryPrivacyMode.standard.rawValue
 
+    private var omiAdapter: OmiAdapter? {
+        captureRegistry.omiAdapter
+    }
+
     var body: some View {
         Section {
-            if !omiAdapter.sdkAvailable {
+            if let omiAdapter, !omiAdapter.sdkAvailable {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Omi Swift SDK が未設定です")
                         .font(MemoraTypography.subheadline)
@@ -21,7 +25,7 @@ struct DeviceConnectionSection: View {
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
-            } else if omiAdapter.isConnected {
+            } else if let omiAdapter, omiAdapter.isConnected {
                 VStack(spacing: 13) {
                     Image(systemName: "checkmark.circle.fill")
                         .resizable()
@@ -61,7 +65,7 @@ struct DeviceConnectionSection: View {
                         .font(MemoraTypography.caption1)
                         .foregroundStyle(.secondary)
                 }
-            } else if !omiAdapter.discoveredDevices.isEmpty {
+            } else if let omiAdapter, !omiAdapter.discoveredDevices.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("発見したデバイス")
@@ -110,7 +114,7 @@ struct DeviceConnectionSection: View {
                         .clipShape(.rect(cornerRadius: MemoraRadius.sm))
                     }
                 }
-            } else if omiAdapter.isScanning {
+            } else if omiAdapter?.isScanning == true {
                 HStack(spacing: 13) {
                     ProgressView()
                         .tint(.gray)
@@ -128,7 +132,9 @@ struct DeviceConnectionSection: View {
                         .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { omiAdapter.startScan() }) {
+                    Button(action: {
+                        Task { await captureRegistry.startAllDiscovery() }
+                    }) {
                         Label("再スキャン", systemImage: "arrow.clockwise")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(MemoraColor.textPrimary)

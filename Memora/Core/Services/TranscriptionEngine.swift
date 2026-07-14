@@ -57,7 +57,7 @@ final class TranscriptionEngine: TranscriptionEngineProtocol {
         progress = 0
 
         // Plaud 等の参照データから抽出した話者数ヒントを STTService に伝播
-        (sttService as? STTService)?.referenceSpeakerCount = referenceSpeakerCount
+        (sttService as? STTService)?.updateReferenceSpeakerCount(referenceSpeakerCount)
 
         defer {
             isTranscribing = false
@@ -122,6 +122,10 @@ final class TranscriptionEngine: TranscriptionEngineProtocol {
 
     func cancelActiveTranscription() async {
         await sttService.cancelAllTasks()
+    }
+
+    func updateCheckpointHooks(_ hooks: STTCheckpointHooks?) {
+        (sttService as? STTService)?.updateCheckpointHooks(hooks)
     }
 
     private func audioFileDuration(for url: URL) async -> TimeInterval {

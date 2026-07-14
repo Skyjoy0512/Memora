@@ -27,7 +27,8 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
                     speakerLabel: label,
                     startSec: segment.startSec,
                     endSec: segment.endSec,
-                    text: segment.text
+                    text: segment.text,
+                    isEstimatedTiming: segment.isEstimatedTiming
                 )
             }
         } catch {
@@ -43,7 +44,8 @@ final class SpeakerDiarizationService: SpeakerDiarizationProtocol {
                 speakerLabel: "Speaker 1",
                 startSec: segment.startSec,
                 endSec: segment.endSec,
-                text: segment.text
+                text: segment.text,
+                isEstimatedTiming: segment.isEstimatedTiming
             )
         }
     }

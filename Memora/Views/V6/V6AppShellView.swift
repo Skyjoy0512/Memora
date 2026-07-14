@@ -24,6 +24,7 @@ struct V6AppShellView: View {
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var todos: [TodoItem]
     @Query private var notionSettingsList: [NotionSettings]
+    @Query private var plaudSettingsList: [PlaudSettings]
     @State private var isFabMenuOpen = false
     @State private var homeFilter: V6HomeFilter = .files
     @State private var isHomeFilterMenuOpen = false
@@ -38,6 +39,7 @@ struct V6AppShellView: View {
     @State private var isTaskAddSheetOpen = false
     @State private var isDoneTasksExpanded = false
     @State private var showDeviceConnection = false
+    @State private var showPlaudConnection = false
     @State private var showDeleteDataConfirm = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BluetoothAudioService.self) private var bluetoothService
@@ -120,6 +122,7 @@ struct V6AppShellView: View {
             fileDeleteTarget = nil
             isTaskAddSheetOpen = false
             showDeviceConnection = false
+            showPlaudConnection = false
             showDeleteDataConfirm = false
             selectedProject = nil
         }
@@ -127,6 +130,11 @@ struct V6AppShellView: View {
             V6PaywallSheet(isPro: $isPro)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showPlaudConnection) {
+            PlaudCloudConnectionSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -605,6 +613,12 @@ struct V6AppShellView: View {
                 }
 
                 V6SettingsGroup(title: "連携") {
+                    V6SettingsRow(
+                        title: "PLAUDクラウド同期",
+                        value: PlaudMCPOAuthService().account().isConnected ? "接続済み" : "未接続"
+                    ) {
+                        showPlaudConnection = true
+                    }
                     V6SettingsRow(title: "Notion に書き出す", value: (notionSettingsList.first?.isConfigured ?? false) ? "接続済み" : "未接続") {}
                     V6SettingsRow(title: "ChatGPT に共有", value: KeychainService.load(key: .apiKeyOpenAI).isEmpty ? "未接続" : "接続済み") {}
                 }

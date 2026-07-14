@@ -31,4 +31,11 @@ final class Transcript {
         segmentEndTimes.append(endTime)
         segmentTexts.append(text)
     }
+
+    func replaceSpeakerSegments(_ segments: [SpeakerSegment]) {
+        speakerLabels = segments.map(\.speakerLabel)
+        segmentStartTimes = segments.map(\.startTime)
+        segmentEndTimes = segments.map(\.endTime)
+        segmentTexts = segments.map(\.text)
+    }
 }

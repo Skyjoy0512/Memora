@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import Memora
 
 // MARK: - CheckpointChunkResult DTO Tests
@@ -17,7 +18,8 @@ struct TranscriptionCheckpointDTOTests {
                     speakerLabel: "話者1",
                     startSec: 0.0,
                     endSec: 2.5,
-                    text: "こんにちは、"
+                    text: "こんにちは、",
+                    isEstimatedTiming: true
                 ),
                 TranscriptionSegment(
                     id: "s2",
@@ -42,6 +44,7 @@ struct TranscriptionCheckpointDTOTests {
             #expect(restored.segments[i].startSec == original.segments[i].startSec)
             #expect(restored.segments[i].endSec == original.segments[i].endSec)
             #expect(restored.segments[i].text == original.segments[i].text)
+            #expect(restored.segments[i].isEstimatedTiming == original.segments[i].isEstimatedTiming)
         }
     }
 
@@ -81,5 +84,86 @@ struct TranscriptionCheckpointDTOTests {
         #expect(restoredResult.fullText == originalResult.fullText)
         #expect(restoredResult.language == originalResult.language)
         #expect(restoredResult.segments.count == originalResult.segments.count)
+    }
+}
+
+struct TranscriptionCheckpointStoreTests {
+    @Test("保存・復元・削除を本体DBとは独立したファイルで行う")
+    func fileStoreRoundTrip() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("checkpoint-store-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let audioFileID = UUID()
+        let store = TranscriptionCheckpointStore(directoryURL: directory)
+        let original = CheckpointChunkResult(from: TranscriptionResult(
+            fullText: "途中結果",
+            language: "ja",
+            segments: [
+                TranscriptionSegment(
+                    id: "segment",
+                    speakerLabel: "Speaker 1",
+                    startSec: 0,
+                    endSec: 1,
+                    text: "途中結果",
+                    isEstimatedTiming: true
+                )
+            ]
+        ))
+
+        await store.save(
+            audioFileID: audioFileID,
+            fingerprint: "fingerprint",
+            totalChunks: 2,
+            chunkIndex: 0,
+            result: original
+        )
+
+        let restored = await store.load(audioFileID: audioFileID, fingerprint: "fingerprint")
+        #expect(restored[0]?.fullText == "途中結果")
+        #expect(restored[0]?.segments.first?.isEstimatedTiming == true)
+
+        let mismatched = await store.load(audioFileID: audioFileID, fingerprint: "changed")
+        #expect(mismatched.isEmpty)
+        #expect(await store.load(audioFileID: audioFileID, fingerprint: "fingerprint").isEmpty)
+    }
+}
+
+struct MemoraSchemaMigrationTests {
+    @Test("V2ストアをユーザーデータ削除なしでV3へ移行できる")
+    func v2StoreMigratesToV3() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("schema-migration-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appendingPathComponent("Memora.store")
+        let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+        let audioFileID = UUID()
+
+        do {
+            let v2Container = try ModelContainer(
+                for: Schema(versionedSchema: MemoraSchemaV2.self),
+                configurations: [configuration]
+            )
+            let context = ModelContext(v2Container)
+            context.insert(AudioFile(title: "保持対象", audioURL: "/tmp/audio.m4a"))
+            context.insert(TranscriptionCheckpoint(
+                audioFileID: audioFileID,
+                audioFingerprint: "obsolete",
+                totalChunks: 1
+            ))
+            try context.save()
+        }
+
+        let v3Container = try ModelContainer(
+            for: Schema(versionedSchema: MemoraSchemaV3.self),
+            migrationPlan: MemoraMigrationPlan.self,
+            configurations: [configuration]
+        )
+        let context = ModelContext(v3Container)
+        let audioFiles = try context.fetch(FetchDescriptor<AudioFile>())
+        #expect(audioFiles.count == 1)
+        #expect(audioFiles.first?.title == "保持対象")
+        #expect(try context.fetch(FetchDescriptor<Transcript>()).isEmpty)
     }
 }

@@ -8,6 +8,8 @@ options:
   transitivelyLinksDependencies: true
   defaultConfig: Debug
 packages:
+  MemoraSharedData:
+    path: Packages/MemoraSharedData
   OmiSDK:
     url: https://github.com/BasedHardware/omi
     revision: 07571705531ccf1d3ce2d41f7b8d166a85287693
@@ -24,7 +26,11 @@ targets:
         includes: ["**/*.swift"]
       - path: Memora/Resources/reference-transcript.txt
         buildPhase: resources
+      - path: Memora/Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
+      - package: MemoraSharedData
+        product: MemoraSharedData
       - package: OmiSDK
         product: omi-lib
       - package: FluidAudio
