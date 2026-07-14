@@ -9,7 +9,6 @@ enum V6HomeFilter {
 
 struct V6AppShellView: View {
     @Binding var selectedTab: Int
-    @Binding var showPaywall: Bool
     let onStartRecording: () -> Void
     let onImport: () -> Void
     let onMeetingCapture: () -> Void
@@ -115,7 +114,6 @@ struct V6AppShellView: View {
         .onChange(of: selectedTab) { _, _ in
             // Tab switching resets any open modal/sheet (`.dc.html`: "activeTab change clears modal/exportOpen").
             isFabMenuOpen = false
-            showPaywall = false
             isHomeFilterMenuOpen = false
             fileMoreMenuTarget = nil
             fileRenameTarget = nil
@@ -126,11 +124,6 @@ struct V6AppShellView: View {
             showPlaudConnection = false
             showDeleteDataConfirm = false
             selectedProject = nil
-        }
-        .sheet(isPresented: $showPaywall) {
-            V6PaywallSheet(isPro: $isPro)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
         }
         .sheet(isPresented: $showPlaudConnection) {
             PlaudCloudConnectionSheet()
@@ -564,9 +557,6 @@ struct V6AppShellView: View {
             VStack(alignment: .leading, spacing: 18) {
                 V6SettingsGroup(title: "アカウント") {
                     V6SettingsRow(title: loginEmail.isEmpty ? "未設定" : loginEmail) {}
-                    V6SettingsBadgeRow(title: "プラン", badgeText: isPro ? "Pro" : "Free", badgeColor: isPro ? V6Color.success : V6Color.ink) {
-                        showPaywall = true
-                    }
                 }
 
                 V6SettingsGroup(title: "デバイス") {
@@ -594,9 +584,7 @@ struct V6AppShellView: View {
                 }
 
                 V6SettingsGroup(title: "ストレージ") {
-                    V6SettingsRow(title: "添付の保存先", value: isPro ? "クラウド" : "この端末（Proでクラウド）") {
-                        showPaywall = true
-                    }
+                    V6SettingsStaticRow(title: "添付の保存先", value: "この端末")
                 }
 
                 V6SettingsGroup(title: "通知") {
@@ -1363,6 +1351,26 @@ private struct V6SettingsRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct V6SettingsStaticRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 15))
+                .foregroundStyle(V6Color.ink)
+            Spacer()
+            Text(value)
+                .font(.system(size: 13))
+                .foregroundStyle(V6Color.muted)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 13)
+        .padding(.horizontal, 14)
     }
 }
 

@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var v6Island = V6IslandController()
     @State private var v6RecordingSession = V6RecordingSessionController()
     @State private var v6GenerationSession = V6GenerationSessionController()
-    @AppStorage(V6AuthStorageKey.stage) private var v6AuthStageRaw = V6AuthStage.onboarding.rawValue
+    @AppStorage(V6AuthStorageKey.stage) private var v6AuthStageRaw = V6AuthStage.done.rawValue
     @AppStorage(V6AuthStorageKey.isPro) private var v6IsPro = false
     @AppStorage(V6AuthStorageKey.loginEmail) private var v6LoginEmail = ""
     @Environment(\.modelContext) private var modelContext
@@ -30,7 +30,6 @@ struct ContentView: View {
     @State private var showGenerationProgress = false
     @State private var generatingAudioFile: AudioFile?
     @State private var showFileImporter = false
-    @State private var showV6Paywall = false
     @State private var showMeetingCapture = false
     @State private var meetingCaptureViewModel = MeetingCaptureViewModel()
     @State private var importErrorMessage: String?
@@ -40,7 +39,11 @@ struct ContentView: View {
     }
 
     private var isV6AuthPending: Bool {
+#if DEBUG
         (V6AuthStage(rawValue: v6AuthStageRaw) ?? .onboarding) != .done
+#else
+        false
+#endif
     }
 
     private var showRecordingCover: Binding<Bool> {
@@ -55,7 +58,6 @@ struct ContentView: View {
             NavigationStack {
                 V6AppShellView(
                     selectedTab: $selectedTab,
-                    showPaywall: $showV6Paywall,
                     onStartRecording: {
                         v6RecordingSession.requestPresentation()
                     },

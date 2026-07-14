@@ -135,41 +135,10 @@ struct V6DynamicIslandPill: View {
     // MARK: - Ask capsule (no answer yet)
 
     private var askNoAnswerContent: some View {
-        HStack(spacing: 10) {
-            Text(island.isAskListening ? "聞き取っています…" : "Search or Ask")
-                .font(.system(size: 15))
-                .foregroundStyle(V6Color.muted)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Button {
-                island.startAskListening(
-                    demoQuery: "この前の定例の決定事項をまとめて",
-                    demoAnswer: "2025-01-24 エンジニア定例より:\n・音声データはCloud Storageへ保存\n・要約生成は非同期ジョブに変更",
-                    sourceLabel: "2025-01-24_エンジニア定例"
-                )
-            } label: {
-                ZStack {
-                    if island.isAskListening {
-                        HStack(spacing: 2.5) {
-                            ForEach([11.0, 16.0, 13.0, 15.0], id: \.self) { height in
-                                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                                    .fill(.white)
-                                    .frame(width: 2.5, height: height)
-                            }
-                        }
-                    } else {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.leading, 18)
-        .padding(.trailing, 8)
+        Text("Ask は準備中です")
+            .font(.system(size: 15))
+            .foregroundStyle(V6Color.muted)
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Ask capsule (answer)

@@ -42,6 +42,7 @@
 	<string>ウェアラブルデバイスとの接続と音声録音のために Bluetooth を許可してください</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>audio</string>
 		<string>processing</string>
 	</array>
 	<key>NSBluetoothPeripheralUsageDescription</key>
