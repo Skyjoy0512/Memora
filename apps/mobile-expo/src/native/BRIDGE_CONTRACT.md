@@ -1,6 +1,6 @@
 # MemoraNative Bridge Contract
 
-This document defines the first native bridge surface for replacing the current mock facade.
+This document defines the native bridge surface between the Expo app and native-owned data.
 
 Read before native work:
 
@@ -14,7 +14,7 @@ Read before native work:
 - Screens already consume the facade through hooks.
 - A local Swift Expo Module shell exists at `modules/memora-native`.
 - iOS native folders are generated and `MemoraNative` is detected by Expo autolinking.
-- The Swift module currently returns safe sample DTOs for audio-file list/detail and emits a sample transcription event. It is not connected to real Memora SwiftData/repository or STT services yet.
+- The Swift module uses app-sandbox audio files and JSON metadata for native-file list/detail. It is not connected to the existing Memora SwiftData/repository or STT services.
 - The RN facade prefers the native module on non-web platforms.
 - Web explicitly uses the mock/fallback path so UI review remains available without a native binary.
 - Native audio-file list/detail calls are routed through public `MemoraAudioFileReading`; the current registry implementation is `MemoraNativeFileAudioFileStore`.
@@ -505,9 +505,7 @@ Latest verified on 2026-07-09:
 - SwiftData boundary inspection: `AudioFileRepositoryProtocol` has the bridge-needed operations, but the generated `MemoraRN` target does not yet compile `Memora/Core` model/repository files.
 - Ask AI query bridge verification: `queryKnowledge` is wired through RN facade, web fallback, Swift module, and `MemoraKnowledgeQuerying`; `npm run typecheck`, `pod install`, and the generic iOS Simulator build passed.
 
-Known local blocker:
-
-- Live `npm run ios` / simulator UI inspection is still blocked by CoreSimulator write/permission issues under `/Volumes/HIKSEMI/Xcode/CoreSimulator/Devices`.
+Historical note: simulator storage issue was resolved in later migration work; use the current migration-plan log for environment-specific validation status.
 
 ## First Native PR Acceptance Criteria
 

@@ -65,7 +65,7 @@ npm run ios
 
 Use web for quick UI review and Dev Client/native builds for anything that touches `MemoraNative`.
 
-Note: on 2026-07-09, build-only native validation passed, but creating a new simulator device was blocked locally because CoreSimulator could not write to `/Volumes/HIKSEMI/Xcode/CoreSimulator/Devices`.
+注記: ローカルの Simulator 環境差異がある場合は、実機能の確認前に `xcrun simctl list devices available` で利用可能な端末を確認してください。
 Fix that storage/permission issue before relying on `npm run ios` for live simulator UI review.
 
 Expected behavior:
