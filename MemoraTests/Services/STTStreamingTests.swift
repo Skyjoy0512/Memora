@@ -24,6 +24,30 @@ struct StreamingTranscriptMergerTests {
         #expect(final.segments[0].endSec == 93.0)
     }
 
+    @Test("推定時刻フラグがチャンク結合後も保持される")
+    func mergerPreservesEstimatedTiming() {
+        var merger = StreamingTranscriptMerger()
+        let chunk = AudioChunk(index: 0, startSec: 0, endSec: 90, url: URL(fileURLWithPath: "/tmp/a.m4a"), isTemporary: true)
+        let result = TranscriptionResult(
+            fullText: "こんにちは",
+            language: "ja",
+            segments: [
+                TranscriptionSegment(
+                    id: "s1",
+                    speakerLabel: "",
+                    startSec: 1.0,
+                    endSec: 3.0,
+                    text: "こんにちは",
+                    isEstimatedTiming: true
+                )
+            ]
+        )
+
+        merger.append(chunk: chunk, result: result)
+
+        #expect(merger.finalize().segments.first?.isEstimatedTiming == true)
+    }
+
     @Test("複数チャンクの全文が改行で結合される")
     func mergerJoinsTextWithNewlines() {
         var merger = StreamingTranscriptMerger()

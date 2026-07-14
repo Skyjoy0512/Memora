@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memora Component Style Guide</title>
+  <style>
+    /* ============================================================
+       Memora Design Tokens — from DESIGN.md §2-8
+       ============================================================ */
+    :root {
+      --canvas:       #FAFAF8;
+      --surface:      #FFFFFF;
+      --surfaceAlt:   #F3F3F2;
+      --surfaceElevated: #FFFFFF;
+      --text:         #1A1C1E;
+      --textSecondary:#5F6368;
+      --textTertiary: #9AA0A6;
+      --textInverse:  #FFFFFF;
+      --border:       #E2E3E5;
+      --borderLight:  #EEEEEF;
+      --separator:    #F0F0F0;
+      --accent:       #1A7F6B;
+      --accentSoft:   #E8F5F1;
+      --accentMuted:  #B8D8CF;
+      --success:      #2E7D32;
+      --successSoft:  #E8F5E9;
+      --warning:      #E65100;
+      --warningSoft:  #FFF3E0;
+      --danger:       #C62828;
+      --dangerSoft:   #FFEBEE;
+      --info:         #1565C0;
+      --infoSoft:     #E3F2FD;
+      --recording:    #C62828;
+      --recordingSoft:#FFEBEE;
+      /* spacing (golden ratio) */
+      --sp-xxs: 3px;
+      --sp-xs:  5px;
+      --sp-sm:  8px;
+      --sp-md:  13px;
+      --sp-lg:  21px;
+      --sp-xl:  34px;
+      --sp-xxl: 55px;
+      /* radius */
+      --r-xs:  4px;
+      --r-sm:  8px;
+      --r-md:  13px;
+      --r-lg:  21px;
+      --r-pill: 999px;
+      /* shadow */
+      --shadow-card: 0px 1px 4px rgba(0,0,0,0.04);
+      --shadow-elevated: 0px 4px 16px rgba(0,0,0,0.10);
+      --shadow-floating: 0px 8px 24px rgba(0,0,0,0.14);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--canvas);
+      color: var(--text);
+      font: 15px/1.6 -apple-system, 'Noto Sans JP', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 40px 32px 120px;
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    /* ── Guide Layout ───────────────────── */
+    .guide-header {
+      margin-bottom: 48px;
+    }
+    .guide-header h1 {
+      font: 700 30px/1.3 'M PLUS 1p', sans-serif;
+      letter-spacing: -0.4px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .guide-header p {
+      color: var(--textSecondary);
+      font-size: 14px;
+    }
+    .guide-header .meta {
+      margin-top: 16px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .guide-header .meta span {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--textSecondary);
+    }
+
+    /* ── Section ────────────────────────── */
+    .comp-section {
+      margin-bottom: 48px;
+    }
+    .comp-section h2 {
+      font: 700 20px/1.4 'M PLUS 1p', sans-serif;
+      color: var(--text);
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .comp-section h3 {
+      font: 600 13px/1.4 -apple-system, sans-serif;
+      color: var(--textSecondary);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      margin: 24px 0 12px;
+    }
+    .comp-section h3:first-of-type {
+      margin-top: 0;
+    }
+
+    /* ── Component display row ──────────── */
+    .comp-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .comp-row.column {
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── Token reference chip ───────────── */
+    .token-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--textTertiary);
+      font-family: Menlo, monospace;
+      margin-top: 8px;
+    }
+    .token-ref .swatch {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      display: inline-block;
+    }
+
+    /* ================================================================
+       COMPONENT 1: FileCard
+       ================================================================ */
+    .filecard {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--sp-md);
+      padding: var(--sp-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-card);
+      min-height: 72px;
+      width: 360px;
+      position: relative;
+    }
+    .filecard .fc-icon {
+      width: 32px; height: 32px;
+      background: var(--surfaceAlt);
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--textSecondary);
+      font-size: 14px;
+    }
+    .filecard .fc-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .filecard .fc-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .filecard .fc-meta {
+      font-size: 11px;
+      color: var(--textSecondary);
+      margin-top: 1px;
+    }
+    .filecard .fc-summary {
+      font-size: 13px;
+      color: var(--textSecondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 4px;
+    }
+    .filecard .fc-status {
+      flex-shrink: 0;
+    }
+    .filecard .fc-more {
+      width: 44px; height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--textTertiary);
+      font-size: 18px;
+      flex-shrink: 0;
+      margin: -6px -6px -6px 0;
+    }
+
+    /* ================================================================
+       COMPONENT 2: StatusPill
+       ================================================================ */
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 22px;
+      padding: 0 var(--sp-sm);
+      border-radius: var(--r-pill);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-pill.ready     { background: var(--surfaceAlt); color: var(--textSecondary); }
+    .status-pill.transcribing { background: var(--accentSoft); color: var(--accent); }
+    .status-pill.summarized   { background: var(--successSoft); color: var(--success); }
+    .status-pill.failed       { background: var(--dangerSoft); color: var(--danger); }
+    .status-pill.processing   { background: var(--infoSoft); color: var(--info); }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .status-dot.pulse {
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    /* ================================================================
+       COMPONENT 3: SegmentedControl
+       ================================================================ */
+    .segmented {
+      display: flex;
+      background: var(--surfaceAlt);
+      border-radius: var(--r-sm);
+      padding: 3px;
+      width: fit-content;
+    }
+    .segmented .seg {
+      padding: 6px var(--sp-md);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--textSecondary);
+      cursor: default;
+      user-select: none;
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .segmented .seg.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-card);
+    }
+
+    /* ================================================================
+       COMPONENT 4: TabBar
+       ================================================================ */
+    .tabbar {
+      display: flex;
+      justify-content: center;
+      gap: var(--sp-lg);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+      width: 360px;
+    }
+    .tabbar .tab {
+      padding: var(--sp-sm) 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--textTertiary);
+      cursor: default;
+      user-select: none;
+      position: relative;
+    }
+    .tabbar .tab.active {
+      color: var(--accent);
+    }
+    .tabbar .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px 1px 0 0;
+    }
+    .tabbar.dark-bg {
+      background: #0F1114;
+      border-bottom-color: #3C4043;
+    }
+    .tabbar.dark-bg .tab { color: #5F6368; }
+    .tabbar.dark-bg .tab.active { color: #3DD9B0; }
+    .tabbar.dark-bg .tab.active::after { background: #3DD9B0; }
+
+    /* ================================================================
+       COMPONENT 5: PlayerBar
+       ================================================================ */
+    .playerbar {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-sm);
+      height: 56px;
+      padding: 0 var(--sp-md);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: var(--shadow-card);
+      width: 400px;
+    }
+    .playerbar .pb-btn {
+      width: 44px; height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .playerbar .pb-seek {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      position: relative;
+      margin: 0 4px;
+    }
+    .playerbar .pb-seek-fill {
+      width: 42%;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .playerbar .pb-seek-thumb {
+      position: absolute;
+      left: 42%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px; height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: var(--shadow-card);
+    }
+    .playerbar .pb-time {
+      font-family: Menlo, monospace;
+      font-size: 12px;
+      color: var(--textSecondary);
+      white-space: nowrap;
+    }
+    .playerbar .pb-speed {
+      width: 44px; height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--textSecondary);
+      flex-shrink: 0;
+    }
+
+    /* ── Dark mode for single components ── */
+    .dark-box {
+      background: #0F1114;
+      border-radius: var(--r-md);
+      padding: 24px;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .dark-label {
+      color: #5F6368;
+      font-size: 11px;
+      font-family: Menlo, monospace;
+      margin-bottom: 4px;
+    }
+
+    /* ── Measurement annotation ─────────── */
+    .measure {
+      position: relative;
+    }
+    .measure-note {
+      font-size: 10px;
+      color: var(--textTertiary);
+      font-family: Menlo, monospace;
+      margin-top: 6px;
+    }
+
+    /* ── Footer ────────────────────────── */
+    .guide-footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--textTertiary);
+      font-size: 12px;
+    }
+    .guide-footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- HEADER                                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <header class="guide-header" data-od-id="guide-header">
+    <h1 data-od-id="guide-title">Memora コンポーネントスタイルガイド</h1>
+    <p>DESIGN.md §11 に基づく5コンポーネントの正確なビジュアル仕様</p>
+    <div class="meta">
+      <span>Expo SDK 57</span>
+      <span>React Native 0.86</span>
+      <span>ライトモード</span>
+      <span>2026-07-14</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PALETTE OVERVIEW                                                 -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-palette">
+    <h2 data-od-id="heading-palette">カラーパレット</h2>
+    <div class="comp-row" style="gap:8px; flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--canvas);border:1px solid var(--border);border-radius:4px;"></span>
+        <span style="font-size:12px;">canvas #FAFAF8</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--surface);border:1px solid var(--border);border-radius:4px;"></span>
+        <span style="font-size:12px;">surface #FFFFFF</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--text);border-radius:4px;"></span>
+        <span style="font-size:12px;">text #1A1C1E</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--accent);border-radius:4px;"></span>
+        <span style="font-size:12px;">accent #1A7F6B</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--success);border-radius:4px;"></span>
+        <span style="font-size:12px;">success</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--warning);border-radius:4px;"></span>
+        <span style="font-size:12px;">warning</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--danger);border-radius:4px;"></span>
+        <span style="font-size:12px;">danger</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:28px;height:28px;background:var(--info);border-radius:4px;"></span>
+        <span style="font-size:12px;">info</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPONENT 1: FileCard                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-filecard">
+    <h2 data-od-id="heading-filecard">1. FileCard</h2>
+
+    <h3>通常状態（要約あり）</h3>
+    <div class="filecard" data-od-id="filecard-normal">
+      <div class="fc-icon">M</div>
+      <div class="fc-body">
+        <div class="fc-title">定例ミーティング</div>
+        <div class="fc-meta">今日 14:30 · 32分</div>
+        <div class="fc-summary">決定事項：次回リリースを7/21に延期、デザインレビューは木曜に設定</div>
+      </div>
+      <div class="fc-status">
+        <span class="status-pill summarized">要約済</span>
+      </div>
+      <div class="fc-more">⋯</div>
+    </div>
+    <div class="token-ref">
+      <span class="swatch" style="background:var(--surface)"></span> surface ·
+      <span class="swatch" style="background:var(--border)"></span> border 1px ·
+      r-md(13px) · minH:72px · pad:13px
+    </div>
+
+    <h3>処理中状態（文字起こし中）</h3>
+    <div class="filecard" data-od-id="filecard-processing">
+      <div class="fc-icon">M</div>
+      <div class="fc-body">
+        <div class="fc-title">アイデアメモ</div>
+        <div class="fc-meta">昨日 09:15 · 5分</div>
+      </div>
+      <div class="fc-status">
+        <span class="status-pill transcribing">
+          <span class="status-dot pulse"></span> 文字起こし中
+        </span>
+      </div>
+      <div class="fc-more">⋯</div>
+    </div>
+    <div class="token-ref">
+      <span class="swatch" style="background:var(--accentSoft)"></span> accentSoft ·
+      <span class="swatch" style="background:var(--accent)"></span> accent ·
+      dot pulse animation
+    </div>
+
+    <h3>エラー状態</h3>
+    <div class="filecard" data-od-id="filecard-failed">
+      <div class="fc-icon">M</div>
+      <div class="fc-body">
+        <div class="fc-title">顧客ミーティング</div>
+        <div class="fc-meta">7/10 · 45分</div>
+      </div>
+      <div class="fc-status">
+        <span class="status-pill failed">失敗</span>
+      </div>
+      <div class="fc-more">⋯</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPONENT 2: StatusPill                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-statuspill">
+    <h2 data-od-id="heading-statuspill">2. StatusPill</h2>
+    <p style="color:var(--textSecondary);font-size:13px;margin-bottom:16px;">
+      全5バリアント。高さ:22px · borderRadius:pill(999px) · paddingH:8px · fontSize:11px
+    </p>
+
+    <div class="comp-row" data-od-id="statuspill-all">
+      <span class="status-pill ready">準備完了</span>
+      <span class="status-pill transcribing">
+        <span class="status-dot pulse"></span> 文字起こし中
+      </span>
+      <span class="status-pill summarized">要約済</span>
+      <span class="status-pill failed">失敗</span>
+      <span class="status-pill processing">処理中</span>
+    </div>
+
+    <div class="comp-row" style="margin-top:12px; gap:24px; font-size:11px; color:var(--textSecondary);">
+      <div>bg: surfaceAlt</div>
+      <div>bg: accentSoft · text: accent · dot pulse</div>
+      <div>bg: successSoft · text: success</div>
+      <div>bg: dangerSoft · text: danger</div>
+      <div>bg: infoSoft · text: info</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPONENT 3: SegmentedControl                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-segmented">
+    <h2 data-od-id="heading-segmented">3. SegmentedControl</h2>
+    <p style="color:var(--textSecondary);font-size:13px;margin-bottom:16px;">
+      bg: surfaceAlt · borderRadius:8px · padding:3px · 選択セグメント: surface + shadow.card
+    </p>
+
+    <div class="segmented" data-od-id="segmented-all">
+      <span class="seg active">すべて</span>
+      <span class="seg">お気に入り</span>
+      <span class="seg">プロジェクト</span>
+    </div>
+
+    <div class="token-ref" style="margin-top:8px;">
+      fontSize:13px · fontWeight:600 · 選択インジケータ: borderRadius 6px
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPONENT 4: TabBar                                               -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-tabbar">
+    <h2 data-od-id="heading-tabbar">4. TabBar（ファイル詳細）</h2>
+
+    <h3>ライトモード</h3>
+    <div class="tabbar" data-od-id="tabbar-light">
+      <span class="tab active">概要</span>
+      <span class="tab">文字起こし</span>
+      <span class="tab">メモ</span>
+      <span class="tab">質問</span>
+    </div>
+    <div class="token-ref" style="margin-top:8px;">
+      gap:21px · アクティブ: color accent + borderBottom 2px · 非アクティブ: textTertiary
+    </div>
+
+    <h3>ダークモード</h3>
+    <div class="tabbar dark-bg" data-od-id="tabbar-dark">
+      <span class="tab active">概要</span>
+      <span class="tab">文字起こし</span>
+      <span class="tab">メモ</span>
+      <span class="tab">質問</span>
+    </div>
+    <div class="token-ref" style="margin-top:8px;">
+      ダークモード: accent → #3DD9B0 · bg → #0F1114
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COMPONENT 5: PlayerBar                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-playerbar">
+    <h2 data-od-id="heading-playerbar">5. PlayerBar</h2>
+    <p style="color:var(--textSecondary);font-size:13px;margin-bottom:16px;">
+      高さ:56px · bg: surface · borderTop: 1px border · 再生ボタン 44×44px · 速度サイクル: 1×→1.5×→2×→0.75×→1×
+    </p>
+
+    <div class="playerbar" data-od-id="playerbar-playing">
+      <div class="pb-btn">▶</div>
+      <div class="pb-time">00:32</div>
+      <div class="pb-seek">
+        <div class="pb-seek-fill"></div>
+        <div class="pb-seek-thumb"></div>
+      </div>
+      <div class="pb-time">32:00</div>
+      <div class="pb-speed">1×</div>
+    </div>
+    <div class="token-ref" style="margin-top:8px;">
+      シークバー fill: accent · track: border · 時間表示: Menlo 12px textSecondary
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- DARK MODE PREVIEW                                                -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-darkmode">
+    <h2 data-od-id="heading-darkmode">ダークモード</h2>
+    <p style="color:var(--textSecondary);font-size:13px;margin-bottom:16px;">
+      DESIGN.md §2.3 の darkColors トークン適用時
+    </p>
+
+    <div class="dark-box" data-od-id="darkmode-preview">
+      <div class="dark-label">// canvas: #0F1114 · surface: #1A1D21</div>
+
+      <div class="filecard" style="background:#1A1D21;border-color:#3C4043;">
+        <div class="fc-icon" style="background:#23262A;color:#9AA0A6;">M</div>
+        <div class="fc-body">
+          <div class="fc-title" style="color:#E8EAED;">定例ミーティング</div>
+          <div class="fc-meta" style="color:#9AA0A6;">今日 14:30 · 32分</div>
+          <div class="fc-summary" style="color:#9AA0A6;">決定事項：次回リリースを7/21に延期</div>
+        </div>
+        <div class="fc-status">
+          <span class="status-pill summarized" style="background:#1B3320;color:#4CAF50;">要約済</span>
+        </div>
+        <div class="fc-more" style="color:#5F6368;">⋯</div>
+      </div>
+
+      <div class="segmented" style="background:#23262A;margin-top:4px;">
+        <span class="seg active" style="background:#1A1D21;color:#E8EAED;">すべて</span>
+        <span class="seg" style="color:#9AA0A6;">お気に入り</span>
+        <span class="seg" style="color:#9AA0A6;">プロジェクト</span>
+      </div>
+
+      <div class="playerbar" style="background:#1A1D21;border-color:#3C4043;margin-top:4px;">
+        <div class="pb-btn" style="color:#E8EAED;">▶</div>
+        <div class="pb-time" style="color:#9AA0A6;">00:32</div>
+        <div class="pb-seek" style="background:#3C4043;">
+          <div class="pb-seek-fill" style="background:#3DD9B0;width:42%;"></div>
+          <div class="pb-seek-thumb" style="background:#3DD9B0;left:42%;"></div>
+        </div>
+        <div class="pb-time" style="color:#9AA0A6;">32:00</div>
+        <div class="pb-speed" style="color:#9AA0A6;">1×</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- TOKEN QUICK REFERENCE                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <section class="comp-section" data-od-id="section-tokens">
+    <h2 data-od-id="heading-tokens">トークン早見表</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Menlo,monospace;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid var(--border);">
+          <th style="padding:8px 0;color:var(--textSecondary);font-weight:600;">トークン</th>
+          <th style="padding:8px 0;color:var(--textSecondary);font-weight:600;">値</th>
+          <th style="padding:8px 0;color:var(--textSecondary);font-weight:600;">用途</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">spacing.xs</td><td style="padding:6px 0;">5px</td><td style="padding:6px 0;color:var(--textSecondary);">同一要素内の隙間</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">spacing.sm</td><td style="padding:6px 0;">8px</td><td style="padding:6px 0;color:var(--textSecondary);">StatusPill paddingH, gap</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">spacing.md</td><td style="padding:6px 0;">13px</td><td style="padding:6px 0;color:var(--textSecondary);">FileCard padding, gap</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">spacing.lg</td><td style="padding:6px 0;">21px</td><td style="padding:6px 0;color:var(--textSecondary);">TabBar gap, 画面水平padding</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">radius.sm</td><td style="padding:6px 0;">8px</td><td style="padding:6px 0;color:var(--textSecondary);">SegmentedControl, ボタン</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">radius.md</td><td style="padding:6px 0;">13px</td><td style="padding:6px 0;color:var(--textSecondary);">FileCard</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">radius.pill</td><td style="padding:6px 0;">999px</td><td style="padding:6px 0;color:var(--textSecondary);">StatusPill</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">accent</td><td style="padding:6px 0;"><span class="swatch" style="background:#1A7F6B;display:inline-block;vertical-align:middle;margin-right:4px;"></span>#1A7F6B</td><td style="padding:6px 0;color:var(--textSecondary);">主アクション・選択中</td></tr>
+        <tr style="border-bottom:1px solid var(--borderLight);"><td style="padding:6px 0;color:var(--accent);">canvas</td><td style="padding:6px 0;"><span class="swatch" style="background:#FAFAF8;display:inline-block;vertical-align:middle;margin-right:4px;"></span>#FAFAF8</td><td style="padding:6px 0;color:var(--textSecondary);">ページ背景</td></tr>
+        <tr><td style="padding:6px 0;color:var(--accent);">minTapTarget</td><td style="padding:6px 0;">44×44px</td><td style="padding:6px 0;color:var(--textSecondary);">すべての操作要素</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- FOOTER                                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <footer class="guide-footer" data-od-id="guide-footer">
+    <p><strong>参照ドキュメント:</strong> DESIGN.md · SCREEN_SPECS.md · COMPONENT_MAP.md</p>
+    <p style="margin-top:4px;">色・寸法はすべて DESIGN.md §2–8 および §11 に準拠</p>
+  </footer>
+
+</body>
+</html>

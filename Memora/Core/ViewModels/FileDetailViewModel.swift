@@ -33,6 +33,8 @@ final class FileDetailViewModel {
     var playbackPosition: TimeInterval = 0
     var audioDuration: TimeInterval = 0
     var audioURL: URL?
+    var playbackRate: Float = 1.0
+    private static let playbackRateSteps: [Float] = [1.0, 1.25, 1.5, 2.0, 0.75]
 
     // MARK: - Transcription State
     var isTranscribing = false
@@ -53,6 +55,7 @@ final class FileDetailViewModel {
     var memoHasUnsavedChanges = false
     var photoAttachments: [PhotoAttachment] = []
     var isImportingPhotos = false
+    var taskifiedActionTexts: Set<String> = []
 
     // MARK: - Title Editing
     var isEditingTitle = false
@@ -154,6 +157,7 @@ final class FileDetailViewModel {
         loadSavedSummary()
         loadSavedMemo()
         loadPhotoAttachments()
+        loadTaskifiedActionTexts()
     }
 
     // MARK: - Audio Playback
@@ -186,6 +190,14 @@ final class FileDetailViewModel {
         if audioDuration > 0 {
             audioPlayer.seek(to: time)
         }
+    }
+
+    func cyclePlaybackSpeed() {
+        let steps = Self.playbackRateSteps
+        let currentIndex = steps.firstIndex(of: playbackRate) ?? 0
+        let nextRate = steps[(currentIndex + 1) % steps.count]
+        playbackRate = nextRate
+        audioPlayer.setRate(nextRate)
     }
 
     func seekToTime(_ time: TimeInterval) {
@@ -499,6 +511,25 @@ final class FileDetailViewModel {
         stopProgressTracking()
     }
 
+    // MARK: - Taskify (Summary next-action → TodoItem)
+
+    func loadTaskifiedActionTexts() {
+        let targetID = audioFile.id
+        let descriptor = FetchDescriptor<TodoItem>(
+            predicate: #Predicate { $0.sourceAudioFileID == targetID }
+        )
+        let existing = (try? modelContext.fetch(descriptor)) ?? []
+        taskifiedActionTexts = Set(existing.map(\.title))
+    }
+
+    func taskifyActionItem(_ text: String) {
+        guard !taskifiedActionTexts.contains(text) else { return }
+        let todo = TodoItem(title: text, sourceAudioFileID: audioFile.id)
+        modelContext.insert(todo)
+        try? modelContext.save()
+        taskifiedActionTexts.insert(text)
+    }
+
     // MARK: - AI Task Decomposition
 
     func decomposeTodo(_ item: TodoItem) {
@@ -528,7 +559,8 @@ final class FileDetailViewModel {
             let child = TodoItem(
                 title: sub.title,
                 notes: sub.citation,
-                parentID: parentID
+                parentID: parentID,
+                sourceAudioFileID: audioFile.id
             )
             modelContext.insert(child)
         }

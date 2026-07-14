@@ -147,6 +147,9 @@ Temporary Items
 .kiro/
 .kode/
 .mcpjam/
+.xcodebuildmcp/
+.expo/
+.build/
 .mux/
 .neovate/
 .openhands/

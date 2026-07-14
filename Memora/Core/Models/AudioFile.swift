@@ -1,10 +1,14 @@
 import Foundation
 import SwiftData
 
-enum SourceType: String, CaseIterable {
+enum SourceType: String, CaseIterable, Sendable {
     case recording = "recording"
     case `import` = "import"
     case plaud = "plaud"
+    case omi = "omi"
+    case plaudEmbedded = "plaud_embedded"
+    case plaudCloud = "plaud_cloud"
+    case genericDevice = "generic_device"
     case google = "google"
     case onlineMeeting = "online_meeting"
     case botMeeting = "bot_meeting"

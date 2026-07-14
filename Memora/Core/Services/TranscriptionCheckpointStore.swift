@@ -1,23 +1,42 @@
 import Foundation
-import SwiftData
+import os
 
-/// TranscriptionCheckpoint の読み書き。MainActor で ModelContext を扱う。
-@MainActor
-final class TranscriptionCheckpointStore {
-    private let modelContext: ModelContext
+/// チャンク単位の文字起こし結果を、SwiftData の本体ストアとは分離して保存する。
+///
+/// チェックポイントは再生成可能な中間データのため、アプリ本体のスキーマ変更や
+/// マイグレーション失敗がユーザーデータへ波及しないファイルストアを使う。
+actor TranscriptionCheckpointStore {
+    private struct StoredCheckpoint: Codable {
+        let audioFileID: UUID
+        let audioFingerprint: String
+        let totalChunks: Int
+        let createdAt: Date
+        var updatedAt: Date
+        var chunkResults: [Int: CheckpointChunkResult]
+    }
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    private let directoryURL: URL
+    private let fileManager: FileManager
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.memora.Memora",
+        category: "TranscriptionCheckpoint"
+    )
+
+    init(
+        directoryURL: URL? = nil,
+        fileManager: FileManager = .default
+    ) {
+        self.fileManager = fileManager
+        self.directoryURL = directoryURL ?? Self.defaultDirectoryURL(fileManager: fileManager)
     }
 
     func load(audioFileID: UUID, fingerprint: String) -> [Int: CheckpointChunkResult] {
-        guard let cp = fetch(audioFileID: audioFileID) else { return [:] }
-        guard cp.audioFingerprint == fingerprint else {
-            modelContext.delete(cp)
-            try? modelContext.save()
+        guard let checkpoint = read(audioFileID: audioFileID) else { return [:] }
+        guard checkpoint.audioFingerprint == fingerprint else {
+            delete(audioFileID: audioFileID)
             return [:]
         }
-        return decode(cp)
+        return checkpoint.chunkResults
     }
 
     func save(
@@ -27,48 +46,77 @@ final class TranscriptionCheckpointStore {
         chunkIndex: Int,
         result: CheckpointChunkResult
     ) {
-        let cp: TranscriptionCheckpoint = fetch(audioFileID: audioFileID) ?? {
-            let new = TranscriptionCheckpoint(
+        let now = Date()
+        var checkpoint: StoredCheckpoint
+        if let existing = read(audioFileID: audioFileID),
+           existing.audioFingerprint == fingerprint {
+            checkpoint = existing
+        } else {
+            checkpoint = StoredCheckpoint(
                 audioFileID: audioFileID,
                 audioFingerprint: fingerprint,
-                totalChunks: totalChunks
+                totalChunks: totalChunks,
+                createdAt: now,
+                updatedAt: now,
+                chunkResults: [:]
             )
-            modelContext.insert(new)
-            return new
-        }()
-        var all = decode(cp)
-        all[chunkIndex] = result
-        encode(all, into: cp)
-        cp.updatedAt = Date()
-        try? modelContext.save()
+        }
+
+        checkpoint.chunkResults[chunkIndex] = result
+        checkpoint.updatedAt = now
+
+        do {
+            try fileManager.createDirectory(
+                at: directoryURL,
+                withIntermediateDirectories: true
+            )
+            let data = try JSONEncoder().encode(checkpoint)
+            try data.write(to: fileURL(audioFileID: audioFileID), options: .atomic)
+        } catch {
+            logFailure(operation: "save", error: error)
+        }
     }
 
     func delete(audioFileID: UUID) {
-        guard let cp = fetch(audioFileID: audioFileID) else { return }
-        modelContext.delete(cp)
-        try? modelContext.save()
-    }
-
-    // MARK: - Private
-
-    private func fetch(audioFileID: UUID) -> TranscriptionCheckpoint? {
-        var descriptor = FetchDescriptor<TranscriptionCheckpoint>(
-            predicate: #Predicate { $0.audioFileID == audioFileID }
-        )
-        descriptor.fetchLimit = 1
-        return try? modelContext.fetch(descriptor).first
-    }
-
-    private func decode(_ cp: TranscriptionCheckpoint) -> [Int: CheckpointChunkResult] {
-        guard !cp.chunkResultsBlob.isEmpty,
-              let decoded = try? JSONDecoder().decode([Int: CheckpointChunkResult].self, from: cp.chunkResultsBlob)
-        else { return [:] }
-        return decoded
-    }
-
-    private func encode(_ dict: [Int: CheckpointChunkResult], into cp: TranscriptionCheckpoint) {
-        if let data = try? JSONEncoder().encode(dict) {
-            cp.chunkResultsBlob = data
+        let url = fileURL(audioFileID: audioFileID)
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        do {
+            try fileManager.removeItem(at: url)
+        } catch {
+            logFailure(operation: "delete", error: error)
         }
+    }
+
+    private func read(audioFileID: UUID) -> StoredCheckpoint? {
+        let url = fileURL(audioFileID: audioFileID)
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        do {
+            return try JSONDecoder().decode(
+                StoredCheckpoint.self,
+                from: Data(contentsOf: url)
+            )
+        } catch {
+            logFailure(operation: "load", error: error)
+            try? fileManager.removeItem(at: url)
+            return nil
+        }
+    }
+
+    private func fileURL(audioFileID: UUID) -> URL {
+        directoryURL.appendingPathComponent("\(audioFileID.uuidString.lowercased()).json")
+    }
+
+    private static func defaultDirectoryURL(fileManager: FileManager) -> URL {
+        let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+        return base
+            .appendingPathComponent("Memora", isDirectory: true)
+            .appendingPathComponent("TranscriptionCheckpoints", isDirectory: true)
+    }
+
+    private func logFailure(operation: String, error: Error) {
+        logger.error(
+            "Failed to \(operation, privacy: .public): \(error.localizedDescription, privacy: .public)"
+        )
     }
 }

@@ -1,256 +1,144 @@
 import SwiftUI
 
-// MARK: - Transcript Tab
-
+/// Transcript tab (`.dc.html` `fdTranscriptActive`): sticky player bar (play/pause, time, speed
+/// cycle, seek) + speaker/time/text lines — tapping a line seeks the player.
 struct TranscriptTab: View {
     @Bindable var vm: FileDetailViewModel
     let audioFile: AudioFile
-    let showShareSheet: Binding<Bool>
 
     var body: some View {
-        VStack(spacing: MemoraSpacing.lg) {
-            if vm.isTranscribing {
-                progressCard(
-                    title: "文字起こしを実行中",
-                    progress: vm.transcriptionProgress,
-                    message: "音声を解析して、テキストを整えています。"
-                )
-            } else if let result = vm.transcriptResult {
-                if vm.isEditingTranscript {
-                    ScrollView {
-                        TextField("文字起こし内容", text: $vm.transcriptDraft, axis: .vertical)
-                            .font(MemoraTypography.body)
-                            .lineLimit(8...)
-                            .padding(MemoraSpacing.sm)
-                    }
-                    .scrollDismissesKeyboard(.interactively)
+        if vm.isTranscribing {
+            V6GenerationInlineProgress(label: "文字起こしを生成中…", progress: vm.transcriptionProgress)
+                .padding(.top, 40)
+        } else if let result = vm.transcriptResult {
+            VStack(alignment: .leading, spacing: 0) {
+                playerBar
 
-                    HStack(spacing: MemoraSpacing.sm) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(result.segments.enumerated()), id: \.offset) { _, segment in
+                        let isActive = vm.playbackPosition >= segment.startTime && vm.playbackPosition < segment.endTime
                         Button {
-                            vm.saveTranscriptEdit()
+                            vm.seekToTime(segment.startTime)
                         } label: {
-                            Label("保存", systemImage: "checkmark")
-                                .font(MemoraTypography.caption1)
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button {
-                            vm.cancelEditTranscript()
-                        } label: {
-                            Label("キャンセル", systemImage: "xmark")
-                                .font(MemoraTypography.caption1)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Spacer()
-                    }
-                } else {
-                    TranscriptContentView(
-                        result: result,
-                        currentPlaybackTime: vm.playbackPosition,
-                        isPlaying: vm.isPlaying
-                    ) { segment in
-                        vm.seekToTime(segment.startTime)
-                    }
-
-                    // Transcript タブの context-aware actions
-                    HStack(spacing: MemoraSpacing.sm) {
-                        Button {
-                            vm.startTranscription()
-                        } label: {
-                            Label("再文字起こし", systemImage: "arrow.clockwise")
-                                .font(MemoraTypography.caption1)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(vm.isTranscribing)
-
-                        Button {
-                            vm.beginEditTranscript()
-                        } label: {
-                            Label("編集", systemImage: "pencil")
-                                .font(MemoraTypography.caption1)
-                        }
-                        .buttonStyle(.bordered)
-
-                        if Set(result.segments.map(\.speakerLabel).filter { !$0.isEmpty }).count > 1 {
-                            Button {
-                                vm.registerPrimarySpeakerSample()
-                            } label: {
-                                Label("話者登録", systemImage: "person.crop.circle.badge.plus")
-                                    .font(MemoraTypography.caption1)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 8) {
+                                    if !segment.speakerLabel.isEmpty {
+                                        Text(segment.speakerLabel)
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(V6Color.tertiary)
+                                    }
+                                    Text(vm.formatTime(segment.startTime))
+                                        .font(.system(size: 10.5, design: .monospaced))
+                                        .foregroundStyle(V6Color.quiet)
+                                }
+                                Text(segment.text)
+                                    .font(.system(size: 14))
+                                    .lineSpacing(6)
+                                    .foregroundStyle(V6Color.ink)
                             }
-                            .buttonStyle(.bordered)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(isActive ? V6Color.soft : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
-
-                        Spacer()
+                        .buttonStyle(.plain)
                     }
                 }
-
-                if let reason = vm.fallbackReason, !reason.isEmpty {
-                    detailCard {
-                        HStack(spacing: MemoraSpacing.sm) {
-                            Image(systemName: "info.circle")
-                                .foregroundStyle(MemoraColor.accentBlue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("バックエンド: \(vm.activeBackend ?? "不明")")
-                                    .font(MemoraTypography.caption1)
-                                    .foregroundStyle(.primary)
-                                Text(reason)
-                                    .font(MemoraTypography.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
+                .padding(.top, 10)
+            }
+            .padding(.bottom, 24)
+        } else if audioFile.isTranscribed {
+            V6TabPlaceholder(title: "文字起こしを読み込めませんでした", description: "保存済みデータの取得後に、このタブへ全文を表示します。")
+        } else {
+            VStack(spacing: 10) {
+                Text("文字起こしはまだありません")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(V6Color.ink)
+                Text("録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。")
+                    .font(.system(size: 12.5))
+                    .lineSpacing(5)
+                    .foregroundStyle(V6Color.muted)
+                    .multilineTextAlignment(.center)
+                Button {
+                    vm.startTranscription()
+                } label: {
+                    Text("文字起こしを開始")
+                        .font(.system(size: 13.5, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(V6Color.ink, in: RoundedRectangle(cornerRadius: V6Radius.field, style: .continuous))
                 }
-            } else if audioFile.isTranscribed {
-                placeholderCard(
-                    icon: "text.alignleft",
-                    title: "文字起こしを読み込めませんでした",
-                    description: "保存済みデータの取得後に、このタブへ全文を表示します。"
-                )
-            } else {
-                placeholderCard(
-                    icon: "waveform.badge.magnifyingglass",
-                    title: "文字起こしはまだありません",
-                    description: "録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。",
-                    buttonTitle: "文字起こしを開始",
-                    buttonAction: { vm.startTranscription() }
-                )
+                .buttonStyle(V6ScalePressButtonStyleShared())
+                .padding(.top, 6)
             }
-
-            if let referenceTranscript = audioFile.referenceTranscript, !referenceTranscript.isEmpty {
-                detailCard {
-                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-                        Label("参照文字起こし（Plaud）", systemImage: "doc.text")
-                            .font(MemoraTypography.headline)
-                            .foregroundStyle(MemoraColor.accentBlue)
-
-                        Text(referenceTranscript)
-                            .font(MemoraTypography.body)
-                            .foregroundStyle(.primary)
-                            .lineSpacing(6)
-
-                        Text("Plaud 側で生成された文字起こしです。Memora の文字起こしとは独立しています。")
-                            .font(MemoraTypography.caption1)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // 後付け話者分離（Transcript タブ内）
-            postHocDiarizationCard
-
-            // 話者登録（Transcript タブ内）
-            speakerRegistrationCard
-        }
-    }
-
-    // MARK: - Helper Views
-
-    private func progressCard(title: String, progress: Double, message: String) -> some View {
-        detailCard {
-            VStack(alignment: .leading, spacing: MemoraSpacing.md) {
-                Text(title)
-                    .font(MemoraTypography.headline)
-
-                ProgressView(value: progress)
-                    .tint(MemoraColor.textSecondary)
-
-                Text("\(Int(progress * 100))%  \(message)")
-                    .font(MemoraTypography.caption1)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func placeholderCard(
-        icon: String,
-        title: String,
-        description: String,
-        buttonTitle: String? = nil,
-        buttonAction: (() -> Void)? = nil
-    ) -> some View {
-        detailCard {
-            EmptyStateView(
-                icon: icon,
-                title: title,
-                description: description,
-                buttonTitle: buttonTitle,
-                buttonAction: buttonAction
-            )
             .frame(maxWidth: .infinity)
+            .padding(.top, 40)
+            .padding(.horizontal, 20)
         }
     }
 
-    private func detailCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(MemoraSpacing.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(MemoraColor.surfaceSecondary)
-            .clipShape(RoundedRectangle(cornerRadius: MemoraRadius.lg))
-    }
-
-    // MARK: - Post-hoc Diarization Card
-
-    @ViewBuilder
-    private var postHocDiarizationCard: some View {
-        if let result = vm.transcriptResult, !result.segments.isEmpty {
-            let speakerCount = Set(result.segments.map { $0.speakerLabel }.filter { !$0.isEmpty }).count
-            if speakerCount <= 1 {
-                detailCard {
-                    VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
-                        Label("話者を分離", systemImage: "person.2.wave.2")
-                            .font(MemoraTypography.headline)
-
-                        if vm.isDiarizing {
-                            HStack(spacing: MemoraSpacing.sm) {
-                                ProgressView()
-                                Text("話者を解析中… \(vm.diarizationElapsedSec)秒")
-                                    .font(MemoraTypography.caption1)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                                Spacer()
-                                Button("中止") { vm.cancelPostHocDiarization() }
-                                    .font(MemoraTypography.caption1)
-                            }
-                            Text("録音の長さによっては数分かかります。この画面を開いたままお待ちください。")
-                                .font(MemoraTypography.caption2)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("この文字起こしにはまだ話者ラベルがありません。音声を解析して「Speaker 1 / Speaker 2 …」のラベルを付けられます。")
-                                .font(MemoraTypography.caption1)
-                                .foregroundStyle(.secondary)
-                            Button {
-                                vm.runPostHocDiarization()
-                            } label: {
-                                Text("話者分離を実行")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
+    private var playerBar: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Button {
+                    vm.togglePlayback()
+                } label: {
+                    Image(systemName: vm.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(V6Color.ink)
+                        .frame(width: 38, height: 38)
+                        .overlay {
+                            Circle().stroke(V6Color.line, lineWidth: 1)
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var speakerRegistrationCard: some View {
-        if vm.audioURL != nil {
-            detailCard {
-                Button(action: { vm.registerPrimarySpeakerSample() }) {
-                    VStack(spacing: 6) {
-                        Label("この録音を自分の声サンプルに登録", systemImage: "person.crop.circle.badge.plus")
-                            .frame(maxWidth: .infinity)
-                        Text("1人だけが話している録音を使うと精度が安定します")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.primary)
+
+                Text("\(vm.formatTime(vm.playbackPosition)) / \(vm.formatTime(vm.audioDuration))")
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(V6Color.ink)
+
+                Spacer()
+
+                Button {
+                    vm.cyclePlaybackSpeed()
+                } label: {
+                    Text(String(format: "%gx", vm.playbackRate))
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(V6Color.ink)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(V6Color.soft, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
+
+            GeometryReader { proxy in
+                let ratio = vm.audioDuration > 0 ? vm.playbackPosition / vm.audioDuration : 0
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(Color(hex: "EEEEEE"))
+                    .frame(height: 3)
+                    .overlay(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(V6Color.ink)
+                            .frame(width: proxy.size.width * ratio)
+                    }
+                    .contentShape(Rectangle().inset(by: -8))
+                    .gesture(
+                        DragGesture(minimumDistance: 0).onChanged { value in
+                            guard vm.audioDuration > 0 else { return }
+                            let pct = min(max(value.location.x / proxy.size.width, 0), 1)
+                            vm.seek(to: vm.audioDuration * pct)
+                        }
+                    )
+            }
+            .frame(height: 12)
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 10)
+        .background(V6Color.white)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(V6Color.paleLine).frame(height: 1)
         }
     }
 }

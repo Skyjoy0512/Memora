@@ -212,7 +212,8 @@ struct TranscriptPostProcessorTests {
                     speakerLabel: "Speaker 1",
                     startSec: 1.0,
                     endSec: 2.0,
-                    text: "今日は 会議 です。。"
+                    text: "今日は 会議 です。。",
+                    isEstimatedTiming: true
                 )
             ]
         ))
@@ -222,6 +223,7 @@ struct TranscriptPostProcessorTests {
         #expect(result.segments.first?.startSec == 1.0)
         #expect(result.segments.first?.endSec == 2.0)
         #expect(result.segments.first?.text == "今日は会議です。")
+        #expect(result.segments.first?.isEstimatedTiming == true)
     }
 }
 

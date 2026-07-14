@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Memora RN",
+    "slug": "memora-rn",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "memora-rn",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-dev-client",
+        {
+          "launchMode": "most-recent"
+        }
+      ],
+      "expo-font",
+      "expo-image"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.memora-rn",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Memora uses the microphone to record meetings and create reviewable transcripts.",
+        "NSPhotoLibraryUsageDescription": "Memora lets you attach photos to your memo notes for a recording."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

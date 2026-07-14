@@ -16,6 +16,10 @@ enum KeychainService {
         case plaudAccessToken = "plaud_accessToken"
         case plaudRefreshToken = "plaud_refreshToken"
         case plaudTokenExpiresAt = "plaud_tokenExpiresAt"
+        case plaudMCPAccessToken = "plaud_mcp_accessToken"
+        case plaudMCPRefreshToken = "plaud_mcp_refreshToken"
+        case plaudMCPTokenExpiresAt = "plaud_mcp_tokenExpiresAt"
+        case plaudMCPClientID = "plaud_mcp_clientID"
 
         // Google Meet OAuth tokens
         case googleMeetAccessToken = "googleMeet_accessToken"

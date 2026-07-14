@@ -25,6 +25,7 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
     var isPlaying = false
     var currentTime: TimeInterval = 0
     var duration: TimeInterval = 0
+    var rate: Float = 1.0
 
     private var audioPlayer: AVAudioPlayer?
     private var loadedURL: URL?
@@ -84,6 +85,11 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
         seekCore(to: time)
     }
 
+    func setRate(_ newRate: Float) {
+        rate = newRate
+        audioPlayer?.rate = newRate
+    }
+
     func playbackProgress() -> AsyncStream<TimeInterval> {
         AsyncStream { continuation in
             let id = UUID()
@@ -106,6 +112,8 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
 
             let player = try AVAudioPlayer(contentsOf: url)
             player.delegate = self
+            player.enableRate = true
+            player.rate = rate
             player.prepareToPlay()
 
             audioPlayer = player
@@ -127,10 +135,12 @@ final class AudioPlayer: NSObject, AudioPlayerProtocol {
         if audioPlayer == nil {
             audioPlayer = player
             audioPlayer?.delegate = self
+            audioPlayer?.enableRate = true
             audioPlayer?.prepareToPlay()
             duration = player.duration
         }
 
+        audioPlayer?.rate = rate
         audioPlayer?.play()
         isPlaying = true
         startProgressTimer()

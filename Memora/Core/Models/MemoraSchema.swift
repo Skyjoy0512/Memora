@@ -62,6 +62,39 @@ enum MemoraSchemaV2: VersionedSchema {
     ]
 }
 
+// MARK: - Schema V3
+
+/// V3: オンライン会議キャプチャ関連モデルを正式にVersionedSchemaへ登録。
+/// TranscriptionCheckpoint は再生成可能な中間データのため、V3以降は本体DBから外す。
+enum MemoraSchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+
+    static let models: [any PersistentModel.Type] = [
+        AudioFile.self,
+        Transcript.self,
+        Project.self,
+        MeetingNote.self,
+        MeetingMemo.self,
+        PhotoAttachment.self,
+        KnowledgeChunk.self,
+        AskAISession.self,
+        AskAIMessage.self,
+        MemoryProfile.self,
+        MemoryFact.self,
+        TodoItem.self,
+        ProcessingJob.self,
+        WebhookSettings.self,
+        PlaudSettings.self,
+        CalendarEventLink.self,
+        GoogleMeetSettings.self,
+        NotionSettings.self,
+        CustomSummaryTemplate.self,
+        OnlineMeetingCapture.self,
+        BotMeetingConfig.self,
+        ScheduledBotMeeting.self
+    ]
+}
+
 // MARK: - Migration Plan
 
 /// スキーママイグレーションプラン。
@@ -86,13 +119,17 @@ enum MemoraSchemaV2: VersionedSchema {
 /// ```
 enum MemoraMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [MemoraSchemaV1.self, MemoraSchemaV2.self]
+        [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self]
     }
 
     static let stages: [MigrationStage] = [
         MigrationStage.lightweight(
             fromVersion: MemoraSchemaV1.self,
             toVersion: MemoraSchemaV2.self
+        ),
+        MigrationStage.lightweight(
+            fromVersion: MemoraSchemaV2.self,
+            toVersion: MemoraSchemaV3.self
         )
     ]
 

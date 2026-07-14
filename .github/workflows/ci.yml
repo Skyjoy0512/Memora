@@ -1,4 +1,4 @@
-name: iOS CI
+name: Memora CI
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  ios-build:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -38,3 +38,70 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Compile iOS tests
+        run: |
+          xcodebuild \
+            -project Memora.xcodeproj \
+            -scheme Memora \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing
+
+  shared-data:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test shared data package
+        run: swift test --package-path Packages/MemoraSharedData
+
+  expo-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile-expo/package-lock.json
+
+      - name: Install Expo dependencies
+        working-directory: apps/mobile-expo
+        run: npm ci
+
+      - name: Type-check Expo app
+        working-directory: apps/mobile-expo
+        run: npm run typecheck
+
+      - name: Export Expo web bundle
+        working-directory: apps/mobile-expo
+        run: npx expo export --platform web
+
+  bot-server-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bot-server/package-lock.json
+
+      - name: Install Bot Server dependencies
+        working-directory: bot-server
+        run: npm ci
+
+      - name: Build Bot Server
+        working-directory: bot-server
+        run: npm run build

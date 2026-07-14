@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(find:*)",
-      "Bash(xcrun simctl:*)"
+      "Bash(xcrun simctl:*)",
+      "Bash(grep -ril \"claude design\\\\|claudedesign\\\\|\\\\.pen\\\\b\\\\|pencil\" /Volumes/HIKSEMI/Dev/DesktopProjects/Memora/docs /Volumes/HIKSEMI/Dev/DesktopProjects/Memora/*.md 2>/dev/null | head -20; echo \"---\"; find ~/Desktop ~/Downloads ~/Documents -maxdepth 3 -name \"*.pen\" 2>/dev/null | head)",
+      "Bash(claude mcp *)",
+      "Bash(claude --version)",
+      "Bash(claude auth *)",
+      "Bash(python3 -c ' *)",
+      "Bash(git fetch *)",
+      "Bash(git switch *)"
     ]
   }
 }

@@ -404,6 +404,31 @@ final class PipelineCoordinator {
         let effectiveSpeakerCount = audioFile.referenceSpeakerCount
             ?? Self.loadReferenceFromDocs(audioFileName: audioFile.title).flatMap { Self.extractSpeakerCount(from: $0) }
 
+        let checkpointStore = TranscriptionCheckpointStore()
+        let checkpointAudioFileID = audioFile.id
+        let checkpointHooks = STTCheckpointHooks(
+            load: { fingerprint in
+                await checkpointStore.load(
+                    audioFileID: checkpointAudioFileID,
+                    fingerprint: fingerprint
+                )
+            },
+            save: { fingerprint, totalChunks, chunkIndex, result in
+                await checkpointStore.save(
+                    audioFileID: checkpointAudioFileID,
+                    fingerprint: fingerprint,
+                    totalChunks: totalChunks,
+                    chunkIndex: chunkIndex,
+                    result: result
+                )
+            },
+            clear: {
+                await checkpointStore.delete(audioFileID: checkpointAudioFileID)
+            }
+        )
+        transcriptionEngine.updateCheckpointHooks(checkpointHooks)
+        defer { transcriptionEngine.updateCheckpointHooks(nil) }
+
         while job.canRetry || transcriptResult != nil {
             do {
                 DebugLogger.shared.addLog("Pipeline", "transcriptionEngine.transcribe 呼び出し (attempt \(job.retryCount + 1))", level: .info)
@@ -437,26 +462,14 @@ final class PipelineCoordinator {
         job.updateProgress(0.6, stage: PipelineStep.mergingTranscripts.rawValue)
         continuation.yield(.stepStarted(.mergingTranscripts))
 
-        let transcript = Transcript(audioFileID: audioFile.id, text: transcriptResult.text)
         DebugLogger.shared.addLog("Pipeline", "Transcript 保存開始", level: .info)
-        saveTranscript(transcript)
-
-        for segment in transcriptResult.segments {
-            transcript.addSpeakerSegment(
-                speakerLabel: segment.speakerLabel,
-                startTime: segment.startTime,
-                endTime: segment.endTime,
-                text: segment.text
-            )
-        }
         do {
-            try modelContext.save()
+            try persistTranscript(transcriptResult, for: audioFile)
         } catch {
             DebugLogger.shared.addLog("Pipeline", "Failed to save transcript: \(error.localizedDescription)", level: .error)
+            throw error
         }
-
-        audioFile.isTranscribed = true
-        saveAudioFile(audioFile)
+        await checkpointHooks.clear()
         reindexKnowledge(for: audioFile)
 
         // PlaudNote 参照データとの比較ログ出力
@@ -476,12 +489,34 @@ final class PipelineCoordinator {
         return transcriptResult
     }
 
-    private func saveTranscript(_ transcript: Transcript) {
-        modelContext.insert(transcript)
-        do {
-            try modelContext.save()
-        } catch {
-            print("[PipelineCoordinator] Transcript save error: \(error)")
+    /// Transcript と AudioFile の完了フラグを1回の SwiftData transaction で保存する。
+    /// 同じ AudioFile の再文字起こしは最新レコードへ上書きし、既存重複を除去する。
+    private func persistTranscript(
+        _ result: TranscriptResult,
+        for audioFile: AudioFile
+    ) throws {
+        let targetID = audioFile.id
+        try modelContext.transaction {
+            let descriptor = FetchDescriptor<Transcript>(
+                predicate: #Predicate { $0.audioFileID == targetID },
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            )
+            let existing = try modelContext.fetch(descriptor)
+            let transcript: Transcript
+            if let latest = existing.first {
+                transcript = latest
+                transcript.text = result.text
+                transcript.createdAt = Date()
+            } else {
+                transcript = Transcript(audioFileID: targetID, text: result.text)
+                modelContext.insert(transcript)
+            }
+
+            transcript.replaceSpeakerSegments(result.segments)
+            for duplicate in existing.dropFirst() {
+                modelContext.delete(duplicate)
+            }
+            audioFile.isTranscribed = true
         }
     }
 
@@ -644,7 +679,8 @@ final class PipelineCoordinator {
                 assignee: planned.assignee,
                 speaker: planned.assignee,
                 priority: planned.priority.rawValue,
-                relativeDueDate: planned.relativeDueDate?.rawValue
+                relativeDueDate: planned.relativeDueDate?.rawValue,
+                sourceAudioFileID: sourceFileId
             )
             modelContext.insert(parent)
 
@@ -652,7 +688,8 @@ final class PipelineCoordinator {
                 let child = TodoItem(
                     title: sub.title,
                     notes: sub.citation,
-                    parentID: parent.id
+                    parentID: parent.id,
+                    sourceAudioFileID: sourceFileId
                 )
                 modelContext.insert(child)
             }

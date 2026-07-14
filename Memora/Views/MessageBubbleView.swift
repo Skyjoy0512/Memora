@@ -1,60 +1,91 @@
 import SwiftUI
+import UIKit
 
+/// Plain document/chat rendering (`.dc.html` Ask tab): question = small grey text,
+/// answer = body text + source chips + copy/taskify row — not rounded chat bubbles,
+/// visually consistent with the Dynamic Island's Ask answer style.
 struct MessageBubbleView: View {
     let message: AskAIConversationMessage
+    let onTaskify: (AskAIConversationMessage) -> Void
+    let onOpenSource: (AskAICitation) -> Void
 
-    private var isUser: Bool {
-        message.role == .user
-    }
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
 
     var body: some View {
-        HStack(alignment: .bottom) {
-            if !isUser { Spacer(minLength: 0) }
-
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 8) {
+        if message.role == .user {
+            Text(message.content)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(V6Color.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(message.content)
-                    .font(.body)
-                    .foregroundStyle(isUser ? Color.white : Color.primary)
-                    .lineSpacing(5)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .frame(maxWidth: isUser ? 0.85 : .infinity, alignment: isUser ? .trailing : .leading)
-                    .if(isUser) { view in
-                        view
-                            .background(Color.accentColor)
-                            .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                    }
+                    .font(.system(size: 15))
+                    .lineSpacing(6)
+                    .foregroundStyle(V6Color.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if !message.citations.isEmpty {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 8) {
-                            ForEach(message.citations) { citation in
-                                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        ForEach(message.citations) { citation in
+                            Button {
+                                onOpenSource(citation)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc")
+                                        .font(.system(size: 9))
                                     Text(citation.sourceLabel)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Text(citation.title)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 10.5, weight: .medium))
                                         .lineLimit(1)
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                                .background(Color(uiColor: .secondarySystemGroupedBackground))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(uiColor: .separator).opacity(0.35), lineWidth: 0.5)
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(V6Color.tertiary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(V6Color.faint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(Color(hex: "ECECEC"), lineWidth: 1)
+                                }
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
 
-            if isUser { Spacer(minLength: 0) }
+                HStack(spacing: 14) {
+                    Button {
+                        UIPasteboard.general.string = message.content
+                    } label: {
+                        Text("コピー")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(V6Color.muted)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        onTaskify(message)
+                    } label: {
+                        Text("タスク化")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(V6Color.muted)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    Text(Self.timeFormatter.string(from: message.createdAt))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(V6Color.neutralBorder)
+                }
+            }
+            .padding(.bottom, 8)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(V6Color.faint).frame(height: 1)
+            }
         }
-        .padding(.horizontal)
     }
 }

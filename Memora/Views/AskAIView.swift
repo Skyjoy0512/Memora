@@ -9,6 +9,7 @@ struct AskAIView: View {
     @AppStorage("memoryPrivacyMode") private var memoryPrivacyMode = "standard"
 
     let scope: ChatScope
+    var onOpenSourceTitle: ((String) -> Void)?
 
     @State var queryService: KnowledgeQueryService?
     @State var activeScope: ChatScope
@@ -22,8 +23,9 @@ struct AskAIView: View {
     @State var sourceBadges: [AskAISourceBadge] = []
     @State var pendingMessage: String?
 
-    init(scope: ChatScope, initialMessage: String? = nil) {
+    init(scope: ChatScope, initialMessage: String? = nil, onOpenSourceTitle: ((String) -> Void)? = nil) {
         self.scope = scope
+        self.onOpenSourceTitle = onOpenSourceTitle
         _activeScope = State(initialValue: scope)
         if let msg = initialMessage, !msg.isEmpty {
             _pendingMessage = State(initialValue: msg)
@@ -48,32 +50,16 @@ struct AskAIView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                scopeSelector
-                sessionStrip
-                chatScrollView
-                thinkingIndicator
-            }
-            .safeAreaInset(edge: .bottom) {
-                inputBar
-            }
-            .background(Color(uiColor: .systemBackground))
-            .navigationTitle("Ask AI")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text(currentProvider.rawValue)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("新規") {
-                        startNewSession()
-                    }
-                }
-            }
+        VStack(spacing: 0) {
+            v6Header
+            v6ScopeTabs
+            v6ScopeCaption
+            chatScrollView
         }
+        .safeAreaInset(edge: .bottom) {
+            v6InputBar
+        }
+        .background(V6Color.white)
         .task {
             queryService = KnowledgeQueryService(modelContext: modelContext, memoryPrivacyMode: memoryPrivacyMode)
             reloadScopeOptions()

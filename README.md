@@ -145,6 +145,9 @@ Memora/
 
 - [アーキテクチャ設計](docs/architecture.md) - プロジェクトの技術的な設計
 - [文字起こしコア境界](docs/transcription-core-boundary.md) - STT コアの保護ルールと拡張方針
+- [React Native / Expo 移行計画](docs/react-native-expo-migration-plan.md) - SwiftUI から RN/Expo へ段階移行するための計画・進捗・LLM 引き継ぎ
+- [React Native SwiftData 共有方針](docs/react-native-swiftdata-target-sharing-decision.md) - RN target から既存 SwiftData を安全に参照するための判断記録
+- [共有 Swift Package skeleton](Packages/MemoraSharedData/Package.swift) - SwiftData 本体を移動する前の共有 DTO/store 契約
 - [タスク管理](docs/todo.md) - 開発タスクの進捗管理
 - [引き継ぎ情報](docs/handoff.md) - プロジェクトの引き継ぎ用情報
 

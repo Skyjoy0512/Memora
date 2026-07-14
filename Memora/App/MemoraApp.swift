@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import MemoraSharedData
 
 @main
 struct MemoraApp: App {
@@ -17,30 +18,11 @@ struct MemoraApp: App {
 
     private static let tempStoreFlagKey = "didUseTemporaryStoreLastSession"
 
-    nonisolated private static let schema = Schema([
-        AudioFile.self,
-        Transcript.self,
-        Project.self,
-        MeetingNote.self,
-        MeetingMemo.self,
-        PhotoAttachment.self,
-        KnowledgeChunk.self,
-        AskAISession.self,
-        AskAIMessage.self,
-        MemoryProfile.self,
-        MemoryFact.self,
-        TodoItem.self,
-        ProcessingJob.self,
-        WebhookSettings.self,
-        PlaudSettings.self,
-        CalendarEventLink.self,
-        GoogleMeetSettings.self,
-        NotionSettings.self,
-        CustomSummaryTemplate.self,
-        OnlineMeetingCapture.self,
-        BotMeetingConfig.self,
-        ScheduledBotMeeting.self
-    ])
+    init() {
+        PlaudBackgroundSyncScheduler.shared.register()
+    }
+
+    nonisolated private static let schema = Schema(versionedSchema: MemoraSchemaV3.self)
 
     nonisolated private static let migrationPlan = MemoraMigrationPlan.self
 
@@ -304,6 +286,13 @@ struct MemoraApp: App {
                         ProcessingJob.cleanupCompletedJobs(in: context)
                         // SwiftData に平文保存されている認証情報を Keychain に移行
                         KeychainService.migrateCredentialsFromSwiftData(context: context)
+                        await runPlaudForegroundSyncIfNeeded(context: context)
+                        if let settings = try? context.fetch(FetchDescriptor<PlaudSettings>()).first,
+                           settings.isEnabled,
+                           settings.autoSyncEnabled,
+                           PlaudMCPOAuthService().account().isConnected {
+                            PlaudBackgroundSyncScheduler.shared.scheduleNextSync()
+                        }
                     }
                     DebugLogger.shared.markModelContainerReady()
                     DebugLogger.shared.markAppReady()
@@ -401,6 +390,10 @@ struct MemoraApp: App {
         return container
     }
 
+    nonisolated static func createBackgroundSyncModelContainer() throws -> ModelContainer {
+        try createModelContainer()
+    }
+
     nonisolated private static func persistentStoreURL() throws -> URL {
         let fileManager = FileManager.default
         let appSupportURL = try fileManager.url(
@@ -409,11 +402,54 @@ struct MemoraApp: App {
             appropriateFor: nil,
             create: true
         )
-        let directoryURL = appSupportURL.appendingPathComponent("Memora", isDirectory: true)
+        let legacyStoreURL = MemoraSharedStoreLocation.storeURL(in: appSupportURL)
+
+        guard let sharedStoreURL = try? MemoraSharedStoreLocation.applicationGroupStoreURL(
+            groupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier,
+            fileManager: fileManager
+        ) else {
+            return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
+        }
+
+        let sharedDirectory = sharedStoreURL.deletingLastPathComponent()
+        let hasSharedStore = fileManager.fileExists(atPath: sharedStoreURL.path)
+        let hasLegacyStore = fileManager.fileExists(atPath: legacyStoreURL.path)
+
+        if hasSharedStore {
+            return sharedStoreURL
+        }
+
+        if hasLegacyStore && !fileManager.fileExists(atPath: sharedDirectory.path) {
+            do {
+                try MemoraStoreMigration.migrateStoreAtomically(
+                    from: legacyStoreURL,
+                    to: sharedStoreURL,
+                    fileManager: fileManager
+                )
+                return sharedStoreURL
+            } catch {
+                // Keep using the known-good legacy store. The source is never removed by migration.
+                return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
+            }
+        }
+
+        if !hasLegacyStore && !fileManager.fileExists(atPath: sharedDirectory.path) {
+            return try prepareStoreDirectory(for: sharedStoreURL, fileManager: fileManager)
+        }
+
+        // A partial or manually created destination directory must never replace a valid store.
+        return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
+    }
+
+    nonisolated private static func prepareStoreDirectory(
+        for storeURL: URL,
+        fileManager: FileManager
+    ) throws -> URL {
+        let directoryURL = storeURL.deletingLastPathComponent()
         if !fileManager.fileExists(atPath: directoryURL.path) {
             try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         }
-        return directoryURL.appendingPathComponent("Memora.store")
+        return storeURL
     }
 
     nonisolated private static func removePersistentStore(at storeURL: URL) throws {
@@ -489,5 +525,29 @@ struct MemoraApp: App {
         // トータルレコード数
         let totalRecords = counts.reduce(0) { $0 + $1.1 }
         DebugLogger.shared.addLog("ModelContainer", "総レコード数: \(totalRecords)", level: .info)
+    }
+
+    @MainActor
+    private func runPlaudForegroundSyncIfNeeded(context: ModelContext) async {
+        guard let settings = try? context.fetch(FetchDescriptor<PlaudSettings>()).first,
+              settings.isEnabled,
+              settings.autoSyncEnabled,
+              PlaudMCPOAuthService().account().isConnected else {
+            return
+        }
+
+        do {
+            let result = try await PlaudCloudSyncService(modelContext: context).sync()
+            settings.lastSyncAt = Date()
+            settings.updatedAt = Date()
+            try context.save()
+            DebugLogger.shared.addLog(
+                "PLAUD",
+                "フォアグラウンド同期完了: 取込 \(result.importedCount)件、スキップ \(result.skippedCount)件、失敗 \(result.failedCount)件",
+                level: result.failedCount == 0 ? .info : .warning
+            )
+        } catch {
+            DebugLogger.shared.addLog("PLAUD", "フォアグラウンド同期失敗: \(error.localizedDescription)", level: .warning)
+        }
     }
 }

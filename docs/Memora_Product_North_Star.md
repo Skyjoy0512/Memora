@@ -17,7 +17,7 @@
 ## 2. 今の開発で絶対にブレてはいけない体験
 
 ### 体験 1: ちゃんと録れて、落ちずに文字起こしできる
-- 録音または音声取り込みができる
+- iPhone / Mac / Watch / Chrome / 会議 Bot から録音または音声取り込みができる
 - 文字起こし実行でクラッシュしない
 - 長時間音声でも途中で破綻しにくい
 - 失敗時に「なぜ失敗したか」がわかる
@@ -55,6 +55,7 @@
 - AskAI の file / project / global スコープ
 - Plaud / Omi 関連の土台
 - 各種 export
+- 会議 Bot server / iOS 予約 UI の骨格
 
 ## 4. 今やること / まだやらないこと
 
@@ -64,15 +65,16 @@
 3. AI がタスクを分解・整理できるようにする
 4. Notion / ChatGPT など外部への知識蓄積導線を作る
 5. 起動の重さを減らす
+6. Chrome 拡張でオンライン会議を録音し、要約まで返す
+7. 会議参加 Bot を段階的に実用化する
 
 ### 後回しにすること
 - サインイン
 - ペイウォール
 - オンボーディング大型刷新
 - 本格クラウド同期
-- 会議 bot
-- watch 単体録音
-- デスクトップ / Web 録音の本格実装
+- 全会議プラットフォームの同時対応
+- browser automation のみに依存する production Bot
 
 ## 5. 今のプロダクトの優先順位
 
@@ -91,9 +93,11 @@
 - 後でコンテキストを蓄積しやすい
 
 ### P3: Capture Expansion
-- online meeting coverage
-- Apple Watch
-- desktop / web 補助
+- Chrome 拡張による user-initiated meeting capture
+- Meet / Zoom / Teams の post-meeting artifact import
+- visible participant Bot
+- Apple Watch remote / standalone recording
+- macOS native meeting capture
 
 ### P4: Business Layer
 - sign in
@@ -118,6 +122,8 @@
 3. AskAI が file / project / global で意味のある回答を返す
 4. AI がタスク整理まで支援する
 5. Notion / ChatGPT へ持ち出す導線ができる
+6. Chromeで会議を録音し、同じ File Detail に transcript / summary が入る
+7. Bot参加または公式artifact取得が最低1プラットフォームで成立する
 
 ## 8. Claude への一言での説明
 

@@ -104,7 +104,8 @@ struct TranscriptPostProcessor {
                 speakerLabel: segment.speakerLabel,
                 startSec: segment.startSec,
                 endSec: segment.endSec,
-                text: clean(segment.text)
+                text: clean(segment.text),
+                isEstimatedTiming: segment.isEstimatedTiming
             )
         }
         let cleanedFullText = clean(result.fullText)
@@ -557,7 +558,8 @@ struct StreamingTranscriptMerger {
                 speakerLabel: seg.speakerLabel,
                 startSec: seg.startSec + offset,
                 endSec: seg.endSec + offset,
-                text: seg.text
+                text: seg.text,
+                isEstimatedTiming: seg.isEstimatedTiming
             ))
         }
     }

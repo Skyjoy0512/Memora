@@ -3,11 +3,15 @@ import SwiftUI
 // MARK: - Omi Preview (Realtime Transcription) Section
 
 struct RealtimeTranscriptionSection: View {
-    @Environment(OmiAdapter.self) private var omiAdapter
+    @Environment(CaptureSourceRegistry.self) private var captureRegistry
+
+    private var omiAdapter: OmiAdapter? {
+        captureRegistry.omiAdapter
+    }
 
     var body: some View {
         Section {
-            if omiAdapter.isConnected {
+            if let omiAdapter, omiAdapter.isConnected {
                 VStack(spacing: 13) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
@@ -50,7 +54,9 @@ struct RealtimeTranscriptionSection: View {
                         .font(MemoraTypography.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Button(action: { omiAdapter.startScan() }) {
+                    Button(action: {
+                        Task { await captureRegistry.startAllDiscovery() }
+                    }) {
                         Label("デバイスを検索", systemImage: "magnifyingglass")
                             .font(MemoraTypography.subheadline)
                             .foregroundStyle(MemoraColor.textPrimary)

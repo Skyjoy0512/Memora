@@ -28,7 +28,7 @@ struct MeetingHistoryView: View {
             .navigationDestination(isPresented: $navigateToFile) {
                 if let fileID = selectedAudioFileID,
                    let file = fetchAudioFile(id: fileID) {
-                    FileDetailView(audioFile: file, autoStartTranscription: false)
+                    V6FileDetailView(audioFile: file, autoStartTranscription: false)
                 }
             }
         }

@@ -24,6 +24,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps</string>
+				<string>memora-plaud</string>
 			</array>
 		</dict>
 	</array>
@@ -31,8 +32,18 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>ai.memora.plaud-cloud-sync</string>
+	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>ウェアラブルデバイスとの接続と音声録音のために Bluetooth を許可してください</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>ウェアラブルデバイスとの接続と音声録音のために Bluetooth を許可してください</string>
 	<key>NSCalendarsUsageDescription</key>
