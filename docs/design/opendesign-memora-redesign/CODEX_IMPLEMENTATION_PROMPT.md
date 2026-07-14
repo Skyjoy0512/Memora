@@ -297,7 +297,7 @@ Step 8.4: ダークモード切替の動作確認（useColorScheme）
 
 ```bash
 # 型チェック
-cd /Volumes/HIKSEMI/Dev/DesktopProjects/Memora/apps/mobile-expo
+cd apps/mobile-expo
 npm run typecheck
 
 # Web プレビュー起動
