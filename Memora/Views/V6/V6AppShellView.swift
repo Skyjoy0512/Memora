@@ -41,6 +41,7 @@ struct V6AppShellView: View {
     @State private var showDeviceConnection = false
     @State private var showPlaudConnection = false
     @State private var showDeleteDataConfirm = false
+    @State private var deletionResultMessage: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BluetoothAudioService.self) private var bluetoothService
     @Environment(\.modelContext) private var modelContext
@@ -667,28 +668,27 @@ struct V6AppShellView: View {
                 V6DeleteAllDataConfirm(
                     onCancel: { showDeleteDataConfirm = false },
                     onConfirm: {
-                        deleteAllData()
+                        let result = LocalDataDeletionService(context: modelContext).deleteAll()
+                        deletionResultMessage = result.isComplete
+                            ? "削除が完了しました。\(result.deletedCategories.joined(separator: "・"))を削除しました。"
+                            : "一部削除できませんでした。\(result.failures.joined(separator: "\n"))"
                         showDeleteDataConfirm = false
                     }
                 )
             }
         }
+        .alert("データ削除の結果", isPresented: Binding(
+            get: { deletionResultMessage != nil },
+            set: { if !$0 { deletionResultMessage = nil } }
+        )) {
+            Button("閉じる", role: .cancel) { deletionResultMessage = nil }
+        } message: { Text(deletionResultMessage ?? "") }
     }
 
     private func logout() {
         isPro = false
         loginEmail = ""
         authStageRaw = V6AuthStage.login.rawValue
-    }
-
-    private func deleteAllData() {
-        try? modelContext.delete(model: AudioFile.self)
-        try? modelContext.delete(model: Project.self)
-        try? modelContext.delete(model: TodoItem.self)
-        try? modelContext.delete(model: AskAISession.self)
-        try? modelContext.delete(model: AskAIMessage.self)
-        try? modelContext.delete(model: MeetingMemo.self)
-        try? modelContext.save()
     }
 
     private func projectTitle(for projectID: UUID?) -> String {
@@ -1409,7 +1409,7 @@ private struct V6DeleteAllDataConfirm: View {
                     Text("すべてのデータを削除しますか？")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(V6Color.ink)
-                    Text("録音・文字起こし・タスクなど全ての記録が完全に削除され、元に戻せません。")
+                    Text("録音・写真・文字起こし・タスク・設定・連携認証情報を含む、このアプリのローカルデータを削除します。元に戻せません。")
                         .font(.system(size: 12.5))
                         .lineSpacing(4)
                         .foregroundStyle(V6Color.muted)
