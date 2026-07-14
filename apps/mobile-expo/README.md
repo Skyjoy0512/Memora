@@ -12,7 +12,7 @@ Read the root migration handoff first:
 - Expo Router enabled.
 - Mock UI screens implemented for Home, File Detail, Ask AI, Settings, and Preview Index.
 - `expo-dev-client` installed.
-- iOS native project generated under `ios/`.
+- iOS native host is tracked under `ios/`; it includes Memora-specific bridge bootstrap, entitlements, privacy manifest, tests, and Xcode metadata.
 - Local Expo Module shell exists at `modules/memora-native`.
 - RN facade prefers the native `MemoraNative` module on iOS and uses mock data on web.
 - `MemoraNative` currently reads native-file metadata through `MemoraAudioFileReading` and falls back to a safe sample file when no local native-file records exist; it is not wired to the real SwiftData/repository or STT services yet.
@@ -58,6 +58,10 @@ cd ios && pod install
 xcodebuild -workspace ios/MemoraRN.xcworkspace -scheme MemoraRN -destination 'generic/platform=iOS Simulator' build
 npm run ios
 ```
+
+### iOSホストの再生成について
+
+`expo prebuild --clean` は実行しないでください。これは追跡済みの `ios/` ホストを生成物で上書きし、Memora固有のブリッジBootstrap・entitlements・Privacy Manifest・テスト設定を失わせるおそれがあります。ネイティブ依存を変更した場合は、既存ホストを保ったまま `npm run prebuild -- --platform ios` を使い、差分をレビューしてから `pod install` を実行します。
 
 Use web for quick UI review and Dev Client/native builds for anything that touches `MemoraNative`.
 

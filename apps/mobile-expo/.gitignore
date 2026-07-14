@@ -36,6 +36,23 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
+# Native hosts
+#
+# The iOS host contains Memora-specific bridge/bootstrap code and is source,
+# not a disposable Expo output. Keep its reproducible inputs in Git while
+# leaving machine-local and generated artifacts ignored.
+/ios/*
+!/ios/.gitignore
+!/ios/.xcode.env
+!/ios/Podfile
+!/ios/Podfile.lock
+!/ios/Podfile.properties.json
+!/ios/MemoraRN/
+!/ios/MemoraRN/**
+!/ios/MemoraRNTests/
+!/ios/MemoraRNTests/**
+!/ios/MemoraRN.xcodeproj/
+!/ios/MemoraRN.xcodeproj/**
+!/ios/MemoraRN.xcworkspace/
+!/ios/MemoraRN.xcworkspace/**
 /android
