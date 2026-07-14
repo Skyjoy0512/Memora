@@ -15,8 +15,10 @@ struct MemoraApp: App {
     @State private var hasStartedInitialLoad = false
     @State private var loadAttemptToken = UUID()
     @State private var temporaryStoreReason: String?
+    @State private var showPersistentStoreResetConfirmation = false
 
     private static let tempStoreFlagKey = "didUseTemporaryStoreLastSession"
+    private static let isRunningUnitTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
         PlaudBackgroundSyncScheduler.shared.register()
@@ -45,6 +47,9 @@ struct MemoraApp: App {
                 }
             }
             .task {
+                // Unit test host already owns its in-memory ModelContainer.
+                // Creating the app container as well triggers a known simulator SwiftData crash.
+                guard !Self.isRunningUnitTests else { return }
                 // 既存 UserDefaults の API 鍵を Keychain に移行（初回のみ実行）
                 KeychainService.migrateFromUserDefaults()
 
@@ -69,6 +74,14 @@ struct MemoraApp: App {
                 NavigationStack {
                     DebugLogView()
                 }
+            }
+            .alert("ローカルデータをリセットしますか？", isPresented: $showPersistentStoreResetConfirmation) {
+                Button("削除して再初期化", role: .destructive) {
+                    Task { await loadModelContainer(resetStore: true) }
+                }
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("この端末のSwiftDataストア（記録・設定を含む）を削除して再作成します。削除前にバックアップを作成します。")
             }
         }
     }
@@ -166,9 +179,7 @@ struct MemoraApp: App {
 
             if canResetPersistentStore {
                 Button(action: {
-                    Task {
-                        await loadModelContainer(resetStore: true)
-                    }
+                    showPersistentStoreResetConfirmation = true
                 }) {
                     Text("ローカルデータをリセット")
                 }
@@ -228,17 +239,8 @@ struct MemoraApp: App {
                 DebugLogger.shared.markLaunchStep("Task.detached: ModelContainer 生成成功")
                 return Result.success((container, false))
             } catch {
-                guard !resetStore, !useInMemoryStore else {
-                    return Result.failure(error)
-                }
-
-                do {
-                    let container = try Self.createModelContainer(resetStore: true)
-                    DebugLogger.shared.markLaunchStep("Task.detached: ModelContainer リセット生成成功")
-                    return Result.success((container, true))
-                } catch {
-                    return Result.failure(error)
-                }
+                // 起動失敗は既存ストアを保持したまま利用者へ返す。自動削除は絶対にしない。
+                return Result.failure(error)
             }
         }
 
@@ -315,7 +317,7 @@ struct MemoraApp: App {
         case .timedOut:
             loadTask.cancel()
             DebugLogger.shared.addLog("ModelContainer", "初期化タイムアウト（\(storeExists ? "8秒" : "15秒")）", level: .warning)
-            DebugLogger.shared.addLog("ModelContainer", "永続ストアを諦めて一時ストアへフォールバックします", level: .warning)
+            DebugLogger.shared.addLog("ModelContainer", "既存ストアを保持したまま一時ストアへ切り替えます", level: .warning)
             DebugLogger.shared.markLaunchStep("タイムアウト → 一時ストアフォールバック開始")
 
             let fallbackResult = await Task.detached(priority: .userInitiated) {
@@ -368,8 +370,15 @@ struct MemoraApp: App {
             DebugLogger.shared.addLog("ModelContainer", "ストア情報確認 (\(String(format: "%.0f", storeCheckMs))ms)", level: .info)
 
             if resetStore {
-                try removePersistentStore(at: storeURL)
-                DebugLogger.shared.addLog("ModelContainer", "既存ストアを削除して再作成", level: .warning)
+                let backupRoot = storeURL.deletingLastPathComponent()
+                    .appendingPathComponent("MemoraStoreBackups", isDirectory: true)
+                let backupURL = try PersistentStoreSafetyService(backupRootURL: backupRoot)
+                    .backupThenRemoveStore(at: storeURL)
+                DebugLogger.shared.addLog(
+                    "ModelContainer",
+                    "利用者操作により既存ストアをバックアップ後に削除\(backupURL.map { ": \($0.lastPathComponent)" } ?? "")",
+                    level: .warning
+                )
             }
             configuration = ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
             DebugLogger.shared.markLaunchStep("ModelConfiguration 生成完了（永続）")
@@ -452,19 +461,6 @@ struct MemoraApp: App {
         return storeURL
     }
 
-    nonisolated private static func removePersistentStore(at storeURL: URL) throws {
-        let fileManager = FileManager.default
-        let sidecars = [
-            storeURL,
-            URL(fileURLWithPath: storeURL.path + "-shm"),
-            URL(fileURLWithPath: storeURL.path + "-wal")
-        ]
-
-        for url in sidecars where fileManager.fileExists(atPath: url.path) {
-            try fileManager.removeItem(at: url)
-        }
-    }
-
     private enum ModelContainerLoadOutcome {
         case completed(Result<(container: ModelContainer, recovered: Bool), Error>)
         case timedOut
@@ -478,19 +474,11 @@ struct MemoraApp: App {
             return .completed(await loadTask.value)
         }
 
-        return await withTaskGroup(of: ModelContainerLoadOutcome.self) { group in
-            group.addTask {
-                .completed(await loadTask.value)
-            }
-            group.addTask {
-                try? await Task.sleep(for: .seconds(Double(timeoutNanoseconds) / 1_000_000_000))
-                return .timedOut
-            }
-
-            let firstOutcome = await group.next() ?? .timedOut
-            group.cancelAll()
-            return firstOutcome
-        }
+        let result = await ModelContainerLoadTimeout.race(
+            operation: { await loadTask.value },
+            timeoutNanoseconds: timeoutNanoseconds
+        )
+        return result.map(ModelContainerLoadOutcome.completed) ?? .timedOut
     }
 
     /// モデル数を計測してログに出力する

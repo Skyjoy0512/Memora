@@ -11,5 +11,5 @@ Before changing this app, also read:
 Current role of this app:
 
 - Expo Go / web friendly mock UI for fast visual review.
-- Native bridge work is not started yet.
+- Native bridge work is implemented and tracked in Git; keep changes aligned with the bridge contract.
 - Existing Swift STT core and backend must remain untouched unless explicitly requested.

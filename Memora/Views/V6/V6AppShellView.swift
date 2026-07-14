@@ -9,7 +9,6 @@ enum V6HomeFilter {
 
 struct V6AppShellView: View {
     @Binding var selectedTab: Int
-    @Binding var showPaywall: Bool
     let onStartRecording: () -> Void
     let onImport: () -> Void
     let onMeetingCapture: () -> Void
@@ -41,6 +40,7 @@ struct V6AppShellView: View {
     @State private var showDeviceConnection = false
     @State private var showPlaudConnection = false
     @State private var showDeleteDataConfirm = false
+    @State private var deletionResultMessage: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(BluetoothAudioService.self) private var bluetoothService
     @Environment(\.modelContext) private var modelContext
@@ -114,7 +114,6 @@ struct V6AppShellView: View {
         .onChange(of: selectedTab) { _, _ in
             // Tab switching resets any open modal/sheet (`.dc.html`: "activeTab change clears modal/exportOpen").
             isFabMenuOpen = false
-            showPaywall = false
             isHomeFilterMenuOpen = false
             fileMoreMenuTarget = nil
             fileRenameTarget = nil
@@ -125,11 +124,6 @@ struct V6AppShellView: View {
             showPlaudConnection = false
             showDeleteDataConfirm = false
             selectedProject = nil
-        }
-        .sheet(isPresented: $showPaywall) {
-            V6PaywallSheet(isPro: $isPro)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
         }
         .sheet(isPresented: $showPlaudConnection) {
             PlaudCloudConnectionSheet()
@@ -563,9 +557,6 @@ struct V6AppShellView: View {
             VStack(alignment: .leading, spacing: 18) {
                 V6SettingsGroup(title: "アカウント") {
                     V6SettingsRow(title: loginEmail.isEmpty ? "未設定" : loginEmail) {}
-                    V6SettingsBadgeRow(title: "プラン", badgeText: isPro ? "Pro" : "Free", badgeColor: isPro ? V6Color.success : V6Color.ink) {
-                        showPaywall = true
-                    }
                 }
 
                 V6SettingsGroup(title: "デバイス") {
@@ -593,9 +584,7 @@ struct V6AppShellView: View {
                 }
 
                 V6SettingsGroup(title: "ストレージ") {
-                    V6SettingsRow(title: "添付の保存先", value: isPro ? "クラウド" : "この端末（Proでクラウド）") {
-                        showPaywall = true
-                    }
+                    V6SettingsStaticRow(title: "添付の保存先", value: "この端末")
                 }
 
                 V6SettingsGroup(title: "通知") {
@@ -667,28 +656,27 @@ struct V6AppShellView: View {
                 V6DeleteAllDataConfirm(
                     onCancel: { showDeleteDataConfirm = false },
                     onConfirm: {
-                        deleteAllData()
+                        let result = LocalDataDeletionService(context: modelContext).deleteAll()
+                        deletionResultMessage = result.isComplete
+                            ? "削除が完了しました。\(result.deletedCategories.joined(separator: "・"))を削除しました。"
+                            : "一部削除できませんでした。\(result.failures.joined(separator: "\n"))"
                         showDeleteDataConfirm = false
                     }
                 )
             }
         }
+        .alert("データ削除の結果", isPresented: Binding(
+            get: { deletionResultMessage != nil },
+            set: { if !$0 { deletionResultMessage = nil } }
+        )) {
+            Button("閉じる", role: .cancel) { deletionResultMessage = nil }
+        } message: { Text(deletionResultMessage ?? "") }
     }
 
     private func logout() {
         isPro = false
         loginEmail = ""
         authStageRaw = V6AuthStage.login.rawValue
-    }
-
-    private func deleteAllData() {
-        try? modelContext.delete(model: AudioFile.self)
-        try? modelContext.delete(model: Project.self)
-        try? modelContext.delete(model: TodoItem.self)
-        try? modelContext.delete(model: AskAISession.self)
-        try? modelContext.delete(model: AskAIMessage.self)
-        try? modelContext.delete(model: MeetingMemo.self)
-        try? modelContext.save()
     }
 
     private func projectTitle(for projectID: UUID?) -> String {
@@ -1366,6 +1354,26 @@ private struct V6SettingsRow: View {
     }
 }
 
+private struct V6SettingsStaticRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 15))
+                .foregroundStyle(V6Color.ink)
+            Spacer()
+            Text(value)
+                .font(.system(size: 13))
+                .foregroundStyle(V6Color.muted)
+                .lineLimit(1)
+        }
+        .padding(.vertical, 13)
+        .padding(.horizontal, 14)
+    }
+}
+
 private struct V6SettingsBadgeRow: View {
     let title: String
     let badgeText: String
@@ -1409,7 +1417,7 @@ private struct V6DeleteAllDataConfirm: View {
                     Text("すべてのデータを削除しますか？")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(V6Color.ink)
-                    Text("録音・文字起こし・タスクなど全ての記録が完全に削除され、元に戻せません。")
+                    Text("録音・写真・文字起こし・タスク・設定・連携認証情報を含む、このアプリのローカルデータを削除します。元に戻せません。")
                         .font(.system(size: 12.5))
                         .lineSpacing(4)
                         .foregroundStyle(V6Color.muted)

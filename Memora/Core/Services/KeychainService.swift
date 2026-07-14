@@ -6,7 +6,7 @@ import SwiftData
 /// UserDefaults（@AppStorage）はバックアップに含まれるため、
 /// API 鍵などの機密情報は Keychain に保存する。
 enum KeychainService {
-    enum Key: String {
+    enum Key: String, CaseIterable {
         case apiKeyOpenAI = "apiKey_openai"
         case apiKeyGemini = "apiKey_gemini"
         case apiKeyDeepSeek = "apiKey_deepseek"
@@ -65,9 +65,10 @@ enum KeychainService {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
-    static func delete(key: Key) {
+    @discardableResult
+    static func delete(key: Key) -> OSStatus {
         let query = baseQuery(key: key)
-        SecItemDelete(query as CFDictionary)
+        return SecItemDelete(query as CFDictionary)
     }
 
     /// 初回起動時に UserDefaults の既存値を Keychain に移行する
