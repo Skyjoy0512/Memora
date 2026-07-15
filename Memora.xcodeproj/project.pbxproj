@@ -173,7 +173,6 @@
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
 		B2816A8EA280C921DFED60F7 /* TranscriptionCheckpoint+STTBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E3E28D3ADB84E8AD07CC898 /* TranscriptionCheckpoint+STTBridge.swift */; };
 		B289435D7C45DCB84E2E1031 /* NothingTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB27B6DAAB0BDC34E0BBAF5 /* NothingTabPicker.swift */; };
-		B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD7331935FC980D189F38A5 /* APIKeySection.swift */; };
 		B3BA6CB64AB933B8260FAFF8 /* GoogleMeetSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414C610C6D0E54B950FAB362 /* GoogleMeetSettings.swift */; };
 		B6250141E9BF845CB37458F3 /* PlaudSettings+Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F7B5460C8526CBA04F7C2E /* PlaudSettings+Keychain.swift */; };
 		B75A9C3D95A94E6F401158B2 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B7A6E85FCF23DE20E9EA5E /* SampleHandler.swift */; };
@@ -461,7 +460,6 @@
 		CA8FF1B176AE5F9A8978FBEA /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		CC24BF762478AA119742B5A9 /* NothingDotMatrixModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NothingDotMatrixModifier.swift; sourceTree = "<group>"; };
 		CC77E5857DB3C055D86CB10E /* AskAIMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIMessage.swift; sourceTree = "<group>"; };
-		CCD7331935FC980D189F38A5 /* APIKeySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeySection.swift; sourceTree = "<group>"; };
 		CD4BE6BE73D6EECC422D3AEA /* ScreenshotMatchedSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMatchedSkeleton.swift; sourceTree = "<group>"; };
 		CE3F7334EF98EC8D255CA18C /* GlassCardModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCardModifier.swift; sourceTree = "<group>"; };
 		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
@@ -1044,7 +1042,6 @@
 			isa = PBXGroup;
 			children = (
 				20DE1429871D58BB5961A4F4 /* AIProviderSection.swift */,
-				CCD7331935FC980D189F38A5 /* APIKeySection.swift */,
 				E7CCBD44F3E8F4023DBCC8E8 /* BLEDebugSection.swift */,
 				EF6C36CC980D1CFD0B71B54B /* BotMeetingSection.swift */,
 				A6187B003903E1F63D198757 /* CustomTemplateSection.swift */,
@@ -1244,7 +1241,6 @@
 				46FFBCB3A92E1959F687C00C /* AIModelSelectSheet.swift in Sources */,
 				716AD96FA68C58491297E213 /* AIProviderSection.swift in Sources */,
 				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
-				B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */,
 				98357AA2B184F5867EE551A8 /* AccentDotIndicator.swift in Sources */,
 				8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */,
 				25B60DB6721D9F1B7FB413C1 /* AskAI+Actions.swift in Sources */,
