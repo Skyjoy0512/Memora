@@ -84,6 +84,32 @@ jobs:
         working-directory: apps/mobile-expo
         run: npx expo export --platform web
 
+  rn-ios-build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/mobile-expo/package-lock.json
+
+      - name: Install Expo dependencies
+        working-directory: apps/mobile-expo
+        run: npm ci
+
+      - name: Install CocoaPods dependencies
+        working-directory: apps/mobile-expo/ios
+        run: pod install
+
+      - name: Build React Native iOS host
+        working-directory: apps/mobile-expo
+        run: npm run qa:ios:build
+
   bot-server-build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
