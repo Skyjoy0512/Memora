@@ -1387,7 +1387,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora.MemoraBroadcastExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora.MemoraBroadcastExtension;
 				PRODUCT_NAME = MemoraBroadcastExtension;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.5;
@@ -1410,7 +1410,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora.MemoraBroadcastExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora.MemoraBroadcastExtension;
 				PRODUCT_NAME = MemoraBroadcastExtension;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.5;
@@ -1495,7 +1495,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.MemoraTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.MemoraTests;
 				PRODUCT_NAME = MemoraTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1517,7 +1517,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.MemoraTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.MemoraTests;
 				PRODUCT_NAME = MemoraTests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1602,7 +1602,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.5;
@@ -1631,7 +1631,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = 4R82H2PVGL.com.memora.Memora;
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = Memora;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.5;
