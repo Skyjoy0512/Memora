@@ -244,6 +244,7 @@ export function SettingsScreen() {
               label="Recording source"
               value={bridgeInfo?.recordingSource ?? 'checking'}
               state={
+                bridgeInfo?.recordingSource === 'swiftdata' ||
                 bridgeInfo?.recordingSource === 'native' ||
                 bridgeInfo?.recordingSource === 'native-file'
                   ? 'ok'

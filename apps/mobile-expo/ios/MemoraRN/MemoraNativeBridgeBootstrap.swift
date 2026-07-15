@@ -1,3 +1,4 @@
+import Foundation
 internal import MemoraNative
 import MemoraSharedData
 import MemoraSharedSchema
@@ -23,12 +24,25 @@ enum MemoraNativeBridgeBootstrap {
 
   static func configureSharedAudioStoreOrDefaults() {
     do {
+      guard let appGroupURL = FileManager.default.containerURL(
+        forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
+      ) else {
+        throw MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
+          MemoraSharedStoreLocation.primaryAppGroupIdentifier
+        )
+      }
       let storeURL = try MemoraSharedStoreLocation.applicationGroupStoreURL(
         groupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
       )
       let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
       configureDefaults()
-      configureSharedAudioStore(MemoraSharedSwiftDataAudioFileStore(container: container))
+      configureSharedAudioStore(
+        MemoraSharedSwiftDataAudioFileStore(container: container),
+        recordingImportHandler: MemoraNativeFileRecordingImportHandler(
+          storageDirectory: MemoraSharedStoreLocation.audioFilesDirectory(in: appGroupURL),
+          sourceDescription: "swiftdata"
+        )
+      )
     } catch {
       configureDefaults()
     }
@@ -50,9 +64,15 @@ enum MemoraNativeBridgeBootstrap {
     MemoraNativeSummaryRegistry.summaryGenerator = summaryGenerator
   }
 
-  static func configureSharedAudioStore(_ store: any MemoraSharedAudioFileStore) {
+  static func configureSharedAudioStore(
+    _ store: any MemoraSharedAudioFileStore,
+    recordingImportHandler: MemoraRecordingImportHandling? = nil
+  ) {
     let adapter = MemoraSharedStoreBridgeAdapter(store: store)
     MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
     MemoraNativeAudioFileMutationRegistry.audioFileMutator = adapter
+    if let recordingImportHandler {
+      MemoraNativeRecordingImportRegistry.handler = recordingImportHandler
+    }
   }
 }

@@ -37,12 +37,17 @@ public enum MemoraNativeRecordingImportRegistry {
 }
 
 public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecordingImportHandling {
-  public let sourceDescription = "native-file"
+  public let sourceDescription: String
 
   private var activeRecorders: [String: AVAudioRecorder] = [:]
   private let isoFormatter = ISO8601DateFormatter()
+  private let storageDirectory: URL?
 
-  public override init() {
+  /// `storageDirectory` is supplied by a host that owns a shared App Group.
+  /// Leaving it nil preserves the native-files fallback in the app Documents directory.
+  public init(storageDirectory: URL? = nil, sourceDescription: String = "native-file") {
+    self.storageDirectory = storageDirectory
+    self.sourceDescription = sourceDescription
     super.init()
   }
 
@@ -79,9 +84,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
     return try makeAudioFileDTO(
-      id: sessionId,
+      id: UUID().uuidString,
       fileURL: recorder.url,
-      summary: "Recorded by the native Expo module. SwiftData persistence is still pending host-app adapter wiring."
+      summary: "Recorded with MemoraRN."
     )
   }
 
@@ -119,9 +124,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
     return try makeAudioFileDTO(
-      id: "native-import-\(UUID().uuidString)",
+      id: UUID().uuidString,
       fileURL: destinationURL,
-      summary: "Imported by the native Expo module. SwiftData persistence is still pending host-app adapter wiring."
+      summary: "Imported with MemoraRN."
     )
   }
 
@@ -166,15 +171,15 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   }
 
   private func recordingDirectory() throws -> URL {
-    let directory = try documentsDirectory()
-      .appendingPathComponent("MemoraNativeRecordings", isDirectory: true)
+    let directory = try audioFilesRootDirectory()
+      .appendingPathComponent("Recordings", isDirectory: true)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory
   }
 
   private func importDirectory() throws -> URL {
-    let directory = try documentsDirectory()
-      .appendingPathComponent("MemoraNativeImports", isDirectory: true)
+    let directory = try audioFilesRootDirectory()
+      .appendingPathComponent("Imports", isDirectory: true)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory
   }
@@ -185,6 +190,15 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     }
 
     return directory
+  }
+
+  private func audioFilesRootDirectory() throws -> URL {
+    if let storageDirectory {
+      return storageDirectory
+    }
+
+    return try documentsDirectory()
+      .appendingPathComponent("MemoraNativeAudioFiles", isDirectory: true)
   }
 
   private func uniqueDestinationURL(for sourceURL: URL) throws -> URL {
@@ -210,7 +224,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       source: "iPhone",
       recordedAt: isoFormatter.string(from: Date()),
       duration: formattedDuration(for: fileURL),
-      status: "ready",
+      // STT is intentionally not started by this bridge. The file is queued
+      // in the shared store for the following STT bridge phase.
+      status: "queued",
       summary: summary,
       transcript: [],
       memo: ["Native file path: \(fileURL.lastPathComponent)"]

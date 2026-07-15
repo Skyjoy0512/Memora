@@ -127,6 +127,10 @@ struct MemoraSharedDataTests {
       MemoraSharedStoreLocation.storeURL(in: containerURL).path
         == "/tmp/memora-shared-container/Memora/Memora.store"
     )
+    #expect(
+      MemoraSharedStoreLocation.audioFilesDirectory(in: containerURL).path
+        == "/tmp/memora-shared-container/Memora/AudioFiles"
+    )
   }
 
   @Test("audio record preserves bridge-safe fields")

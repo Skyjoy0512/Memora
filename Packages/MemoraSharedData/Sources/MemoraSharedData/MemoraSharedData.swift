@@ -14,6 +14,14 @@ public enum MemoraSharedStoreLocation {
       .appendingPathComponent("Memora.store")
   }
 
+  /// Audio payloads referenced by the shared SwiftData store.
+  /// Both hosts receive this URL from the same App Group container.
+  public static func audioFilesDirectory(in containerURL: URL) -> URL {
+    containerURL
+      .appendingPathComponent("Memora", isDirectory: true)
+      .appendingPathComponent("AudioFiles", isDirectory: true)
+  }
+
   public static func applicationGroupStoreURL(
     groupIdentifier: String,
     fileManager: FileManager = .default
