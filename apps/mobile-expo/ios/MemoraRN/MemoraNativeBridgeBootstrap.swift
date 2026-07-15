@@ -1,5 +1,6 @@
 internal import MemoraNative
 import MemoraSharedData
+import MemoraSharedSchema
 
 enum MemoraNativeBridgeBootstrap {
   static func makeSharedStoreContractProbe() -> any MemoraSharedAudioFileStore {
@@ -18,6 +19,19 @@ enum MemoraNativeBridgeBootstrap {
     )
     MemoraNativePlaybackRegistry.controller = MemoraAVAudioPlaybackController()
     MemoraNativeMemoRegistry.memoHandler = MemoraNativeFileMemoStore()
+  }
+
+  static func configureSharedAudioStoreOrDefaults() {
+    do {
+      let storeURL = try MemoraSharedStoreLocation.applicationGroupStoreURL(
+        groupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
+      )
+      let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
+      configureDefaults()
+      configureSharedAudioStore(MemoraSharedSwiftDataAudioFileStore(container: container))
+    } catch {
+      configureDefaults()
+    }
   }
 
   static func configure(
