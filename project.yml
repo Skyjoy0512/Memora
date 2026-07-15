@@ -36,7 +36,7 @@ targets:
       - package: FluidAudio
     settings:
       PRODUCT_NAME: Memora
-      PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora
+      PRODUCT_BUNDLE_IDENTIFIER: com.memora.Memora
       SWIFT_VERSION: 5.5
       TARGETED_DEVICE_FAMILY: "1,2"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -61,7 +61,7 @@ targets:
         includes: ["**/*.swift"]
     settings:
       PRODUCT_NAME: MemoraBroadcastExtension
-      PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.Memora.MemoraBroadcastExtension
+      PRODUCT_BUNDLE_IDENTIFIER: com.memora.Memora.MemoraBroadcastExtension
       SWIFT_VERSION: 5.5
       INFOPLIST_FILE: MemoraBroadcastExtension/Info.plist
       CODE_SIGN_ENTITLEMENTS: MemoraBroadcastExtension/MemoraBroadcastExtension.entitlements
@@ -82,7 +82,7 @@ targets:
       - target: Memora
     settings:
       PRODUCT_NAME: MemoraTests
-      PRODUCT_BUNDLE_IDENTIFIER: 4R82H2PVGL.com.memora.MemoraTests
+      PRODUCT_BUNDLE_IDENTIFIER: com.memora.MemoraTests
       GENERATE_INFOPLIST_FILE: YES
       CODE_SIGN_STYLE: Automatic
       CODE_SIGN_IDENTITY: "iPhone Developer"
