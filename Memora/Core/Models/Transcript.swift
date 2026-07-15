@@ -32,10 +32,15 @@ final class Transcript {
         segmentTexts.append(text)
     }
 
-    func replaceSpeakerSegments(_ segments: [SpeakerSegment]) {
-        speakerLabels = segments.map(\.speakerLabel)
-        segmentStartTimes = segments.map(\.startTime)
-        segmentEndTimes = segments.map(\.endTime)
-        segmentTexts = segments.map(\.text)
+    func replaceSpeakerSegments(
+        speakerLabels: [String],
+        startTimes: [Double],
+        endTimes: [Double],
+        texts: [String]
+    ) {
+        self.speakerLabels = speakerLabels
+        segmentStartTimes = startTimes
+        segmentEndTimes = endTimes
+        segmentTexts = texts
     }
 }
