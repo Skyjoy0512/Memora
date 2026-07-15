@@ -101,7 +101,7 @@ export type BridgeInfoDTO = {
   moduleVersion: string;
   audioFileSource: 'sample' | 'native-files' | 'swiftdata' | 'mock' | 'unknown';
   audioFileMutationSource: 'sample' | 'native-files' | 'swiftdata' | 'mock' | 'unknown';
-  recordingSource: 'sample' | 'native' | 'native-file' | 'mock' | 'unknown';
+  recordingSource: 'sample' | 'native' | 'native-file' | 'swiftdata' | 'mock' | 'unknown';
   settingsSource: 'memory' | 'userdefaults' | 'keychain' | 'mock' | 'unknown';
   knowledgeQuerySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   summarySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';

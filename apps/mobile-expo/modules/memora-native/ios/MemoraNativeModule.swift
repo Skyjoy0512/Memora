@@ -240,7 +240,8 @@ public class MemoraNativeModule: Module {
 
   private var isSharedSwiftDataConnected: Bool {
     audioFileReader.sourceDescription == "swiftdata" &&
-      audioFileMutator.sourceDescription == "swiftdata"
+      audioFileMutator.sourceDescription == "swiftdata" &&
+      recordingImportHandler.sourceDescription == "swiftdata"
   }
 
   private func scheduleSampleProgressEvents(taskId: String, audioFileId: String) {
