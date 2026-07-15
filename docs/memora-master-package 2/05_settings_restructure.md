@@ -14,7 +14,7 @@ Lane: A (UI) / STT コア変更: なし / 依存: なし / 対応 PR: PR-A8
 |---|---|
 | TranscriptionSettingsSection | ルート「文字起こしと AI」 |
 | AIProviderSection | ルート「文字起こしと AI」 |
-| APIKeySection | ルート「文字起こしと AI」 |
+| V6AIProviderSettingsSheet | ルート「文字起こしと AI」から開く AI モデル／API キー設定シート |
 | CustomTemplateSection | ルート「文字起こしと AI」 |
 | NotionIntegrationSection | 「連携」サブ画面 |
 | GoogleMeetSection | 「連携」サブ画面 |
@@ -112,7 +112,7 @@ var body: some View {
             Section("文字起こしと AI") {
                 TranscriptionSettingsSection(state: state)
                 AIProviderSection(state: state)
-                APIKeySection(state: state)
+                // API キーは V6AIProviderSettingsSheet で Keychain に保存する
                 CustomTemplateSection(state: state)
             }
 

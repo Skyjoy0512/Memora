@@ -130,7 +130,7 @@ Memora/
 │       ├── StoragePolicySection.swift
 │       ├── AIModelSection.swift
 │       ├── ExportSection.swift
-│       ├── APIKeySection.swift
+│       ├── V6AIProviderSettingsSheet.swift
 │       ├── PLAUDSection.swift
 │       └── LegalSection.swift
 ├── DesignSystem/
@@ -2751,7 +2751,7 @@ AdService, Files 一覧バナー広告、生成後インタースティシャル
 ### Phase MVP-4
 
 **TASK-034: APIキー管理 UI**
-APIKeyStore, Settings の APIKeySection UI。TASK-030 に依存。
+KeychainService を利用する V6 の AI プロバイダー／API キー設定シート。TASK-030 に依存。
 
 **TASK-035: クラウド保存**
 CloudKit または独自バックエンド連携（Phase 2 以降のスコープだが設計のみ先行）。

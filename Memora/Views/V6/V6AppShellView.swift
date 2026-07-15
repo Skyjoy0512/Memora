@@ -39,6 +39,7 @@ struct V6AppShellView: View {
     @State private var isDoneTasksExpanded = false
     @State private var showDeviceConnection = false
     @State private var showPlaudConnection = false
+    @State private var showAIProviderSettings = false
     @State private var showDeleteDataConfirm = false
     @State private var deletionResultMessage: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -56,6 +57,23 @@ struct V6AppShellView: View {
         case .projects: "プロジェクト"
         case .lifelog: "ライフログ"
         }
+    }
+
+    private var aiServiceStatus: String {
+        let key: KeychainService.Key?
+        switch AIProvider(rawValue: selectedProvider) ?? .openai {
+        case .openai:
+            key = .apiKeyOpenAI
+        case .gemini:
+            key = .apiKeyGemini
+        case .deepseek:
+            key = .apiKeyDeepSeek
+        case .local:
+            key = nil
+        }
+
+        guard let key else { return "不要" }
+        return KeychainService.load(key: key).isEmpty ? "未設定" : "設定済み"
     }
 
     var body: some View {
@@ -122,12 +140,18 @@ struct V6AppShellView: View {
             isTaskAddSheetOpen = false
             showDeviceConnection = false
             showPlaudConnection = false
+            showAIProviderSettings = false
             showDeleteDataConfirm = false
             selectedProject = nil
         }
         .sheet(isPresented: $showPlaudConnection) {
             PlaudCloudConnectionSheet()
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAIProviderSettings) {
+            V6AIProviderSettingsSheet()
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -609,11 +633,15 @@ struct V6AppShellView: View {
                         showPlaudConnection = true
                     }
                     V6SettingsRow(title: "Notion に書き出す", value: (notionSettingsList.first?.isConfigured ?? false) ? "接続済み" : "未接続") {}
-                    V6SettingsRow(title: "ChatGPT に共有", value: KeychainService.load(key: .apiKeyOpenAI).isEmpty ? "未接続" : "接続済み") {}
+                    V6SettingsRow(title: "AI サービス", value: aiServiceStatus) {
+                        showAIProviderSettings = true
+                    }
                 }
 
                 V6SettingsGroup(title: "文字起こし・要約") {
-                    V6SettingsRow(title: "AI モデル", value: selectedProvider) {}
+                    V6SettingsRow(title: "AI モデル", value: selectedProvider) {
+                        showAIProviderSettings = true
+                    }
                     V6SettingsRow(title: "要約テンプレート", value: "議事録") {}
                 }
 

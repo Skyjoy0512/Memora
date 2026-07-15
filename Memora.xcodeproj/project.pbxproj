@@ -62,6 +62,7 @@
 		46FFBCB3A92E1959F687C00C /* AIModelSelectSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F32537DEF00A69220DB587C /* AIModelSelectSheet.swift */; };
 		47E0787A4C139B1DCBFFFCEC /* PlaudBackgroundSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 772ABD6FFBED5EE916BAFD08 /* PlaudBackgroundSyncScheduler.swift */; };
 		4810FEE82F8B80B2A4147460 /* GlassSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC644CDA461B640802896FA /* GlassSectionHeader.swift */; };
+		481BEB6EBDEBFC535B0C4981 /* V6AIProviderSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A70F513DB2F8CA7C7E98F38 /* V6AIProviderSettingsSheet.swift */; };
 		48EA3BFDB0B4B64161F3D163 /* NothingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F2F17C0A7DBC410BF42854 /* NothingTheme.swift */; };
 		497D3594A8F025A99C6C1E20 /* MeetingCaptureSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F592E227266496B12D42DF9 /* MeetingCaptureSection.swift */; };
 		4A1FE07070E44EFDDAD80190 /* PipelineReferenceDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22A7FA247F81475BB0ED07E /* PipelineReferenceDataTests.swift */; };
@@ -362,6 +363,7 @@
 		6687F3B759187EBE428ED00F /* TodoItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItemTests.swift; sourceTree = "<group>"; };
 		67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		683BDDF7F5D7217B9B39D628 /* RemoteLLMProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteLLMProvider.swift; sourceTree = "<group>"; };
+		6A70F513DB2F8CA7C7E98F38 /* V6AIProviderSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V6AIProviderSettingsSheet.swift; sourceTree = "<group>"; };
 		6BA50970588243441120B0E9 /* ProcessingStatusCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingStatusCenter.swift; sourceTree = "<group>"; };
 		6E1EAA44923AAC97B043AC2E /* GoogleMeetSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMeetSection.swift; sourceTree = "<group>"; };
 		70E1727A8581E6D6AE3E4E63 /* PlaudCloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudCloudSyncService.swift; sourceTree = "<group>"; };
@@ -528,6 +530,7 @@
 		0AA463319B628124C5032277 /* V6 */ = {
 			isa = PBXGroup;
 			children = (
+				6A70F513DB2F8CA7C7E98F38 /* V6AIProviderSettingsSheet.swift */,
 				D25654CCC722B0F11EBE374D /* V6AppShellView.swift */,
 				0763E82A297466BE405D31EA /* V6DesignTokens.swift */,
 				82ADF2775D63CECF557046FE /* V6DynamicIslandPill.swift */,
@@ -1416,6 +1419,7 @@
 				9A636F4A8A530408693C351B /* TranscriptionSettingsSection.swift in Sources */,
 				9B2BCE0EF789B4F162F15FD9 /* Typography.swift in Sources */,
 				BE61C06C60AF36079E5CD957 /* UsageInstructionsSection.swift in Sources */,
+				481BEB6EBDEBFC535B0C4981 /* V6AIProviderSettingsSheet.swift in Sources */,
 				AC077218DC20C6F70A9DEF1F /* V6AccountPlanSection.swift in Sources */,
 				CFF4D8FF0DB4954B4B128F34 /* V6AppShellView.swift in Sources */,
 				AA4AD4D41818BA29DECFB4FD /* V6AuthFlowView.swift in Sources */,
