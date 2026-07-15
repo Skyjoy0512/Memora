@@ -1,16 +1,5 @@
-//
-//  CoreDTOs.swift
-//  Memora
-//
-//  Core 契約: DTO 定義
-//  Core と Feature 間のデータ転送に使用する構造体
-//
-
 import Foundation
 
-// MARK: - Pipeline Event DTO
-
-/// パイプライン処理の進捗イベント
 public enum PipelineEvent: Sendable {
     case stepStarted(PipelineStep)
     case stepCompleted(PipelineStep)
@@ -19,7 +8,6 @@ public enum PipelineEvent: Sendable {
     case failed(step: PipelineStep, error: CoreError)
 }
 
-/// パイプライン処理のステップ
 public enum PipelineStep: String, Equatable, Hashable, Sendable, CaseIterable {
     case none = "none"
     case loadingAudio = "loading_audio"
@@ -32,9 +20,6 @@ public enum PipelineStep: String, Equatable, Hashable, Sendable, CaseIterable {
     case finalizing = "finalizing"
 }
 
-// MARK: - Summarization DTO
-
-/// サマリー生成結果
 public struct SummarizationResult: Sendable, Equatable {
     public let summary: String
     public let decisions: [String]
@@ -47,9 +32,6 @@ public struct SummarizationResult: Sendable, Equatable {
     }
 }
 
-// MARK: - Todo Extraction DTO
-
-/// ToDo 抽出結果
 public struct TodoExtractionResult: Sendable, Identifiable, Equatable {
     public let id: UUID
     public let title: String
@@ -60,16 +42,7 @@ public struct TodoExtractionResult: Sendable, Identifiable, Equatable {
     public let dueDate: Date?
     public let relativeDueDate: RelativeDueDate?
 
-    public init(
-        id: UUID = UUID(),
-        title: String,
-        notes: String? = nil,
-        assignee: String? = nil,
-        speaker: String? = nil,
-        priority: TodoPriority = .medium,
-        dueDate: Date? = nil,
-        relativeDueDate: RelativeDueDate? = nil
-    ) {
+    public init(id: UUID = UUID(), title: String, notes: String? = nil, assignee: String? = nil, speaker: String? = nil, priority: TodoPriority = .medium, dueDate: Date? = nil, relativeDueDate: RelativeDueDate? = nil) {
         self.id = id
         self.title = title
         self.notes = notes
@@ -81,14 +54,12 @@ public struct TodoExtractionResult: Sendable, Identifiable, Equatable {
     }
 }
 
-/// ToDo 優先度
 public enum TodoPriority: String, Equatable, Hashable, Sendable, CaseIterable {
     case low = "low"
     case medium = "medium"
     case high = "high"
 }
 
-/// 相対期限
 public enum RelativeDueDate: String, Equatable, Hashable, Sendable, CaseIterable {
     case tomorrow = "tomorrow"
     case nextWeek = "next_week"
@@ -96,16 +67,12 @@ public enum RelativeDueDate: String, Equatable, Hashable, Sendable, CaseIterable
     case asap = "asap"
 }
 
-// MARK: - Chat DTO
-
-/// チャットスコープ
 public enum ChatScope: Equatable, Hashable, Sendable {
     case file(fileId: UUID)
     case project(projectId: UUID)
     case global
 }
 
-/// チャットメッセージ
 public struct ChatMessage: Equatable, Hashable, Sendable, Identifiable {
     public let id: UUID
     public let role: ChatRole
@@ -118,16 +85,12 @@ public struct ChatMessage: Equatable, Hashable, Sendable, Identifiable {
     }
 }
 
-/// チャットロール
 public enum ChatRole: String, Equatable, Hashable, Sendable {
     case user = "user"
     case assistant = "assistant"
     case system = "system"
 }
 
-// MARK: - STT Event DTO
-
-/// STT 処理イベント
 public enum STTEvent: Sendable {
     case transcriptionStarted(taskId: String)
     case transcriptionProgress(taskId: String, progress: Double)
@@ -140,9 +103,6 @@ public enum STTEvent: Sendable {
     case audioChunkCompleted(chunkIndex: Int, result: TranscriptionResult)
 }
 
-// MARK: - Transcription DTO
-
-/// 文字起こし結果
 public struct TranscriptionResult: Sendable {
     public let fullText: String
     public let language: String
@@ -155,14 +115,12 @@ public struct TranscriptionResult: Sendable {
     }
 }
 
-/// 文字起こしセグメント
 public struct TranscriptionSegment: Sendable, Identifiable, Equatable {
     public let id: String
     public let speakerLabel: String
     public let startSec: Double
     public let endSec: Double
     public let text: String
-    /// タイミングが実測でなく推定（等分割フォールバック）であることを示す。
     public let isEstimatedTiming: Bool
 
     public init(id: String, speakerLabel: String, startSec: Double, endSec: Double, text: String, isEstimatedTiming: Bool = false) {
@@ -175,9 +133,6 @@ public struct TranscriptionSegment: Sendable, Identifiable, Equatable {
     }
 }
 
-// MARK: - Meeting Note Template DTO
-
-/// 議事録テンプレート種別
 public enum MeetingNoteTemplate: String, Equatable, Hashable, Sendable, CaseIterable {
     case standard = "standard"
     case engineering = "engineering"

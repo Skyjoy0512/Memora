@@ -6,11 +6,13 @@ let package = Package(
   platforms: [.iOS(.v17), .macOS(.v14)],
   products: [
     .library(name: "MemoraSharedData", targets: ["MemoraSharedData"]),
-    .library(name: "MemoraSharedSchema", targets: ["MemoraSharedSchema"])
+    .library(name: "MemoraSharedSchema", targets: ["MemoraSharedSchema"]),
+    .library(name: "MemoraSharedCore", targets: ["MemoraSharedCore"])
   ],
   targets: [
+    .target(name: "MemoraSharedCore"),
     .target(name: "MemoraSharedSchema"),
     .target(name: "MemoraSharedData", dependencies: ["MemoraSharedSchema"]),
-    .testTarget(name: "MemoraSharedDataTests", dependencies: ["MemoraSharedData", "MemoraSharedSchema"])
+    .testTarget(name: "MemoraSharedDataTests", dependencies: ["MemoraSharedData", "MemoraSharedSchema", "MemoraSharedCore"])
   ]
 )

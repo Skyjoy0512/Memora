@@ -1,4 +1,5 @@
 import MemoraSharedSchema
+import MemoraSharedCore
 
 // The SwiftData definitions live in MemoraSharedSchema so that the iOS host and
 // future React Native host use exactly the same persistent model identities.
@@ -40,3 +41,33 @@ typealias Transcript = MemoraSharedSchema.Transcript
 typealias TranscriptionCheckpoint = MemoraSharedSchema.TranscriptionCheckpoint
 typealias WebhookEventType = MemoraSharedSchema.WebhookEventType
 typealias WebhookSettings = MemoraSharedSchema.WebhookSettings
+
+// Core contracts live in MemoraSharedCore so native hosts can share the STT/AI
+// boundary without bringing SwiftData or host capabilities into the target.
+typealias AudioError = MemoraSharedCore.AudioError
+typealias ChatMessage = MemoraSharedCore.ChatMessage
+typealias ChatRole = MemoraSharedCore.ChatRole
+typealias ChatScope = MemoraSharedCore.ChatScope
+typealias CoreError = MemoraSharedCore.CoreError
+typealias DependencyPermissionMatrix = MemoraSharedCore.DependencyPermissionMatrix
+typealias LLMError = MemoraSharedCore.LLMError
+typealias LLMProvider = MemoraSharedCore.LLMProvider
+typealias LLMProviderError = MemoraSharedCore.LLMProviderError
+typealias LLMProviderKind = MemoraSharedCore.LLMProviderKind
+typealias LLMProviderSummary = MemoraSharedCore.LLMProviderSummary
+typealias MeetingNoteTemplate = MemoraSharedCore.MeetingNoteTemplate
+typealias PipelineError = MemoraSharedCore.PipelineError
+typealias PipelineEvent = MemoraSharedCore.PipelineEvent
+typealias PipelineStep = MemoraSharedCore.PipelineStep
+typealias RelativeDueDate = MemoraSharedCore.RelativeDueDate
+typealias STTEvent = MemoraSharedCore.STTEvent
+typealias STTReadinessProtocol = MemoraSharedCore.STTReadinessProtocol
+typealias STTServiceProtocol = MemoraSharedCore.STTServiceProtocol
+typealias STTTaskHandleProtocol = MemoraSharedCore.STTTaskHandleProtocol
+typealias SummarizationResult = MemoraSharedCore.SummarizationResult
+typealias SummaryError = MemoraSharedCore.SummaryError
+typealias TodoExtractionResult = MemoraSharedCore.TodoExtractionResult
+typealias TodoPriority = MemoraSharedCore.TodoPriority
+typealias TranscriptionError = MemoraSharedCore.TranscriptionError
+typealias TranscriptionResult = MemoraSharedCore.TranscriptionResult
+typealias TranscriptionSegment = MemoraSharedCore.TranscriptionSegment
