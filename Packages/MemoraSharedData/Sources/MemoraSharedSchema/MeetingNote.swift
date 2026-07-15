@@ -4,14 +4,14 @@ import SwiftData
 @Model
 public final class MeetingNote {
     public var id: UUID
-    var audioFileID: UUID
-    var summary: String?
-    var decisions: [String]
-    var actionItems: [String]
-    var createdAt: Date
-    var updatedAt: Date?
+    public var audioFileID: UUID
+    public var summary: String?
+    public var decisions: [String]
+    public var actionItems: [String]
+    public var createdAt: Date
+    public var updatedAt: Date?
 
-    init(audioFileID: UUID, summary: String? = nil) {
+    public init(audioFileID: UUID, summary: String? = nil) {
         self.id = UUID()
         self.audioFileID = audioFileID
         self.summary = summary

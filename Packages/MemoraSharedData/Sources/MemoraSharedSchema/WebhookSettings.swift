@@ -2,22 +2,22 @@ import Foundation
 import SwiftData
 
 /// Webhook イベント種別
-enum WebhookEventType: String, Codable {
+public enum WebhookEventType: String, Codable {
     case transcriptionCompleted = "transcription.completed"
     case summarizationCompleted = "summarization.completed"
 }
 
 /// Webhook 設定
 @Model
-final class WebhookSettings {
-    var id: UUID
-    var url: String
-    var isEnabled: Bool
-    var events: [String] // WebhookEventType の生の文字列
-    var createdAt: Date
-    var updatedAt: Date
+public final class WebhookSettings {
+    public var id: UUID
+    public var url: String
+    public var isEnabled: Bool
+    public var events: [String] // WebhookEventType の生の文字列
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init() {
+    public init() {
         self.id = UUID()
         self.url = ""
         self.isEnabled = false
@@ -27,17 +27,17 @@ final class WebhookSettings {
     }
 
     /// 有効なイベント種別を取得
-    var enabledEventTypes: [WebhookEventType] {
+    public var enabledEventTypes: [WebhookEventType] {
         events.compactMap { WebhookEventType(rawValue: $0) }
     }
 
     /// イベントが有効か判定
-    func isEventEnabled(_ eventType: WebhookEventType) -> Bool {
+    public func isEventEnabled(_ eventType: WebhookEventType) -> Bool {
         events.contains(eventType.rawValue)
     }
 
     /// イベントを切り替え
-    func toggleEvent(_ eventType: WebhookEventType) {
+    public func toggleEvent(_ eventType: WebhookEventType) {
         if isEventEnabled(eventType) {
             events.removeAll { $0 == eventType.rawValue }
         } else {

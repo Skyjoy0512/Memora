@@ -3,7 +3,7 @@ import SwiftData
 
 // MARK: - Protocol
 
-protocol AudioFileRepositoryProtocol {
+public protocol AudioFileRepositoryProtocol {
     func fetchAll() throws -> [AudioFile]
     func fetchPage(offset: Int, limit: Int) throws -> [AudioFile]
     func fetch(id: UUID) throws -> AudioFile?
@@ -15,7 +15,7 @@ protocol AudioFileRepositoryProtocol {
     func search(query: String) throws -> [AudioFile]
 }
 
-extension AudioFileRepositoryProtocol {
+public extension AudioFileRepositoryProtocol {
     func fetchPage(offset: Int, limit: Int) throws -> [AudioFile] {
         Array(try fetchAll().dropFirst(max(0, offset)).prefix(max(0, limit)))
     }
@@ -23,21 +23,21 @@ extension AudioFileRepositoryProtocol {
 
 // MARK: - Implementation
 
-final class AudioFileRepository: AudioFileRepositoryProtocol {
+public final class AudioFileRepository: AudioFileRepositoryProtocol {
     private let modelContext: ModelContext
 
-    init(modelContext: ModelContext) {
+    public init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 
-    func fetchAll() throws -> [AudioFile] {
+    public func fetchAll() throws -> [AudioFile] {
         let descriptor = FetchDescriptor<AudioFile>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         return try modelContext.fetch(descriptor)
     }
 
-    func fetchPage(offset: Int, limit: Int) throws -> [AudioFile] {
+    public func fetchPage(offset: Int, limit: Int) throws -> [AudioFile] {
         var descriptor = FetchDescriptor<AudioFile>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
@@ -46,29 +46,29 @@ final class AudioFileRepository: AudioFileRepositoryProtocol {
         return try modelContext.fetch(descriptor)
     }
 
-    func fetch(id: UUID) throws -> AudioFile? {
+    public func fetch(id: UUID) throws -> AudioFile? {
         let descriptor = FetchDescriptor<AudioFile>(
             predicate: #Predicate { $0.id == id }
         )
         return try modelContext.fetch(descriptor).first
     }
 
-    func save(_ file: AudioFile) throws {
+    public func save(_ file: AudioFile) throws {
         modelContext.insert(file)
         try modelContext.save()
     }
 
-    func delete(_ file: AudioFile) throws {
+    public func delete(_ file: AudioFile) throws {
         modelContext.delete(file)
         try modelContext.save()
     }
 
-    func delete(id: UUID) throws {
+    public func delete(id: UUID) throws {
         guard let file = try fetch(id: id) else { return }
         try delete(file)
     }
 
-    func fetchByProject(_ projectId: UUID) throws -> [AudioFile] {
+    public func fetchByProject(_ projectId: UUID) throws -> [AudioFile] {
         let descriptor = FetchDescriptor<AudioFile>(
             predicate: #Predicate { $0.projectID == projectId },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -76,7 +76,7 @@ final class AudioFileRepository: AudioFileRepositoryProtocol {
         return try modelContext.fetch(descriptor)
     }
 
-    func fetchTranscribed() throws -> [AudioFile] {
+    public func fetchTranscribed() throws -> [AudioFile] {
         let descriptor = FetchDescriptor<AudioFile>(
             predicate: #Predicate { $0.isTranscribed },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
@@ -84,7 +84,7 @@ final class AudioFileRepository: AudioFileRepositoryProtocol {
         return try modelContext.fetch(descriptor)
     }
 
-    func search(query: String) throws -> [AudioFile] {
+    public func search(query: String) throws -> [AudioFile] {
         let allFiles = try fetchAll()
         let lowered = query.lowercased()
         return allFiles.filter { $0.title.lowercased().contains(lowered) }

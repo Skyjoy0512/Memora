@@ -1,27 +1,27 @@
 import Foundation
 import SwiftData
 
-enum AskAIMessageRole: String, CaseIterable {
+public enum AskAIMessageRole: String, CaseIterable {
     case system = "system"
     case user = "user"
     case assistant = "assistant"
 }
 
 @Model
-final class AskAIMessage {
-    var id: UUID
-    var sessionID: UUID
-    var roleRaw: String
-    var content: String
-    var citationsJSON: String?
-    var createdAt: Date
+public final class AskAIMessage {
+    public var id: UUID
+    public var sessionID: UUID
+    public var roleRaw: String
+    public var content: String
+    public var citationsJSON: String?
+    public var createdAt: Date
 
-    var role: AskAIMessageRole {
+    public var role: AskAIMessageRole {
         get { AskAIMessageRole(rawValue: roleRaw) ?? .user }
         set { roleRaw = newValue.rawValue }
     }
 
-    init(
+    public init(
         id: UUID = UUID(),
         sessionID: UUID,
         role: AskAIMessageRole,

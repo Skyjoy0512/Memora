@@ -2,16 +2,16 @@ import Foundation
 import SwiftData
 
 @Model
-final class MemoryProfile {
-    var id: UUID
-    var summaryStyle: String?
-    var preferredLanguage: String?
-    var roleLabel: String?
-    var glossaryJSON: String?
-    var createdAt: Date
-    var updatedAt: Date
+public final class MemoryProfile {
+    public var id: UUID
+    public var summaryStyle: String?
+    public var preferredLanguage: String?
+    public var roleLabel: String?
+    public var glossaryJSON: String?
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         summaryStyle: String? = nil,
         preferredLanguage: String? = nil,
@@ -29,7 +29,7 @@ final class MemoryProfile {
         self.updatedAt = updatedAt
     }
 
-    func update(
+    public func update(
         summaryStyle: String? = nil,
         preferredLanguage: String? = nil,
         roleLabel: String? = nil,

@@ -3,16 +3,16 @@ import SwiftData
 
 /// Notion 連携の設定。Internal Integration Token と親ページ ID を保持。
 @Model
-final class NotionSettings {
-    var id: UUID
-    var integrationToken: String
-    var parentPageID: String
-    var isEnabled: Bool
-    var lastExportAt: Date?
-    var createdAt: Date
-    var updatedAt: Date
+public final class NotionSettings {
+    public var id: UUID
+    public var integrationToken: String
+    public var parentPageID: String
+    public var isEnabled: Bool
+    public var lastExportAt: Date?
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         integrationToken: String = "",
         parentPageID: String = "",
@@ -26,7 +26,7 @@ final class NotionSettings {
         self.updatedAt = Date()
     }
 
-    var isConfigured: Bool {
+    public var isConfigured: Bool {
         !integrationToken.isEmpty && !parentPageID.isEmpty
     }
 }

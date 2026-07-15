@@ -4,21 +4,21 @@ import SwiftData
 /// 端末カレンダーから取り込んだイベント情報のキャッシュ。
 /// AudioFile との紐付け（audioFileID）を持ち、将来の Google 連携にも対応する。
 @Model
-final class CalendarEventLink {
-    var id: UUID
-    var provider: String       // "eventkit" | "google"
-    var externalID: String     // EKEvent.calendarItemIdentifier 等
-    var audioFile: AudioFile?
-    var title: String
-    var startAt: Date
-    var endAt: Date
-    var meetingURL: String?
-    var conferenceProvider: String?
-    var audioFileID: UUID?
-    var createdAt: Date
-    var updatedAt: Date
+public final class CalendarEventLink {
+    public var id: UUID
+    public var provider: String       // "eventkit" | "google"
+    public var externalID: String     // EKEvent.calendarItemIdentifier 等
+    public var audioFile: AudioFile?
+    public var title: String
+    public var startAt: Date
+    public var endAt: Date
+    public var meetingURL: String?
+    public var conferenceProvider: String?
+    public var audioFileID: UUID?
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         provider: String,
         externalID: String,

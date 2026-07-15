@@ -2,15 +2,15 @@ import Foundation
 import SwiftData
 
 @Model
-final class MeetingMemo {
-    var id: UUID
-    var audioFileID: UUID
-    var markdown: String
-    var plainTextCache: String
-    var createdAt: Date
-    var updatedAt: Date
+public final class MeetingMemo {
+    public var id: UUID
+    public var audioFileID: UUID
+    public var markdown: String
+    public var plainTextCache: String
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    init(
+    public init(
         id: UUID = UUID(),
         audioFileID: UUID,
         markdown: String = "",
@@ -26,7 +26,7 @@ final class MeetingMemo {
         self.updatedAt = updatedAt
     }
 
-    func update(markdown: String, plainTextCache: String) {
+    public func update(markdown: String, plainTextCache: String) {
         self.markdown = markdown
         self.plainTextCache = plainTextCache
         self.updatedAt = Date()

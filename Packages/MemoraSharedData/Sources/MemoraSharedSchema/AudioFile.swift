@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-enum SourceType: String, CaseIterable, Sendable {
+public enum SourceType: String, CaseIterable, Sendable {
     case recording = "recording"
     case `import` = "import"
     case plaud = "plaud"
@@ -15,57 +15,57 @@ enum SourceType: String, CaseIterable, Sendable {
 }
 
 @Model
-final class AudioFile {
-    var id: UUID
-    var title: String
-    var createdAt: Date
-    var duration: TimeInterval
-    var audioURL: String
-    var isTranscribed: Bool = false
-    var projectID: UUID?
+public final class AudioFile {
+    public var id: UUID
+    public var title: String
+    public var createdAt: Date
+    public var duration: TimeInterval
+    public var audioURL: String
+    public var isTranscribed: Bool = false
+    public var projectID: UUID?
     // 要約関連フィールド
-    var isSummarized: Bool = false
-    var summary: String?
-    var keyPoints: String?
-    var actionItems: String?
+    public var isSummarized: Bool = false
+    public var summary: String?
+    public var keyPoints: String?
+    public var actionItems: String?
     // ライフログ関連フィールド
-    var isLifeLog: Bool = false
-    var lifeLogTags: [String] = []
-    var calendarEventId: String?
+    public var isLifeLog: Bool = false
+    public var lifeLogTags: [String] = []
+    public var calendarEventId: String?
     // ソース・参照データ
-    var sourceTypeRaw: String = SourceType.recording.rawValue
-    var referenceTranscript: String?
+    public var sourceTypeRaw: String = SourceType.recording.rawValue
+    public var referenceTranscript: String?
     /// Plaud 等の参照データから抽出した話者数。
     /// FluidAudio のクラスタリングで numSpeakers ヒントとして使用。
-    var referenceSpeakerCount: Int?
+    public var referenceSpeakerCount: Int?
 
     // MARK: - Relationships (cascade delete)
 
     @Relationship(deleteRule: .cascade, inverse: \Transcript.audioFile)
-    var transcripts: [Transcript] = []
+    public var transcripts: [Transcript] = []
 
     @Relationship(deleteRule: .cascade, inverse: \ProcessingJob.audioFile)
-    var processingJobs: [ProcessingJob] = []
+    public var processingJobs: [ProcessingJob] = []
 
     @Relationship(deleteRule: .cascade, inverse: \PhotoAttachment.audioFile)
-    var photoAttachments: [PhotoAttachment] = []
+    public var photoAttachments: [PhotoAttachment] = []
 
     @Relationship(deleteRule: .cascade, inverse: \KnowledgeChunk.audioFile)
-    var knowledgeChunks: [KnowledgeChunk] = []
+    public var knowledgeChunks: [KnowledgeChunk] = []
 
     @Relationship(deleteRule: .cascade, inverse: \CalendarEventLink.audioFile)
-    var calendarEventLinks: [CalendarEventLink] = []
+    public var calendarEventLinks: [CalendarEventLink] = []
 
-    var sourceType: SourceType {
+    public var sourceType: SourceType {
         get { SourceType(rawValue: sourceTypeRaw) ?? .recording }
         set { sourceTypeRaw = newValue.rawValue }
     }
 
-    var isPlaudImport: Bool {
+    public var isPlaudImport: Bool {
         sourceType == .plaud
     }
 
-    init(title: String, audioURL: String, projectID: UUID? = nil) {
+    public init(title: String, audioURL: String, projectID: UUID? = nil) {
         self.id = UUID()
         self.title = title
         self.audioURL = audioURL
