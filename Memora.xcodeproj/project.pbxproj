@@ -29,6 +29,7 @@
 		1B95C29B25AE5C7169C244D4 /* ExportOptionsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B0D557B1D5485BF9AE954B /* ExportOptionsSheet.swift */; };
 		1EC533593500A780B017BA86 /* V6FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5080D2D780BF7DA3C222713D /* V6FileDetailView.swift */; };
 		1F89E3988444B6AADBE7BE48 /* CaptureTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E344EFCAB6C9DA35C62BE4C /* CaptureTypes.swift */; };
+		22B5DE917CC209089D690D94 /* Transcript+STTBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3358D162ADFF6E12ECDB8F73 /* Transcript+STTBridge.swift */; };
 		22DDB07E244800ADFCB8E63B /* CalendarEventLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C11AD42B19158882B877B1D /* CalendarEventLink.swift */; };
 		236394904F91C3DAED9488CF /* MinimumTapTargetModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691401262A0B113E3DDF25A /* MinimumTapTargetModifier.swift */; };
 		2467070F6F8E45D19600E32B /* PlaudMCPTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427F55F56EF19B78D3165265 /* PlaudMCPTypes.swift */; };
@@ -107,6 +108,7 @@
 		710FA130FD67480ABBF4A407 /* MemoraHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C13A0383DFBABDC20C11329 /* MemoraHaptics.swift */; };
 		716AD96FA68C58491297E213 /* AIProviderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DE1429871D58BB5961A4F4 /* AIProviderSection.swift */; };
 		74F55548C90FA701F63F26B6 /* LLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FC7AF47EA0929FE3C94798D /* LLMProvider.swift */; };
+		778BC9C38EE3FF8514EE4DB1 /* GoogleMeetSettings+Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4261F1B68C2F943A7586DB5F /* GoogleMeetSettings+Keychain.swift */; };
 		782D73661FAC73DEA06D7420 /* SpeechAnalyzerPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */; };
 		7A48D24FB2DBF1C85D58B93A /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74128D7D550FF22B353C8B5A /* LocalLLMProvider.swift */; };
 		7BA9C541672D7E0652F64067 /* STTStreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32E4C9D26709B3B1E7C7E8E2 /* STTStreamingTests.swift */; };
@@ -169,8 +171,11 @@
 		ABA75B650BF5A87DE3741076 /* MemoraSharedAudioFileStoreAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1595E0DB88E7843DA433911 /* MemoraSharedAudioFileStoreAdapterTests.swift */; };
 		AC077218DC20C6F70A9DEF1F /* V6AccountPlanSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0850111EF75C27905C2B8ADA /* V6AccountPlanSection.swift */; };
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
+		B2816A8EA280C921DFED60F7 /* TranscriptionCheckpoint+STTBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E3E28D3ADB84E8AD07CC898 /* TranscriptionCheckpoint+STTBridge.swift */; };
 		B289435D7C45DCB84E2E1031 /* NothingTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB27B6DAAB0BDC34E0BBAF5 /* NothingTabPicker.swift */; };
+		B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD7331935FC980D189F38A5 /* APIKeySection.swift */; };
 		B3BA6CB64AB933B8260FAFF8 /* GoogleMeetSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 414C610C6D0E54B950FAB362 /* GoogleMeetSettings.swift */; };
+		B6250141E9BF845CB37458F3 /* PlaudSettings+Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F7B5460C8526CBA04F7C2E /* PlaudSettings+Keychain.swift */; };
 		B75A9C3D95A94E6F401158B2 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8B7A6E85FCF23DE20E9EA5E /* SampleHandler.swift */; };
 		B7C9B4E80415D94285879733 /* Gemma4BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE01ACDCD146BF6A40809FB /* Gemma4BenchmarkView.swift */; };
 		B9772E00F09BAF404462DF35 /* AudioFileRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F5AFE7CD32027935D77D74 /* AudioFileRepository.swift */; };
@@ -301,6 +306,7 @@
 		329415FCEFDE50168067F05B /* BotMeetingStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BotMeetingStatusView.swift; sourceTree = "<group>"; };
 		32E4C9D26709B3B1E7C7E8E2 /* STTStreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTStreamingTests.swift; sourceTree = "<group>"; };
 		3345B61561D96543AAEE5780 /* OpenAIExportDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIExportDTOs.swift; sourceTree = "<group>"; };
+		3358D162ADFF6E12ECDB8F73 /* Transcript+STTBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Transcript+STTBridge.swift"; sourceTree = "<group>"; };
 		3365148880E5D3DBDAD85FFB /* TranscriptionCheckpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionCheckpoint.swift; sourceTree = "<group>"; };
 		3388E1E83B6A07D7DCDB7727 /* LiveRecordingBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRecordingBanner.swift; sourceTree = "<group>"; };
 		33B0D557B1D5485BF9AE954B /* ExportOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsSheet.swift; sourceTree = "<group>"; };
@@ -325,6 +331,7 @@
 		3F32537DEF00A69220DB587C /* AIModelSelectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIModelSelectSheet.swift; sourceTree = "<group>"; };
 		3FCF44BBA547C8122966F2B0 /* CaptureSourceOmiConformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureSourceOmiConformanceTests.swift; sourceTree = "<group>"; };
 		414C610C6D0E54B950FAB362 /* GoogleMeetSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMeetSettings.swift; sourceTree = "<group>"; };
+		4261F1B68C2F943A7586DB5F /* GoogleMeetSettings+Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GoogleMeetSettings+Keychain.swift"; sourceTree = "<group>"; };
 		427F55F56EF19B78D3165265 /* PlaudMCPTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudMCPTypes.swift; sourceTree = "<group>"; };
 		491305817A04792B920C84DE /* MemoraAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraAnimation.swift; sourceTree = "<group>"; };
 		4A11A114A2A24DDFC2D7057B /* TranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTests.swift; sourceTree = "<group>"; };
@@ -350,6 +357,7 @@
 		5C13A0383DFBABDC20C11329 /* MemoraHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraHaptics.swift; sourceTree = "<group>"; };
 		5C2ECDB306E7A48E122A6B63 /* MemoryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProfile.swift; sourceTree = "<group>"; };
 		5CB46D474CD953FE5A8EEBB6 /* OpenAIExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIExportService.swift; sourceTree = "<group>"; };
+		5E3E28D3ADB84E8AD07CC898 /* TranscriptionCheckpoint+STTBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TranscriptionCheckpoint+STTBridge.swift"; sourceTree = "<group>"; };
 		5FFA27CA1C8C2704A93BB678 /* PlaudMCPOAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudMCPOAuthService.swift; sourceTree = "<group>"; };
 		619DB118A6C306D3EF2CD58E /* LocalDataDeletionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataDeletionService.swift; sourceTree = "<group>"; };
 		61F815520923FD833783B72E /* CustomSummaryTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSummaryTemplate.swift; sourceTree = "<group>"; };
@@ -440,6 +448,7 @@
 		BF6F0F255BEA1183683DEBE6 /* ScheduledBotMeeting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledBotMeeting.swift; sourceTree = "<group>"; };
 		C10F6969305A184A4001A440 /* MemoraSharedAudioFileStoreAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraSharedAudioFileStoreAdapter.swift; sourceTree = "<group>"; };
 		C1595E0DB88E7843DA433911 /* MemoraSharedAudioFileStoreAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraSharedAudioFileStoreAdapterTests.swift; sourceTree = "<group>"; };
+		C1F7B5460C8526CBA04F7C2E /* PlaudSettings+Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaudSettings+Keychain.swift"; sourceTree = "<group>"; };
 		C2BD837611065673F56F4C0B /* OpenAIFileClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIFileClient.swift; sourceTree = "<group>"; };
 		C340C8192D4540C247F7FB22 /* DebugSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSection.swift; sourceTree = "<group>"; };
 		C369727293B20A4CD31F7154 /* ProjectsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsViewModel.swift; sourceTree = "<group>"; };
@@ -452,6 +461,7 @@
 		CA8FF1B176AE5F9A8978FBEA /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		CC24BF762478AA119742B5A9 /* NothingDotMatrixModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NothingDotMatrixModifier.swift; sourceTree = "<group>"; };
 		CC77E5857DB3C055D86CB10E /* AskAIMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAIMessage.swift; sourceTree = "<group>"; };
+		CCD7331935FC980D189F38A5 /* APIKeySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeySection.swift; sourceTree = "<group>"; };
 		CD4BE6BE73D6EECC422D3AEA /* ScreenshotMatchedSkeleton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotMatchedSkeleton.swift; sourceTree = "<group>"; };
 		CE3F7334EF98EC8D255CA18C /* GlassCardModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCardModifier.swift; sourceTree = "<group>"; };
 		CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationEngine.swift; sourceTree = "<group>"; };
@@ -830,8 +840,12 @@
 		7130644E74DBBE263674548E /* Adapters */ = {
 			isa = PBXGroup;
 			children = (
+				4261F1B68C2F943A7586DB5F /* GoogleMeetSettings+Keychain.swift */,
 				C10F6969305A184A4001A440 /* MemoraSharedAudioFileStoreAdapter.swift */,
 				948D777FBBA75CD6B71E8FA4 /* MemoraSharedStoreHostFactory.swift */,
+				C1F7B5460C8526CBA04F7C2E /* PlaudSettings+Keychain.swift */,
+				3358D162ADFF6E12ECDB8F73 /* Transcript+STTBridge.swift */,
+				5E3E28D3ADB84E8AD07CC898 /* TranscriptionCheckpoint+STTBridge.swift */,
 			);
 			path = Adapters;
 			sourceTree = "<group>";
@@ -1030,6 +1044,7 @@
 			isa = PBXGroup;
 			children = (
 				20DE1429871D58BB5961A4F4 /* AIProviderSection.swift */,
+				CCD7331935FC980D189F38A5 /* APIKeySection.swift */,
 				E7CCBD44F3E8F4023DBCC8E8 /* BLEDebugSection.swift */,
 				EF6C36CC980D1CFD0B71B54B /* BotMeetingSection.swift */,
 				A6187B003903E1F63D198757 /* CustomTemplateSection.swift */,
@@ -1229,6 +1244,7 @@
 				46FFBCB3A92E1959F687C00C /* AIModelSelectSheet.swift in Sources */,
 				716AD96FA68C58491297E213 /* AIProviderSection.swift in Sources */,
 				401D26F6AA6BEEE33F4AA03B /* AIService.swift in Sources */,
+				B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */,
 				98357AA2B184F5867EE551A8 /* AccentDotIndicator.swift in Sources */,
 				8DD7F7EBBECEBFB9A4137F23 /* AppDelegate.swift in Sources */,
 				25B60DB6721D9F1B7FB413C1 /* AskAI+Actions.swift in Sources */,
@@ -1299,6 +1315,7 @@
 				460F2DA802173031D3719347 /* GoogleMeetImportView.swift in Sources */,
 				63F7A371BEA5A5F9DCB2A864 /* GoogleMeetSection.swift in Sources */,
 				D9C5C42F6C467A46E7C2B76A /* GoogleMeetService.swift in Sources */,
+				778BC9C38EE3FF8514EE4DB1 /* GoogleMeetSettings+Keychain.swift in Sources */,
 				B3BA6CB64AB933B8260FAFF8 /* GoogleMeetSettings.swift in Sources */,
 				58854564167E6BDC22DEA208 /* HomeViewModel.swift in Sources */,
 				7D9FB0D3CC322AC24256B2E2 /* InlineErrorMessage.swift in Sources */,
@@ -1371,6 +1388,7 @@
 				2467070F6F8E45D19600E32B /* PlaudMCPTypes.swift in Sources */,
 				CFBC49F5F5C245131F32412B /* PlaudRecording.swift in Sources */,
 				30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */,
+				B6250141E9BF845CB37458F3 /* PlaudSettings+Keychain.swift in Sources */,
 				E2A0EADE30B71989C0E7A8A7 /* PlaudSettings.swift in Sources */,
 				D95F9B9C546495C137F5219B /* ProcessingJob.swift in Sources */,
 				3F9805ECC065BE7AD429FD17 /* ProcessingStatusCenter.swift in Sources */,
@@ -1407,9 +1425,11 @@
 				56019584B1A6E164252E04F1 /* TemplateSelectSheet.swift in Sources */,
 				51671FD441BABE4D6F1C8682 /* ToastOverlay.swift in Sources */,
 				29BDFAB94FD6AA0AD9B75826 /* TodoItem.swift in Sources */,
+				22B5DE917CC209089D690D94 /* Transcript+STTBridge.swift in Sources */,
 				BB58F7E5CC0E70BE49D6EC13 /* Transcript.swift in Sources */,
 				A6C48A7289705CB67173D399 /* TranscriptTab.swift in Sources */,
 				6093007D06CA8B7F2CC4FC72 /* TranscriptionActivity.swift in Sources */,
+				B2816A8EA280C921DFED60F7 /* TranscriptionCheckpoint+STTBridge.swift in Sources */,
 				9C3E50DA99588B0EE5E0ABFE /* TranscriptionCheckpoint.swift in Sources */,
 				CF608FDFD94CE6B77F6978AD /* TranscriptionCheckpointStore.swift in Sources */,
 				38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */,
