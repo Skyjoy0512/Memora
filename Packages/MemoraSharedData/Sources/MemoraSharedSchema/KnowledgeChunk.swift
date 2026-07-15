@@ -1,13 +1,13 @@
 import Foundation
 import SwiftData
 
-enum KnowledgeChunkScopeType: String, CaseIterable {
+public enum KnowledgeChunkScopeType: String, CaseIterable {
     case file = "file"
     case project = "project"
     case global = "global"
 }
 
-enum KnowledgeChunkSourceType: String, CaseIterable {
+public enum KnowledgeChunkSourceType: String, CaseIterable {
     case transcript = "transcript"
     case summary = "summary"
     case memo = "memo"
@@ -17,30 +17,30 @@ enum KnowledgeChunkSourceType: String, CaseIterable {
 }
 
 @Model
-final class KnowledgeChunk {
-    var id: UUID
-    var scopeTypeRaw: String
-    var scopeID: UUID?
-    var sourceTypeRaw: String
-    var sourceID: UUID?
-    var audioFile: AudioFile?
-    var text: String
-    var keywords: [String]
-    var rankHint: Double
-    var createdAt: Date
-    var updatedAt: Date
+public final class KnowledgeChunk {
+    public var id: UUID
+    public var scopeTypeRaw: String
+    public var scopeID: UUID?
+    public var sourceTypeRaw: String
+    public var sourceID: UUID?
+    public var audioFile: AudioFile?
+    public var text: String
+    public var keywords: [String]
+    public var rankHint: Double
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    var scopeType: KnowledgeChunkScopeType {
+    public var scopeType: KnowledgeChunkScopeType {
         get { KnowledgeChunkScopeType(rawValue: scopeTypeRaw) ?? .file }
         set { scopeTypeRaw = newValue.rawValue }
     }
 
-    var sourceType: KnowledgeChunkSourceType {
+    public var sourceType: KnowledgeChunkSourceType {
         get { KnowledgeChunkSourceType(rawValue: sourceTypeRaw) ?? .transcript }
         set { sourceTypeRaw = newValue.rawValue }
     }
 
-    init(
+    public init(
         id: UUID = UUID(),
         scopeType: KnowledgeChunkScopeType,
         scopeID: UUID? = nil,
@@ -64,7 +64,7 @@ final class KnowledgeChunk {
         self.updatedAt = updatedAt
     }
 
-    func updateText(_ text: String, keywords: [String]? = nil, rankHint: Double? = nil) {
+    public func updateText(_ text: String, keywords: [String]? = nil, rankHint: Double? = nil) {
         self.text = text
         if let keywords {
             self.keywords = keywords

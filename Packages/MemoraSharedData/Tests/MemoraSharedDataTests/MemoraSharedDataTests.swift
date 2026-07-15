@@ -1,6 +1,8 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import MemoraSharedData
+@testable import MemoraSharedSchema
 
 @Suite("MemoraSharedData contract")
 struct MemoraSharedDataTests {
@@ -174,5 +176,29 @@ struct MemoraSharedDataTests {
 
     try store.delete(id: first.id)
     #expect(try store.fetch(id: first.id) == nil)
+  }
+}
+
+@Suite("MemoraSharedSchema repository")
+struct MemoraSharedSchemaRepositoryTests {
+  @Test("in-memory AudioFile repository supports CRUD")
+  func audioFileRepositoryCRUD() throws {
+    let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV3.self),
+      configurations: configuration
+    )
+    let repository = AudioFileRepository(modelContext: ModelContext(container))
+    let audioFile = AudioFile(title: "Repository fixture", audioURL: "fixture.m4a")
+
+    try repository.save(audioFile)
+    #expect(try repository.fetch(id: audioFile.id)?.title == "Repository fixture")
+
+    audioFile.title = "Updated fixture"
+    try repository.save(audioFile)
+    #expect(try repository.search(query: "updated").map(\.id) == [audioFile.id])
+
+    try repository.delete(id: audioFile.id)
+    #expect(try repository.fetch(id: audioFile.id) == nil)
   }
 }

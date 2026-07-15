@@ -4,21 +4,21 @@ import SwiftData
 @Model
 public final class TodoItem {
     public var id: UUID
-    var title: String
-    var notes: String?
-    var assignee: String?
-    var speaker: String?
-    var priority: String
-    var dueDate: Date?
-    var relativeDueDate: String?
-    var projectID: UUID?
-    var parentID: UUID?
-    var sourceAudioFileID: UUID?
-    var isCompleted: Bool = false
-    var createdAt: Date
-    var completedAt: Date?
+    public var title: String
+    public var notes: String?
+    public var assignee: String?
+    public var speaker: String?
+    public var priority: String
+    public var dueDate: Date?
+    public var relativeDueDate: String?
+    public var projectID: UUID?
+    public var parentID: UUID?
+    public var sourceAudioFileID: UUID?
+    public var isCompleted: Bool = false
+    public var createdAt: Date
+    public var completedAt: Date?
 
-    init(
+    public init(
         title: String,
         notes: String? = nil,
         assignee: String? = nil,

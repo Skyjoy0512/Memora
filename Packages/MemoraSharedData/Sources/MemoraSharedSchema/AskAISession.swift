@@ -1,27 +1,27 @@
 import Foundation
 import SwiftData
 
-enum AskAIScopeType: String, CaseIterable {
+public enum AskAIScopeType: String, CaseIterable {
     case file = "file"
     case project = "project"
     case global = "global"
 }
 
 @Model
-final class AskAISession {
-    var id: UUID
-    var scopeTypeRaw: String
-    var scopeID: UUID?
-    var title: String
-    var createdAt: Date
-    var updatedAt: Date
+public final class AskAISession {
+    public var id: UUID
+    public var scopeTypeRaw: String
+    public var scopeID: UUID?
+    public var title: String
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    var scopeType: AskAIScopeType {
+    public var scopeType: AskAIScopeType {
         get { AskAIScopeType(rawValue: scopeTypeRaw) ?? .file }
         set { scopeTypeRaw = newValue.rawValue }
     }
 
-    init(
+    public init(
         id: UUID = UUID(),
         scopeType: AskAIScopeType,
         scopeID: UUID? = nil,
@@ -37,7 +37,7 @@ final class AskAISession {
         self.updatedAt = updatedAt
     }
 
-    func rename(_ title: String) {
+    public func rename(_ title: String) {
         self.title = title
         self.updatedAt = Date()
     }

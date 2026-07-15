@@ -3,18 +3,18 @@ import SwiftData
 
 /// Google Meet 連携の OAuth 設定とトークン管理。
 @Model
-final class GoogleMeetSettings {
-    var clientID: String = ""
-    var redirectURIScheme: String = ""
-    var accessToken: String = ""
-    var refreshToken: String = ""
-    var tokenExpiresAt: Date?
-    var isEnabled: Bool = false
-    var lastSyncAt: Date?
-    var createdAt: Date = Date()
-    var updatedAt: Date = Date()
+public final class GoogleMeetSettings {
+    public var clientID: String = ""
+    public var redirectURIScheme: String = ""
+    public var accessToken: String = ""
+    public var refreshToken: String = ""
+    public var tokenExpiresAt: Date?
+    public var isEnabled: Bool = false
+    public var lastSyncAt: Date?
+    public var createdAt: Date = Date()
+    public var updatedAt: Date = Date()
 
-    init(
+    public init(
         clientID: String = "",
         redirectURIScheme: String = "",
         accessToken: String = "",
@@ -33,27 +33,27 @@ final class GoogleMeetSettings {
     // MARK: - OAuth Configuration
 
     /// 認可エンドポイント
-    static let authorizationURL = "https://accounts.google.com/o/oauth2/v2/auth"
+    public static let authorizationURL = "https://accounts.google.com/o/oauth2/v2/auth"
 
     /// トークンエンドポイント
-    static let tokenURL = "https://oauth2.googleapis.com/token"
+    public static let tokenURL = "https://oauth2.googleapis.com/token"
 
     /// 失効エンドポイント
-    static let revokeURL = "https://oauth2.googleapis.com/revoke"
+    public static let revokeURL = "https://oauth2.googleapis.com/revoke"
 
     /// Meet + Drive の必要スコープ
-    static let requiredScopes = [
+    public static let requiredScopes = [
         "https://www.googleapis.com/auth/meetings.space.readonly",
         "https://www.googleapis.com/auth/drive.readonly"
     ]
 
     /// スコープ文字列（スペース区切り）
-    static var scopeString: String {
+    public static var scopeString: String {
         requiredScopes.joined(separator: " ")
     }
 
     /// 認可 URL を生成
-    func authorizationURL() -> URL? {
+    public func authorizationURL() -> URL? {
         guard !clientID.isEmpty, !redirectURIScheme.isEmpty else { return nil }
 
         var components = URLComponents(string: Self.authorizationURL)

@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.author         = 'Memora'
   s.homepage       = 'https://docs.expo.dev/modules/'
   s.platforms      = {
-    :ios => '16.4',
+    :ios => '17.0',
     :tvos => '16.4'
   }
   s.source         = { git: '' }

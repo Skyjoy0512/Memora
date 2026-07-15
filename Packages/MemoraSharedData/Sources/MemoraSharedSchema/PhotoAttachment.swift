@@ -1,32 +1,32 @@
 import Foundation
 import SwiftData
 
-enum PhotoAttachmentOwnerType: String, CaseIterable {
+public enum PhotoAttachmentOwnerType: String, CaseIterable {
     case audioFile = "audioFile"
     case project = "project"
     case memo = "memo"
 }
 
 @Model
-final class PhotoAttachment {
-    var id: UUID
-    var ownerTypeRaw: String
-    var ownerID: UUID
-    var audioFile: AudioFile?
-    var sortOrder: Int
-    var localPath: String
-    var thumbnailPath: String?
-    var caption: String?
-    var ocrText: String?
-    var createdAt: Date
-    var updatedAt: Date
+public final class PhotoAttachment {
+    public var id: UUID
+    public var ownerTypeRaw: String
+    public var ownerID: UUID
+    public var audioFile: AudioFile?
+    public var sortOrder: Int
+    public var localPath: String
+    public var thumbnailPath: String?
+    public var caption: String?
+    public var ocrText: String?
+    public var createdAt: Date
+    public var updatedAt: Date
 
-    var ownerType: PhotoAttachmentOwnerType {
+    public var ownerType: PhotoAttachmentOwnerType {
         get { PhotoAttachmentOwnerType(rawValue: ownerTypeRaw) ?? .audioFile }
         set { ownerTypeRaw = newValue.rawValue }
     }
 
-    init(
+    public init(
         id: UUID = UUID(),
         ownerType: PhotoAttachmentOwnerType,
         ownerID: UUID,
@@ -50,17 +50,17 @@ final class PhotoAttachment {
         self.updatedAt = updatedAt
     }
 
-    func updateCaption(_ caption: String?) {
+    public func updateCaption(_ caption: String?) {
         self.caption = caption
         self.updatedAt = Date()
     }
 
-    func updateOCRText(_ ocrText: String?) {
+    public func updateOCRText(_ ocrText: String?) {
         self.ocrText = ocrText
         self.updatedAt = Date()
     }
 
-    func updateSortOrder(_ sortOrder: Int) {
+    public func updateSortOrder(_ sortOrder: Int) {
         self.sortOrder = sortOrder
         self.updatedAt = Date()
     }

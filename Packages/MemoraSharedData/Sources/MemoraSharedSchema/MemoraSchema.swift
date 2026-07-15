@@ -6,10 +6,10 @@ import Foundation
 /// Memora のスキーマバージョン定義。
 /// スキーマ変更時は新しい VersionedSchema を追加し、
 /// MemoraMigrationPlan の stages にマイグレーションを追加すること。
-enum MemoraSchemaV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
+public enum MemoraSchemaV1: VersionedSchema {
+    public static var versionIdentifier = Schema.Version(1, 0, 0)
 
-    static let models: [any PersistentModel.Type] = [
+    public static let models: [any PersistentModel.Type] = [
         AudioFile.self,
         Transcript.self,
         Project.self,
@@ -35,10 +35,10 @@ enum MemoraSchemaV1: VersionedSchema {
 // MARK: - Schema V2 (PR-C1)
 
 /// V2: TranscriptionCheckpoint を追加。
-enum MemoraSchemaV2: VersionedSchema {
-    static var versionIdentifier = Schema.Version(2, 0, 0)
+public enum MemoraSchemaV2: VersionedSchema {
+    public static var versionIdentifier = Schema.Version(2, 0, 0)
 
-    static let models: [any PersistentModel.Type] = [
+    public static let models: [any PersistentModel.Type] = [
         AudioFile.self,
         Transcript.self,
         Project.self,
@@ -66,10 +66,10 @@ enum MemoraSchemaV2: VersionedSchema {
 
 /// V3: オンライン会議キャプチャ関連モデルを正式にVersionedSchemaへ登録。
 /// TranscriptionCheckpoint は再生成可能な中間データのため、V3以降は本体DBから外す。
-enum MemoraSchemaV3: VersionedSchema {
-    static var versionIdentifier = Schema.Version(3, 0, 0)
+public enum MemoraSchemaV3: VersionedSchema {
+    public static var versionIdentifier = Schema.Version(3, 0, 0)
 
-    static let models: [any PersistentModel.Type] = [
+    public static let models: [any PersistentModel.Type] = [
         AudioFile.self,
         Transcript.self,
         Project.self,
@@ -117,12 +117,12 @@ enum MemoraSchemaV3: VersionedSchema {
 ///     toVersion: MemoraSchemaV2.self
 /// )
 /// ```
-enum MemoraMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] {
+public enum MemoraMigrationPlan: SchemaMigrationPlan {
+    public static var schemas: [any VersionedSchema.Type] {
         [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self]
     }
 
-    static let stages: [MigrationStage] = [
+    public static let stages: [MigrationStage] = [
         MigrationStage.lightweight(
             fromVersion: MemoraSchemaV1.self,
             toVersion: MemoraSchemaV2.self
@@ -134,7 +134,7 @@ enum MemoraMigrationPlan: SchemaMigrationPlan {
     ]
 
     /// マイグレーションプラン未適用のストア（初期導入前）を許容
-    static let minimumSchemaVersion = MemoraSchemaV1.self
+    public static let minimumSchemaVersion = MemoraSchemaV1.self
 
-    static var migrationStageOrder: [MigrationStage] { stages }
+    public static var migrationStageOrder: [MigrationStage] { stages }
 }

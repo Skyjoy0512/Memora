@@ -2,16 +2,16 @@ import Foundation
 import SwiftData
 
 @Model
-final class MemoryFact {
-    var id: UUID
-    var profileID: UUID
-    var key: String
-    var value: String
-    var source: String
-    var confidence: Double
-    var lastConfirmedAt: Date?
+public final class MemoryFact {
+    public var id: UUID
+    public var profileID: UUID
+    public var key: String
+    public var value: String
+    public var source: String
+    public var confidence: Double
+    public var lastConfirmedAt: Date?
 
-    init(
+    public init(
         id: UUID = UUID(),
         profileID: UUID,
         key: String,
@@ -29,7 +29,7 @@ final class MemoryFact {
         self.lastConfirmedAt = lastConfirmedAt
     }
 
-    func confirm(at date: Date = Date(), confidence: Double? = nil) {
+    public func confirm(at date: Date = Date(), confidence: Double? = nil) {
         self.lastConfirmedAt = date
         if let confidence {
             self.confidence = confidence

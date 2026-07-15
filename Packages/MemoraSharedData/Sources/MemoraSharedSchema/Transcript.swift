@@ -2,18 +2,18 @@ import Foundation
 import SwiftData
 
 @Model
-final class Transcript {
-    var id: UUID
-    var audioFileID: UUID
-    var audioFile: AudioFile?
-    var text: String
-    var createdAt: Date
-    var speakerLabels: [String] = []
-    var segmentStartTimes: [Double] = []
-    var segmentEndTimes: [Double] = []
-    var segmentTexts: [String] = []
+public final class Transcript {
+    public var id: UUID
+    public var audioFileID: UUID
+    public var audioFile: AudioFile?
+    public var text: String
+    public var createdAt: Date
+    public var speakerLabels: [String] = []
+    public var segmentStartTimes: [Double] = []
+    public var segmentEndTimes: [Double] = []
+    public var segmentTexts: [String] = []
 
-    init(audioFileID: UUID, text: String) {
+    public init(audioFileID: UUID, text: String) {
         self.id = UUID()
         self.audioFileID = audioFileID
         self.text = text
@@ -25,14 +25,14 @@ final class Transcript {
     }
 
     /// スピーカーセグメントを追加するヘルパーメソッド
-    func addSpeakerSegment(speakerLabel: String, startTime: Double, endTime: Double, text: String) {
+    public func addSpeakerSegment(speakerLabel: String, startTime: Double, endTime: Double, text: String) {
         speakerLabels.append(speakerLabel)
         segmentStartTimes.append(startTime)
         segmentEndTimes.append(endTime)
         segmentTexts.append(text)
     }
 
-    func replaceSpeakerSegments(
+    public func replaceSpeakerSegments(
         speakerLabels: [String],
         startTimes: [Double],
         endTimes: [Double],
