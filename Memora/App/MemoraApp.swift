@@ -385,7 +385,12 @@ struct MemoraApp: App {
         }
 
         let modelContainerStart = ContinuousClock.now
-        let container = try ModelContainer(for: schema, migrationPlan: migrationPlan, configurations: [configuration])
+        let container: ModelContainer
+        if inMemoryOnly {
+            container = try ModelContainer(for: schema, migrationPlan: migrationPlan, configurations: [configuration])
+        } else {
+            container = try MemoraSharedStoreFactory.makePersistentContainer(at: try persistentStoreURL())
+        }
         let modelContainerElapsed = modelContainerStart.duration(to: ContinuousClock.now)
         let modelContainerMs = Double(modelContainerElapsed.components.seconds) * 1000.0
             + Double(modelContainerElapsed.components.attoseconds) / 1_000_000_000.0

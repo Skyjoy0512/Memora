@@ -13,7 +13,7 @@ class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    MemoraNativeBridgeBootstrap.configureDefaults()
+    MemoraNativeBridgeBootstrap.configureSharedAudioStoreOrDefaults()
 
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
