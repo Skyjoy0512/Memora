@@ -1,7 +1,8 @@
 import Foundation
 import Observation
+import MemoraSharedCore
 
-protocol SummarizationEngineProtocol {
+public protocol SummarizationEngineProtocol {
     var isSummarizing: Bool { get }
     var progress: Double { get }
 
@@ -9,14 +10,14 @@ protocol SummarizationEngineProtocol {
     func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: SummaryGenerationConfig) async throws -> SummaryResult
 }
 
-struct SummaryResult {
-    let suggestedTitle: String?
-    let summary: String
-    let keyPoints: [String]
-    let actionItems: [String]
-    let decisions: [String]?
+public struct SummaryResult: Sendable, Equatable {
+    public let suggestedTitle: String?
+    public let summary: String
+    public let keyPoints: [String]
+    public let actionItems: [String]
+    public let decisions: [String]?
 
-    init(suggestedTitle: String? = nil, summary: String, keyPoints: [String], actionItems: [String], decisions: [String]? = nil) {
+    public init(suggestedTitle: String? = nil, summary: String, keyPoints: [String], actionItems: [String], decisions: [String]? = nil) {
         self.suggestedTitle = suggestedTitle
         self.summary = summary
         self.keyPoints = keyPoints
@@ -25,37 +26,39 @@ struct SummaryResult {
     }
 
     /// Format action items as newline-separated string for storage
-    var actionItemsText: String {
+    public var actionItemsText: String {
         actionItems.joined(separator: "\n")
     }
 
     /// Format key points as newline-separated string for storage
-    var keyPointsText: String {
+    public var keyPointsText: String {
         keyPoints.joined(separator: "\n")
     }
 
     /// Format decisions as newline-separated string for storage
-    var decisionsText: String? {
+    public var decisionsText: String? {
         guard let decisions, !decisions.isEmpty else { return nil }
         return decisions.joined(separator: "\n")
     }
 }
 
 @Observable
-final class SummarizationEngine: SummarizationEngineProtocol {
-    var isSummarizing = false
-    var progress = 0.0
+public final class SummarizationEngine: SummarizationEngineProtocol {
+    public private(set) var isSummarizing = false
+    public private(set) var progress = 0.0
 
     private var aiService: AIService?
 
     /// APIキーを持たない共有要約経路。ホストで構成済みのproviderだけを受け取る。
-    func configure(provider: any LLMProvider) {
+    public init() {}
+
+    public func configure(provider: any LLMProvider) {
         let service = AIService()
         service.setLLMProvider(provider)
         self.aiService = service
     }
 
-    func summarize(transcript: String, config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
+    public func summarize(transcript: String, config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
@@ -105,7 +108,7 @@ final class SummarizationEngine: SummarizationEngineProtocol {
         }
     }
 
-    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
+    public func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
