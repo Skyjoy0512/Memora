@@ -468,51 +468,9 @@ final class SpeechRecognizerService: LocalTranscriptionService, ObservableObject
     }
 }
 
-// MARK: - Provider Types
+// MARK: - Host transcription presentation
 
-enum AIProvider: String, CaseIterable, Identifiable {
-    case openai = "OpenAI"
-    case gemini = "Gemini"
-    case deepseek = "DeepSeek"
-    case local = "Local"
-
-    var id: String { rawValue }
-
-    var supportsTranscription: Bool {
-        switch self {
-        case .openai: return true
-        case .gemini: return true
-        case .deepseek: return false
-        case .local: return false
-        }
-    }
-
-    var transcriptionProvider: AIProvider? {
-        switch self {
-        case .openai: return .openai
-        case .gemini: return .gemini
-        case .deepseek: return nil
-        case .local: return nil
-        }
-    }
-
-    /// API キーが必要なプロバイダーか
-    var requiresAPIKey: Bool {
-        switch self {
-        case .openai, .gemini, .deepseek: return true
-        case .local: return false
-        }
-    }
-}
-
-// MARK: - Transcription Mode
-
-enum TranscriptionMode: String, CaseIterable, Identifiable {
-    case local = "ローカル"
-    case api = "API"
-
-    var id: String { rawValue }
-
+extension TranscriptionMode {
     var description: String {
         switch self {
         case .local:
@@ -1170,49 +1128,6 @@ enum LocalTranscriptionError: LocalizedError {
             return "音声認識の権限が許可されていません"
         case .assetInstallationFailed(let message):
             return "SpeechAnalyzer 用モデルの準備に失敗しました: \(message)"
-        }
-    }
-}
-
-enum AIError: LocalizedError {
-    case notConfigured
-    case transcriptionNotSupported
-    case apiKeyMissing
-    case invalidResponse
-    case decodingError
-    case apiError(Int, String)
-
-    var errorDescription: String? {
-        switch self {
-        case .notConfigured:
-            return "AIサービスが設定されていません"
-        case .transcriptionNotSupported:
-            return "選択されたプロバイダーは文字起こしをサポートしていません"
-        case .apiKeyMissing:
-            return "APIキーが設定されていません"
-        case .invalidResponse:
-            return "無効なレスポンスです"
-        case .decodingError:
-            return "レスポンスの解析に失敗しました"
-        case .apiError(let code, let message):
-            return "APIエラー (\(code)): \(message)"
-        }
-    }
-}
-
-enum OpenAIError: LocalizedError {
-    case invalidResponse
-    case decodingError
-    case apiError(Int, String)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "無効なレスポンスです"
-        case .decodingError:
-            return "レスポンスの解析に失敗しました"
-        case .apiError(let code, let message):
-            return "APIエラー (\(code)): \(message)"
         }
     }
 }

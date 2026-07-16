@@ -5,53 +5,6 @@ import SwiftUI
 // MemoraSharedCore; keep the existing AppStorage keys and diagnostics storage
 // in the app target.
 
-struct STTExecutionConfiguration: Sendable {
-    let apiKey: String
-    let provider: AIProvider
-    let transcriptionMode: TranscriptionMode
-    let allowsSpeechAnalyzer: Bool
-
-    static let localDefault = STTExecutionConfiguration(
-        apiKey: "",
-        provider: .openai,
-        transcriptionMode: .local,
-        allowsSpeechAnalyzer: true
-    )
-
-    func withSpeechAnalyzerAllowed(_ isAllowed: Bool) -> STTExecutionConfiguration {
-        STTExecutionConfiguration(
-            apiKey: apiKey,
-            provider: provider,
-            transcriptionMode: transcriptionMode,
-            allowsSpeechAnalyzer: isAllowed
-        )
-    }
-}
-
-enum STTErrorMapper {
-    static func mapToCoreError(_ error: Error) -> CoreError {
-        if let coreError = error as? CoreError {
-            return coreError
-        }
-        if let transcriptionError = error as? TranscriptionError {
-            return .transcriptionError(transcriptionError)
-        }
-        if let chunkerError = error as? AudioChunkerError {
-            return .pipelineError(.transcriptionFailed(chunkerError.localizedDescription))
-        }
-        if let aiError = error as? AIError {
-            return .transcriptionError(.transcriptionFailed(aiError.localizedDescription))
-        }
-        if let openAIError = error as? OpenAIError {
-            return .transcriptionError(.transcriptionFailed(openAIError.localizedDescription))
-        }
-        if let timeoutError = error as? OnDeviceTranscriptionTimeoutError {
-            return .transcriptionError(.transcriptionFailed(timeoutError.localizedDescription))
-        }
-        return .transcriptionError(.transcriptionFailed(error.localizedDescription))
-    }
-}
-
 // MARK: - Feature Flags
 
 /// iOS 26 SpeechAnalyzer ベータ機能のフィーチャーフラグ。
