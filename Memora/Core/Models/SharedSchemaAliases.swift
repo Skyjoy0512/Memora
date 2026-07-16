@@ -96,6 +96,7 @@ typealias STTLogLevel = MemoraSharedCore.STTLogLevel
 typealias STTLogging = MemoraSharedCore.STTLogging
 typealias STTConsoleLogging = MemoraSharedCore.STTConsoleLogging
 typealias STTSettingsProviding = MemoraSharedCore.STTSettingsProviding
+typealias STTDiagnosticsRecording = MemoraSharedCore.STTDiagnosticsRecording
 typealias STTReadOnlyHostDependencies = MemoraSharedCore.STTReadOnlyHostDependencies
 typealias STTBackgroundTaskToken = MemoraSharedCore.STTBackgroundTaskToken
 typealias STTBackgroundTaskManaging = MemoraSharedCore.STTBackgroundTaskManaging

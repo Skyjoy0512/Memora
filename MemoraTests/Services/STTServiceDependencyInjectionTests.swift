@@ -49,7 +49,8 @@ struct STTServiceDependencyInjectionTests {
                 settings: TestSTTSettings(
                     isSpeechAnalyzerEnabled: false,
                     isSpeakerDiarizationEnabled: true
-                )
+                ),
+                diagnostics: NoopSTTDiagnosticsRecorder()
             ),
             executionDependencies: executionDependencies
         )
@@ -85,7 +86,8 @@ struct STTServiceDependencyInjectionTests {
                 settings: TestSTTSettings(
                     isSpeechAnalyzerEnabled: false,
                     isSpeakerDiarizationEnabled: false
-                )
+                ),
+                diagnostics: NoopSTTDiagnosticsRecorder()
             ),
             executionDependencies: executionDependencies
         )
@@ -108,7 +110,8 @@ struct STTServiceDependencyInjectionTests {
             settings: TestSTTSettings(
                 isSpeechAnalyzerEnabled: false,
                 isSpeakerDiarizationEnabled: false
-            )
+            ),
+            diagnostics: NoopSTTDiagnosticsRecorder()
         ),
         executionDependencies: STTServiceExecutionDependencies
     ) -> STTService {
@@ -152,6 +155,10 @@ private struct NoopSTTLogger: STTLogging {
 
 private struct NoopSTTConsoleLogger: STTConsoleLogging {
     func logDetailed(_ message: @autoclosure () -> String) {}
+}
+
+private struct NoopSTTDiagnosticsRecorder: STTDiagnosticsRecording {
+    func record(_ entry: STTBackendDiagnosticEntry) {}
 }
 
 private struct UnusedSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {

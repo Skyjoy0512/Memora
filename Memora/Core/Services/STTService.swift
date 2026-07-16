@@ -369,7 +369,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
                     )
                     let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
                     let ms = DurationFormatter.milliseconds(elapsed)
-                    STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                    dependencies.diagnostics.record(STTBackendDiagnosticEntry(
                         taskId: taskId,
                         backend: .speechAnalyzer,
                         locale: locale.identifier,
@@ -384,7 +384,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
                     throw CancellationError()
                 } catch {
                     dependencies.logger.log("STTBackend", "SpeechAnalyzer runtime fallback: \(error.localizedDescription)", level: .warning)
-                    STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                    dependencies.diagnostics.record(STTBackendDiagnosticEntry(
                         taskId: taskId,
                         backend: .speechAnalyzer,
                         locale: locale.identifier,
@@ -398,7 +398,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
 
             case .unavailable(let reason, let diag):
                 dependencies.logger.log("STTBackend", "SpeechAnalyzer preflight failed — \(reason.description)", level: .warning)
-                STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+                dependencies.diagnostics.record(STTBackendDiagnosticEntry(
                     taskId: taskId,
                     backend: .sfSpeechRecognizer,
                     locale: locale.identifier,
@@ -454,7 +454,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
 
         let elapsed = transcriptionStart.duration(to: ContinuousClock.now)
         let ms = DurationFormatter.milliseconds(elapsed)
-        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+        dependencies.diagnostics.record(STTBackendDiagnosticEntry(
             taskId: taskId,
             backend: .sfSpeechRecognizer,
             locale: locale.identifier,
@@ -672,7 +672,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
 
         let elapsed = remoteStart.duration(to: ContinuousClock.now)
         let ms = DurationFormatter.milliseconds(elapsed)
-        STTDiagnosticsLog.shared.record(STTBackendDiagnosticEntry(
+        dependencies.diagnostics.record(STTBackendDiagnosticEntry(
             taskId: taskId,
             backend: .cloudAPI,
             locale: language ?? "unknown",
