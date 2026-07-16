@@ -86,7 +86,8 @@ struct STTServiceDependencyInjectionTests {
                 settings: TestSTTSettings(
                     isSpeechAnalyzerEnabled: false,
                     isSpeakerDiarizationEnabled: false
-                )
+                ),
+                diagnostics: NoopSTTDiagnosticsRecorder()
             ),
             executionDependencies: executionDependencies
         )
