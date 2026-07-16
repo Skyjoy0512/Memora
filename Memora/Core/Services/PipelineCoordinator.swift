@@ -19,6 +19,7 @@ final class PipelineCoordinator {
     private let transcriptionEngine: TranscriptionEngine
     private let summarizationEngine: SummarizationEngine
     private let modelContext: ModelContext
+    private let checkpointHooksProvider: any STTCheckpointHooksProviding
     private lazy var knowledgeIndexingService = KnowledgeIndexingService(modelContext: modelContext)
 
     // MARK: - Progress (read by FileDetailViewModel for UI polling)
@@ -29,11 +30,13 @@ final class PipelineCoordinator {
     init(
         transcriptionEngine: TranscriptionEngine,
         summarizationEngine: SummarizationEngine,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        checkpointHooksProvider: any STTCheckpointHooksProviding = FileBackedSTTCheckpointHooksProvider.live
     ) {
         self.transcriptionEngine = transcriptionEngine
         self.summarizationEngine = summarizationEngine
         self.modelContext = modelContext
+        self.checkpointHooksProvider = checkpointHooksProvider
     }
 
     // MARK: - Full Pipeline
@@ -403,28 +406,7 @@ final class PipelineCoordinator {
         // 参照データは、インポート処理またはテストが AudioFile へ明示的に注入した場合のみ使用する。
         let effectiveSpeakerCount = Self.referenceSpeakerCount(for: audioFile)
 
-        let checkpointStore = TranscriptionCheckpointStore()
-        let checkpointAudioFileID = audioFile.id
-        let checkpointHooks = STTCheckpointHooks(
-            load: { fingerprint in
-                await checkpointStore.load(
-                    audioFileID: checkpointAudioFileID,
-                    fingerprint: fingerprint
-                )
-            },
-            save: { fingerprint, totalChunks, chunkIndex, result in
-                await checkpointStore.save(
-                    audioFileID: checkpointAudioFileID,
-                    fingerprint: fingerprint,
-                    totalChunks: totalChunks,
-                    chunkIndex: chunkIndex,
-                    result: result
-                )
-            },
-            clear: {
-                await checkpointStore.delete(audioFileID: checkpointAudioFileID)
-            }
-        )
+        let checkpointHooks = checkpointHooksProvider.makeHooks(audioFileID: audioFile.id)
         transcriptionEngine.updateCheckpointHooks(checkpointHooks)
         defer { transcriptionEngine.updateCheckpointHooks(nil) }
 
