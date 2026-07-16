@@ -36,10 +36,10 @@ public struct STTBackgroundTaskToken: Sendable { public let rawValue: Int; publi
 public protocol STTBackgroundTaskManaging: Sendable { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken?; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) }
 public protocol STTIdleTimerManaging: Sendable { @MainActor func setIdleTimerDisabled(_ isDisabled: Bool) }
 public protocol STTMemoryWarningObserving: Sendable { func observeMemoryWarnings(_ handler: @escaping @Sendable () -> Void) }
-@MainActor public protocol STTProgressPresenting: Sendable {
-    func start(fileName: String, totalChunks: Int)
-    func update(progress: Double, currentChunk: Int, totalChunks: Int)
-    func finish(success: Bool, characterCount: Int)
+public protocol STTProgressPresenting: Sendable {
+    @MainActor func start(fileName: String, totalChunks: Int)
+    @MainActor func update(progress: Double, currentChunk: Int, totalChunks: Int)
+    @MainActor func finish(success: Bool, characterCount: Int)
 }
 public struct STTExecutionHostCapabilities: Sendable {
     public let backgroundTasks: any STTBackgroundTaskManaging; public let idleTimer: any STTIdleTimerManaging; public let memoryWarnings: any STTMemoryWarningObserving; public let progress: any STTProgressPresenting
