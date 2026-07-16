@@ -71,3 +71,13 @@ typealias TodoPriority = MemoraSharedCore.TodoPriority
 typealias TranscriptionError = MemoraSharedCore.TranscriptionError
 typealias TranscriptionResult = MemoraSharedCore.TranscriptionResult
 typealias TranscriptionSegment = MemoraSharedCore.TranscriptionSegment
+
+// STT execution helpers live in MemoraSharedCore. Keep app-side aliases so
+// existing service and test imports remain a location-only migration.
+typealias AudioChunk = MemoraSharedCore.AudioChunk
+typealias AudioChunker = MemoraSharedCore.AudioChunker
+typealias AudioChunkerError = MemoraSharedCore.AudioChunkerError
+typealias AudioChunkerProtocol = MemoraSharedCore.AudioChunkerProtocol
+typealias AudioChunkPlan = MemoraSharedCore.AudioChunkPlan
+typealias AudioChunkProgressHandler = MemoraSharedCore.AudioChunkProgressHandler
+typealias STTFileLocations = MemoraSharedCore.STTFileLocations

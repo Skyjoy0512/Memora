@@ -1,23 +1,37 @@
 import Foundation
 @preconcurrency import AVFoundation
 
-typealias AudioChunkProgressHandler = @Sendable (_ completed: Int, _ total: Int) -> Void
+public typealias AudioChunkProgressHandler = @Sendable (_ completed: Int, _ total: Int) -> Void
 
 /// チャンクの境界だけを持つ軽量プラン（ファイル書き出しはしない）
-struct AudioChunkPlan: Sendable {
-    struct Slice: Sendable {
-        let index: Int
-        let startSec: Double
-        let endSec: Double
+public struct AudioChunkPlan: Sendable {
+    public struct Slice: Sendable {
+        public let index: Int
+        public let startSec: Double
+        public let endSec: Double
+
+        public init(index: Int, startSec: Double, endSec: Double) {
+            self.index = index
+            self.startSec = startSec
+            self.endSec = endSec
+        }
     }
-    let sourceURL: URL
-    let totalDuration: Double
-    let slices: [Slice]
-    var count: Int { slices.count }
-    var isSingleChunk: Bool { slices.count == 1 }
+
+    public let sourceURL: URL
+    public let totalDuration: Double
+    public let slices: [Slice]
+
+    public init(sourceURL: URL, totalDuration: Double, slices: [Slice]) {
+        self.sourceURL = sourceURL
+        self.totalDuration = totalDuration
+        self.slices = slices
+    }
+
+    public var count: Int { slices.count }
+    public var isSingleChunk: Bool { slices.count == 1 }
 }
 
-protocol AudioChunkerProtocol: Sendable {
+public protocol AudioChunkerProtocol: Sendable {
     /// 従来 API（短尺・後方互換のため残す）
     func analyzeAndChunk(
         fileURL: URL,
@@ -36,27 +50,35 @@ protocol AudioChunkerProtocol: Sendable {
     func cleanupChunk(_ chunk: AudioChunk) async
 }
 
-extension AudioChunkerProtocol {
+public extension AudioChunkerProtocol {
     func analyzeAndChunk(fileURL: URL) async throws -> [AudioChunk] {
         try await analyzeAndChunk(fileURL: fileURL, onProgress: nil)
     }
 }
 
-struct AudioChunk: Sendable, Hashable {
-    let index: Int
-    let startSec: Double
-    let endSec: Double
-    let url: URL
-    let isTemporary: Bool
+public struct AudioChunk: Sendable, Hashable {
+    public let index: Int
+    public let startSec: Double
+    public let endSec: Double
+    public let url: URL
+    public let isTemporary: Bool
+
+    public init(index: Int, startSec: Double, endSec: Double, url: URL, isTemporary: Bool) {
+        self.index = index
+        self.startSec = startSec
+        self.endSec = endSec
+        self.url = url
+        self.isTemporary = isTemporary
+    }
 }
 
-enum AudioChunkerError: LocalizedError {
+public enum AudioChunkerError: LocalizedError {
     case fileNotFound
     case durationUnavailable
     case exportSessionUnavailable
     case exportFailed(Error?)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .fileNotFound:
             return "音声ファイルが見つかりません"
@@ -81,7 +103,7 @@ private final class ExportSessionBox: @unchecked Sendable {
     }
 }
 
-final class AudioChunker: AudioChunkerProtocol {
+public final class AudioChunker: AudioChunkerProtocol {
     // 90秒未満はチャンク分割なし
     private let shortThreshold: TimeInterval = 90
     private let longThreshold: TimeInterval = 60 * 60 * 3
@@ -89,9 +111,11 @@ final class AudioChunker: AudioChunkerProtocol {
     private let standardChunkDuration: TimeInterval = 90
     private let smallChunkDuration: TimeInterval = 90
 
+    public init() {}
+
     // MARK: - Legacy API (後方互換)
 
-    func analyzeAndChunk(
+    public func analyzeAndChunk(
         fileURL: URL,
         onProgress: AudioChunkProgressHandler? = nil
     ) async throws -> [AudioChunk] {
@@ -165,7 +189,7 @@ final class AudioChunker: AudioChunkerProtocol {
 
     // MARK: - Streaming API (PR-B9)
 
-    func plan(fileURL: URL) async throws -> AudioChunkPlan {
+    public func plan(fileURL: URL) async throws -> AudioChunkPlan {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw AudioChunkerError.fileNotFound
         }
@@ -201,7 +225,7 @@ final class AudioChunker: AudioChunkerProtocol {
         return AudioChunkPlan(sourceURL: fileURL, totalDuration: duration, slices: slices)
     }
 
-    func exportSlice(_ slice: AudioChunkPlan.Slice, from plan: AudioChunkPlan) async throws -> AudioChunk {
+    public func exportSlice(_ slice: AudioChunkPlan.Slice, from plan: AudioChunkPlan) async throws -> AudioChunk {
         // 単一チャンク（短尺）は元ファイルをそのまま使い書き出さない
         if plan.isSingleChunk {
             return AudioChunk(
@@ -223,14 +247,14 @@ final class AudioChunker: AudioChunkerProtocol {
         )
     }
 
-    func cleanup(chunks: [AudioChunk]) async {
+    public func cleanup(chunks: [AudioChunk]) async {
         let temporaryChunks = chunks.filter(\.isTemporary)
         for chunk in temporaryChunks {
             try? FileManager.default.removeItem(at: chunk.url)
         }
     }
 
-    func cleanupChunk(_ chunk: AudioChunk) async {
+    public func cleanupChunk(_ chunk: AudioChunk) async {
         guard chunk.isTemporary else { return }
         try? FileManager.default.removeItem(at: chunk.url)
     }
@@ -288,12 +312,12 @@ final class AudioChunker: AudioChunkerProtocol {
     }
 }
 
-enum STTFileLocations {
-    static func audioDirectory() throws -> URL {
+public enum STTFileLocations {
+    public static func audioDirectory() throws -> URL {
         try baseDirectory(named: "Audio")
     }
 
-    static func chunksDirectory() throws -> URL {
+    public static func chunksDirectory() throws -> URL {
         try baseDirectory(named: "Chunks")
     }
 

@@ -115,7 +115,6 @@
 		81AEF1450AF431174E12F315 /* MeetingCaptureProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BAF7EBFD53226A2B45B367 /* MeetingCaptureProgressView.swift */; };
 		833D0D3B34276CA570577805 /* AudioFileRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B0E6085A202875DA87BBF8 /* AudioFileRow.swift */; };
 		8375E72353D31B6559872467 /* NotionIntegrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D29E695672907D45D929D22 /* NotionIntegrationSection.swift */; };
-		856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */; };
 		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
 		85FEAA20061453D62AB6BA2B /* ExpandableGlassEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */; };
 		87AAFF280720E9CF570F19F9 /* TaskPlannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBD0F5F237593A207E44875 /* TaskPlannerService.swift */; };
@@ -455,7 +454,6 @@
 		F48E3CC316BBB0F888BCCA25 /* OmiAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmiAdapter.swift; sourceTree = "<group>"; };
 		F71A1815288589FC9C4308AE /* MemorySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySettingsView.swift; sourceTree = "<group>"; };
 		F76FDEBF007388E9359C830B /* PersistentStoreSafetyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistentStoreSafetyService.swift; sourceTree = "<group>"; };
-		F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioChunker.swift; sourceTree = "<group>"; };
 		F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerProfileStore.swift; sourceTree = "<group>"; };
 		F848386F9F51426F48C6975B /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		F976DECF01B7B80665AE885F /* LocalDataDeletionServiceCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataDeletionServiceCoverageTests.swift; sourceTree = "<group>"; };
@@ -632,7 +630,6 @@
 			isa = PBXGroup;
 			children = (
 				E758217C18CCA3F1E9828B21 /* AskAIRetrievalService.swift */,
-				F77BEC0785DD9FDDD8B31F31 /* AudioChunker.swift */,
 				513C9AE494096EC82FBBA55E /* AudioFileImportService.swift */,
 				67B1EE419D21EC6092FE62B2 /* AudioPlayer.swift */,
 				B6D1A0CE151A9D7FA10850B3 /* AudioRecorder.swift */,
@@ -1184,7 +1181,6 @@
 				D0D0FCF69BF66047F930E18B /* AskAIChatTypes.swift in Sources */,
 				5B4D1D0A1599E484F6818882 /* AskAIRetrievalService.swift in Sources */,
 				0BC193ECC1BD670242A3A175 /* AskAIView.swift in Sources */,
-				856086432FDA43FAF37CBEBA /* AudioChunker.swift in Sources */,
 				FFE0C810617C920D2F1100F2 /* AudioFileImportService.swift in Sources */,
 				833D0D3B34276CA570577805 /* AudioFileRow.swift in Sources */,
 				4F76DECDE42A758AEDAA7DC2 /* AudioPlayer.swift in Sources */,

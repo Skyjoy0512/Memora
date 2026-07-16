@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import MemoraSharedData
 @testable import MemoraSharedSchema
+@testable import MemoraSharedCore
 
 @Suite("MemoraSharedData contract")
 struct MemoraSharedDataTests {
@@ -204,5 +205,48 @@ struct MemoraSharedSchemaRepositoryTests {
 
     try repository.delete(id: audioFile.id)
     #expect(try repository.fetch(id: audioFile.id) == nil)
+  }
+}
+
+@Suite("MemoraSharedCore audio chunking")
+struct MemoraSharedCoreAudioChunkerTests {
+  @Test("audio chunk plan keeps its streaming boundaries")
+  func audioChunkPlanRetainsBoundaries() {
+    let sourceURL = URL(fileURLWithPath: "/tmp/source.m4a")
+    let plan = AudioChunkPlan(
+      sourceURL: sourceURL,
+      totalDuration: 180,
+      slices: [
+        .init(index: 0, startSec: 0, endSec: 90),
+        .init(index: 1, startSec: 90, endSec: 180)
+      ]
+    )
+
+    #expect(plan.sourceURL == sourceURL)
+    #expect(plan.count == 2)
+    #expect(!plan.isSingleChunk)
+    #expect(plan.slices.map(\.index) == [0, 1])
+  }
+
+  @Test("cleanup deletes only temporary chunk files")
+  func cleanupDeletesOnlyTemporaryFiles() async throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-audio-chunker-test-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let temporaryURL = root.appendingPathComponent("temporary.m4a")
+    let sourceURL = root.appendingPathComponent("source.m4a")
+    try Data("temporary".utf8).write(to: temporaryURL)
+    try Data("source".utf8).write(to: sourceURL)
+
+    let chunker = AudioChunker()
+    await chunker.cleanup(chunks: [
+      .init(index: 0, startSec: 0, endSec: 1, url: temporaryURL, isTemporary: true),
+      .init(index: 1, startSec: 1, endSec: 2, url: sourceURL, isTemporary: false)
+    ])
+
+    #expect(!FileManager.default.fileExists(atPath: temporaryURL.path))
+    #expect(FileManager.default.fileExists(atPath: sourceURL.path))
   }
 }
