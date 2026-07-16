@@ -295,15 +295,18 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
     private let taskId: String
     private let configuration: STTExecutionConfiguration
     private let dependencies: STTReadOnlyHostDependencies
+    private let executionDependencies: STTBackendExecutionDependencies
 
     init(
         taskId: String,
         configuration: STTExecutionConfiguration,
-        dependencies: STTReadOnlyHostDependencies = .live
+        dependencies: STTReadOnlyHostDependencies = .live,
+        executionDependencies: STTBackendExecutionDependencies
     ) {
         self.taskId = taskId
         self.configuration = configuration
         self.dependencies = dependencies
+        self.executionDependencies = executionDependencies
     }
 
 
@@ -469,7 +472,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
         progress: @escaping @Sendable (Double) -> Void,
         partialResult: @escaping @Sendable (String) -> Void
     ) async throws -> TranscriptionResult {
-        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
+        guard let recognizer = executionDependencies.localBackendFactory.makeSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             STTConsoleLog("[MemoraSTT] SFSpeechRecognizer 利用不可 — locale: \(locale.identifier)")
             throw CoreError.transcriptionError(.engineNotAvailable)
         }
@@ -614,7 +617,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
     ) async throws -> TranscriptionResult {
         STTConsoleLog("[MemoraSTT] transcribeWithSpeechAnalyzer 開始")
         dependencies.logger.log("STTBackend", "SpeechAnalyzer transcribe 開始 — \(audioURL.lastPathComponent)", level: .info)
-        let service = SpeechAnalyzerService26(locale: locale)
+        let service = executionDependencies.localBackendFactory.makeSpeechAnalyzerTranscriber(locale: locale)
 
         progress(0.2)
         let text = try await service.transcribe(audioURL: audioURL)
@@ -650,13 +653,14 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
         dependencies.logger.log("STTBackend", "API パス開始 — provider: \(configuration.provider.rawValue)", level: .info)
         let remoteStart = ContinuousClock.now
 
-        let service = AIService(dependencies: dependencies)
-        service.setProvider(configuration.provider)
-        service.setTranscriptionMode(.api)
-        try await service.configure(apiKey: configuration.apiKey)
-
         progress(0.2)
-        let text = try await service.transcribe(audioURL: audioURL)
+        let text = try await executionDependencies.remoteTranscriber.transcribe(
+            RemoteTranscriptionRequest(
+                audioURL: audioURL,
+                providerIdentifier: configuration.provider.rawValue,
+                apiKey: configuration.apiKey
+            )
+        )
         progress(0.92)
 
         STTConsoleLog("[MemoraSTT] API パス完了 — text length: \(text.count)")
@@ -769,30 +773,29 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let backendFactory: @Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing
     private let dependencies: STTReadOnlyHostDependencies
     private let capabilities: STTExecutionHostCapabilities
-    private let diarizationService: SpeakerDiarizationProtocol = {
-        if #available(macOS 14.0, iOS 17.0, *) {
-            return FluidAudioDiarizationService()
-        } else {
-            return SpeakerDiarizationService()
-        }
-    }()
+    private let executionDependencies: STTServiceExecutionDependencies
 
     init(
         readiness: STTReadinessProtocol = STTReadiness(),
         chunkerFactory: @escaping @Sendable () -> AudioChunkerProtocol = { AudioChunker() },
         backendFactory: (@Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing)? = nil,
         dependencies: STTReadOnlyHostDependencies = .live,
-        capabilities: STTExecutionHostCapabilities = .live
+        capabilities: STTExecutionHostCapabilities = .live,
+        executionDependencies: STTServiceExecutionDependencies? = nil
     ) {
         self.readiness = readiness
         self.chunkerFactory = chunkerFactory
         self.dependencies = dependencies
         self.capabilities = capabilities
+        let resolvedExecutionDependencies = executionDependencies ?? .live(dependencies: dependencies)
+        self.executionDependencies = resolvedExecutionDependencies
+        let backendExecutionDependencies = resolvedExecutionDependencies.backend
         self.backendFactory = backendFactory ?? { taskId, configuration in
             STTBackendExecutor(
                 taskId: taskId,
                 configuration: configuration,
-                dependencies: dependencies
+                dependencies: dependencies,
+                executionDependencies: backendExecutionDependencies
             )
         }
 
@@ -1433,7 +1436,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 seconds: timeout,
                 timeoutError: STTOperationTimeoutError()
             ) {
-                await self.diarizationService.detectSpeakers(
+                await self.executionDependencies.diarizationService.detectSpeakers(
                     audioURL: audioURL,
                     segments: segments,
                     numSpeakers: numSpeakers
