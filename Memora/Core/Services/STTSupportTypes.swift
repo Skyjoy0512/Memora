@@ -467,10 +467,12 @@ final class STTDiagnosticsLog: @unchecked Sendable {
     }
 
     private let lock = NSLock()
+    private let logger: any STTLogging
     private var entries: [STTBackendDiagnosticEntry] = []
     private let maxEntries = 50
 
-    private init() {
+    init(logger: any STTLogging = DebugLoggerSTTLogger()) {
+        self.logger = logger
         if let persisted = loadPersistedLastEntry() {
             entries = [persisted]
         }
@@ -511,7 +513,7 @@ final class STTDiagnosticsLog: @unchecked Sendable {
 
         persist(entry)
 
-        DebugLogger.shared.addLog(
+        logger.log(
             "STTDiagnostics",
             entry.summary,
             level: entry.fallbackReason != nil ? .warning : .info
