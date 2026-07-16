@@ -302,7 +302,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
     init(
         taskId: String,
         configuration: STTExecutionConfiguration,
-        dependencies: STTReadOnlyHostDependencies = .live,
+        dependencies: STTReadOnlyHostDependencies,
         executionDependencies: STTBackendExecutionDependencies
     ) {
         self.taskId = taskId
@@ -781,17 +781,16 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         readiness: STTReadinessProtocol = STTReadiness(),
         chunkerFactory: @escaping @Sendable () -> AudioChunkerProtocol = { AudioChunker() },
         backendFactory: (@Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing)? = nil,
-        dependencies: STTReadOnlyHostDependencies = .live,
-        capabilities: STTExecutionHostCapabilities = .live,
-        executionDependencies: STTServiceExecutionDependencies? = nil
+        dependencies: STTReadOnlyHostDependencies,
+        capabilities: STTExecutionHostCapabilities,
+        executionDependencies: STTServiceExecutionDependencies
     ) {
         self.readiness = readiness
         self.chunkerFactory = chunkerFactory
         self.dependencies = dependencies
         self.capabilities = capabilities
-        let resolvedExecutionDependencies = executionDependencies ?? .live(dependencies: dependencies)
-        self.executionDependencies = resolvedExecutionDependencies
-        let backendExecutionDependencies = resolvedExecutionDependencies.backend
+        self.executionDependencies = executionDependencies
+        let backendExecutionDependencies = executionDependencies.backend
         self.backendFactory = backendFactory ?? { taskId, configuration in
             STTBackendExecutor(
                 taskId: taskId,

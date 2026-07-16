@@ -41,6 +41,7 @@
 		30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A39563D755711D640B86DA /* PlaudService.swift */; };
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
 		31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */; };
+		31747E96157498CD0CA4C537 /* STTServiceHostFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A2443F6F42D4ECFE69ABC9 /* STTServiceHostFactory.swift */; };
 		37B189A82F502FD789C37D22 /* TodoItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6687F3B759187EBE428ED00F /* TodoItemTests.swift */; };
 		382BEB19744BEF0418543ECE /* V6DynamicIslandPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82ADF2775D63CECF557046FE /* V6DynamicIslandPill.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
@@ -414,6 +415,7 @@
 		C6B0DBF8D79D16F7F8A2784E /* PipelineCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineCoordinator.swift; sourceTree = "<group>"; };
 		C774D6275E354C533D7DD83C /* GlassCircleButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCircleButton.swift; sourceTree = "<group>"; };
 		C7C571C60384295BBBCFB9D9 /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spacing.swift; sourceTree = "<group>"; };
+		C8A2443F6F42D4ECFE69ABC9 /* STTServiceHostFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTServiceHostFactory.swift; sourceTree = "<group>"; };
 		C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		CA8FF1B176AE5F9A8978FBEA /* SystemAudioCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureService.swift; sourceTree = "<group>"; };
 		CC24BF762478AA119742B5A9 /* NothingDotMatrixModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NothingDotMatrixModifier.swift; sourceTree = "<group>"; };
@@ -670,6 +672,7 @@
 				BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */,
 				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
 				91853B4FFFBF4F9E42B51B90 /* STTServiceDependencyLiveAdapters.swift */,
+				C8A2443F6F42D4ECFE69ABC9 /* STTServiceHostFactory.swift */,
 				9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */,
 				CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */,
 				CA8FF1B176AE5F9A8978FBEA /* SystemAudioCaptureService.swift */,
@@ -1304,6 +1307,7 @@
 				31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */,
 				2CF214094F1D5694E31D8951 /* STTService.swift in Sources */,
 				6E04AE107AD89D4826A8102D /* STTServiceDependencyLiveAdapters.swift in Sources */,
+				31747E96157498CD0CA4C537 /* STTServiceHostFactory.swift in Sources */,
 				6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */,
 				BAEC7E4EF7E7077936C2A4C3 /* ScreenshotMatchedSkeleton.swift in Sources */,
 				87C15F2C40E94991DFC7B758 /* SettingsBindings.swift in Sources */,
