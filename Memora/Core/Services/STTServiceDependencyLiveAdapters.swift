@@ -40,6 +40,25 @@ struct LiveLocalSTTBackendFactory: LocalSTTBackendFactory {
     }
 }
 
+/// `STTBackendExecutor` は iOS 26 availability check の内側でのみ preflight を呼ぶ。
+/// 依存コンテナ自体は iOS 17 から組み立てられるため、この薄い host adapter だけが
+/// availability 境界を保持する。
+struct LiveSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {
+    func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
+        guard #available(iOS 26.0, *) else {
+            preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+        }
+        return await SpeechAnalyzerPreflight().run(locale: locale)
+    }
+
+    func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
+        guard #available(iOS 26.0, *) else {
+            preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+        }
+        return await SpeechAnalyzerPreflight().diagnostics(for: locale)
+    }
+}
+
 extension STTServiceExecutionDependencies {
     static func live(
         dependencies: STTReadOnlyHostDependencies = .live
@@ -49,7 +68,8 @@ extension STTServiceExecutionDependencies {
                 remoteTranscriber: AIServiceRemoteTranscriber(
                     dependencies: dependencies
                 ),
-                localBackendFactory: LiveLocalSTTBackendFactory()
+                localBackendFactory: LiveLocalSTTBackendFactory(),
+                speechAnalyzerPreflight: LiveSpeechAnalyzerPreflight()
             ),
             diarizationService: {
                 if #available(macOS 14.0, iOS 17.0, *) {
