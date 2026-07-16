@@ -1,5 +1,7 @@
 import Foundation
+import SwiftData
 import MemoraSharedData
+import MemoraSharedSchema
 internal import MemoraNative
 
 /// Adapts a host-owned shared store to the Expo module's JSON DTO boundary.
@@ -7,14 +9,16 @@ internal import MemoraNative
 final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioFileMutating {
   private let store: any MemoraSharedAudioFileStore
   private let isoFormatter: ISO8601DateFormatter
+  private let modelContainer: ModelContainer?
 
   var sourceDescription: String {
     store.sourceDescription
   }
 
-  init(store: any MemoraSharedAudioFileStore) {
+  init(store: any MemoraSharedAudioFileStore, container: ModelContainer? = nil) {
     self.store = store
     self.isoFormatter = ISO8601DateFormatter()
+    self.modelContainer = container
   }
 
   func listAudioFiles() throws -> [MemoraAudioFileDTO] {
@@ -46,7 +50,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     var renamed = record
     renamed.title = trimmedTitle
     try store.save(renamed)
-    return makeDTO(from: renamed)
+    return try makeDTO(from: renamed)
   }
 
   func moveAudioFile(id: String, projectId: String?) throws -> MemoraAudioFileDTO? {
@@ -67,7 +71,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     var moved = record
     moved.projectID = targetProjectId
     try store.save(moved)
-    return makeDTO(from: moved)
+    return try makeDTO(from: moved)
   }
 
   func deleteAudioFile(id: String) throws -> Bool {
@@ -79,7 +83,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     return true
   }
 
-  private func makeDTO(from record: MemoraSharedAudioFileRecord) -> MemoraAudioFileDTO {
+  private func makeDTO(from record: MemoraSharedAudioFileRecord) throws -> MemoraAudioFileDTO {
     MemoraAudioFileDTO(
       id: record.id.uuidString,
       title: record.title,
@@ -89,9 +93,25 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
       duration: formattedDuration(record.duration),
       status: record.isTranscribed ? "ready" : "queued",
       summary: record.summary ?? "",
-      transcript: [],
+      transcript: try transcriptDTOs(for: record.id),
       memo: record.audioURL.isEmpty ? [] : ["Stored path: \(URL(fileURLWithPath: record.audioURL).lastPathComponent)"]
     )
+  }
+
+  private func transcriptDTOs(for audioFileID: UUID) throws -> [[String: Any]] {
+    guard let modelContainer else { return [] }
+    let modelContext = ModelContext(modelContainer)
+    let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == audioFileID })
+    guard let transcript = try modelContext.fetch(descriptor).first?.transcripts.first else { return [] }
+    return zip(zip(transcript.speakerLabels, transcript.segmentStartTimes), zip(transcript.segmentEndTimes, transcript.segmentTexts)).enumerated().map { index, value in
+      [
+        "id": "segment-\(index)",
+        "speaker": value.0.0,
+        "time": formattedDuration(value.0.1),
+        "text": value.1.1,
+        "confidence": 1.0
+      ]
+    }
   }
 
   private func makeRecord(
