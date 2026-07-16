@@ -130,6 +130,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     var taskId: String { id }
     let audioURL: URL
     let language: String?
+    private let consoleLogger: any STTConsoleLogging
 
     private let lock = NSLock()
     private let streamStorage: AsyncStream<STTEvent>
@@ -143,16 +144,17 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
         stillRunning = running
         lock.unlock()
         if stillRunning {
-            STTConsoleLog("[MemoraSTT] STTTaskHandle.deinit — ⚠️ まだ running=true のまま解放: taskId=\(taskId), url=\(audioURL.lastPathComponent)")
+            consoleLogger.logDetailed("[MemoraSTT] STTTaskHandle.deinit — ⚠️ まだ running=true のまま解放: taskId=\(taskId), url=\(audioURL.lastPathComponent)")
         } else {
-            STTConsoleLog("[MemoraSTT] STTTaskHandle.deinit — 正常解放: taskId=\(taskId)")
+            consoleLogger.logDetailed("[MemoraSTT] STTTaskHandle.deinit — 正常解放: taskId=\(taskId)")
         }
     }
 
-    init(audioURL: URL, language: String?) {
+    init(audioURL: URL, language: String?, consoleLogger: any STTConsoleLogging) {
         self.id = UUID().uuidString
         self.audioURL = audioURL
         self.language = language
+        self.consoleLogger = consoleLogger
 
         var storedContinuation: AsyncStream<STTEvent>.Continuation?
         // .unbounded バッファリングでイベントドロップを防止
@@ -887,7 +889,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         let referenceSpeakerCount = referenceSpeakerCountSnapshot()
         try await validateStartRequest(language: language, configuration: configuration)
 
-        let handle = STTTaskHandle(audioURL: audioURL, language: language)
+        let handle = STTTaskHandle(
+            audioURL: audioURL,
+            language: language,
+            consoleLogger: dependencies.consoleLogger
+        )
         store(handle: handle)
         dependencies.logger.log("STTService", "startTranscription — handle 作成: \(handle.taskId), mode: \(configuration.transcriptionMode.rawValue)", level: .info)
 
