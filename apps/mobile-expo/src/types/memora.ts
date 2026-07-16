@@ -1,4 +1,4 @@
-export type AudioStatus = 'ready' | 'transcribing' | 'failed' | 'summarized';
+export type AudioStatus = 'queued' | 'ready' | 'transcribing' | 'failed' | 'summarized';
 
 export type TranscriptSegment = {
   id: string;
