@@ -44,10 +44,12 @@ struct UIKitSTTMemoryWarningObserver: STTMemoryWarningObserving {
     }
 }
 
-@MainActor
 struct LiveSTTProgressPresenter: STTProgressPresenting {
+    @MainActor
     func start(fileName: String, totalChunks: Int) { TranscriptionLiveActivity.start(fileName: fileName, totalChunks: totalChunks) }
+    @MainActor
     func update(progress: Double, currentChunk: Int, totalChunks: Int) { TranscriptionLiveActivity.update(progress: progress, currentChunk: currentChunk, totalChunks: totalChunks) }
+    @MainActor
     func finish(success: Bool, characterCount: Int) { TranscriptionLiveActivity.finish(success: success, characterCount: characterCount) }
 }
 
