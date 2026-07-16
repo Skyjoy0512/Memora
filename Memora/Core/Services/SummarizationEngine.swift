@@ -1,13 +1,12 @@
 import Foundation
-import SwiftData
 import Observation
 
 protocol SummarizationEngineProtocol {
     var isSummarizing: Bool { get }
     var progress: Double { get }
 
-    func summarize(transcript: String, config: GenerationConfig) async throws -> SummaryResult
-    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: GenerationConfig) async throws -> SummaryResult
+    func summarize(transcript: String, config: SummaryGenerationConfig) async throws -> SummaryResult
+    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: SummaryGenerationConfig) async throws -> SummaryResult
 }
 
 struct SummaryResult {
@@ -49,14 +48,14 @@ final class SummarizationEngine: SummarizationEngineProtocol {
 
     private var aiService: AIService?
 
-    func configure(apiKey: String, provider: AIProvider = .openai) async throws {
+    /// APIキーを持たない共有要約経路。ホストで構成済みのproviderだけを受け取る。
+    func configure(provider: any LLMProvider) {
         let service = AIService()
-        service.setProvider(provider)
-        try await service.configure(apiKey: apiKey)
+        service.setLLMProvider(provider)
         self.aiService = service
     }
 
-    func summarize(transcript: String, config: GenerationConfig = GenerationConfig()) async throws -> SummaryResult {
+    func summarize(transcript: String, config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
@@ -106,7 +105,7 @@ final class SummarizationEngine: SummarizationEngineProtocol {
         }
     }
 
-    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: GenerationConfig = GenerationConfig()) async throws -> SummaryResult {
+    func summarizeWithSpeakers(transcript: String, segments: [SpeakerSegment], config: SummaryGenerationConfig = SummaryGenerationConfig()) async throws -> SummaryResult {
         guard let service = aiService else {
             throw AIError.notConfigured
         }
@@ -157,50 +156,6 @@ final class SummarizationEngine: SummarizationEngineProtocol {
                 isSummarizing = false
             }
             throw error
-        }
-    }
-
-    // MARK: - Action Item → TodoItem Conversion
-
-    /// Convert action items from a summary result into TodoItem objects and insert into model context
-    @MainActor
-    func createTodoItems(from result: SummaryResult, sourceFileId: UUID, sourceFileTitle: String, modelContext: ModelContext) {
-        for actionText in result.actionItems {
-            // Skip empty items
-            let trimmed = actionText.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-
-            // Extract assignee if pattern like "田中: 〇〇までに報告書を提出する" exists
-            var assignee: String?
-            var speaker: String?
-            var title = trimmed
-
-            if let colonRange = trimmed.range(of: ":", options: []),
-               let speakerPart = trimmed[trimmed.startIndex..<colonRange.lowerBound].trimmingCharacters(in: .whitespaces).split(separator: " ").last {
-                let speakerName = String(speakerPart)
-                // Check if the speaker name is short enough to be a name (not a sentence)
-                if speakerName.count <= 10 && !speakerName.contains("。") {
-                    assignee = speakerName
-                    speaker = speakerName
-                    title = String(trimmed[colonRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                }
-            }
-
-            let todo = TodoItem(
-                title: title,
-                assignee: assignee,
-                speaker: speaker,
-                priority: "medium",
-                projectID: nil,
-                sourceAudioFileID: sourceFileId
-            )
-            modelContext.insert(todo)
-        }
-
-        do {
-            try modelContext.save()
-        } catch {
-            DebugLogger.shared.addLog("SummarizationEngine", "Failed to save todo items: \(error.localizedDescription)", level: .error)
         }
     }
 

@@ -11,6 +11,12 @@ struct GenerationConfig {
     var autoCreateTodos: Bool = true
 }
 
+extension GenerationConfig {
+    var summaryGenerationConfig: SummaryGenerationConfig {
+        SummaryGenerationConfig(customPrompt: customPrompt)
+    }
+}
+
 // MARK: - Generation Template
 
 enum GenerationTemplate: String, CaseIterable {

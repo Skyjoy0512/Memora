@@ -75,19 +75,21 @@ final class PipelineCoordinator {
                     job.updateProgress(0.5, stage: PipelineStep.generatingSummary.rawValue)
                     continuation.yield(.stepStarted(.generatingSummary))
 
-                    try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
+                    summarizationEngine.configure(
+                        provider: try AIServiceProviderFactory.make(apiKey: apiKey, provider: provider)
+                    )
 
                     let summaryResult: SummaryResult
                     if config.includeSpeakers && !transcriptResult.segments.isEmpty {
                         summaryResult = try await summarizationEngine.summarizeWithSpeakers(
                             transcript: transcriptResult.text,
                             segments: transcriptResult.segments,
-                            config: config
+                            config: config.summaryGenerationConfig
                         )
                     } else {
                         summaryResult = try await summarizationEngine.summarize(
                             transcript: transcriptResult.text,
-                            config: config
+                            config: config.summaryGenerationConfig
                         )
                     }
 
@@ -124,7 +126,7 @@ final class PipelineCoordinator {
                             savePlannedTasks(plannedTasks, sourceFileId: audioFile.id, sourceFileTitle: audioFile.title)
                         } catch {
                             DebugLogger.shared.addLog("Pipeline", "TaskPlanner フォールバック: \(error.localizedDescription)", level: .warning)
-                            summarizationEngine.createTodoItems(
+                            TodoItemSummarySaver.save(
                                 from: summaryResult,
                                 sourceFileId: audioFile.id,
                                 sourceFileTitle: audioFile.title,
@@ -279,7 +281,9 @@ final class PipelineCoordinator {
 
                 do {
                     // Configure
-                    try await summarizationEngine.configure(apiKey: apiKey, provider: provider)
+                    summarizationEngine.configure(
+                        provider: try AIServiceProviderFactory.make(apiKey: apiKey, provider: provider)
+                    )
 
                     // Summary
                     continuation.yield(.stepStarted(.generatingSummary))
@@ -289,12 +293,12 @@ final class PipelineCoordinator {
                         summaryResult = try await summarizationEngine.summarizeWithSpeakers(
                             transcript: transcriptText,
                             segments: segments,
-                            config: config
+                            config: config.summaryGenerationConfig
                         )
                     } else {
                         summaryResult = try await summarizationEngine.summarize(
                             transcript: transcriptText,
-                            config: config
+                            config: config.summaryGenerationConfig
                         )
                     }
 
@@ -321,7 +325,7 @@ final class PipelineCoordinator {
                         job.updateProgress(0.85, stage: PipelineStep.extractingTodos.rawValue)
                         continuation.yield(.stepStarted(.extractingTodos))
 
-                        summarizationEngine.createTodoItems(
+                        TodoItemSummarySaver.save(
                             from: summaryResult,
                             sourceFileId: audioFile.id,
                             sourceFileTitle: audioFile.title,

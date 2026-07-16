@@ -108,7 +108,7 @@ extension AskAIView {
             return
         }
 
-        let service = AIService()
+        let service = AIServiceHostService()
         service.setProvider(currentProvider)
 
         do {

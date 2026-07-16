@@ -152,6 +152,40 @@ struct SummarizationEngineParsingTests {
     }
 }
 
+// MARK: - Host Provider Injection Tests
+
+private struct SummaryProviderStub: LLMProvider {
+    let displayName = "Test"
+
+    func generate(_ prompt: String) async throws -> String {
+        ""
+    }
+
+    func summarize(transcript: String) async throws -> LLMProviderSummary {
+        LLMProviderSummary(
+            title: "注入済みプロバイダー",
+            summary: "要約結果",
+            keyPoints: ["要点"],
+            actionItems: ["対応"]
+        )
+    }
+}
+
+struct SummarizationEngineProviderInjectionTests {
+    @Test("構成済みLLMProviderだけで要約できる")
+    func summarizeWithInjectedProvider() async throws {
+        let engine = SummarizationEngine()
+        engine.configure(provider: SummaryProviderStub())
+
+        let result = try await engine.summarize(transcript: "文字起こし")
+
+        #expect(result.suggestedTitle == "注入済みプロバイダー")
+        #expect(result.summary == "要約結果")
+        #expect(result.keyPoints == ["要点"])
+        #expect(result.actionItems == ["対応"])
+    }
+}
+
 // MARK: - SummarizationEngine createTodoItems Tests
 
 @MainActor
@@ -169,8 +203,7 @@ struct SummarizationEngineTodoTests {
         let container = try ModelContainer(for: TodoItem.self, configurations: config)
         let context = ModelContext(container)
 
-        let engine = SummarizationEngine()
-        engine.createTodoItems(
+        TodoItemSummarySaver.save(
             from: result,
             sourceFileId: UUID(),
             sourceFileTitle: "テスト会議",
@@ -199,8 +232,7 @@ struct SummarizationEngineTodoTests {
         let container = try ModelContainer(for: TodoItem.self, configurations: config)
         let context = ModelContext(container)
 
-        let engine = SummarizationEngine()
-        engine.createTodoItems(
+        TodoItemSummarySaver.save(
             from: result,
             sourceFileId: UUID(),
             sourceFileTitle: "テスト",
@@ -225,8 +257,7 @@ struct SummarizationEngineTodoTests {
         let container = try ModelContainer(for: TodoItem.self, configurations: config)
         let context = ModelContext(container)
 
-        let engine = SummarizationEngine()
-        engine.createTodoItems(
+        TodoItemSummarySaver.save(
             from: result,
             sourceFileId: UUID(),
             sourceFileTitle: "テスト",
