@@ -40,6 +40,7 @@
 		2FBEC6005451D19B55532502 /* MemorySettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1CC0D8E52BCD6A484080FC4 /* MemorySettingsSection.swift */; };
 		30135C876AB2ED21B1599CA1 /* PlaudService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A39563D755711D640B86DA /* PlaudService.swift */; };
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
+		31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */; };
 		37B189A82F502FD789C37D22 /* TodoItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6687F3B759187EBE428ED00F /* TodoItemTests.swift */; };
 		382BEB19744BEF0418543ECE /* V6DynamicIslandPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82ADF2775D63CECF557046FE /* V6DynamicIslandPill.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
@@ -399,6 +400,7 @@
 		B9DA592AB6BC08A66A8A8842 /* MemoraBroadcastExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MemoraBroadcastExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BA43CEB6CA859CECA3B1C02D /* GenericFileSourceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericFileSourceTests.swift; sourceTree = "<group>"; };
 		BB7BC286BAA414F45EECFD25 /* DebugLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogView.swift; sourceTree = "<group>"; };
+		BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTReadOnlyHostDependencies.swift; sourceTree = "<group>"; };
 		BD235306CCDC52CC9446F4E2 /* SummarizationProviderSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizationProviderSection.swift; sourceTree = "<group>"; };
 		BE85EFCB25675DB6EC37B16C /* AskAI+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AskAI+Actions.swift"; sourceTree = "<group>"; };
 		C10F6969305A184A4001A440 /* MemoraSharedAudioFileStoreAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraSharedAudioFileStoreAdapter.swift; sourceTree = "<group>"; };
@@ -667,6 +669,7 @@
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
 				F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */,
 				7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */,
+				BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */,
 				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
 				9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */,
 				CEAFE956DAF5154200705A33 /* SummarizationEngine.swift */,
@@ -1301,6 +1304,7 @@
 				FEA39DF4182191EEB2CB801B /* STTDiagnosticsCard.swift in Sources */,
 				0F0BCD02727A1C2893505567 /* STTDiagnosticsTypes.swift in Sources */,
 				EB4AFCC729B59B80BA0E39E5 /* STTDiagnosticsView.swift in Sources */,
+				31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */,
 				2CF214094F1D5694E31D8951 /* STTService.swift in Sources */,
 				6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */,
 				BAEC7E4EF7E7077936C2A4C3 /* ScreenshotMatchedSkeleton.swift in Sources */,

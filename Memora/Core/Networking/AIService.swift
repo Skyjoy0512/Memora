@@ -517,7 +517,7 @@ enum TranscriptionMode: String, CaseIterable, Identifiable {
         switch self {
         case .local:
             if #available(iOS 26.0, *) {
-                return SpeechAnalyzerFeatureFlag.isEnabled
+                return STTReadOnlyHostDependencies.live.settings.isSpeechAnalyzerEnabled
                     ? "iOS 26ネイティブ（SpeechAnalyzer・ベータ）"
                     : "ローカルモデル（SpeechRecognizer）"
             } else if #available(iOS 10.0, *) {
@@ -543,6 +543,7 @@ protocol AIServiceProtocol {
 // MARK: - Unified Service
 
 final class AIService: AIServiceProtocol {
+    private let dependencies: STTReadOnlyHostDependencies
     private var provider: AIProvider = .openai
     private var transcriptionMode: TranscriptionMode = .local
     private var openAIService: OpenAIService?
@@ -555,6 +556,10 @@ final class AIService: AIServiceProtocol {
 
     var currentProvider: AIProvider { provider }
     var currentTranscriptionMode: TranscriptionMode { transcriptionMode }
+
+    init(dependencies: STTReadOnlyHostDependencies = .live) {
+        self.dependencies = dependencies
+    }
 
     func setProvider(_ provider: AIProvider) {
         self.provider = provider
@@ -605,7 +610,7 @@ final class AIService: AIServiceProtocol {
 
         // ローカル文字起こしの初期化
         if transcriptionMode == .local {
-            if #available(iOS 26.0, *), SpeechAnalyzerFeatureFlag.isEnabled {
+            if #available(iOS 26.0, *), dependencies.settings.isSpeechAnalyzerEnabled {
                 localTranscriptionService = SpeechAnalyzerService26()
             } else if #available(iOS 10.0, *) {
                 localTranscriptionService = SpeechAnalyzerService()
