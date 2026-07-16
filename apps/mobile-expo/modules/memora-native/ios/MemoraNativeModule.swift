@@ -53,6 +53,25 @@ public class MemoraNativeModule: Module {
       try self.settingsStore.saveSettings(MemoraSettingsDTO(dictionary: settings))
     }
 
+    AsyncFunction("getSecureCredentialStatus") { (providerValue: String) -> Bool in
+      guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { return false }
+      return try MemoraNativeSecureCredentialRegistry.writer.isCredentialConfigured(for: provider)
+    }
+
+    AsyncFunction("deleteSecureCredential") { (providerValue: String) -> Bool in
+      guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { return false }
+      try MemoraNativeSecureCredentialRegistry.writer.deleteCredential(for: provider)
+      return true
+    }
+
+    AsyncFunction("presentSecureCredentialInput") { (providerValue: String) async throws -> Bool in
+      guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { throw MemoraSecureCredentialError.unavailable }
+      let viewController = self.appContext?.utilities?.currentViewController()
+      return try await MainActor.run {
+        try await MemoraSecureCredentialInputPresenter().present(provider: provider, from: viewController)
+      }
+    }
+
     AsyncFunction("startRecording") { () -> [String: Any] in
       try self.recordingImportHandler.startRecording().asDictionary()
     }

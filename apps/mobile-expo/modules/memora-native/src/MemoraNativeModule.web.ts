@@ -109,6 +109,18 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
 
   async saveSettings(): Promise<void> {}
 
+  async getSecureCredentialStatus(): Promise<boolean> {
+    return false;
+  }
+
+  async deleteSecureCredential(): Promise<boolean> {
+    return false;
+  }
+
+  async presentSecureCredentialInput(): Promise<boolean> {
+    return false;
+  }
+
   async startRecording(): Promise<RecordingSessionDTO> {
     return {
       id: `web-recording-${Date.now()}`,

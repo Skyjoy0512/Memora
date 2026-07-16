@@ -31,6 +31,7 @@ const providerOptions: SummaryOptionsDTO['provider'][] = ['Gemini', 'OpenAI', 'D
 export function SettingsScreen() {
   const router = useRouter();
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
+  const [isSecureCredentialConfigured, setIsSecureCredentialConfigured] = useState(false);
   const [settings, setSettings] = useState<SettingsDTO>(defaultSettings);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
@@ -49,6 +50,18 @@ export function SettingsScreen() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    void MemoraNative.getSecureCredentialStatus(settings.summaryProvider).then((isConfigured) => {
+      if (isMounted) {
+        setIsSecureCredentialConfigured(isConfigured);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [settings.summaryProvider]);
 
   const notConnected = () => Alert.alert('準備中', NOT_CONNECTED_MESSAGE);
 
@@ -95,6 +108,17 @@ export function SettingsScreen() {
 
       <SettingsGroupCard title="文字起こし・要約">
         <SettingsRow onPress={notConnected} title="要約AIモデル" value={settings.summaryProvider} />
+        <SettingsRow
+          onPress={manageSecureCredential}
+          title="AI providerのAPIキー"
+          value={
+            settings.summaryProvider === 'Local'
+              ? '不要'
+              : isSecureCredentialConfigured
+                ? '設定済み'
+                : '未設定'
+          }
+        />
         <SettingsRow onPress={notConnected} title="要約テンプレート" value="議事録" />
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>音声解析（話者識別）</Text>
@@ -286,6 +310,43 @@ export function SettingsScreen() {
   function saveSettings(nextSettings: SettingsDTO) {
     setSettings(nextSettings);
     void MemoraNative.saveSettings(nextSettings);
+  }
+
+  function manageSecureCredential() {
+    const provider = settings.summaryProvider;
+    if (provider === 'Local') {
+      Alert.alert('APIキーは不要です', 'Local providerはこの端末上で動作するため、APIキーを保存しません。');
+      return;
+    }
+
+    if (!isSecureCredentialConfigured) {
+      void presentSecureCredentialInput(provider);
+      return;
+    }
+
+    Alert.alert(`${provider} のAPIキー`, 'APIキーの値は表示されません。', [
+      { text: '更新', onPress: () => void presentSecureCredentialInput(provider) },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => void deleteSecureCredential(provider),
+      },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  }
+
+  async function presentSecureCredentialInput(provider: SummaryOptionsDTO['provider']) {
+    const saved = await MemoraNative.presentSecureCredentialInput(provider);
+    if (saved) {
+      setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+    }
+  }
+
+  async function deleteSecureCredential(provider: SummaryOptionsDTO['provider']) {
+    const deleted = await MemoraNative.deleteSecureCredential(provider);
+    if (deleted) {
+      setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+    }
   }
 }
 

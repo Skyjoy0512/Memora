@@ -22,6 +22,22 @@ private struct FixedKeyReader: MemoraRNSummaryKeyReading {
   func apiKey(for provider: MemoraRNSummaryProvider) throws -> String? { "native-only-test-key" }
 }
 
+private final class SecureCredentialWriterStub: MemoraSecureCredentialWriting {
+  private var storedKeys: [MemoraSecureCredentialProvider: String] = [:]
+
+  func save(apiKey: String, for provider: MemoraSecureCredentialProvider) throws {
+    storedKeys[provider] = apiKey
+  }
+
+  func deleteCredential(for provider: MemoraSecureCredentialProvider) throws {
+    storedKeys[provider] = nil
+  }
+
+  func isCredentialConfigured(for provider: MemoraSecureCredentialProvider) throws -> Bool {
+    !(storedKeys[provider]?.isEmpty ?? true)
+  }
+}
+
 private struct SummaryProviderStub: LLMProvider {
   let displayName = "Test"
 
@@ -39,6 +55,28 @@ private struct SummaryProviderStub: LLMProvider {
 
 @Suite("RN summary bridge security")
 struct MemoraSummaryBridgeSecurityTests {
+  @Test("鍵入力・状態・削除のJS境界は秘密文字列を返さない")
+  func secureCredentialCommandsExposeOnlyBooleans() throws {
+    let secret = "rn-secure-credential-test-secret-not-for-js"
+    let writer = SecureCredentialWriterStub()
+
+    try writer.save(apiKey: secret, for: .gemini)
+    let configuredPayload: [String: Any] = [
+      "provider": MemoraSecureCredentialProvider.gemini.rawValue,
+      "isConfigured": try writer.isCredentialConfigured(for: .gemini)
+    ]
+    #expect(configuredPayload.values.contains { "\($0)".contains(secret) } == false)
+
+    try writer.deleteCredential(for: .gemini)
+    let deletedPayload: [String: Any] = [
+      "provider": MemoraSecureCredentialProvider.gemini.rawValue,
+      "deleted": true,
+      "isConfigured": try writer.isCredentialConfigured(for: .gemini)
+    ]
+    #expect(deletedPayload.values.contains { "\($0)".contains(secret) } == false)
+    #expect(deletedPayload["isConfigured"] as? Bool == false)
+  }
+
   @Test("Keychain失敗とDTOは秘密文字列をJS境界へ出さない")
   @MainActor
   func doesNotExposeAPIKey() async throws {

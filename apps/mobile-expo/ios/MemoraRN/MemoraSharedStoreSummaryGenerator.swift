@@ -1,5 +1,4 @@
 import Foundation
-import Security
 import SwiftData
 internal import MemoraNative
 import MemoraSharedCore
@@ -21,36 +20,6 @@ enum MemoraRNSummaryProvider: String {
     self.init(rawValue: bridgeValue)
   }
 
-  var keychainAccount: String? {
-    switch self {
-    case .openAI: return "openai-api-key"
-    case .gemini: return "gemini-api-key"
-    case .deepSeek: return "deepseek-api-key"
-    case .local: return nil
-    }
-  }
-}
-
-struct MemoraRNKeychainSummaryKeyReader: MemoraRNSummaryKeyReading {
-  private static let service = "com.anonymous.memora-rn.ai-credentials"
-
-  func apiKey(for provider: MemoraRNSummaryProvider) throws -> String? {
-    guard let account = provider.keychainAccount else { return nil }
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: Self.service,
-      kSecAttrAccount as String: account,
-      kSecReturnData as String: true,
-      kSecMatchLimit as String: kSecMatchLimitOne
-    ]
-    var result: CFTypeRef?
-    let status = SecItemCopyMatching(query as CFDictionary, &result)
-    if status == errSecItemNotFound { return nil }
-    guard status == errSecSuccess, let data = result as? Data else {
-      throw MemoraRNSummaryError.apiKeyUnavailable
-    }
-    return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
 }
 
 enum MemoraRNSummaryError: LocalizedError {
@@ -87,7 +56,7 @@ final class MemoraSharedStoreSummaryGenerator: MemoraSummaryGenerating {
 
   init(
     container: ModelContainer,
-    keyReader: any MemoraRNSummaryKeyReading = MemoraRNKeychainSummaryKeyReader(),
+    keyReader: any MemoraRNSummaryKeyReading = MemoraRNKeychainSecureCredentials(),
     providerFactory: @escaping (MemoraRNSummaryProvider, String) throws -> any LLMProvider = MemoraRNRemoteLLMProvider.make
   ) {
     self.container = container
