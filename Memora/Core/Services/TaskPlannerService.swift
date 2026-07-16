@@ -50,10 +50,10 @@ struct PlannedSubtask: Identifiable {
 @MainActor
 final class TaskPlannerService {
 
-    private var aiService: AIService?
+    private var aiService: AIServiceHostService?
 
     func configure(apiKey: String, provider: AIProvider) async throws {
-        let service = AIService()
+        let service = AIServiceHostService()
         service.setProvider(provider)
         try await service.configure(apiKey: apiKey)
         self.aiService = service

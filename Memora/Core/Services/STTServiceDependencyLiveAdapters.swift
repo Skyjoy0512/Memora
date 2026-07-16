@@ -10,7 +10,7 @@ struct AIServiceRemoteTranscriber: RemoteTranscribing {
     let dependencies: STTReadOnlyHostDependencies
 
     func transcribe(_ request: RemoteTranscriptionRequest) async throws -> String {
-        let service = AIService(dependencies: dependencies)
+        let service = AIServiceTranscriptionService(dependencies: dependencies)
         switch request.providerIdentifier {
         case AIProvider.openai.rawValue:
             service.setProvider(.openai)
