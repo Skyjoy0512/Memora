@@ -44,11 +44,19 @@ struct UIKitSTTMemoryWarningObserver: STTMemoryWarningObserving {
     }
 }
 
+@MainActor
+struct LiveSTTProgressPresenter: STTProgressPresenting {
+    func start(fileName: String, totalChunks: Int) { TranscriptionLiveActivity.start(fileName: fileName, totalChunks: totalChunks) }
+    func update(progress: Double, currentChunk: Int, totalChunks: Int) { TranscriptionLiveActivity.update(progress: progress, currentChunk: currentChunk, totalChunks: totalChunks) }
+    func finish(success: Bool, characterCount: Int) { TranscriptionLiveActivity.finish(success: success, characterCount: characterCount) }
+}
+
 extension STTExecutionHostCapabilities {
     static let live = STTExecutionHostCapabilities(
         backgroundTasks: UIKitSTTBackgroundTaskManager(),
         idleTimer: UIKitSTTIdleTimerManager(),
-        memoryWarnings: UIKitSTTMemoryWarningObserver()
+        memoryWarnings: UIKitSTTMemoryWarningObserver(),
+        progress: LiveSTTProgressPresenter()
     )
 }
 

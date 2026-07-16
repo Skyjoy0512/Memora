@@ -36,8 +36,13 @@ public struct STTBackgroundTaskToken: Sendable { public let rawValue: Int; publi
 public protocol STTBackgroundTaskManaging: Sendable { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken?; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) }
 public protocol STTIdleTimerManaging: Sendable { @MainActor func setIdleTimerDisabled(_ isDisabled: Bool) }
 public protocol STTMemoryWarningObserving: Sendable { func observeMemoryWarnings(_ handler: @escaping @Sendable () -> Void) }
+@MainActor public protocol STTProgressPresenting: Sendable {
+    func start(fileName: String, totalChunks: Int)
+    func update(progress: Double, currentChunk: Int, totalChunks: Int)
+    func finish(success: Bool, characterCount: Int)
+}
 public struct STTExecutionHostCapabilities: Sendable {
-    public let backgroundTasks: any STTBackgroundTaskManaging; public let idleTimer: any STTIdleTimerManaging; public let memoryWarnings: any STTMemoryWarningObserving
-    public init(backgroundTasks: any STTBackgroundTaskManaging, idleTimer: any STTIdleTimerManaging, memoryWarnings: any STTMemoryWarningObserving) { self.backgroundTasks = backgroundTasks; self.idleTimer = idleTimer; self.memoryWarnings = memoryWarnings }
+    public let backgroundTasks: any STTBackgroundTaskManaging; public let idleTimer: any STTIdleTimerManaging; public let memoryWarnings: any STTMemoryWarningObserving; public let progress: any STTProgressPresenting
+    public init(backgroundTasks: any STTBackgroundTaskManaging, idleTimer: any STTIdleTimerManaging, memoryWarnings: any STTMemoryWarningObserving, progress: any STTProgressPresenting) { self.backgroundTasks = backgroundTasks; self.idleTimer = idleTimer; self.memoryWarnings = memoryWarnings; self.progress = progress }
 }
 public protocol STTCheckpointHooksProviding: Sendable { func makeHooks(audioFileID: UUID) -> STTCheckpointHooks }

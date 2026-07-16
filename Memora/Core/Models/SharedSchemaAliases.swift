@@ -102,6 +102,7 @@ typealias STTBackgroundTaskToken = MemoraSharedCore.STTBackgroundTaskToken
 typealias STTBackgroundTaskManaging = MemoraSharedCore.STTBackgroundTaskManaging
 typealias STTIdleTimerManaging = MemoraSharedCore.STTIdleTimerManaging
 typealias STTMemoryWarningObserving = MemoraSharedCore.STTMemoryWarningObserving
+typealias STTProgressPresenting = MemoraSharedCore.STTProgressPresenting
 typealias STTExecutionHostCapabilities = MemoraSharedCore.STTExecutionHostCapabilities
 typealias STTCheckpointHooksProviding = MemoraSharedCore.STTCheckpointHooksProviding
 typealias AudioSilenceProbe = MemoraSharedCore.AudioSilenceProbe
