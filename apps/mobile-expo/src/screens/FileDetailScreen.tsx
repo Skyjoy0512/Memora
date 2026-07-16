@@ -1,7 +1,7 @@
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -50,7 +50,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     generatedAt: string;
     provider: SummaryOptionsDTO['provider'];
   } | null>(null);
-  const transcription = useTranscriptionTask(fileId ?? '');
+  const refreshTranscribedFile = useCallback(async (completedFileId: string) => {
+    const updatedFile = await MemoraNative.getAudioFile(completedFileId);
+    if (updatedFile) {
+      setAudioFile(updatedFile);
+    }
+  }, [setAudioFile]);
+  const transcription = useTranscriptionTask(fileId ?? '', refreshTranscribedFile);
   const transcriptCount = useMemo(() => file?.transcript.length ?? 0, [file]);
   const canRenameFile = file ? isRenameableBridgeFile(file) : false;
   const playback = usePlayback(fileId);

@@ -6,7 +6,10 @@ import type {
   TranscriptionTaskDTO,
 } from '../../native/MemoraNative.types';
 
-export function useTranscriptionTask(audioFileId: string) {
+export function useTranscriptionTask(
+  audioFileId: string,
+  onCompleted?: (audioFileId: string) => Promise<void> | void,
+) {
   const [task, setTask] = useState<TranscriptionTaskDTO | null>(null);
   const [latestEvent, setLatestEvent] = useState<TranscriptionEventDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +52,14 @@ export function useTranscriptionTask(audioFileId: string) {
               }
             : current,
         );
+        if (event.type === 'completed') {
+          void onCompleted?.(audioFileId);
+        }
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '文字起こしの開始に失敗しました');
     }
-  }, [audioFileId]);
+  }, [audioFileId, onCompleted]);
 
   const cancel = useCallback(async () => {
     if (!task) {

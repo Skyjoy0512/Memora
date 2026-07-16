@@ -2,7 +2,6 @@ import Foundation
 import ExpoModulesCore
 
 public class MemoraNativeModule: Module {
-  private var cancelledTaskIds = Set<String>()
 
   public func definition() -> ModuleDefinition {
     Name("MemoraNative")
@@ -90,35 +89,15 @@ public class MemoraNativeModule: Module {
         .asDictionary()
     }
 
-    AsyncFunction("startTranscription") { (audioFileId: String) -> [String: Any] in
-      let taskId = "native-task-\(audioFileId)"
-      self.cancelledTaskIds.remove(taskId)
-      self.sendEvent("onTranscriptionEvent", [
-        "taskId": taskId,
-        "audioFileId": audioFileId,
-        "type": "started",
-        "progress": 0,
-        "message": "Native bridge shell started"
-      ])
-      self.scheduleSampleProgressEvents(taskId: taskId, audioFileId: audioFileId)
-
-      return [
-        "id": taskId,
-        "audioFileId": audioFileId,
-        "status": "running",
-        "progress": 0
-      ]
+    AsyncFunction("startTranscription") { (audioFileId: String) async throws -> [String: Any] in
+      let task = try await self.transcriptionHandler.startTranscription(audioFileId: audioFileId) { [weak self] event in
+        self?.sendEvent("onTranscriptionEvent", event.asDictionary())
+      }
+      return task.asDictionary()
     }
 
-    AsyncFunction("cancelTranscription") { (taskId: String) -> Void in
-      self.cancelledTaskIds.insert(taskId)
-      self.sendEvent("onTranscriptionEvent", [
-        "taskId": taskId,
-        "audioFileId": "",
-        "type": "cancelled",
-        "progress": 0,
-        "message": "Native MemoraNative shell cancelled"
-      ])
+    AsyncFunction("cancelTranscription") { (taskId: String) async -> Void in
+      await self.transcriptionHandler.cancelTranscription(taskId: taskId)
     }
 
     AsyncFunction("loadPlayback") { (audioFileId: String) -> [String: Any] in
@@ -222,6 +201,10 @@ public class MemoraNativeModule: Module {
     MemoraNativeProcessingRetryRegistry.queue
   }
 
+  private var transcriptionHandler: MemoraTranscriptionHandling {
+    MemoraNativeTranscriptionRegistry.handler
+  }
+
   private var persistenceScope: String {
     if isSharedSwiftDataConnected {
       return "shared-swiftdata"
@@ -244,28 +227,4 @@ public class MemoraNativeModule: Module {
       recordingImportHandler.sourceDescription == "swiftdata"
   }
 
-  private func scheduleSampleProgressEvents(taskId: String, audioFileId: String) {
-    let steps: [(Double, Double, String, String)] = [
-      (0.4, 0.25, "progress", "Native shell is preparing chunks"),
-      (0.8, 0.55, "progress", "Native shell is processing chunks"),
-      (1.2, 0.85, "progress", "Native shell is finalizing transcript"),
-      (1.6, 1.0, "completed", "Native shell sample completed")
-    ]
-
-    for step in steps {
-      DispatchQueue.main.asyncAfter(deadline: .now() + step.0) {
-        if self.cancelledTaskIds.contains(taskId) {
-          return
-        }
-
-        self.sendEvent("onTranscriptionEvent", [
-          "taskId": taskId,
-          "audioFileId": audioFileId,
-          "type": step.2,
-          "progress": step.1,
-          "message": step.3
-        ])
-      }
-    }
-  }
 }
