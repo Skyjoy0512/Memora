@@ -45,6 +45,7 @@ struct STTServiceDependencyInjectionTests {
             sourceURL: sourceURL,
             dependencies: STTReadOnlyHostDependencies(
                 logger: NoopSTTLogger(),
+                consoleLogger: NoopSTTConsoleLogger(),
                 settings: TestSTTSettings(
                     isSpeechAnalyzerEnabled: false,
                     isSpeakerDiarizationEnabled: true
@@ -79,6 +80,7 @@ struct STTServiceDependencyInjectionTests {
             sourceURL: sourceURL,
             dependencies: STTReadOnlyHostDependencies(
                 logger: NoopSTTLogger(),
+                consoleLogger: NoopSTTConsoleLogger(),
                 settings: TestSTTSettings(
                     isSpeechAnalyzerEnabled: false,
                     isSpeakerDiarizationEnabled: false
@@ -101,6 +103,7 @@ struct STTServiceDependencyInjectionTests {
         sourceURL: URL,
         dependencies: STTReadOnlyHostDependencies = STTReadOnlyHostDependencies(
             logger: NoopSTTLogger(),
+            consoleLogger: NoopSTTConsoleLogger(),
             settings: TestSTTSettings(
                 isSpeechAnalyzerEnabled: false,
                 isSpeakerDiarizationEnabled: false
@@ -141,7 +144,11 @@ struct STTServiceDependencyInjectionTests {
 }
 
 private struct NoopSTTLogger: STTLogging {
-    func log(_ category: String, _ message: String, level: LogLevel) {}
+    func log(_ category: String, _ message: String, level: STTLogLevel) {}
+}
+
+private struct NoopSTTConsoleLogger: STTConsoleLogging {
+    func logDetailed(_ message: @autoclosure () -> String) {}
 }
 
 private struct TestSTTSettings: STTSettingsProviding {

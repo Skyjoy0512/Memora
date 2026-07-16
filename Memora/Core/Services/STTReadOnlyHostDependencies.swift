@@ -4,17 +4,18 @@ import Foundation
 // live 値は既存の DebugLogger / @AppStorage ラッパーをそのまま使う。
 struct DebugLoggerSTTLogger: STTLogging {
     func log(_ category: String, _ message: String, level: STTLogLevel) {
-        DebugLogger.shared.addLog(category, message, level: switch level {
+        let mapped: LogLevel = switch level {
         case .debug: .debug
         case .info: .info
         case .warning: .warning
         case .error: .error
-        })
+        }
+        DebugLogger.shared.addLog(category, message, level: mapped)
     }
 }
 
 struct DebugLoggerSTTConsoleLogger: STTConsoleLogging {
-    func logDetailed(_ message: @autoclosure @escaping () -> String) {
+    func logDetailed(_ message: @autoclosure () -> String) {
         guard DebugLogger.isDetailedSTTLoggingEnabled else { return }
         print(message())
     }

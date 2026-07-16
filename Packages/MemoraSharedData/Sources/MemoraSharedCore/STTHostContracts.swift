@@ -7,7 +7,7 @@ public protocol STTLogging: Sendable {
 }
 
 public protocol STTConsoleLogging: Sendable {
-    func logDetailed(_ message: @autoclosure @escaping () -> String)
+    func logDetailed(_ message: @autoclosure () -> String)
 }
 
 public protocol STTSettingsProviding: Sendable {
