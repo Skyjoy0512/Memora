@@ -125,11 +125,11 @@ private func withSTTTimeout<Value: Sendable, TimeoutFailure: Error & Sendable>(
 
 private struct STTOperationTimeoutError: Error, Sendable {}
 
-final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
-    let id: String
-    var taskId: String { id }
-    let audioURL: URL
-    let language: String?
+public final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
+    public let id: String
+    public var taskId: String { id }
+    public let audioURL: URL
+    public let language: String?
     private let consoleLogger: any STTConsoleLogging
 
     private let lock = NSLock()
@@ -166,7 +166,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
         self.continuation = storedContinuation
     }
 
-    var isRunning: Bool {
+    public var isRunning: Bool {
         lock.lock()
         defer { lock.unlock() }
         return running
@@ -198,7 +198,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
         continuation?.finish()
     }
 
-    func result() async throws -> TranscriptionResult {
+    public func result() async throws -> TranscriptionResult {
         let task = currentTask()
 
         guard let task else {
@@ -207,7 +207,7 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
         return try await task.value
     }
 
-    func cancel() async {
+    public func cancel() async {
         let task = markCancelledAndGetTask()
         task?.cancel()
     }
@@ -228,10 +228,12 @@ final class STTTaskHandle: STTTaskHandleProtocol, @unchecked Sendable {
     }
 }
 
-final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
+public final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
     private let preferredLocale = Locale(identifier: "ja_JP")
 
-    var isReady: Bool {
+    public init() {}
+
+    public var isReady: Bool {
         get async {
             guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
                 return false
@@ -243,7 +245,7 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
         }
     }
 
-    var supportedLanguages: [String] {
+    public var supportedLanguages: [String] {
         get async {
             let languages = SFSpeechRecognizer.supportedLocales().compactMap { locale -> String? in
                 guard SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition == true else {
@@ -255,11 +257,11 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
         }
     }
 
-    var requiresDownload: Bool {
+    public var requiresDownload: Bool {
         get async { false }
     }
 
-    func prepare() async throws {
+    public func prepare() async throws {
         let granted = await requestSpeechPermissionIfNeeded()
         guard granted else {
             throw CoreError.transcriptionError(.transcriptionFailed("Speech permission denied"))
@@ -284,7 +286,7 @@ final class STTReadiness: STTReadinessProtocol, @unchecked Sendable {
     }
 }
 
-protocol STTBackendProcessing: Sendable {
+public protocol STTBackendProcessing: Sendable {
     func transcribe(
         audioURL: URL,
         language: String?,
@@ -746,7 +748,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
 
 }
 
-final class STTService: STTServiceProtocol, @unchecked Sendable {
+public final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let stateLock = NSLock()
     private let configurationLock = NSLock()
 
@@ -776,7 +778,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let capabilities: STTExecutionHostCapabilities
     private let executionDependencies: STTServiceExecutionDependencies
 
-    init(
+    public init(
         readiness: STTReadinessProtocol = STTReadiness(),
         chunkerFactory: @escaping @Sendable () -> AudioChunkerProtocol = { AudioChunker() },
         backendFactory: (@Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing)? = nil,
@@ -806,15 +808,15 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         }
     }
 
-    func updateReferenceSpeakerCount(_ count: Int?) {
+    public func updateReferenceSpeakerCount(_ count: Int?) {
         stateLock.withLock { referenceSpeakerCount = count }
     }
 
-    func updateCheckpointHooks(_ hooks: STTCheckpointHooks?) {
+    public func updateCheckpointHooks(_ hooks: STTCheckpointHooks?) {
         stateLock.withLock { checkpointHooks = hooks }
     }
 
-    func updateConfiguration(
+    public func updateConfiguration(
         apiKey: String,
         provider: AIProvider,
         transcriptionMode: TranscriptionMode
@@ -833,7 +835,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// 文字起こし開始前の事前見積もり（PR-B11）。
     /// plan() から総時間・チャンク数・概算処理時間を返す。
     /// 長時間ファイルの確認ダイアログ表示に使う。
-    func estimateTranscription(
+    public func estimateTranscription(
         fileURL: URL,
         transcriptionMode: TranscriptionMode = .local
     ) async throws -> TranscriptionEstimate {
@@ -855,7 +857,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         return CMTimeGetSeconds(duration)
     }
 
-    func makeFingerprint(url: URL, chunkCount: Int) async -> String {
+    public func makeFingerprint(url: URL, chunkCount: Int) async -> String {
         let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? -1
         let duration = Int(await audioFileDuration(for: url))
         return "\(size)-\(duration)-\(chunkCount)"
@@ -874,7 +876,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             capabilities.idleTimer.setIdleTimerDisabled(false)
         }
     }
-    func startTranscription(
+    public func startTranscription(
         audioURL: URL,
         language: String?
     ) async throws -> (any STTTaskHandleProtocol, AsyncStream<STTEvent>) {
@@ -942,11 +944,11 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         return (handle, handle.events)
     }
 
-    func getActiveTasks() -> [any STTTaskHandleProtocol] {
+    public func getActiveTasks() -> [any STTTaskHandleProtocol] {
         stateLock.withLock { Array(activeTasks.values) }
     }
 
-    func cancelAllTasks() async {
+    public func cancelAllTasks() async {
         let tasks = getActiveTasks()
         for task in tasks {
             await task.cancel()
@@ -1460,7 +1462,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     /// 保存済み transcript のセグメントに対する後付け話者分離。
     /// 文字起こしパイプラインとは独立に呼び出せる。
     /// - Returns: 話者ラベルを付与したセグメント。タイムアウト/失敗時は入力をそのまま返す。
-    func detectSpeakersPostHoc(
+    public func detectSpeakersPostHoc(
         audioURL: URL,
         segments: [TranscriptionSegment],
         numSpeakers: Int? = nil,
