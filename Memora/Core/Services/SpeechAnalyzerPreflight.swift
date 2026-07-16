@@ -6,66 +6,10 @@ import Speech
 // Runs BEFORE any transcription attempt to decide whether SpeechAnalyzer
 // can be used safely. Produces structured diagnostics for logging and UI.
 
-// MARK: - Preflight Result
-
-@available(iOS 26.0, *)
-enum SpeechAnalyzerPreflightResult: Sendable {
-    case ready(diagnostics: SpeechAnalyzerDiagnostics)
-    case unavailable(reason: SpeechAnalyzerUnavailableReason, diagnostics: SpeechAnalyzerDiagnostics)
-}
-
-// MARK: - Unavailable Reasons
-
-@available(iOS 26.0, *)
-enum SpeechAnalyzerUnavailableReason: Sendable, CustomStringConvertible {
-    case featureFlagOff
-    case notAvailable
-    case localeNotSupported(requestedLocale: String)
-    case assetsNotReady(statusDescription: String)
-    case internalError(String)
-
-    var description: String {
-        switch self {
-        case .featureFlagOff:
-            return "SpeechAnalyzer feature flag is OFF"
-        case .notAvailable:
-            return "SpeechTranscriber.isAvailable == false"
-        case .localeNotSupported(let locale):
-            return "Locale \(locale) is not supported by SpeechTranscriber"
-        case .assetsNotReady(let status):
-            return "Assets not ready: \(status)"
-        case .internalError(let message):
-            return "Internal error: \(message)"
-        }
-    }
-}
-
-// MARK: - Diagnostics
-
-@available(iOS 26.0, *)
-struct SpeechAnalyzerDiagnostics: Sendable {
-    let isTranscriberAvailable: Bool
-    let featureFlagEnabled: Bool
-    let requestedLocale: String
-    let supportedLocale: Locale?
-    let assetStatus: String
-    let compatibleFormatsDescription: String
-    let unavailableReason: SpeechAnalyzerUnavailableReason?
-    let checkedAt: Date
-    let checkDurationMs: Double
-
-    var summary: String {
-        if let reason = unavailableReason {
-            return "SpeechAnalyzer unavailable: \(reason.description)"
-        }
-        return "SpeechAnalyzer ready — locale: \(supportedLocale?.identifier ?? requestedLocale)"
-    }
-}
-
 // MARK: - Preflight Runner
 
 @available(iOS 26.0, *)
-final class SpeechAnalyzerPreflight: Sendable {
+final class SpeechAnalyzerPreflight: SpeechAnalyzerPreflighting, Sendable {
 
     /// Run all preflight checks for the given locale.
     /// Returns `.ready` if SpeechAnalyzer can be used, `.unavailable` with a reason otherwise.

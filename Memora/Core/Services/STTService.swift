@@ -355,8 +355,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
         #if !targetEnvironment(simulator)
         if configuration.allowsSpeechAnalyzer {
             if #available(iOS 26.0, *) {
-            let preflight = SpeechAnalyzerPreflight()
-            let result = await preflight.run(locale: locale)
+            let result = await executionDependencies.backend.speechAnalyzerPreflight.run(locale: locale)
 
             switch result {
             case .ready(let diag):

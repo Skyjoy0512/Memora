@@ -72,7 +72,8 @@ struct STTServiceDependencyInjectionTests {
         let executionDependencies = STTServiceExecutionDependencies(
             backend: STTBackendExecutionDependencies(
                 remoteTranscriber: RecordingRemoteTranscriber(result: "unused"),
-                localBackendFactory: localFactory
+                localBackendFactory: localFactory,
+                speechAnalyzerPreflight: UnusedSpeechAnalyzerPreflight()
             ),
             diarizationService: RecordingDiarizationService()
         )
@@ -130,7 +131,8 @@ struct STTServiceDependencyInjectionTests {
         STTServiceExecutionDependencies(
             backend: STTBackendExecutionDependencies(
                 remoteTranscriber: remote,
-                localBackendFactory: RecordingLocalBackendFactory()
+                localBackendFactory: RecordingLocalBackendFactory(),
+                speechAnalyzerPreflight: UnusedSpeechAnalyzerPreflight()
             ),
             diarizationService: diarizationService
         )
@@ -150,6 +152,16 @@ private struct NoopSTTLogger: STTLogging {
 
 private struct NoopSTTConsoleLogger: STTConsoleLogging {
     func logDetailed(_ message: @autoclosure () -> String) {}
+}
+
+private struct UnusedSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {
+    func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
+        preconditionFailure("SpeechAnalyzer preflight is not used by this test")
+    }
+
+    func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
+        preconditionFailure("SpeechAnalyzer preflight is not used by this test")
+    }
 }
 
 private struct TestSTTSettings: STTSettingsProviding {

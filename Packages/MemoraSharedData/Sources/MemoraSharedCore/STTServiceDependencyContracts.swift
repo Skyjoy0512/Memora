@@ -37,13 +37,16 @@ public protocol LocalSTTBackendFactory: Sendable {
 public struct STTBackendExecutionDependencies: Sendable {
     public let remoteTranscriber: any RemoteTranscribing
     public let localBackendFactory: any LocalSTTBackendFactory
+    public let speechAnalyzerPreflight: any SpeechAnalyzerPreflighting
 
     public init(
         remoteTranscriber: any RemoteTranscribing,
-        localBackendFactory: any LocalSTTBackendFactory
+        localBackendFactory: any LocalSTTBackendFactory,
+        speechAnalyzerPreflight: any SpeechAnalyzerPreflighting
     ) {
         self.remoteTranscriber = remoteTranscriber
         self.localBackendFactory = localBackendFactory
+        self.speechAnalyzerPreflight = speechAnalyzerPreflight
     }
 }
 
