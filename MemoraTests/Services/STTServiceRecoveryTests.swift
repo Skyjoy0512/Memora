@@ -29,7 +29,10 @@ struct STTServiceRecoveryTests {
                 return FakeSTTBackend(index: index, recorder: backendRecorder) {
                     Self.makeResult(index: index, text: "新規", estimated: true)
                 }
-            }
+            },
+            dependencies: .live,
+            capabilities: .live,
+            executionDependencies: .live()
         )
         service.updateConfiguration(
             apiKey: "test-key",
@@ -71,7 +74,10 @@ struct STTServiceRecoveryTests {
                 return FakeSTTBackend(index: index, recorder: backendRecorder) {
                     throw TestBackendError.failed
                 }
-            }
+            },
+            dependencies: .live,
+            capabilities: .live,
+            executionDependencies: .live()
         )
 
         let (rawHandle, _) = try await service.startTranscription(
@@ -107,7 +113,10 @@ struct STTServiceRecoveryTests {
                     try await Task.sleep(nanoseconds: 10_000_000_000)
                     return Self.makeResult(index: index, text: "遅延", estimated: false)
                 }
-            }
+            },
+            dependencies: .live,
+            capabilities: .live,
+            executionDependencies: .live()
         )
 
         let (rawHandle, _) = try await service.startTranscription(

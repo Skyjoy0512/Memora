@@ -118,6 +118,7 @@ struct STTServiceDependencyInjectionTests {
             readiness: FakeReadiness(),
             chunkerFactory: { chunker },
             dependencies: dependencies,
+            capabilities: .live,
             executionDependencies: executionDependencies
         )
     }
