@@ -16,12 +16,19 @@ public protocol STTSettingsProviding: Sendable {
     var contextualVocabulary: [String] { get }
 }
 
+/// STT 実行結果の診断記録をホスト実装へ委譲する境界。
+/// 保存先・永続化形式はホスト側が保持する。
+public protocol STTDiagnosticsRecording: Sendable {
+    func record(_ entry: STTBackendDiagnosticEntry)
+}
+
 public struct STTReadOnlyHostDependencies: Sendable {
     public let logger: any STTLogging
     public let consoleLogger: any STTConsoleLogging
     public let settings: any STTSettingsProviding
-    public init(logger: any STTLogging, consoleLogger: any STTConsoleLogging, settings: any STTSettingsProviding) {
-        self.logger = logger; self.consoleLogger = consoleLogger; self.settings = settings
+    public let diagnostics: any STTDiagnosticsRecording
+    public init(logger: any STTLogging, consoleLogger: any STTConsoleLogging, settings: any STTSettingsProviding, diagnostics: any STTDiagnosticsRecording) {
+        self.logger = logger; self.consoleLogger = consoleLogger; self.settings = settings; self.diagnostics = diagnostics
     }
 }
 

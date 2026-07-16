@@ -35,10 +35,17 @@ struct AppStorageSTTSettingsProvider: STTSettingsProviding {
     }
 }
 
+struct LiveSTTDiagnosticsRecorder: STTDiagnosticsRecording {
+    func record(_ entry: STTBackendDiagnosticEntry) {
+        STTDiagnosticsLog.shared.record(entry)
+    }
+}
+
 extension STTReadOnlyHostDependencies {
     static let live = STTReadOnlyHostDependencies(
         logger: DebugLoggerSTTLogger(),
         consoleLogger: DebugLoggerSTTConsoleLogger(),
-        settings: AppStorageSTTSettingsProvider()
+        settings: AppStorageSTTSettingsProvider(),
+        diagnostics: LiveSTTDiagnosticsRecorder()
     )
 }
