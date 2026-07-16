@@ -28,6 +28,13 @@ public struct MemoraSummaryDTO {
   public let generatedAt: Date
   public let provider: String
 
+  public init(audioFileId: String, text: String, generatedAt: Date, provider: String) {
+    self.audioFileId = audioFileId
+    self.text = text
+    self.generatedAt = generatedAt
+    self.provider = provider
+  }
+
   public func asDictionary() -> [String: Any] {
     [
       "audioFileId": audioFileId,
@@ -41,24 +48,30 @@ public struct MemoraSummaryDTO {
 public protocol MemoraSummaryGenerating {
   var sourceDescription: String { get }
 
-  func generateSummary(_ request: MemoraSummaryRequestDTO) throws -> MemoraSummaryDTO
+  func generateSummary(_ request: MemoraSummaryRequestDTO) async throws -> MemoraSummaryDTO
 }
 
 public enum MemoraNativeSummaryRegistry {
-  public static var summaryGenerator: MemoraSummaryGenerating = MemoraSampleSummaryGenerator()
+  public static var summaryGenerator: MemoraSummaryGenerating = MemoraUnavailableSummaryGenerator()
 }
 
-public struct MemoraSampleSummaryGenerator: MemoraSummaryGenerating {
-  public let sourceDescription = "sample"
+public struct MemoraUnavailableSummaryGenerator: MemoraSummaryGenerating {
+  public let sourceDescription = "native"
 
   public init() {}
 
-  public func generateSummary(_ request: MemoraSummaryRequestDTO) throws -> MemoraSummaryDTO {
-    MemoraSummaryDTO(
-      audioFileId: request.audioFileId,
-      text: "Native bridge sample summary is ready for the host-app summarizer.",
-      generatedAt: Date(),
-      provider: request.options.provider
-    )
+  public func generateSummary(_ request: MemoraSummaryRequestDTO) async throws -> MemoraSummaryDTO {
+    throw MemoraSummaryBridgeError.sharedStoreUnavailable
+  }
+}
+
+public enum MemoraSummaryBridgeError: LocalizedError {
+  case sharedStoreUnavailable
+
+  public var errorDescription: String? {
+    switch self {
+    case .sharedStoreUnavailable:
+      return "要約を利用できません。データストアに接続してからもう一度お試しください。"
+    }
   }
 }

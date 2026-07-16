@@ -3,6 +3,7 @@ import SwiftData
 internal import MemoraNative
 import MemoraSharedData
 import MemoraSharedSchema
+import MemoraSharedSummary
 
 @MainActor
 enum MemoraNativeBridgeBootstrap {
@@ -18,7 +19,7 @@ enum MemoraNativeBridgeBootstrap {
       recordingImportHandler: MemoraNativeFileRecordingImportHandler(),
       settingsStore: MemoraUserDefaultsSettingsStore(),
       knowledgeQuery: MemoraSampleKnowledgeQuery(),
-      summaryGenerator: MemoraSampleSummaryGenerator()
+      summaryGenerator: MemoraUnavailableSummaryGenerator()
     )
     MemoraNativePlaybackRegistry.controller = MemoraAVAudioPlaybackController()
     MemoraNativeMemoRegistry.memoHandler = MemoraNativeFileMemoStore()
@@ -82,6 +83,7 @@ enum MemoraNativeBridgeBootstrap {
     MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
     MemoraNativeAudioFileMutationRegistry.audioFileMutator = adapter
     MemoraNativeTranscriptionRegistry.handler = transcriptionHandler
+    MemoraNativeSummaryRegistry.summaryGenerator = MemoraSharedStoreSummaryGenerator(container: container)
     if let recordingImportHandler {
       MemoraNativeRecordingImportRegistry.handler = recordingImportHandler
     }

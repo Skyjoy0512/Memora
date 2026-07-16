@@ -95,8 +95,7 @@ The current native Ask AI query handler is `MemoraSampleKnowledgeQuery` in `modu
 `AskAIScreen` already calls `MemoraNative.queryKnowledge`, and Settings Bridge reports `Knowledge source`.
 Replace it through `MemoraNativeKnowledgeQueryRegistry.knowledgeQuery` from the host app target after deciding the real retrieval/query source of truth. Keep AI provider calls and `KnowledgeQueryService` dependencies outside the local Expo module.
 
-The current native summary handler is `MemoraSampleSummaryGenerator` in `modules/memora-native/ios/MemoraSummaryDTO.swift`.
-`MemoraNative.generateSummary` accepts an `audioFileId` plus provider/template options and returns a JSON-friendly summary DTO. Replace it through `MemoraNativeSummaryRegistry.summaryGenerator` from the host app after deciding the real summary source of truth. Keep `AIService`, provider SDKs, and Keychain dependencies outside the local Expo module.
+The RN host installs `MemoraSharedStoreSummaryGenerator` when the shared SwiftData store is available. It reads the selected provider key from the RN Keychain service (`com.anonymous.memora-rn.ai-credentials`), constructs the provider natively, invokes `MemoraSharedSummary`, and persists the result back to `AudioFile`. `MemoraNative.generateSummary` returns only the JSON-friendly summary DTO; API keys never cross the module boundary. A missing key is an explicit safe error, not a sample fallback.
 
 ## Preview Routes
 
