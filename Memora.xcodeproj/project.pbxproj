@@ -34,7 +34,6 @@
 		28293DF8E1B518096DF90853 /* NetworkClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5166D43C1DBD7461F99AE4C /* NetworkClientTests.swift */; };
 		2916C2BD03013E8A0DABB932 /* CaptureSourceOmiConformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCF44BBA547C8122966F2B0 /* CaptureSourceOmiConformanceTests.swift */; };
 		2996D6545E74E503CDF974E8 /* CoreDependency.swift in Sources */ = {isa = PBXBuildFile; fileRef = E37BBEF978E82980F741AB32 /* CoreDependency.swift */; };
-		2CF214094F1D5694E31D8951 /* STTService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4D1F89D958FA1B55DCF5023 /* STTService.swift */; };
 		2DCD45B9F84C690B79D9118C /* SpeakerDiarizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058B06299797571747E4B64C /* SpeakerDiarizationService.swift */; };
 		2E43AFFD1D911E6CD3B70180 /* AudioFileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CE2F0FBD00A67C0BA2D5B /* AudioFileTests.swift */; };
 		2FBEC6005451D19B55532502 /* MemorySettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1CC0D8E52BCD6A484080FC4 /* MemorySettingsSection.swift */; };
@@ -428,7 +427,6 @@
 		D25654CCC722B0F11EBE374D /* V6AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V6AppShellView.swift; sourceTree = "<group>"; };
 		D384554ADB6BFA244C1DA8C3 /* MemoryExtractionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryExtractionServiceTests.swift; sourceTree = "<group>"; };
 		D4219D772B47C2D53AD2A29A /* ProjectRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectRepository.swift; sourceTree = "<group>"; };
-		D4D1F89D958FA1B55DCF5023 /* STTService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTService.swift; sourceTree = "<group>"; };
 		D4E18FCD41B860EF1118D2FF /* MemoraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraApp.swift; sourceTree = "<group>"; };
 		D5FF11FEE9F28D618CF8CD30 /* MemoTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoTab.swift; sourceTree = "<group>"; };
 		DA39BD91FCB01D63A19ECAEA /* TodoItemRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoItemRepositoryTests.swift; sourceTree = "<group>"; };
@@ -670,7 +668,6 @@
 				7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */,
 				A1336C3BD51A903C07885863 /* STTCapabilityHostDependencies.swift */,
 				BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */,
-				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
 				91853B4FFFBF4F9E42B51B90 /* STTServiceDependencyLiveAdapters.swift */,
 				C8A2443F6F42D4ECFE69ABC9 /* STTServiceHostFactory.swift */,
 				9C4553313913B67C7BDC4CDF /* STTSupportTypes.swift */,
@@ -1305,7 +1302,6 @@
 				0F0BCD02727A1C2893505567 /* STTDiagnosticsTypes.swift in Sources */,
 				EB4AFCC729B59B80BA0E39E5 /* STTDiagnosticsView.swift in Sources */,
 				31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */,
-				2CF214094F1D5694E31D8951 /* STTService.swift in Sources */,
 				6E04AE107AD89D4826A8102D /* STTServiceDependencyLiveAdapters.swift in Sources */,
 				31747E96157498CD0CA4C537 /* STTServiceHostFactory.swift in Sources */,
 				6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */,
