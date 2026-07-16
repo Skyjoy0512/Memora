@@ -1,5 +1,6 @@
 import MemoraSharedSchema
 import MemoraSharedCore
+import MemoraSharedSummary
 
 // The SwiftData definitions live in MemoraSharedSchema so that the iOS host and
 // future React Native host use exactly the same persistent model identities.
@@ -55,6 +56,8 @@ typealias LLMProvider = MemoraSharedCore.LLMProvider
 typealias LLMProviderError = MemoraSharedCore.LLMProviderError
 typealias LLMProviderKind = MemoraSharedCore.LLMProviderKind
 typealias LLMProviderSummary = MemoraSharedCore.LLMProviderSummary
+typealias AIService = MemoraSharedSummary.AIService
+typealias AIServiceProtocol = MemoraSharedSummary.AIServiceProtocol
 typealias MeetingNoteTemplate = MemoraSharedCore.MeetingNoteTemplate
 typealias PipelineError = MemoraSharedCore.PipelineError
 typealias PipelineEvent = MemoraSharedCore.PipelineEvent
@@ -70,6 +73,10 @@ typealias STTService = MemoraSharedCore.STTService
 typealias STTBackendProcessing = MemoraSharedCore.STTBackendProcessing
 typealias SummarizationResult = MemoraSharedCore.SummarizationResult
 typealias SummaryError = MemoraSharedCore.SummaryError
+typealias SummaryGenerationConfig = MemoraSharedSummary.SummaryGenerationConfig
+typealias SummaryResult = MemoraSharedSummary.SummaryResult
+typealias SummarizationEngine = MemoraSharedSummary.SummarizationEngine
+typealias SummarizationEngineProtocol = MemoraSharedSummary.SummarizationEngineProtocol
 typealias TodoExtractionResult = MemoraSharedCore.TodoExtractionResult
 typealias TodoPriority = MemoraSharedCore.TodoPriority
 typealias TranscriptionError = MemoraSharedCore.TranscriptionError

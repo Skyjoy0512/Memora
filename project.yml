@@ -33,6 +33,8 @@ targets:
         product: MemoraSharedSchema
       - package: MemoraSharedData
         product: MemoraSharedCore
+      - package: MemoraSharedData
+        product: MemoraSharedSummary
       - package: OmiSDK
         product: omi-lib
       - package: FluidAudio
