@@ -23,26 +23,6 @@ enum STTLocalProcessingSettings {
     ]
 }
 
-extension STTProgressThrottler {
-    static func forTranscription(mode: TranscriptionMode, totalChunks: Int) -> STTProgressThrottler {
-        if mode == .local, totalChunks >= 8 {
-            return STTProgressThrottler(
-                progressInterval: 2.0,
-                progressStep: 0.02,
-                partialInterval: 4.0,
-                liveActivityChunkStep: max(1, totalChunks / 20)
-            )
-        }
-
-        return STTProgressThrottler(
-            progressInterval: 0.5,
-            progressStep: 0.005,
-            partialInterval: 1.0,
-            liveActivityChunkStep: 1
-        )
-    }
-}
-
 extension STTFailureCategory {
     /// 直近の diagnostic entry がフォールバックを含む場合に分類を返す。
     static func classifyLastFailure() -> STTFailureCategory? {

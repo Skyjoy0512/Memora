@@ -355,7 +355,7 @@ private final class STTBackendExecutor: STTBackendProcessing, @unchecked Sendabl
         #if !targetEnvironment(simulator)
         if configuration.allowsSpeechAnalyzer {
             if #available(iOS 26.0, *) {
-            let result = await executionDependencies.backend.speechAnalyzerPreflight.run(locale: locale)
+            let result = await executionDependencies.speechAnalyzerPreflight.run(locale: locale)
 
             switch result {
             case .ready(let diag):
@@ -986,7 +986,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
 
             // Live Activity 開始（Dynamic Island / ロック画面に進捗表示）
             await MainActor.run {
-                TranscriptionLiveActivity.start(
+                capabilities.progress.start(
                     fileName: handle.audioURL.lastPathComponent,
                     totalChunks: totalChunks
                 )
@@ -1032,7 +1032,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                         let overallProgress = 0.12 + (0.78 * Double(slice.index + 1) / Double(totalChunks))
                         if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: slice.index + 1, totalChunks: totalChunks) {
                             await MainActor.run {
-                                TranscriptionLiveActivity.update(
+                                capabilities.progress.update(
                                     progress: overallProgress,
                                     currentChunk: slice.index + 1,
                                     totalChunks: totalChunks
@@ -1095,7 +1095,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                     let overallProgress = 0.12 + (0.78 * Double(slice.index + 1) / Double(totalChunks))
                     if progressThrottler.shouldUpdateLiveActivity(completedChunkCount: slice.index + 1, totalChunks: totalChunks) {
                         await MainActor.run {
-                            TranscriptionLiveActivity.update(
+                            capabilities.progress.update(
                                 progress: overallProgress,
                                 currentChunk: slice.index + 1,
                                 totalChunks: totalChunks
@@ -1143,7 +1143,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             handle.finish()
             // Live Activity 終了（成功）
             await MainActor.run {
-                TranscriptionLiveActivity.finish(
+                capabilities.progress.finish(
                     success: true,
                     characterCount: finalResult.fullText.count
                 )
@@ -1154,20 +1154,20 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
             dependencies.logger.log("STTService", "runTask cancelled — taskId: \(handle.taskId)", level: .warning)
             handle.yield(.transcriptionCancelled(taskId: handle.taskId))
             handle.finish()
-            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await MainActor.run { capabilities.progress.finish(success: false, characterCount: 0) }
             throw CancellationError()
         } catch let coreError as CoreError {
             dependencies.logger.log("STTService", "runTask CoreError — taskId: \(handle.taskId): \(coreError.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: coreError))
             handle.finish()
-            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await MainActor.run { capabilities.progress.finish(success: false, characterCount: 0) }
             throw coreError
         } catch {
             let mappedError = STTErrorMapper.mapToCoreError(error)
             dependencies.logger.log("STTService", "runTask error — taskId: \(handle.taskId): \(error.localizedDescription)", level: .error)
             handle.yield(.transcriptionFailed(taskId: handle.taskId, error: mappedError))
             handle.finish()
-            await MainActor.run { TranscriptionLiveActivity.finish(success: false, characterCount: 0) }
+            await MainActor.run { capabilities.progress.finish(success: false, characterCount: 0) }
             throw mappedError
         }
     }
@@ -1297,7 +1297,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 ))
                 let liveActivityCompletedCount = completedCount
                 await MainActor.run {
-                    TranscriptionLiveActivity.update(
+                    capabilities.progress.update(
                         progress: overall,
                         currentChunk: liveActivityCompletedCount,
                         totalChunks: totalChunks
