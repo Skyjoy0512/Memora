@@ -83,8 +83,8 @@ public class MemoraNativeModule: Module {
         .asDictionary()
     }
 
-    AsyncFunction("generateSummary") { (request: [String: Any]) -> [String: Any] in
-      try self.summaryGenerator
+    AsyncFunction("generateSummary") { (request: [String: Any]) async throws -> [String: Any] in
+      try await self.summaryGenerator
         .generateSummary(MemoraSummaryRequestDTO(dictionary: request))
         .asDictionary()
     }

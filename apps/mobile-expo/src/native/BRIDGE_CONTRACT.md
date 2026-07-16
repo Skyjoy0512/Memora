@@ -485,8 +485,9 @@ type SummaryRequestDTO = {
 ```
 
 The current Swift boundary is `MemoraSummaryGenerating`, registered through `MemoraNativeSummaryRegistry.summaryGenerator`.
-The sample implementation is intentionally deterministic. The first real summary pass should inject a host-app adapter through `MemoraNativeBridgeBootstrap.configure(...)` after the summary source of truth and provider ownership are decided.
-Do not call `AIService`, provider SDKs, or Keychain directly from the local Expo module.
+When the RN host opens the shared SwiftData store, `MemoraSharedStoreSummaryGenerator` is installed and reports `summarySource: 'swiftdata'`. It obtains the transcript and `AudioFile`, reads the selected provider key only from the RN Keychain service, constructs the provider in the host target, invokes `MemoraSharedSummary`, then persists `summary`, `keyPoints`, `actionItems`, and `isSummarized`.
+
+The DTO, events, logs, and errors must never include an API key. Missing keys and unavailable shared storage return explicit safe errors; they must not fall back to sample output. Do not call provider clients or Keychain from the local Expo module.
 
 ## Verification Log
 
