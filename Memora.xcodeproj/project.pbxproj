@@ -102,7 +102,6 @@
 		710FA130FD67480ABBF4A407 /* MemoraHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C13A0383DFBABDC20C11329 /* MemoraHaptics.swift */; };
 		716AD96FA68C58491297E213 /* AIProviderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DE1429871D58BB5961A4F4 /* AIProviderSection.swift */; };
 		778BC9C38EE3FF8514EE4DB1 /* GoogleMeetSettings+Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4261F1B68C2F943A7586DB5F /* GoogleMeetSettings+Keychain.swift */; };
-		77F20B4E302F2A722E250911 /* STTExecutionCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D3A2F031370559FA614F93A /* STTExecutionCapabilities.swift */; };
 		782D73661FAC73DEA06D7420 /* SpeechAnalyzerPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */; };
 		7A48D24FB2DBF1C85D58B93A /* LocalLLMProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74128D7D550FF22B353C8B5A /* LocalLLMProvider.swift */; };
 		7C8353E619EB1248FD827F65 /* NothingDotMatrixModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC24BF762478AA119742B5A9 /* NothingDotMatrixModifier.swift */; };
@@ -347,7 +346,6 @@
 		7A7D85118AB680A796C34305 /* KnowledgeIndexingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeIndexingService.swift; sourceTree = "<group>"; };
 		7AE8BEB8888D4078C49777BC /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalyzerPreflight.swift; sourceTree = "<group>"; };
-		7D3A2F031370559FA614F93A /* STTExecutionCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = STTExecutionCapabilities.swift; sourceTree = "<group>"; };
 		7DD3755F32E43B2139AAC7EB /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
 		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		7F2BE99C7A1DDBDB30ED1E1E /* SettingsBindings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBindings.swift; sourceTree = "<group>"; };
@@ -669,7 +667,6 @@
 				F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */,
 				7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */,
 				A1336C3BD51A903C07885863 /* STTCapabilityHostDependencies.swift */,
-				7D3A2F031370559FA614F93A /* STTExecutionCapabilities.swift */,
 				BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */,
 				D4D1F89D958FA1B55DCF5023 /* STTService.swift */,
 				91853B4FFFBF4F9E42B51B90 /* STTServiceDependencyLiveAdapters.swift */,
@@ -1304,7 +1301,6 @@
 				FEA39DF4182191EEB2CB801B /* STTDiagnosticsCard.swift in Sources */,
 				0F0BCD02727A1C2893505567 /* STTDiagnosticsTypes.swift in Sources */,
 				EB4AFCC729B59B80BA0E39E5 /* STTDiagnosticsView.swift in Sources */,
-				77F20B4E302F2A722E250911 /* STTExecutionCapabilities.swift in Sources */,
 				31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */,
 				2CF214094F1D5694E31D8951 /* STTService.swift in Sources */,
 				6E04AE107AD89D4826A8102D /* STTServiceDependencyLiveAdapters.swift in Sources */,

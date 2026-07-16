@@ -2,20 +2,23 @@ import Foundation
 
 // 読み取り専用のホスト依存を STT 実行系へ注入する境界。
 // live 値は既存の DebugLogger / @AppStorage ラッパーをそのまま使う。
-protocol STTLogging: Sendable {
-    func log(_ category: String, _ message: String, level: LogLevel)
-}
-
 struct DebugLoggerSTTLogger: STTLogging {
-    func log(_ category: String, _ message: String, level: LogLevel) {
-        DebugLogger.shared.addLog(category, message, level: level)
+    func log(_ category: String, _ message: String, level: STTLogLevel) {
+        let mapped: LogLevel = switch level {
+        case .debug: .debug
+        case .info: .info
+        case .warning: .warning
+        case .error: .error
+        }
+        DebugLogger.shared.addLog(category, message, level: mapped)
     }
 }
 
-protocol STTSettingsProviding: Sendable {
-    var isSpeechAnalyzerEnabled: Bool { get }
-    var isSpeakerDiarizationEnabled: Bool { get }
-    var contextualVocabulary: [String] { get }
+struct DebugLoggerSTTConsoleLogger: STTConsoleLogging {
+    func logDetailed(_ message: @autoclosure () -> String) {
+        guard DebugLogger.isDetailedSTTLoggingEnabled else { return }
+        print(message())
+    }
 }
 
 struct AppStorageSTTSettingsProvider: STTSettingsProviding {
@@ -32,12 +35,10 @@ struct AppStorageSTTSettingsProvider: STTSettingsProviding {
     }
 }
 
-struct STTReadOnlyHostDependencies: Sendable {
-    let logger: any STTLogging
-    let settings: any STTSettingsProviding
-
+extension STTReadOnlyHostDependencies {
     static let live = STTReadOnlyHostDependencies(
         logger: DebugLoggerSTTLogger(),
+        consoleLogger: DebugLoggerSTTConsoleLogger(),
         settings: AppStorageSTTSettingsProvider()
     )
 }
