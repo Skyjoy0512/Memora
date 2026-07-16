@@ -88,6 +88,21 @@ struct TranscriptionCheckpointDTOTests {
 }
 
 struct TranscriptionCheckpointStoreTests {
+    @Test("live checkpoint directory keeps the existing Application Support path")
+    func liveDirectoryMatchesExistingPath() {
+        let fileManager = FileManager.default
+        let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+        let expected = base
+            .appendingPathComponent("Memora", isDirectory: true)
+            .appendingPathComponent("TranscriptionCheckpoints", isDirectory: true)
+
+        #expect(
+            TranscriptionCheckpointStore.defaultDirectoryURL(fileManager: fileManager)
+                == expected
+        )
+    }
+
     @Test("保存・復元・削除を本体DBとは独立したファイルで行う")
     func fileStoreRoundTrip() async throws {
         let directory = FileManager.default.temporaryDirectory
@@ -126,6 +141,30 @@ struct TranscriptionCheckpointStoreTests {
         let mismatched = await store.load(audioFileID: audioFileID, fingerprint: "changed")
         #expect(mismatched.isEmpty)
         #expect(await store.load(audioFileID: audioFileID, fingerprint: "fingerprint").isEmpty)
+    }
+
+    @Test("checkpoint hooks provider uses its injected directory")
+    func injectedHooksProviderUsesProvidedDirectory() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("checkpoint-hooks-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let audioFileID = UUID()
+        let provider = FileBackedSTTCheckpointHooksProvider(directoryURL: { directory })
+        let hooks = provider.makeHooks(audioFileID: audioFileID)
+        let result = CheckpointChunkResult(from: TranscriptionResult(fullText: "保持", language: "ja"))
+
+        await hooks.save("fingerprint", 1, 0, result)
+        let restored = await hooks.load("fingerprint")
+
+        #expect(restored[0]?.fullText == "保持")
+        #expect(
+            FileManager.default.fileExists(
+                atPath: directory
+                    .appendingPathComponent("\(audioFileID.uuidString.lowercased()).json")
+                    .path
+            )
+        )
     }
 }
 

@@ -1,7 +1,6 @@
 import Foundation
 @preconcurrency import AVFoundation
 import Speech
-import UIKit
 
 // Core transcription boundary. Changes require explicit STT approval and regression checks.
 
@@ -749,7 +748,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let postProcessor = TranscriptPostProcessor()
     private var activeTasks: [String: STTTaskHandle] = [:]
     private var configuration = STTExecutionConfiguration.localDefault
-    private var backgroundTaskIdentifiers: [String: UIBackgroundTaskIdentifier] = [:]
+    private var backgroundTaskTokens: [String: STTBackgroundTaskToken] = [:]
     /// Plaud 等の参照データから抽出した話者数ヒント。
     /// 文字起こし時の話者分離で numSpeakers として使用。
     private var referenceSpeakerCount: Int?
@@ -769,6 +768,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     private let chunkerFactory: @Sendable () -> AudioChunkerProtocol
     private let backendFactory: @Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing
     private let dependencies: STTReadOnlyHostDependencies
+    private let capabilities: STTExecutionHostCapabilities
     private let diarizationService: SpeakerDiarizationProtocol = {
         if #available(macOS 14.0, iOS 17.0, *) {
             return FluidAudioDiarizationService()
@@ -781,11 +781,13 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         readiness: STTReadinessProtocol = STTReadiness(),
         chunkerFactory: @escaping @Sendable () -> AudioChunkerProtocol = { AudioChunker() },
         backendFactory: (@Sendable (String, STTExecutionConfiguration) -> any STTBackendProcessing)? = nil,
-        dependencies: STTReadOnlyHostDependencies = .live
+        dependencies: STTReadOnlyHostDependencies = .live,
+        capabilities: STTExecutionHostCapabilities = .live
     ) {
         self.readiness = readiness
         self.chunkerFactory = chunkerFactory
         self.dependencies = dependencies
+        self.capabilities = capabilities
         self.backendFactory = backendFactory ?? { taskId, configuration in
             STTBackendExecutor(
                 taskId: taskId,
@@ -795,11 +797,7 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         }
 
         // メモリ警告時の observer を登録（PR-B11: 並列度を自動で下げる）
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
+        capabilities.memoryWarnings.observeMemoryWarnings { [weak self] in
             self?.markMemoryPressure()
             self?.dependencies.logger.log("STTService", "メモリ警告受信 — 並列度を下げます", level: .warning)
         }
@@ -863,14 +861,14 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
     @MainActor
     private func acquireIdleTimerHold() {
         idleTimerHoldCount += 1
-        UIApplication.shared.isIdleTimerDisabled = true
+        capabilities.idleTimer.setIdleTimerDisabled(true)
     }
 
     @MainActor
     private func releaseIdleTimerHold() {
         idleTimerHoldCount = max(0, idleTimerHoldCount - 1)
         if idleTimerHoldCount == 0 {
-            UIApplication.shared.isIdleTimerDisabled = false
+            capabilities.idleTimer.setIdleTimerDisabled(false)
         }
     }
     func startTranscription(
@@ -893,9 +891,9 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         // バックグラウンドタスクを登録: アプリがバックグラウンドに移行しても文字起こしを継続
         // 画面自動ロックを防止: 文字起こし中は画面を点灯したままにする
         await MainActor.run { self.acquireIdleTimerHold() }
-        let bgId = await MainActor.run {
-            UIApplication.shared.beginBackgroundTask(
-                withName: "MemoraSTT-\(handle.taskId)"
+        let backgroundTaskToken = await MainActor.run {
+            capabilities.backgroundTasks.beginBackgroundTask(
+                named: "MemoraSTT-\(handle.taskId)"
             ) { [weak self, weak handle] in
                 self?.dependencies.logger.log("STTService", "backgroundTask 期限切れ — タスクをキャンセル: \(handle?.taskId ?? "?")", level: .warning)
                 Task { [weak self, weak handle] in
@@ -904,8 +902,8 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
                 }
             }
         }
-        if bgId != .invalid {
-            storeBackgroundTaskIdentifier(bgId, taskId: handle.taskId)
+        if let backgroundTaskToken {
+            storeBackgroundTaskToken(backgroundTaskToken, taskId: handle.taskId)
             dependencies.logger.log("STTService", "beginBackgroundTask 登録: \(handle.taskId)", level: .info)
         }
 
@@ -1401,23 +1399,22 @@ final class STTService: STTServiceProtocol, @unchecked Sendable {
         _ = stateLock.withLock { activeTasks.removeValue(forKey: taskId) }
     }
 
-    private func storeBackgroundTaskIdentifier(
-        _ identifier: UIBackgroundTaskIdentifier,
+    private func storeBackgroundTaskToken(
+        _ token: STTBackgroundTaskToken,
         taskId: String
     ) {
-        stateLock.withLock { backgroundTaskIdentifiers[taskId] = identifier }
+        stateLock.withLock { backgroundTaskTokens[taskId] = token }
     }
 
-    private func takeBackgroundTaskIdentifier(taskId: String) -> UIBackgroundTaskIdentifier? {
-        stateLock.withLock { backgroundTaskIdentifiers.removeValue(forKey: taskId) }
+    private func takeBackgroundTaskToken(taskId: String) -> STTBackgroundTaskToken? {
+        stateLock.withLock { backgroundTaskTokens.removeValue(forKey: taskId) }
     }
 
     private func endBackgroundTaskOnMain(taskId: String?) async {
         guard let taskId else { return }
-        let bgId = takeBackgroundTaskIdentifier(taskId: taskId)
-        guard let bgId, bgId != .invalid else { return }
+        guard let backgroundTaskToken = takeBackgroundTaskToken(taskId: taskId) else { return }
         await MainActor.run {
-            UIApplication.shared.endBackgroundTask(bgId)
+            capabilities.backgroundTasks.endBackgroundTask(backgroundTaskToken)
         }
         dependencies.logger.log("STTService", "endBackgroundTask: \(taskId)", level: .info)
     }

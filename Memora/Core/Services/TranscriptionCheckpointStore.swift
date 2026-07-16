@@ -106,7 +106,7 @@ actor TranscriptionCheckpointStore {
         directoryURL.appendingPathComponent("\(audioFileID.uuidString.lowercased()).json")
     }
 
-    private static func defaultDirectoryURL(fileManager: FileManager) -> URL {
+    static func defaultDirectoryURL(fileManager: FileManager) -> URL {
         let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
         return base
