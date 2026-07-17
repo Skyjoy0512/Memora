@@ -39,6 +39,9 @@ type NativeExpoModule = {
   cancelTranscription?: (taskId: string) => Promise<void>;
   queryKnowledge?: (request: KnowledgeQueryRequestDTO) => Promise<KnowledgeQueryResponseDTO>;
   generateSummary?: (request: SummaryRequestDTO) => Promise<SummaryDTO>;
+  getSecureCredentialStatus?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
+  deleteSecureCredential?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
+  presentSecureCredentialInput?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
   loadPlayback?: (audioFileId: string) => Promise<PlaybackStatusDTO>;
   playPlayback?: () => Promise<PlaybackStatusDTO>;
   pausePlayback?: () => Promise<PlaybackStatusDTO>;
@@ -536,12 +539,10 @@ export const MemoraNative: MemoraNativeModule = {
     };
   },
   async generateSummary(request: SummaryRequestDTO) {
-    const nativeResponse = await withNative<SummaryDTO>((nativeModule) =>
-      nativeModule.generateSummary?.(request),
-    );
-
-    if (nativeResponse) {
-      return nativeResponse;
+    const nativeModule = loadNativeModule();
+    if (nativeModule?.generateSummary) {
+      // 要約エラー（鍵未設定を含む）はサンプルへ縮退せず、RN画面へ明示する。
+      return nativeModule.generateSummary(request);
     }
 
     const { audioFileId, options } = request;
@@ -552,6 +553,24 @@ export const MemoraNative: MemoraNativeModule = {
       provider: options.provider,
       text: file?.summary ?? '要約対象のファイルが見つかりません。',
     };
+  },
+  async getSecureCredentialStatus(provider: SummaryOptionsDTO['provider']) {
+    if (provider === 'Local') return false;
+    return (await withNative<boolean>((nativeModule) =>
+      nativeModule.getSecureCredentialStatus?.(provider),
+    )) ?? false;
+  },
+  async deleteSecureCredential(provider: SummaryOptionsDTO['provider']) {
+    if (provider === 'Local') return false;
+    return (await withNative<boolean>((nativeModule) =>
+      nativeModule.deleteSecureCredential?.(provider),
+    )) ?? false;
+  },
+  async presentSecureCredentialInput(provider: SummaryOptionsDTO['provider']) {
+    if (provider === 'Local') return false;
+    return (await withNative<boolean>((nativeModule) =>
+      nativeModule.presentSecureCredentialInput?.(provider),
+    )) ?? false;
   },
   async queryKnowledge(request: KnowledgeQueryRequestDTO) {
     const nativeResponse = await withNative<KnowledgeQueryResponseDTO>((nativeModule) =>

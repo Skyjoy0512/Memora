@@ -21,6 +21,7 @@
 		A84D5E6F708192A3B4C5D6E7 /* MemoraRNTranscriptionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		CDC318F7BDAF4DB86A44F76C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF3E027A4D5411EE0F187CAF /* ExpoModulesProvider.swift */; };
+		D9E5F3A17B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +46,7 @@
 		AD038D99E6A0B350A23A8C13 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MemoraRN/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		CF3E027A4D5411EE0F187CAF /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MemoraRNTests/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraRNKeychainSecureCredentials.swift; path = MemoraRN/MemoraRNKeychainSecureCredentials.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MemoraRN/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MemoraRN-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MemoraRN-Bridging-Header.h"; path = "MemoraRN/MemoraRN-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 				8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */,
 				8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */,
 				C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */,
+				D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */,
 				A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */,
 				F11748442D0722820044C1D9 /* MemoraRN-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
@@ -518,6 +521,7 @@
 				8F12A8F72C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift in Sources */,
 				8F12A8F82C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift in Sources */,
 				C8D4E2F17A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift in Sources */,
+				D9E5F3A17B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift in Sources */,
 				A84D5E6F708192A3B4C5D6E7 /* MemoraRNTranscriptionBridge.swift in Sources */,
 				314DE1AD346D8BFF2B052369 /* ExpoModulesProvider.swift in Sources */,
 			);
