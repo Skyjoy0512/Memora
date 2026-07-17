@@ -201,6 +201,7 @@ function createFallbackKnowledgeResponse(
     answeredAt: new Date().toISOString(),
     id: `mock-query-${request.scope}-${Date.now()}`,
     scope: request.scope,
+    sessionId: request.sessionId ?? `fallback-session-${Date.now()}`,
     sources: scopedAnswer.sources,
   };
 }

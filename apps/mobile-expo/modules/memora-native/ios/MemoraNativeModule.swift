@@ -94,8 +94,8 @@ public class MemoraNativeModule: Module {
       try self.recordingImportHandler.importAudio(uri: uri).asDictionary()
     }
 
-    AsyncFunction("queryKnowledge") { (request: [String: Any]) -> [String: Any] in
-      try self.knowledgeQuery
+    AsyncFunction("queryKnowledge") { (request: [String: Any]) async throws -> [String: Any] in
+      try await self.knowledgeQuery
         .queryKnowledge(MemoraKnowledgeQueryRequestDTO(dictionary: request))
         .asDictionary()
     }
