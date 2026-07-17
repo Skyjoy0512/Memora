@@ -10,9 +10,9 @@ public final class MemoraSharedSwiftDataAudioFileStore: MemoraSharedAudioFileSto
   public func fetch(id: UUID) throws -> MemoraSharedAudioFileRecord? { try repository.fetch(id: id).map(Self.record) }
   public func save(_ record: MemoraSharedAudioFileRecord) throws {
     let file = try repository.fetch(id: record.id) ?? AudioFile(title: record.title, audioURL: record.audioURL, projectID: record.projectID)
-    file.id = record.id; file.title = record.title; file.projectID = record.projectID; file.createdAt = record.createdAt; file.duration = record.duration; file.audioURL = record.audioURL; file.isTranscribed = record.isTranscribed; file.isSummarized = record.isSummarized; file.summary = record.summary
+    file.id = record.id; file.title = record.title; file.projectID = record.projectID; file.createdAt = record.createdAt; file.duration = record.duration; file.audioURL = record.audioURL; file.segmentPaths = record.segmentPaths; file.isTranscribed = record.isTranscribed; file.isSummarized = record.isSummarized; file.summary = record.summary
     try repository.save(file)
   }
   public func delete(id: UUID) throws { try repository.delete(id: id) }
-  private static func record(_ file: AudioFile) -> MemoraSharedAudioFileRecord { MemoraSharedAudioFileRecord(id: file.id, title: file.title, projectID: file.projectID, createdAt: file.createdAt, duration: file.duration, audioURL: file.audioURL, isTranscribed: file.isTranscribed, isSummarized: file.isSummarized, summary: file.summary) }
+  private static func record(_ file: AudioFile) -> MemoraSharedAudioFileRecord { MemoraSharedAudioFileRecord(id: file.id, title: file.title, projectID: file.projectID, createdAt: file.createdAt, duration: file.duration, audioURL: file.audioURL, segmentPaths: file.segmentPaths, isTranscribed: file.isTranscribed, isSummarized: file.isSummarized, summary: file.summary) }
 }

@@ -61,7 +61,7 @@ struct V6FileDetailView: View {
                     .background(V6Color.white)
             }
         }
-        .onAppear {
+        .task {
             guard viewModel == nil else { return }
             let vm = FileDetailViewModel(
                 audioFile: audioFile,
@@ -70,7 +70,7 @@ struct V6FileDetailView: View {
                 transcriptionMode: currentTranscriptionMode,
                 apiKey: currentAPIKey
             )
-            vm.setupAudioPlayer()
+            await vm.setupAudioPlayer()
             vm.loadSavedData()
             viewModel = vm
             if autoStartTranscription && !audioFile.isTranscribed {

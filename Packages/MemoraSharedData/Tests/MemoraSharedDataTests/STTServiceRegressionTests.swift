@@ -29,7 +29,9 @@ struct STTServiceRegressionTests {
         #expect(result.fullText == "最初\n次")
         #expect(result.segments.map(\.startSec) == [1, 12])
         #expect(result.segments.map(\.endSec) == [2, 14])
-        #expect(await backend.invokedIndexes() == [0, 1])
+        // Backend work may run concurrently; the result assertions above
+        // verify merge order, while this assertion verifies both slices ran.
+        #expect(await backend.invokedIndexes().sorted() == [0, 1])
 
         var completedChunkIndexes: [Int] = []
         for await event in events {

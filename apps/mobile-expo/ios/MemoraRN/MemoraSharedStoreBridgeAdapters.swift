@@ -126,6 +126,9 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
       createdAt: createdAt,
       duration: parseDuration(dto.duration),
       audioURL: fallbackURL.path,
+      // RN uploads and imports remain single-file records. Segmented native
+      // recordings are preserved by the SwiftData store adapter above.
+      segmentPaths: [],
       isTranscribed: dto.status == "ready" || dto.status == "summarized",
       isSummarized: dto.status == "summarized" || !dto.summary.isEmpty,
       summary: dto.summary.isEmpty ? nil : dto.summary

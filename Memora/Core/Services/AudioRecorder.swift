@@ -5,7 +5,16 @@ import Observation
 struct RecordingResult: Sendable {
     let fileID: UUID
     let fileURL: URL
+    let segmentURLs: [URL]
     let duration: TimeInterval
+}
+
+extension AudioRecorder: AVAudioRecorderDelegate {
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        Task { @MainActor [weak self] in
+            self?.rotateSegment(after: recorder, successfully: flag)
+        }
+    }
 }
 
 @MainActor
@@ -34,10 +43,20 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
 
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
+    private var firstRecordingURL: URL?
     private var recordingFileID: UUID?
+    private var completedSegmentURLs: [URL] = []
+    private var completedSegmentDuration: TimeInterval = 0
+    /// Called only after a segment has been closed, so callers can persist the
+    /// recoverable prefix before a subsequent segment begins.
+    var completedSegmentsDidChange: (([URL]) -> Void)?
     private var levelContinuations: [UUID: AsyncStream<Float>.Continuation] = [:]
     private var meteringTimer: Timer?
     private var shouldResumeAfterInterruption = false
+
+    private static let segmentDuration: TimeInterval = 5 * 60
+
+    var primaryRecordingURL: URL? { firstRecordingURL }
 
     override init() {
         super.init()
@@ -78,11 +97,18 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         try stopRecordingCore()
     }
 
+    func stopRecordingWithSegments() throws -> RecordingResult {
+        try stopRecordingCore()
+    }
+
     func cancelRecording() {
         recorder?.stop()
         recorder = nil
         recordingURL = nil
+        firstRecordingURL = nil
         recordingFileID = nil
+        completedSegmentURLs = []
+        completedSegmentDuration = 0
         isRecording = false
         isPaused = false
         shouldResumeAfterInterruption = false
@@ -134,29 +160,18 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
             throw RecordingError.audioSessionFailed(error)
         }
 
-        let fileID = UUID()
-        let fileURL = try STTFileLocations.audioDirectory()
-            .appendingPathComponent("\(fileID.uuidString).m4a")
-
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 44_100.0,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
-            AVEncoderBitRateKey: 128_000
-        ]
-
         do {
-            let recorder = try AVAudioRecorder(url: fileURL, settings: settings)
-            recorder.isMeteringEnabled = true
-
-            guard recorder.record() else {
-                throw RecordingError.recordingFailed()
-            }
+            let fileID = UUID()
+            let fileURL = try makeSegmentURL(id: fileID)
+            let recorder = try makeRecorder(at: fileURL)
+            guard beginSegmentRecording(recorder) else { throw RecordingError.recordingFailed() }
 
             self.recorder = recorder
             recordingURL = fileURL
+            firstRecordingURL = fileURL
             recordingFileID = fileID
+            completedSegmentURLs = []
+            completedSegmentDuration = 0
             isRecording = true
             isPaused = false
             recordingTime = 0
@@ -170,16 +185,21 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
     }
 
     private func stopRecordingCore() throws -> RecordingResult {
-        guard let recorder, let recordingURL, let recordingFileID else {
+        guard let recorder, let firstRecordingURL, let recordingFileID else {
             throw RecordingError.noActiveRecording
         }
 
         recorder.stop()
-        let duration = recorder.currentTime
+        let duration = completedSegmentDuration + recorder.currentTime
+        if let recordingURL { completedSegmentURLs.append(recordingURL) }
+        let segmentURLs = completedSegmentURLs
 
         self.recorder = nil
         self.recordingURL = nil
+        self.firstRecordingURL = nil
         self.recordingFileID = nil
+        self.completedSegmentURLs = []
+        self.completedSegmentDuration = 0
         isRecording = false
         isPaused = false
         shouldResumeAfterInterruption = false
@@ -190,11 +210,11 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
             self?.finishAudioLevels()
         }
 
-        return RecordingResult(fileID: recordingFileID, fileURL: recordingURL, duration: duration)
+        return RecordingResult(fileID: recordingFileID, fileURL: firstRecordingURL, segmentURLs: segmentURLs, duration: duration)
     }
 
     private func startMetering() {
-        stopMetering()
+        pauseMetering()
         meteringTimer = Timer.scheduledTimer(timeInterval: 0.05, target: self, selector: #selector(handleMeteringTimer), userInfo: nil, repeats: true)
     }
 
@@ -297,7 +317,7 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         do {
             try AVAudioSession.sharedInstance().setActive(true)
             if !isPaused && !recorder.isRecording {
-                guard recorder.record() else {
+                guard beginSegmentRecording(recorder) else {
                     recorder.pause()
                     isPaused = true
                     pauseMetering()
@@ -319,7 +339,7 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         guard let recorder, isRecording, isPaused else { return }
         do {
             try AVAudioSession.sharedInstance().setActive(true)
-            guard recorder.record() else {
+            guard beginSegmentRecording(recorder) else {
                 DebugLogger.shared.addLog("AudioRecorder", "\(reason)に失敗しました。録音は一時停止状態のままです", level: .error)
                 return
             }
@@ -358,13 +378,65 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         guard let recorder else { return }
 
         recorder.updateMeters()
-        recordingTime = recorder.currentTime
+        recordingTime = completedSegmentDuration + recorder.currentTime
 
         let averagePower = recorder.averagePower(forChannel: 0)
         let linearLevel = max(0, powf(10, averagePower / 20))
         for continuation in levelContinuations.values {
             continuation.yield(linearLevel)
         }
+
+    }
+
+    private func rotateSegment(after recorder: AVAudioRecorder, successfully: Bool) {
+        guard let recordingURL, isRecording, !isPaused else { return }
+        guard recorder === self.recorder else { return }
+        guard successfully else {
+            isPaused = true
+            pauseMetering()
+            DebugLogger.shared.addLog("AudioRecorder", "セグメント録音が失敗しました。確定済みセグメントを保持して安全に停止します", level: .error)
+            return
+        }
+        completedSegmentDuration += recorder.currentTime
+        completedSegmentURLs.append(recordingURL)
+        completedSegmentsDidChange?(completedSegmentURLs)
+
+        do {
+            let nextURL = try makeSegmentURL(id: UUID())
+            let nextRecorder = try makeRecorder(at: nextURL)
+            guard beginSegmentRecording(nextRecorder) else { throw RecordingError.recordingFailed() }
+            self.recorder = nextRecorder
+            self.recordingURL = nextURL
+            DebugLogger.shared.addLog("AudioRecorder", "5分セグメントを確定し、次の録音セグメントを開始しました", level: .info)
+        } catch {
+            self.recorder = nil
+            self.recordingURL = nil
+            isPaused = true
+            pauseMetering()
+            DebugLogger.shared.addLog("AudioRecorder", "セグメント切替に失敗しました。確定済みセグメントは保存され、録音は安全に停止しています: \(error.localizedDescription)", level: .error)
+        }
+    }
+
+    private func makeSegmentURL(id: UUID) throws -> URL {
+        try STTFileLocations.audioDirectory().appendingPathComponent("\(id.uuidString).m4a")
+    }
+
+    private func makeRecorder(at url: URL) throws -> AVAudioRecorder {
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 44_100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            AVEncoderBitRateKey: 128_000
+        ]
+        let recorder = try AVAudioRecorder(url: url, settings: settings)
+        recorder.isMeteringEnabled = true
+        recorder.delegate = self
+        return recorder
+    }
+
+    private func beginSegmentRecording(_ recorder: AVAudioRecorder) -> Bool {
+        recorder.record(forDuration: max(0.01, Self.segmentDuration - recorder.currentTime))
     }
 
     enum RecordingError: LocalizedError {

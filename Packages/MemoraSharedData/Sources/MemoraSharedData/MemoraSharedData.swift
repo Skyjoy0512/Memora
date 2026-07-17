@@ -145,6 +145,7 @@ public struct MemoraSharedAudioFileRecord: Codable, Equatable, Sendable {
   public var createdAt: Date
   public var duration: TimeInterval
   public var audioURL: String
+  public var segmentPaths: [String]
   public var isTranscribed: Bool
   public var isSummarized: Bool
   public var summary: String?
@@ -156,6 +157,7 @@ public struct MemoraSharedAudioFileRecord: Codable, Equatable, Sendable {
     createdAt: Date,
     duration: TimeInterval,
     audioURL: String,
+    segmentPaths: [String] = [],
     isTranscribed: Bool = false,
     isSummarized: Bool = false,
     summary: String? = nil
@@ -166,6 +168,7 @@ public struct MemoraSharedAudioFileRecord: Codable, Equatable, Sendable {
     self.createdAt = createdAt
     self.duration = duration
     self.audioURL = audioURL
+    self.segmentPaths = segmentPaths
     self.isTranscribed = isTranscribed
     self.isSummarized = isSummarized
     self.summary = summary

@@ -34,6 +34,7 @@ final class MemoraSharedAudioFileStoreAdapter: MemoraSharedAudioFileStore, @unch
         file.createdAt = record.createdAt
         file.duration = record.duration
         file.audioURL = record.audioURL
+        file.segmentPaths = record.segmentPaths
         file.isTranscribed = record.isTranscribed
         file.isSummarized = record.isSummarized
         file.summary = record.summary
@@ -53,6 +54,7 @@ final class MemoraSharedAudioFileStoreAdapter: MemoraSharedAudioFileStore, @unch
             createdAt: file.createdAt,
             duration: file.duration,
             audioURL: file.audioURL,
+            segmentPaths: file.segmentPaths,
             isTranscribed: file.isTranscribed,
             isSummarized: file.isSummarized,
             summary: file.summary
