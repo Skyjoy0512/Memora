@@ -15,9 +15,11 @@ struct RetrievedKnowledgeChunk {
 @MainActor
 final class LocalRetrievalEngine {
     private let modelContext: ModelContext
+    private let memoryPrivacy: AskAIMemoryPrivacyConfiguration
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, memoryPrivacy: AskAIMemoryPrivacyConfiguration) {
         self.modelContext = modelContext
+        self.memoryPrivacy = memoryPrivacy
     }
 
     func search(
@@ -116,22 +118,16 @@ final class LocalRetrievalEngine {
     /// 承認済み MemoryFact の value を小文字化して返す。
     /// クエリに含まれる用語が fact の value と一致すれば、その fact に関連するチャンクをブーストする。
     private func fetchMemoryBoostTerms(query: String) -> [String] {
-        let privacyMode = UserDefaults.standard.string(forKey: "memoryPrivacyMode") ?? "standard"
-        guard privacyMode != "off" else { return [] }
+        guard memoryPrivacy.mode != "off" else { return [] }
 
         let descriptor = FetchDescriptor<MemoryFact>(
             predicate: #Predicate { $0.lastConfirmedAt != nil }
         )
         let confirmedFacts = (try? modelContext.fetch(descriptor)) ?? []
 
-        let disabledIDs = Set(
-            (UserDefaults.standard.stringArray(forKey: "disabledMemoryFactIDs") ?? [])
-                .compactMap(UUID.init(uuidString:))
-        )
-
         let lowerQuery = query.lowercased()
         return confirmedFacts
-            .filter { !disabledIDs.contains($0.id) }
+            .filter { !memoryPrivacy.disabledFactIDs.contains($0.id) }
             .map { $0.value.lowercased() }
             .filter { value in
                 !value.isEmpty && lowerQuery.contains(value)

@@ -108,12 +108,11 @@ extension AskAIView {
             return
         }
 
-        let service = AIServiceHostService()
-        service.setProvider(currentProvider)
-
         do {
-            // Local プロバイダーは空文字列で configure する
-            try await service.configure(apiKey: currentAPIKey)
+            let responseGenerator = AskAIHostResponseGenerator(
+                provider: currentProvider,
+                apiKey: currentAPIKey
+            )
 
             let contextPack = qs.buildContext(for: activeScope, query: userMessage)
 
@@ -123,15 +122,7 @@ extension AskAIView {
 
             let prompt = qs.makePrompt(userMessage: userMessage, contextPack: contextPack)
 
-            let responseText: String
-            if currentProvider == .local {
-                // Local プロバイダーは generate を直接使用（構造化出力ではなく自由テキスト）
-                responseText = try await service.generate(prompt)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                let result = try await service.summarize(transcript: prompt)
-                responseText = result.summary.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+            let responseText = try await responseGenerator.generateResponse(for: prompt)
             let citations = Array(contextPack.citations.map {
                 AskAICitation(id: $0.id, title: $0.title, sourceLabel: $0.sourceLabel, excerpt: $0.excerpt)
             }.prefix(4))

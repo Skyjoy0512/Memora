@@ -22,6 +22,20 @@ final class KnowledgeQueryService {
         let instructionHints: [String]
     }
 
+    /// 9c で共有ターゲットへ移す中立コンテキスト。表示用のSF Symbolやラベルを含めない。
+    struct NeutralContextPack {
+        struct Citation {
+            let sourceType: String
+            let title: String
+            let excerpt: String
+        }
+
+        let scopeTitle: String
+        let promptContext: String
+        let citations: [Citation]
+        let instructionHints: [String]
+    }
+
     struct SourceBadge: Hashable, Identifiable {
         let id: String
         let label: String
@@ -30,6 +44,7 @@ final class KnowledgeQueryService {
 
     struct Citation: Hashable, Identifiable {
         let id: String
+        let sourceType: String
         let title: String
         let sourceLabel: String
         let excerpt: String
@@ -38,15 +53,15 @@ final class KnowledgeQueryService {
     // MARK: - Properties
 
     private let modelContext: ModelContext
-    private let memoryPrivacyMode: String
+    private let memoryPrivacy: AskAIMemoryPrivacyConfiguration
     private let retrievalService: AskAIRetrievalService
 
     // MARK: - Init
 
-    init(modelContext: ModelContext, memoryPrivacyMode: String = "standard") {
+    init(modelContext: ModelContext, memoryPrivacy: AskAIMemoryPrivacyConfiguration) {
         self.modelContext = modelContext
-        self.memoryPrivacyMode = memoryPrivacyMode
-        self.retrievalService = AskAIRetrievalService(modelContext: modelContext)
+        self.memoryPrivacy = memoryPrivacy
+        self.retrievalService = AskAIRetrievalService(modelContext: modelContext, memoryPrivacy: memoryPrivacy)
     }
 
     // MARK: - Public API
@@ -211,6 +226,23 @@ final class KnowledgeQueryService {
 
         let scopeTitle = scopeName(for: scope)
         return makeContextPack(scopeTitle: scopeTitle, sources: sources)
+    }
+
+    /// 表示DTOから切り離した検索結果。SwiftUI表示は既存ContextPackを継続使用する。
+    func buildNeutralContext(for scope: ChatScope, query: String) -> NeutralContextPack {
+        let pack = buildContext(for: scope, query: query)
+        return NeutralContextPack(
+            scopeTitle: pack.scopeTitle,
+            promptContext: pack.promptContext,
+            citations: pack.citations.map {
+                NeutralContextPack.Citation(
+                    sourceType: $0.sourceType,
+                    title: $0.title,
+                    excerpt: $0.excerpt
+                )
+            },
+            instructionHints: pack.instructionHints
+        )
     }
 
     // MARK: - Scope Helpers
@@ -556,7 +588,7 @@ final class KnowledgeQueryService {
     }
 
     private var currentMemoryMode: MemoryPrivacyMode {
-        MemoryPrivacyMode(rawValue: memoryPrivacyMode) ?? .standard
+        MemoryPrivacyMode(rawValue: memoryPrivacy.mode) ?? .standard
     }
 
     private enum MemoryPrivacyMode: String {
@@ -622,6 +654,7 @@ final class KnowledgeQueryService {
         let citations = limitedSources.map { source in
             Citation(
                 id: source.title,
+                sourceType: source.type,
                 title: source.title,
                 sourceLabel: source.shortLabel,
                 excerpt: truncate(source.body, limit: 120)
@@ -705,15 +738,11 @@ final class KnowledgeQueryService {
     private func fetchActiveMemoryFacts() -> [MemoryFact] {
         guard currentMemoryMode != .off else { return [] }
 
-        let disabledIDs = Set(
-            (UserDefaults.standard.stringArray(forKey: "disabledMemoryFactIDs") ?? [])
-                .compactMap(UUID.init(uuidString:))
-        )
         let descriptor = FetchDescriptor<MemoryFact>(
             sortBy: [SortDescriptor(\.confidence, order: .reverse)]
         )
 
-        return ((try? modelContext.fetch(descriptor)) ?? []).filter { !disabledIDs.contains($0.id) }
+        return ((try? modelContext.fetch(descriptor)) ?? []).filter { !memoryPrivacy.disabledFactIDs.contains($0.id) }
     }
 
     // MARK: - Helpers

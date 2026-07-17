@@ -61,7 +61,10 @@ struct AskAIView: View {
         }
         .background(V6Color.white)
         .task {
-            queryService = KnowledgeQueryService(modelContext: modelContext, memoryPrivacyMode: memoryPrivacyMode)
+            queryService = KnowledgeQueryService(
+                modelContext: modelContext,
+                memoryPrivacy: AskAIHostMemoryPrivacyConfiguration.make(mode: memoryPrivacyMode)
+            )
             reloadScopeOptions()
             reloadForActiveScope()
             if let msg = pendingMessage {
