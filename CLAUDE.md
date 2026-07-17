@@ -50,11 +50,23 @@ git worktree add ../Memora-<slug> -b <type>/<slug> origin/main
 | E: QA/運用 | テスト、CI結果確認、リリースノート | |
 | F: RN UI | `apps/mobile-expo/src/**`, `app/**` | |
 | G: RNネイティブ | `apps/mobile-expo/modules/**`, `apps/mobile-expo/ios/**` | ビルドは分離DerivedData（`qa:ios:build`） |
-| H: 共有データ | `Packages/MemoraSharedData/**` | C/Gと跨ぐ場合は基盤PR→機能PRに分割 |
+| H: 共有データ | `Packages/MemoraSharedData/Sources/MemoraSharedSchema/**`（**スキーマ/ストア契約のみ**） | C/Gと跨ぐ場合は基盤PR→機能PRに分割。**スキーマ変更は同時に1本だけ** |
 | I: Botサーバー | `bot-server/**` | |
 
 - 複数レーンが必要な作業は「基盤PR → 機能PR」の順に分割する。
 - 同じレーンを2セッションに同時に割り当てない。
+
+### 共有パッケージの帰属（2026-07の移設後）
+`Packages/MemoraSharedData/Sources/` 配下は**ターゲットごとに担当レーンが違う**。Lane H に全部集めると多重占有で並列度が死ぬため、次のとおり分割する。
+
+| ターゲット | 中身 | 担当レーン |
+|---|---|---|
+| `MemoraSharedSchema` | SwiftDataモデル・スキーマ・移行 | **H** |
+| `MemoraSharedCore` | STT実行系・契約・AudioChunker | **B**（STTは§8適用） |
+| `MemoraSharedSummary` | 要約エンジン・AIService | **C** |
+| `MemoraSharedAskAI` | retrieval・索引 | **C** |
+
+**共有ターゲットを新設したら**、`Package.swift` の library 公開 **と** RNホスト `apps/mobile-expo/ios/MemoraRN.xcodeproj` の `packageProductDependencies` + Sources 登録の**両方**が必要（片方漏れると `no such module`。CIの `rn-ios-build` が検出する）。
 
 ### 3.3 レーン別 検証マトリクス（触った範囲だけ検証する）
 | 触った範囲 | 必須検証 |
@@ -108,13 +120,16 @@ git worktree prune
 ## 8. 文字起こしコア保護ルール
 文字起こしはMemoraのコア機能。詳細は `docs/transcription-core-boundary.md`。
 明示依頼がない限り、次のファイルは編集しない:
-- `Memora/Core/Services/STTService.swift`
+**共有パッケージ側**（2026-07の移設で移動。旧パスは存在しない）:
+- `Packages/MemoraSharedData/Sources/MemoraSharedCore/STTService.swift`
+- `Packages/MemoraSharedData/Sources/MemoraSharedCore/CoreDTOs.swift`
+- `Packages/MemoraSharedData/Sources/MemoraSharedSummary/AIService.swift`
+
+**アプリ側**（元の場所のまま）:
 - `Memora/Core/Services/STTSupportTypes.swift`
 - `Memora/Core/Services/SpeakerDiarizationService.swift`
 - `Memora/Core/Services/SpeakerProfileStore.swift`
 - `Memora/Core/Services/TranscriptionEngine.swift`
-- `Memora/Core/Networking/AIService.swift`
-- `Memora/Core/Contracts/CoreDTOs.swift`
 
 STTコアを変更する場合は必ず報告する: バックエンド選択順の変更点 / SpeechAnalyzer・SFSpeechRecognizer・APIのどこに影響するか / 話者分離と保存フォーマットへの影響 / build・test・logの確認結果。
 
