@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import MemoraSharedSchema
 
 struct KnowledgeChunkDraft {
     let scopeType: KnowledgeChunkScopeType
@@ -11,14 +12,14 @@ struct KnowledgeChunkDraft {
     let rankHint: Double
 }
 
-final class KnowledgeIndexingService {
+public final class KnowledgeIndexingService {
     private let modelContext: ModelContext
 
-    init(modelContext: ModelContext) {
+    public init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 
-    func rebuildIndex(for audioFile: AudioFile) throws {
+    public func rebuildIndex(for audioFile: AudioFile) throws {
         let transcripts = fetchTranscripts(audioFileID: audioFile.id)
         let memos = fetchMeetingMemos(audioFileID: audioFile.id)
         let attachments = fetchPhotoAttachments(audioFileID: audioFile.id)
@@ -64,7 +65,7 @@ final class KnowledgeIndexingService {
         }
     }
 
-    func removeChunks(sourceType: KnowledgeChunkSourceType, sourceID: UUID, autosave: Bool = true) throws {
+    public func removeChunks(sourceType: KnowledgeChunkSourceType, sourceID: UUID, autosave: Bool = true) throws {
         try deleteChunks(matching: Set([ChunkSourceKey(type: sourceType, id: sourceID)]))
         if autosave {
             try modelContext.save()

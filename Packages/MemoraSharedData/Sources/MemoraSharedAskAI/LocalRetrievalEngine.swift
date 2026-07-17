@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import MemoraSharedSchema
 
 struct RetrievalScore {
     let score: Double
@@ -13,7 +14,7 @@ struct RetrievedKnowledgeChunk {
 }
 
 @MainActor
-final class LocalRetrievalEngine {
+public final class LocalRetrievalEngine {
     private let modelContext: ModelContext
     private let memoryPrivacy: AskAIMemoryPrivacyConfiguration
 

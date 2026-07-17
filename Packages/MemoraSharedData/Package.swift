@@ -8,13 +8,15 @@ let package = Package(
     .library(name: "MemoraSharedData", targets: ["MemoraSharedData"]),
     .library(name: "MemoraSharedSchema", targets: ["MemoraSharedSchema"]),
     .library(name: "MemoraSharedCore", targets: ["MemoraSharedCore"]),
-    .library(name: "MemoraSharedSummary", targets: ["MemoraSharedSummary"])
+    .library(name: "MemoraSharedSummary", targets: ["MemoraSharedSummary"]),
+    .library(name: "MemoraSharedAskAI", targets: ["MemoraSharedAskAI"])
   ],
   targets: [
     .target(name: "MemoraSharedCore"),
     .target(name: "MemoraSharedSummary", dependencies: ["MemoraSharedCore"]),
+    .target(name: "MemoraSharedAskAI", dependencies: ["MemoraSharedCore", "MemoraSharedSchema"]),
     .target(name: "MemoraSharedSchema"),
     .target(name: "MemoraSharedData", dependencies: ["MemoraSharedSchema"]),
-    .testTarget(name: "MemoraSharedDataTests", dependencies: ["MemoraSharedData", "MemoraSharedSchema", "MemoraSharedCore", "MemoraSharedSummary"])
+    .testTarget(name: "MemoraSharedDataTests", dependencies: ["MemoraSharedData", "MemoraSharedSchema", "MemoraSharedCore", "MemoraSharedSummary", "MemoraSharedAskAI"])
   ]
 )

@@ -1,0 +1,6 @@
+import MemoraSharedAskAI
+
+typealias AskAIRetrievalService = MemoraSharedAskAI.AskAIRetrievalService
+typealias KnowledgeIndexingService = MemoraSharedAskAI.KnowledgeIndexingService
+typealias LocalRetrievalEngine = MemoraSharedAskAI.LocalRetrievalEngine
+typealias AskAIMemoryPrivacyConfiguration = MemoraSharedAskAI.AskAIMemoryPrivacyConfiguration

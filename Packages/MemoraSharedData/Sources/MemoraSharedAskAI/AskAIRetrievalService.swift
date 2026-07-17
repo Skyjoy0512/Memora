@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import MemoraSharedSchema
 
 // MARK: - Retrieval Types
 
@@ -25,7 +26,7 @@ struct RetrievalContext {
 /// project / global scope では keyword + rankHint で top-N を返す。
 /// file scope では直接コンテキスト（transcript / summary / memo / photoOCR / todo）を rank 付きで取得する。
 @MainActor
-final class AskAIRetrievalService {
+public final class AskAIRetrievalService {
     private let modelContext: ModelContext
     private let retrievalEngine: LocalRetrievalEngine
 
