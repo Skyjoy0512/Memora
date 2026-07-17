@@ -24,7 +24,7 @@ struct MemoraApp: App {
         PlaudBackgroundSyncScheduler.shared.register()
     }
 
-    nonisolated private static let schema = Schema(versionedSchema: MemoraSchemaV3.self)
+    nonisolated private static let schema = Schema(versionedSchema: MemoraSchemaV4.self)
 
     nonisolated private static let migrationPlan = MemoraMigrationPlan.self
 

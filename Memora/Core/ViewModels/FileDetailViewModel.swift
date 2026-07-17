@@ -135,21 +135,15 @@ final class FileDetailViewModel {
 
     // MARK: - Setup
 
-    func setupAudioPlayer() {
-        let urlString = audioFile.audioURL
-
-        guard !urlString.isEmpty else { return }
-
-        if urlString.hasPrefix("/") {
-            audioURL = URL(fileURLWithPath: urlString)
-        } else if urlString.hasPrefix("file://") {
-            audioURL = URL(string: urlString)
-        } else {
-            audioURL = URL(fileURLWithPath: urlString)
+    func setupAudioPlayer() async {
+        do {
+            audioURL = try await SegmentedAudioFileResolver.resolve(audioFile)
+            audioDuration = audioFile.duration
+            playbackPosition = 0
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
         }
-
-        audioDuration = audioFile.duration
-        playbackPosition = 0
     }
 
     func loadSavedData() {
@@ -445,7 +439,8 @@ final class FileDetailViewModel {
     func deleteAudioFile() {
         let memo = existingMeetingMemo()
         let transcripts = savedTranscripts()
-        let filePathsToDelete = photoAttachments.flatMap { [$0.localPath, $0.thumbnailPath] }
+        let filePathsToDelete = [audioFile.audioURL] + audioFile.segmentPaths
+            + photoAttachments.flatMap { [$0.localPath, $0.thumbnailPath] }
 
         do {
             for transcript in transcripts {

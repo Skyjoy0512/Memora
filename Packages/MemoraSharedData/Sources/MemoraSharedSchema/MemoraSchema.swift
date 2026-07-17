@@ -95,6 +95,16 @@ public enum MemoraSchemaV3: VersionedSchema {
     ]
 }
 
+// MARK: - Schema V4
+
+/// V4: 録音のクラッシュ耐性のため、完了済み音声セグメントのパスを AudioFile に追加。
+/// 空配列は従来の単一 `audioURL` 録音として扱う。
+public enum MemoraSchemaV4: VersionedSchema {
+    public static var versionIdentifier = Schema.Version(4, 0, 0)
+
+    public static let models: [any PersistentModel.Type] = MemoraSchemaV3.models
+}
+
 // MARK: - Migration Plan
 
 /// スキーママイグレーションプラン。
@@ -119,7 +129,7 @@ public enum MemoraSchemaV3: VersionedSchema {
 /// ```
 public enum MemoraMigrationPlan: SchemaMigrationPlan {
     public static var schemas: [any VersionedSchema.Type] {
-        [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self]
+        [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self, MemoraSchemaV4.self]
     }
 
     public static let stages: [MigrationStage] = [
@@ -130,6 +140,10 @@ public enum MemoraMigrationPlan: SchemaMigrationPlan {
         MigrationStage.lightweight(
             fromVersion: MemoraSchemaV2.self,
             toVersion: MemoraSchemaV3.self
+        ),
+        MigrationStage.lightweight(
+            fromVersion: MemoraSchemaV3.self,
+            toVersion: MemoraSchemaV4.self
         )
     ]
 

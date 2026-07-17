@@ -101,7 +101,8 @@ struct LocalDataDeletionService {
     private func collectedMediaPaths() -> [String] {
         let audio = (try? context.fetch(FetchDescriptor<AudioFile>())) ?? []
         let photos = (try? context.fetch(FetchDescriptor<PhotoAttachment>())) ?? []
-        return audio.map(\.audioURL) + photos.flatMap { [$0.localPath, $0.thumbnailPath].compactMap { $0 } }
+        return audio.flatMap { [$0.audioURL] + $0.segmentPaths }
+            + photos.flatMap { [$0.localPath, $0.thumbnailPath].compactMap { $0 } }
     }
 
     private func deleteFiles(_ paths: [String], into result: inout Result) {

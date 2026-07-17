@@ -25,6 +25,7 @@ typealias MeetingNote = MemoraSharedSchema.MeetingNote
 typealias MemoraSchemaV1 = MemoraSharedSchema.MemoraSchemaV1
 typealias MemoraSchemaV2 = MemoraSharedSchema.MemoraSchemaV2
 typealias MemoraSchemaV3 = MemoraSharedSchema.MemoraSchemaV3
+typealias MemoraSchemaV4 = MemoraSharedSchema.MemoraSchemaV4
 typealias MemoraMigrationPlan = MemoraSharedSchema.MemoraMigrationPlan
 typealias MemoryFact = MemoraSharedSchema.MemoryFact
 typealias MemoryProfile = MemoraSharedSchema.MemoryProfile

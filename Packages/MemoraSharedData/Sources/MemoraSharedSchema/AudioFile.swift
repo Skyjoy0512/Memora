@@ -21,6 +21,8 @@ public final class AudioFile {
     public var createdAt: Date
     public var duration: TimeInterval
     public var audioURL: String
+    /// 完了済み録音セグメントのパス。空配列は V3 以前の単一ファイル録音を表す。
+    public var segmentPaths: [String] = []
     public var isTranscribed: Bool = false
     public var projectID: UUID?
     // 要約関連フィールド

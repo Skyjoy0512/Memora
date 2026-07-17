@@ -21,6 +21,7 @@ final class V6RecordingSessionController {
     private(set) var errorMessage: String?
 
     private var activeProjectID: UUID?
+    private var activeAudioFile: AudioFile?
     private let audioRecorder = AudioRecorder()
     private let recordingViewModel = RecordingViewModel()
     private var timerTask: Task<Void, Never>?
@@ -45,6 +46,20 @@ final class V6RecordingSessionController {
         } catch {
             errorMessage = "録音の開始に失敗しました。マイクへのアクセスを確認してください。"
             return
+        }
+        if let recordingURL = audioRecorder.primaryRecordingURL {
+            activeAudioFile = recordingViewModel.beginSegmentedRecording(
+                fileURL: recordingURL,
+                projectID: activeProjectID
+            )
+        }
+        audioRecorder.completedSegmentsDidChange = { [weak self] paths in
+            guard let self, let activeAudioFile = self.activeAudioFile else { return }
+            self.recordingViewModel.persistCompletedSegments(
+                paths,
+                duration: self.audioRecorder.recordingTime,
+                for: activeAudioFile
+            )
         }
         recordingViewModel.startRecording()
         isActive = true
@@ -73,7 +88,7 @@ final class V6RecordingSessionController {
     func stopAndSave(title: String) -> AudioFile? {
         guard isActive else { return nil }
         stopTimers()
-        guard let url = try? audioRecorder.stopRecording() else {
+        guard let result = try? audioRecorder.stopRecordingWithSegments() else {
             isActive = false
             return nil
         }
@@ -82,13 +97,23 @@ final class V6RecordingSessionController {
         isActive = false
         isPaused = false
         activeProjectID = nil
-        return recordingViewModel.saveRecording(title: title, fileURL: url, duration: finalElapsed, projectID: projectID)
+        defer {
+            activeAudioFile = nil
+            audioRecorder.completedSegmentsDidChange = nil
+        }
+        if let activeAudioFile {
+            return recordingViewModel.finishSegmentedRecording(result, title: title, for: activeAudioFile)
+        }
+        return recordingViewModel.saveRecording(title: title, fileURL: result.fileURL, duration: finalElapsed, projectID: projectID)
     }
 
     func discard() {
         guard isActive else { return }
         stopTimers()
         audioRecorder.cancelRecording()
+        recordingViewModel.discardSegmentedRecording(activeAudioFile)
+        activeAudioFile = nil
+        audioRecorder.completedSegmentsDidChange = nil
         recordingViewModel.cancelRecording()
         isActive = false
         isPaused = false

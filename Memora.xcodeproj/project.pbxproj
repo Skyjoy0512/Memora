@@ -42,6 +42,7 @@
 		302092A92190B21E374CA65A /* ProjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA571A46847D132339E20442 /* ProjectDetailView.swift */; };
 		31032621156028A38F0EC477 /* STTReadOnlyHostDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCC1AE1741C65056C058657C /* STTReadOnlyHostDependencies.swift */; };
 		31747E96157498CD0CA4C537 /* STTServiceHostFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A2443F6F42D4ECFE69ABC9 /* STTServiceHostFactory.swift */; };
+		32BE44CDF08D5EF84F414B89 /* SegmentedAudioFileResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E12022A7B46A8A00E26F7B8 /* SegmentedAudioFileResolver.swift */; };
 		37B189A82F502FD789C37D22 /* TodoItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6687F3B759187EBE428ED00F /* TodoItemTests.swift */; };
 		382BEB19744BEF0418543ECE /* V6DynamicIslandPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82ADF2775D63CECF557046FE /* V6DynamicIslandPill.swift */; };
 		38B48A9CAE4A3FDD43CE3ACE /* TranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */; };
@@ -354,6 +355,7 @@
 		7AE8BEB8888D4078C49777BC /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalyzerPreflight.swift; sourceTree = "<group>"; };
 		7DD3755F32E43B2139AAC7EB /* MessageBubbleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubbleView.swift; sourceTree = "<group>"; };
+		7E12022A7B46A8A00E26F7B8 /* SegmentedAudioFileResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentedAudioFileResolver.swift; sourceTree = "<group>"; };
 		7ED389B76859ACA7B5135F48 /* RecordingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingViewModel.swift; sourceTree = "<group>"; };
 		7F2BE99C7A1DDBDB30ED1E1E /* SettingsBindings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsBindings.swift; sourceTree = "<group>"; };
 		7F366D454C3871B21F0C2D19 /* FileDetailHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailHelpers.swift; sourceTree = "<group>"; };
@@ -675,6 +677,7 @@
 				78A39563D755711D640B86DA /* PlaudService.swift */,
 				6BA50970588243441120B0E9 /* ProcessingStatusCenter.swift */,
 				683BDDF7F5D7217B9B39D628 /* RemoteLLMProvider.swift */,
+				7E12022A7B46A8A00E26F7B8 /* SegmentedAudioFileResolver.swift */,
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
 				F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */,
 				7B6A3E036A25D5361C800081 /* SpeechAnalyzerPreflight.swift */,
@@ -1320,6 +1323,7 @@
 				31747E96157498CD0CA4C537 /* STTServiceHostFactory.swift in Sources */,
 				6373E147D8A905044437B8ED /* STTSupportTypes.swift in Sources */,
 				BAEC7E4EF7E7077936C2A4C3 /* ScreenshotMatchedSkeleton.swift in Sources */,
+				32BE44CDF08D5EF84F414B89 /* SegmentedAudioFileResolver.swift in Sources */,
 				87C15F2C40E94991DFC7B758 /* SettingsBindings.swift in Sources */,
 				85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */,
 				3F05BEEC2D6B99ED222D6829 /* SharedSchemaAliases.swift in Sources */,

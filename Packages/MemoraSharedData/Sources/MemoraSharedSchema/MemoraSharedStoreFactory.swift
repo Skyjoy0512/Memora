@@ -6,7 +6,7 @@ public enum MemoraSharedStoreFactory {
     public static func makePersistentContainer(at storeURL: URL) throws -> ModelContainer {
         let configuration = ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
         return try ModelContainer(
-            for: Schema(versionedSchema: MemoraSchemaV3.self),
+            for: Schema(versionedSchema: MemoraSchemaV4.self),
             migrationPlan: MemoraMigrationPlan.self,
             configurations: [configuration]
         )

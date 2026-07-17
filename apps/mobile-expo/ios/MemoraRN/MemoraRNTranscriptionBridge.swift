@@ -1,6 +1,7 @@
 import Foundation
 import Speech
 import SwiftData
+import AVFoundation
 internal import MemoraNative
 import MemoraSharedCore
 import MemoraSharedSchema
@@ -28,7 +29,7 @@ final class MemoraRNTranscriptionHandler: MemoraTranscriptionHandling {
       throw MemoraRNTranscriptionBridgeError.invalidAudioFileID
     }
 
-    let audioURL = try resolveAudioURL(for: id)
+    let audioURL = try await resolveAudioURL(for: id)
     sttService.updateConfiguration(apiKey: "", provider: .openai, transcriptionMode: .local)
     let (rawHandle, events) = try await sttService.startTranscription(audioURL: audioURL, language: nil)
     guard let handle = rawHandle as? STTTaskHandle else {
@@ -67,18 +68,53 @@ final class MemoraRNTranscriptionHandler: MemoraTranscriptionHandling {
     await handle.cancel()
   }
 
-  private func resolveAudioURL(for id: UUID) throws -> URL {
+  private func resolveAudioURL(for id: UUID) async throws -> URL {
     let context = ModelContext(container)
     let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == id })
     guard let file = try context.fetch(descriptor).first else {
       throw MemoraRNTranscriptionBridgeError.audioFileNotFound
     }
-    let url = URL(fileURLWithPath: file.audioURL).standardizedFileURL
+    let paths = file.segmentPaths.isEmpty ? [file.audioURL] : file.segmentPaths
+    let urls = paths.map { URL(fileURLWithPath: $0).standardizedFileURL }
     let rootPath = audioDirectory.path.hasSuffix("/") ? audioDirectory.path : audioDirectory.path + "/"
-    guard url.path.hasPrefix(rootPath), FileManager.default.fileExists(atPath: url.path) else {
+    guard urls.allSatisfy({ $0.path.hasPrefix(rootPath) && FileManager.default.fileExists(atPath: $0.path) }) else {
       throw MemoraRNTranscriptionBridgeError.audioURLNotInSharedGroup
     }
-    return url
+    guard urls.count > 1 else {
+      guard let url = urls.first else { throw MemoraRNTranscriptionBridgeError.audioURLNotInSharedGroup }
+      return url
+    }
+    return try await concatenate(urls, for: id)
+  }
+
+  private func concatenate(_ urls: [URL], for id: UUID) async throws -> URL {
+    let composition = AVMutableComposition()
+    guard let destination = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+      throw MemoraRNTranscriptionBridgeError.segmentConcatenationFailed
+    }
+    var insertionTime = CMTime.zero
+    for url in urls {
+      let asset = AVURLAsset(url: url)
+      let tracks = try await asset.loadTracks(withMediaType: .audio)
+      guard let source = tracks.first else { throw MemoraRNTranscriptionBridgeError.segmentConcatenationFailed }
+      let duration = try await asset.load(.duration)
+      try destination.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: source, at: insertionTime)
+      insertionTime = CMTimeAdd(insertionTime, duration)
+    }
+    let directory = audioDirectory.appendingPathComponent("SegmentCompositions", isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let outputURL = directory.appendingPathComponent("\(id.uuidString).m4a")
+    try? FileManager.default.removeItem(at: outputURL)
+    guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
+      throw MemoraRNTranscriptionBridgeError.segmentConcatenationFailed
+    }
+    exporter.outputURL = outputURL
+    exporter.outputFileType = .m4a
+    await withCheckedContinuation { continuation in
+      exporter.exportAsynchronously { continuation.resume() }
+    }
+    guard exporter.status == .completed else { throw MemoraRNTranscriptionBridgeError.segmentConcatenationFailed }
+    return outputURL
   }
 
   private func persist(result: TranscriptionResult, audioFileID: UUID) throws {
@@ -136,6 +172,7 @@ private enum MemoraRNTranscriptionBridgeError: LocalizedError {
   case invalidAudioFileID
   case audioFileNotFound
   case audioURLNotInSharedGroup
+  case segmentConcatenationFailed
   case invalidTaskHandle
 
   var errorDescription: String? {
@@ -143,6 +180,7 @@ private enum MemoraRNTranscriptionBridgeError: LocalizedError {
     case .invalidAudioFileID: return "Audio file ID is invalid."
     case .audioFileNotFound: return "Audio file was not found in the shared store."
     case .audioURLNotInSharedGroup: return "Audio file is not available in the shared App Group."
+    case .segmentConcatenationFailed: return "Audio segments could not be prepared for transcription."
     case .invalidTaskHandle: return "Native transcription task could not be created."
     }
   }

@@ -46,11 +46,6 @@ final class V6GenerationSessionController {
         progress = 0
         resultFile = nil
 
-        guard let audioURL = Self.resolveAudioURL(audioFile) else {
-            phase = .failed("音声ファイルが見つかりません")
-            return
-        }
-
         let provider = AIProvider(rawValue: UserDefaults.standard.string(forKey: "selectedProvider") ?? "") ?? .openai
         let transcriptionMode = TranscriptionMode(rawValue: UserDefaults.standard.string(forKey: "transcriptionMode") ?? "") ?? .local
         let apiKey: String = {
@@ -70,6 +65,13 @@ final class V6GenerationSessionController {
 
         pipelineTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            let audioURL: URL
+            do {
+                audioURL = try await SegmentedAudioFileResolver.resolve(audioFile)
+            } catch {
+                self.phase = .failed(error.localizedDescription)
+                return
+            }
             let stream = coordinator.runFullPipeline(
                 audioURL: audioURL,
                 audioFile: audioFile,
@@ -129,11 +131,6 @@ final class V6GenerationSessionController {
         }
     }
 
-    private static func resolveAudioURL(_ audioFile: AudioFile) -> URL? {
-        let path = audioFile.audioURL
-        if path.hasPrefix("file://") { return URL(string: path) }
-        return URL(fileURLWithPath: path)
-    }
 }
 
 /// Generation progress screen (`.dc.html` `modalGenerating`). Circular indeterminate progress +
