@@ -67,9 +67,7 @@ public class MemoraNativeModule: Module {
     AsyncFunction("presentSecureCredentialInput") { (providerValue: String) async throws -> Bool in
       guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { throw MemoraSecureCredentialError.unavailable }
       let viewController = self.appContext?.utilities?.currentViewController()
-      return try await MainActor.run {
-        try await MemoraSecureCredentialInputPresenter().present(provider: provider, from: viewController)
-      }
+      return try await MemoraSecureCredentialInputPresenter().present(provider: provider, from: viewController)
     }
 
     AsyncFunction("startRecording") { () -> [String: Any] in
