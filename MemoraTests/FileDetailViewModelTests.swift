@@ -78,27 +78,27 @@ struct FileDetailViewModelTests {
     // MARK: - Audio URL Setup
 
     @Test("setupAudioPlayer が絶対パスを正しく処理する")
-    func setupAudioPlayerAbsolutePath() {
+    func setupAudioPlayerAbsolutePath() async {
         let vm = makeViewModel(audioURLPath: "/var/mobile/test.m4a")
-        vm.setupAudioPlayer()
+        await vm.setupAudioPlayer()
 
         #expect(vm.audioURL != nil)
         #expect(vm.audioURL?.path == "/var/mobile/test.m4a")
     }
 
     @Test("setupAudioPlayer が file:// プレフィックスを処理する")
-    func setupAudioPlayerFilePrefix() {
+    func setupAudioPlayerFilePrefix() async {
         let vm = makeViewModel(audioURLPath: "file:///var/mobile/test.m4a")
-        vm.setupAudioPlayer()
+        await vm.setupAudioPlayer()
 
         #expect(vm.audioURL != nil)
         #expect(vm.audioURL?.path == "/var/mobile/test.m4a")
     }
 
     @Test("setupAudioPlayer が空パスでURLをnilに保つ")
-    func setupAudioPlayerEmptyPath() {
+    func setupAudioPlayerEmptyPath() async {
         let vm = makeViewModel(audioURLPath: "")
-        vm.setupAudioPlayer()
+        await vm.setupAudioPlayer()
 
         #expect(vm.audioURL == nil)
     }
