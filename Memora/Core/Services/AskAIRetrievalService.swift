@@ -29,9 +29,12 @@ final class AskAIRetrievalService {
     private let modelContext: ModelContext
     private let retrievalEngine: LocalRetrievalEngine
 
-    init(modelContext: ModelContext) {
+    init(modelContext: ModelContext, memoryPrivacy: AskAIMemoryPrivacyConfiguration) {
         self.modelContext = modelContext
-        self.retrievalEngine = LocalRetrievalEngine(modelContext: modelContext)
+        self.retrievalEngine = LocalRetrievalEngine(
+            modelContext: modelContext,
+            memoryPrivacy: memoryPrivacy
+        )
     }
 
     // MARK: - Public API

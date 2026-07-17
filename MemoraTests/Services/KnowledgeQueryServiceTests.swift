@@ -14,8 +14,18 @@ struct KnowledgeQueryServiceTests {
         return ModelContext(container)
     }
 
-    private func makeService(context: ModelContext, privacyMode: String = "standard") -> KnowledgeQueryService {
-        KnowledgeQueryService(modelContext: context, memoryPrivacyMode: privacyMode)
+    private func makeService(
+        context: ModelContext,
+        privacyMode: String = "standard",
+        disabledFactIDs: Set<UUID> = []
+    ) -> KnowledgeQueryService {
+        KnowledgeQueryService(
+            modelContext: context,
+            memoryPrivacy: AskAIMemoryPrivacyConfiguration(
+                mode: privacyMode,
+                disabledFactIDs: disabledFactIDs
+            )
+        )
     }
 
     // MARK: - File Scope: buildContext returns correct scopeTitle
@@ -409,6 +419,28 @@ struct KnowledgeQueryServiceTests {
 
         #expect(pack.promptContext.contains("preferredLanguage"))
         #expect(pack.promptContext.contains("日本語で回答"))
+    }
+
+    @Test("注入した無効 memory fact は context に含めない")
+    func injectedDisabledMemoryFactIsExcluded() {
+        let ctx = makeContext()
+        let profile = MemoryProfile()
+        ctx.insert(profile)
+
+        let fact = MemoryFact(
+            profileID: profile.id,
+            key: "privateFact",
+            value: "表示してはいけない値",
+            source: "auto:summary",
+            confidence: 0.9
+        )
+        ctx.insert(fact)
+        try? ctx.save()
+
+        let service = makeService(context: ctx, disabledFactIDs: [fact.id])
+        let pack = service.buildContext(for: .global)
+
+        #expect(!pack.promptContext.contains("表示してはいけない値"))
     }
 
     @Test("privacy mode off の時、memory context が空になる")
