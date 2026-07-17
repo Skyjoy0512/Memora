@@ -47,6 +47,9 @@ enum AudioFileImportService {
 
         let audioFile = AudioFile(title: resolvedTitle, audioURL: destinationURL.path)
         audioFile.duration = durationSeconds.isFinite ? durationSeconds : 0
+        if let creationDate = try? sourceURL.resourceValues(forKeys: [.creationDateKey]).creationDate {
+            audioFile.createdAt = creationDate
+        }
 
         modelContext.insert(audioFile)
         try modelContext.save()

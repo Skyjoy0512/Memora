@@ -5,16 +5,19 @@ import SwiftData
 
 struct DeveloperFeaturesSection: View {
     @Bindable var state: SettingsState
+#if DEBUG
     @Environment(\.modelContext) private var modelContext
     @Query private var plaudSettingsList: [PlaudSettings]
 
     private var plaudSettings: PlaudSettings? {
         plaudSettingsList.first
     }
+#endif
 
     var body: some View {
         Section {
-            // PLAUD cloud import
+#if DEBUG
+            // 非公式 API を使う開発用のログイン・同期 UI
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "icloud.and.arrow.down")
@@ -26,6 +29,7 @@ struct DeveloperFeaturesSection: View {
                     .font(MemoraTypography.caption1)
                     .foregroundStyle(.secondary)
             }
+#endif
 
             // Gemma 4 Experimental
             VStack(alignment: .leading, spacing: MemoraSpacing.sm) {
@@ -97,6 +101,8 @@ struct DeveloperFeaturesSection: View {
             }
             .padding(.vertical, MemoraSpacing.xxxs)
 
+#if DEBUG
+            // 非公式 API を使う開発用のログイン・同期 UI
             // Plaud 連携 Toggle
             Toggle("Plaud 連携を有効化", isOn: Binding(
                 get: { plaudSettings?.isEnabled ?? false },
@@ -120,12 +126,16 @@ struct DeveloperFeaturesSection: View {
             if plaudSettings?.isEnabled ?? false {
                 plaudSettingsContent
             }
+#endif
         }
+        #if DEBUG
         .task {
             state.isLoggedIn = PlaudMCPOAuthService().account().isConnected
         }
+        #endif
     }
 
+#if DEBUG
     @ViewBuilder
     private var plaudSettingsContent: some View {
         if state.isLoggedIn {
@@ -261,4 +271,5 @@ struct DeveloperFeaturesSection: View {
         formatter.locale = Locale(identifier: "ja_JP")
         return formatter.string(from: date)
     }
+#endif
 }
