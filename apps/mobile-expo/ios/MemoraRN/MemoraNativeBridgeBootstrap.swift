@@ -4,6 +4,7 @@ internal import MemoraNative
 import MemoraSharedData
 import MemoraSharedSchema
 import MemoraSharedSummary
+import MemoraSharedAskAI
 
 @MainActor
 enum MemoraNativeBridgeBootstrap {
@@ -85,6 +86,7 @@ enum MemoraNativeBridgeBootstrap {
     MemoraNativeAudioFileMutationRegistry.audioFileMutator = adapter
     MemoraNativeTranscriptionRegistry.handler = transcriptionHandler
     MemoraNativeSummaryRegistry.summaryGenerator = MemoraSharedStoreSummaryGenerator(container: container)
+    MemoraNativeKnowledgeQueryRegistry.knowledgeQuery = MemoraSharedStoreKnowledgeQuery(container: container)
     if let recordingImportHandler {
       MemoraNativeRecordingImportRegistry.handler = recordingImportHandler
     }
