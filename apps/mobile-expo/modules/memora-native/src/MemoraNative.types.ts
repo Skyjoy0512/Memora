@@ -66,12 +66,14 @@ export type KnowledgeQueryRequestDTO = {
   question: string;
   audioFileId?: string;
   projectId?: string;
+  sessionId?: string;
 };
 
 export type KnowledgeQueryResponseDTO = {
   id: string;
   answer: string;
   sources: string[];
+  sessionId: string;
   scope: KnowledgeQueryScope;
   answeredAt: string;
 };

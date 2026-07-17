@@ -161,6 +161,7 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
       id: `web-query-${Date.now()}`,
       scope: request.scope,
       sources: this.makeKnowledgeSources(request.scope),
+      sessionId: request.sessionId ?? `web-session-${Date.now()}`,
     };
   }
 

@@ -18,6 +18,7 @@
 		8F12A8F72C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */; };
 		8F12A8F82C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */; };
 		C8D4E2F17A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */; };
+		D8E4F2A17B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */; };
 		A84D5E6F708192A3B4C5D6E7 /* MemoraRNTranscriptionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		CDC318F7BDAF4DB86A44F76C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF3E027A4D5411EE0F187CAF /* ExpoModulesProvider.swift */; };
@@ -41,6 +42,7 @@
 		8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraNativeBridgeBootstrap.swift; path = MemoraRN/MemoraNativeBridgeBootstrap.swift; sourceTree = "<group>"; };
 		8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreBridgeAdapters.swift; path = MemoraRN/MemoraSharedStoreBridgeAdapters.swift; sourceTree = "<group>"; };
 		C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreSummaryGenerator.swift; path = MemoraRN/MemoraSharedStoreSummaryGenerator.swift; sourceTree = "<group>"; };
+		D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreKnowledgeQuery.swift; path = MemoraRN/MemoraSharedStoreKnowledgeQuery.swift; sourceTree = "<group>"; };
 		A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraRNTranscriptionBridge.swift; path = MemoraRN/MemoraRNTranscriptionBridge.swift; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MemoraRN/SplashScreen.storyboard; sourceTree = "<group>"; };
 		AD038D99E6A0B350A23A8C13 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MemoraRN/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
@@ -90,6 +92,7 @@
 				8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */,
 				8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */,
 				C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */,
+				D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */,
 				D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */,
 				A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */,
 				F11748442D0722820044C1D9 /* MemoraRN-Bridging-Header.h */,
@@ -236,6 +239,7 @@
 				B1C2D3E4F5061728394A5B6C /* MemoraSharedData */,
 				A84D5E6F708192A3B4C5D6E8 /* MemoraSharedCore */,
 				C8D4E2F27A2B4C6D8E0F1234 /* MemoraSharedSummary */,
+				D8E4F2A27B3C5D6E9F011235 /* MemoraSharedAskAI */,
 			);
 			productName = MemoraRN;
 			productReference = 13B07F961A680F5B00A75B9A /* MemoraRN.app */;
@@ -521,6 +525,7 @@
 				8F12A8F72C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift in Sources */,
 				8F12A8F82C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift in Sources */,
 				C8D4E2F17A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift in Sources */,
+				D8E4F2A17B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift in Sources */,
 				D9E5F3A17B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift in Sources */,
 				A84D5E6F708192A3B4C5D6E7 /* MemoraRNTranscriptionBridge.swift in Sources */,
 				314DE1AD346D8BFF2B052369 /* ExpoModulesProvider.swift in Sources */,
@@ -828,6 +833,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
 			productName = MemoraSharedSummary;
+		};
+		D8E4F2A27B3C5D6E9F011235 /* MemoraSharedAskAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
+			productName = MemoraSharedAskAI;
 		};
 		B1C2D3E4F5061728394A5B6C /* MemoraSharedData */ = {
 			isa = XCSwiftPackageProductDependency;
