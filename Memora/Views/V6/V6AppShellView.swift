@@ -14,16 +14,9 @@ struct V6AppShellView: View {
     let onMeetingCapture: () -> Void
     let onOpenFileDetail: (AudioFile) -> Void
 
-    @AppStorage(V6AuthStorageKey.stage) private var authStageRaw = V6AuthStage.done.rawValue
-    @AppStorage(V6AuthStorageKey.isPro) private var isPro = false
-    @AppStorage(V6AuthStorageKey.loginEmail) private var loginEmail = ""
-    @AppStorage("v6NotifEnabled") private var notifEnabled = false
-    @AppStorage("selectedProvider") private var selectedProvider = "OpenAI"
     @Query(sort: \AudioFile.createdAt, order: .reverse) private var audioFiles: [AudioFile]
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @Query(sort: \TodoItem.createdAt, order: .reverse) private var todos: [TodoItem]
-    @Query private var notionSettingsList: [NotionSettings]
-    @Query private var plaudSettingsList: [PlaudSettings]
     @State private var isFabMenuOpen = false
     @State private var homeFilter: V6HomeFilter = .files
     @State private var isHomeFilterMenuOpen = false
@@ -555,10 +548,6 @@ struct V6AppShellView: View {
     private var settingsScreen: some View {
         V6PlainScreen(title: "設定") {
             VStack(alignment: .leading, spacing: 18) {
-                V6SettingsGroup(title: "アカウント") {
-                    V6SettingsRow(title: loginEmail.isEmpty ? "未設定" : loginEmail) {}
-                }
-
                 V6SettingsGroup(title: "デバイス") {
                     Button {
                         showDeviceConnection = true
@@ -588,17 +577,7 @@ struct V6AppShellView: View {
                 }
 
                 V6SettingsGroup(title: "通知") {
-                    HStack {
-                        Text("プッシュ通知")
-                            .font(.system(size: 15))
-                            .foregroundStyle(V6Color.ink)
-                        Spacer()
-                        Toggle("", isOn: $notifEnabled)
-                            .labelsHidden()
-                            .tint(V6Color.ink)
-                    }
-                    .padding(.vertical, 13)
-                    .padding(.horizontal, 14)
+                    V6SettingsStaticRow(title: "プッシュ通知", value: "準備中")
                 }
 
                 V6SettingsGroup(title: "連携") {
@@ -608,13 +587,13 @@ struct V6AppShellView: View {
                     ) {
                         showPlaudConnection = true
                     }
-                    V6SettingsRow(title: "Notion に書き出す", value: (notionSettingsList.first?.isConfigured ?? false) ? "接続済み" : "未接続") {}
-                    V6SettingsRow(title: "ChatGPT に共有", value: KeychainService.load(key: .apiKeyOpenAI).isEmpty ? "未接続" : "接続済み") {}
+                    V6SettingsStaticRow(title: "Notion に書き出す", value: "準備中")
+                    V6SettingsStaticRow(title: "ChatGPT に共有", value: "準備中")
                 }
 
                 V6SettingsGroup(title: "文字起こし・要約") {
-                    V6SettingsRow(title: "AI モデル", value: selectedProvider) {}
-                    V6SettingsRow(title: "要約テンプレート", value: "議事録") {}
+                    V6SettingsStaticRow(title: "AI モデル", value: "準備中")
+                    V6SettingsStaticRow(title: "要約テンプレート", value: "準備中")
                 }
 
                 V6SettingsGroup(title: "その他") {
@@ -622,21 +601,6 @@ struct V6AppShellView: View {
                         showDeleteDataConfirm = true
                     } label: {
                         Text("データを削除")
-                            .font(.system(size: 15))
-                            .foregroundStyle(V6Color.danger)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 13)
-                            .padding(.horizontal, 14)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                V6SettingsGroup(title: "アカウント操作") {
-                    Button {
-                        logout()
-                    } label: {
-                        Text("ログアウト")
                             .font(.system(size: 15))
                             .foregroundStyle(V6Color.danger)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -671,12 +635,6 @@ struct V6AppShellView: View {
         )) {
             Button("閉じる", role: .cancel) { deletionResultMessage = nil }
         } message: { Text(deletionResultMessage ?? "") }
-    }
-
-    private func logout() {
-        isPro = false
-        loginEmail = ""
-        authStageRaw = V6AuthStage.login.rawValue
     }
 
     private func projectTitle(for projectID: UUID?) -> String {

@@ -192,7 +192,7 @@ final class V6IslandController {
     func handleTap() {
         switch mode {
         case .idle:
-            openAskCapsule()
+            onOpenAskTab?()
         case .liveRecording:
             onOpenRecording?()
         case .liveGeneration:
