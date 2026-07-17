@@ -17,6 +17,10 @@ let package = Package(
     .target(name: "MemoraSharedAskAI", dependencies: ["MemoraSharedCore", "MemoraSharedSchema"]),
     .target(name: "MemoraSharedSchema"),
     .target(name: "MemoraSharedData", dependencies: ["MemoraSharedSchema"]),
-    .testTarget(name: "MemoraSharedDataTests", dependencies: ["MemoraSharedData", "MemoraSharedSchema", "MemoraSharedCore", "MemoraSharedSummary", "MemoraSharedAskAI"])
+    .testTarget(
+      name: "MemoraSharedDataTests",
+      dependencies: ["MemoraSharedData", "MemoraSharedSchema", "MemoraSharedCore", "MemoraSharedSummary", "MemoraSharedAskAI"],
+      resources: [.copy("Fixtures")]
+    )
   ]
 )
