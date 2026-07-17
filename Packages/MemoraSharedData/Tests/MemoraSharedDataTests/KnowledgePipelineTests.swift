@@ -1,6 +1,7 @@
 import Testing
 import Foundation
-@testable import Memora
+import MemoraSharedSchema
+@testable import MemoraSharedAskAI
 
 struct KnowledgePipelineTests {
 

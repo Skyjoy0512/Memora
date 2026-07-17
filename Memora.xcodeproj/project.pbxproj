@@ -154,7 +154,6 @@
 		A6C48A7289705CB67173D399 /* TranscriptTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900CA65A1AEAFFE663D8173B /* TranscriptTab.swift */; };
 		A979D543A59F91F4D062DAA0 /* FABMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19286A2C8501408A34BE2FFE /* FABMenu.swift */; };
 		A9C4BE7639CA8EA9AD976A61 /* MemorySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F71A1815288589FC9C4308AE /* MemorySettingsView.swift */; };
-		AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */; };
 		AA4AD4D41818BA29DECFB4FD /* V6AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EADB067D428F55CCEE82DFA /* V6AuthFlowView.swift */; };
 		ABA75B650BF5A87DE3741076 /* MemoraSharedAudioFileStoreAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1595E0DB88E7843DA433911 /* MemoraSharedAudioFileStoreAdapterTests.swift */; };
 		AC077218DC20C6F70A9DEF1F /* V6AccountPlanSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0850111EF75C27905C2B8ADA /* V6AccountPlanSection.swift */; };
@@ -394,7 +393,6 @@
 		A9B326B618C8C1EE53C70ABF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		ABE468754017ED390E23EDFE /* BluetoothAudioService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothAudioService.swift; sourceTree = "<group>"; };
 		ABF6727765CABCAC6D5C04F8 /* PlaudCloudConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudCloudConnectionSheet.swift; sourceTree = "<group>"; };
-		AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgePipelineTests.swift; sourceTree = "<group>"; };
 		AE8F49CB7EC9028D7A3E6D4F /* CreateProjectViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateProjectViewModelTests.swift; sourceTree = "<group>"; };
 		AF106F713A7D8A1486AD89C3 /* PersistentStoreSafetyServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistentStoreSafetyServiceTests.swift; sourceTree = "<group>"; };
 		B37E00637A5D6E53E9C4BA73 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
@@ -855,7 +853,6 @@
 			isa = PBXGroup;
 			children = (
 				3CA37B2C98474A3607B571B9 /* AudioSilenceProbeTests.swift */,
-				AC36CA21E9E3A01661CCD483 /* KnowledgePipelineTests.swift */,
 				3AE9D793EEF58F5A51E4C3E0 /* KnowledgeQueryServiceTests.swift */,
 				F976DECF01B7B80665AE885F /* LocalDataDeletionServiceCoverageTests.swift */,
 				D384554ADB6BFA244C1DA8C3 /* MemoryExtractionServiceTests.swift */,
@@ -1148,7 +1145,6 @@
 				EB1E046145015A50CEA32806 /* FileDetailViewModelTests.swift in Sources */,
 				A58F5BE79ACA1D8107B3EF4A /* GenericFileSourceTests.swift in Sources */,
 				A4D5B536984B05B400C1748D /* HomeViewModelTests.swift in Sources */,
-				AA2B35A07F61C87788F05A86 /* KnowledgePipelineTests.swift in Sources */,
 				95069F555725B9DBD2988D7C /* KnowledgeQueryServiceTests.swift in Sources */,
 				8BD747978ACE4246D2F97D10 /* LocalDataDeletionServiceCoverageTests.swift in Sources */,
 				ABA75B650BF5A87DE3741076 /* MemoraSharedAudioFileStoreAdapterTests.swift in Sources */,
