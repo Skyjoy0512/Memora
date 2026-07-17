@@ -128,7 +128,7 @@ final class MemoraSharedStoreSummaryGenerator: MemoraSummaryGenerating {
   }
 }
 
-private struct MemoraRNRemoteLLMProvider: LLMProvider {
+struct MemoraRNRemoteLLMProvider: LLMProvider {
   let displayName: String
   private let provider: MemoraRNSummaryProvider
   private let apiKey: String
