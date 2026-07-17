@@ -11,6 +11,27 @@
 - SwiftDataスキーマを変更する項目は、既存データのマイグレーション確認をPR内で報告する。
 - レーン別検証（CLAUDE.md §3.3）に従う。下記の各項目にも必須コマンドを記載。
 
+### 本計画の前提（2026-07-17 確定・RN移行完了後に改訂）
+
+- **UIはRNが唯一**。SwiftUI（`Memora/Views/**`）は**凍結→削除**方針。UI項目の実装先は
+  `apps/mobile-expo/src/screens/**` + ネイティブブリッジであり、**Lane A ではなく F（RN UI）/ G（RNネイティブ）**。
+  ただし **Live Activity・App Intents・Spotlight・Share Extension はネイティブのまま**（OS統合はUI非依存）。
+- **Lane H は細分化済み**（CLAUDE.md §3.2改訂）: Lane H = `MemoraSharedData/Sources/MemoraSharedSchema/**`
+  （スキーマ/ストア契約）のみ。`MemoraSharedCore` / `MemoraSharedSummary` / `MemoraSharedAskAI` は
+  **各機能レーン（B/C）が保有**する。これによりH多重占有を回避する。
+- **UI非依存の項目（過半数）は今すぐ着手可**。UI項目はSwiftUI削除後に着手すると二重実装を避けられる。
+- **スキーマ変更は同時に1本だけ**。方式は既存の `VersionedSchema`（`MemoraSchemaV1→V2→V3` +
+  `MigrationStage.lightweight`、正本=`MemoraSharedSchema/MemoraSchema.swift`）を踏襲し、**V4以降を1本ずつ積む**。
+  推奨順: `P1-4(スキーマ部/V4) → P0-2(b) → P1-2 → P2-1 → P2-4 → P2-2 → P4-3(CloudKit最後)`。
+  **「Phase 1 全並列可」はスキーマ観点では成立しない**。
+- **共有ターゲットを新設したら**、`Package.swift` の library 公開 **と** RNホスト
+  `apps/mobile-expo/ios/MemoraRN.xcodeproj` の `packageProductDependencies` + Sources 登録の**両方**が必要
+  （片方漏れると `no such module`。CIの `rn-ios-build` が検出する）。
+- **APIキーの現行設計**（#116/#117で確立・計画の一部記述より優先）: 鍵は**RN専用Keychain**
+  （`com.anonymous.memora-rn.ai-credentials`）に保存。入力は**Expo moduleのネイティブ安全入力**
+  （RNのTextInputは使わない＝値がJSに載るため）。JS公開面は「設定済みbool/開く/削除」のみ。
+  共有コアへは**構成済み `LLMProvider`** を注入し、生の鍵は渡さない。
+
 ## フェーズ構成と依存関係
 
 ```
@@ -19,6 +40,17 @@ Phase 1（即効）:     P1-1, P1-2, P1-3, P1-4   ※相互依存なし・全並
 Phase 2（精度）:     P2-1, P2-2, P2-3, P2-4, P2-5   ※P2-5はP1-4完了後
 Phase 3（BG/OS統合）: P3-1, P3-2, P3-3
 Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
+
+暗黙依存（本文に記載があるが図に無かったもの。2026-07-17 追記）:
+  P0-1 → P2-3（チャンク境界変更前にテスト緑）
+  P0-2 → P1-3（両方 AudioRecorder.swift。直列必須）
+  P0-3 → P4-1(5)（サーマル制御を流用）
+  P1-1 → P2-5(5)（発言箇所ジャンプの機構を流用）
+  P1-2 → P4-1(3)（vocabularyHints をコアへ配線）
+  P1-4 → P4-4（要約履歴機構をキャッシュへ流用）
+  P2-1 → P3-2(2)（チャンクを Spotlight へ流用）
+  P2-2 → P4-2(2)（話者プロファイルを参加者サジェストへ接続）
+  P2-4 → P4-5(2)（ルーティングに tts 用途を追加）
 ```
 
 同時並行の上限はレーン重複で決まる。**同一レーンの項目を2セッションに同時割当しない**こと。
@@ -34,9 +66,11 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
 - **目的**: STTコア変更の安全網。以降の🔒項目の前提。
 - **内容**:
   1. `Packages/MemoraSharedData/Tests/` にチャンクマージ・チェックポイント再開・キャンセル・タイムアウトのユニットテストを追加（`STTService` はDI済みなのでモックバックエンドで検証可能。`STTServiceDependencyContracts.swift` 参照）。
-  2. 固定の日本語短尺音声フィクスチャ（10〜30秒、リポジトリに同梱、合成音声で可）＋期待テキストを用意し、CER（文字誤り率）閾値チェックをシミュレータテストとして追加。CI必須にはせず、コア変更PRで手動実行を義務化。
+  2. 固定の日本語短尺音声フィクスチャ（10〜30秒、リポジトリに同梱、合成音声で可）＋期待テキストを用意し、
+     **既存資産の再利用**: クローズした #66 の `MemoraTests/Services/TestAudioFactory.swift`（81行・音声生成）が
+     ブランチ `test/stt-deadline-merge-silence` に残置されている。これを流用する（新規実装しない）。CER（文字誤り率）閾値チェックをシミュレータテストとして追加。CI必須にはせず、コア変更PRで手動実行を義務化。
 - **変更しない**: STTコア本体（テスト追加のみ。テスタビリティのための最小限のアクセス修飾変更は可、その場合§8報告）。
-- **検証**: `swift test --package-path Packages/MemoraSharedData` / SwiftUI側ビルド。
+- **検証**: `swift test --package-path Packages/MemoraSharedData` / ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)）。
 - **受け入れ**: マージ・再開・キャンセルのテストが緑。フィクスチャCERテストの実行手順がテストファイル冒頭コメントに記載されている。
 
 ### P0-2 🔒 録音の堅牢性（データ喪失ゼロ化）
@@ -48,7 +82,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   2. セグメント分割録音: 5分ごとにファイルを閉じて次を開く方式に変更し、クラッシュ時の損失を直近セグメントに限定。既存の1ファイル前提の再生・STT投入経路は、セグメント連結ビュー（複数URLを順再生・順STT）で吸収する。`AudioFile` モデルに `segmentPaths: [String]` を追加（既存データは単一パスのまま動くこと）。
   3. 録音開始前＋録音中のディスク残量監視。閾値（500MB）割れで警告、100MB割れで安全停止。
 - **PR分割**: (a) interruption/route対応 → (b) セグメント分割保存 → (c) ディスク監視 の3PR。(b)はスキーマ変更を含むため単独PR必須。
-- **検証**: SwiftUI側ビルド + 手動確認（録音中に着信シミュレート、機内モード切替、Bluetooth切替）。手動確認結果をPRに記載。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 手動確認（録音中に着信シミュレート、機内モード切替、Bluetooth切替）。手動確認結果をPRに記載。
 - **受け入れ**: 録音中にアプリをkillしても、直近セグメント以外が再生・文字起こし可能。
 
 ### P0-3 可観測性とパイプライン計測
@@ -58,7 +92,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   1. MetricKit導入（クラッシュ・ハング・電力のペイロードをローカル保存、設定画面の診断ページで閲覧・共有）。
   2. STT計測: 実時間比（RTF）、バックエンド別成功/失敗、チャンク再試行回数を `DebugLogger` に構造化記録。計測点は `STTCheckpointHooks` / `ProcessingStatusCenter` 等の既存フックに寄せ、コアに新規コードを入れない。入れざるを得ない場合は最小フック追加のみ＋§8報告。
   3. サーマル監視: `ProcessInfo.thermalState` が `.serious` 以上でSTTチャンク並行数を1に落とす設定値を `STTExecutionConfiguration` 経由で供給。
-- **検証**: SwiftUI側ビルド + 診断ページで計測値が表示されることのスクリーンショット。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 診断ページで計測値が表示されることのスクリーンショット。
 - **受け入れ**: 1回の文字起こしでRTF・バックエンド名・再試行数が診断ページに出る。
 
 ---
@@ -67,44 +101,46 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
 
 ### P1-1 トランスクリプト タップ→再生ジャンプ
 
-- **ブランチ**: `feat/transcript-tap-to-seek` / **レーン**: A
+- **ブランチ**: `feat/transcript-tap-to-seek` / **レーン**: F（RN UI）+ G（必要ならseekブリッジ）
+- **UI実装先**: `apps/mobile-expo/src/screens/FileDetailScreen.tsx`（**SwiftUIの`TranscriptTab.swift`ではない**。SwiftUIは凍結→削除方針）
 - **前提資産**: `Transcript.segmentStartTimes/segmentEndTimes` 保存済み、`AudioPlayer.seek(to:)` 実装済み。**UI結線のみ**。
 - **内容**:
   1. セグメントタップで `seek(to: startSec)` ＋再生開始。
   2. 再生位置に追従して現在セグメントをハイライト＋自動スクロール（`currentTime` の既存プログレスストリームを購読）。
   3. 自動スクロールはユーザーが手でスクロール中は一時停止（3秒後に再追従）。
-- **検証**: SwiftUI側ビルド + シミュレータで動作GIF/スクショをPRに添付。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + シミュレータで動作GIF/スクショをPRに添付。
 - **受け入れ**: タップ位置の音声が±1秒以内で再生される。デザイントークン（§9）準拠、タップ領域44pt以上。
 
 ### P1-2 整形パイプライン: フィラー除去＋ユーザー辞書
 
 - **ブランチ**: `feat/transcript-postprocessor` / **レーン**: C（新規ファイルのみ、STTコア外）
 - **内容**:
-  1. 新規 `Memora/Core/Services/TranscriptPostProcessor.swift`: ルールベースの日本語フィラー除去（えー/あのー/まあ/なんか等の辞書＋連続重複語正規化）。**元テキストは必ず保持**（`Transcript` に `cleanedText: String?` と `cleanedSegmentTexts: [String]` を追加。表示はトグルで raw/cleaned 切替）。
+  1. 新規 `Packages/MemoraSharedData/Sources/MemoraSharedCore/TranscriptPostProcessor.swift`（RNが唯一UIのため共有側に置く。app側はaliasで参照）: ルールベースの日本語フィラー除去（えー/あのー/まあ/なんか等の辞書＋連続重複語正規化）。**元テキストは必ず保持**（`Transcript` に `cleanedText: String?` と `cleanedSegmentTexts: [String]` を追加。表示はトグルで raw/cleaned 切替）。
   2. 新規SwiftDataモデル `CustomVocabulary`（`pattern`, `replacement`, `reading`, `enabled`）。保存時置換に適用。
   3. 辞書をSTT認識ヒントへ供給: `contextualStrings`（SFSpeechRecognizer）/ `prompt`（Whisper API）への受け渡しは **インターフェースだけ** `STTExecutionConfiguration` に `vocabularyHints: [String]` として追加し、コア内での配線は P4-1 と同時に🔒PRで行う（本PRではコア未変更）。
   4. 設定画面に辞書管理UI（追加・編集・削除・有効化）。
 - **PR分割**: (a) PostProcessor+cleanedText → (b) CustomVocabulary+設定UI の2PR。
-- **検証**: SwiftUI側ビルド + PostProcessorのユニットテスト（フィラー除去の入出力ペア10件以上）。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + PostProcessorのユニットテスト（フィラー除去の入出力ペア10件以上）。
 - **受け入れ**: 既存transcriptに後から整形を適用でき、元に戻せる。
 
 ### P1-3 🔒 録音ビットレート最適化
 
+- **依存**: **P0-2 完了後に着手**（両方 `AudioRecorder.swift` を触るため直列必須。Phase 1の「全並列可」の例外）
 - **ブランチ**: `feat/recording-bitrate` / **レーン**: B
 - **内容**: `AudioRecorder` の設定を音声向けに変更: AAC-HE（`kAudioFormatMPEG4AAC_HE`）モノラル 32kbps・サンプルレート48kHz入力。設定画面に「録音品質: 標準（推奨）/ 高音質（現行AAC 44.1kHz）」の選択を追加（既定=標準）。
 - **注意**: STT精度への影響確認が必須。同一音源を新旧設定で録音→文字起こしし、結果差分をPRに記載（P0-1のフィクスチャ手順を流用）。
-- **検証**: SwiftUI側ビルド + 1時間録音相当のファイルサイズ比較を報告（目標: 従来比 1/4 以下）。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 1時間録音相当のファイルサイズ比較を報告（目標: 従来比 1/4 以下）。
 - **受け入れ**: 新規録音が既定で約14MB/時以下。既存ファイルの再生・STTに影響なし。
 
 ### P1-4 要約: テンプレート＋モデル選択
 
-- **ブランチ**: `feat/summary-template-config`（基盤） → `feat/summary-template-ui`（UI） / **レーン**: C → A
-- **前提資産**: `MeetingNoteTemplate` enum（6種）は `CoreDTOs.swift` に定義済み。プロバイダー抽象（Local FM / OpenAI / Gemini / DeepSeek）完成済み。
+- **ブランチ**: `feat/summary-template-config`（基盤） → `feat/summary-template-ui`（UI） / **レーン**: C+H（基盤/`MemoraSharedSummary`）→ F（RN UI）
+- **前提資産**: `MeetingNoteTemplate` enum（6種）は `Packages/MemoraSharedData/Sources/MemoraSharedCore/CoreDTOs.swift` に定義済み（app側は `SharedSchemaAliases.swift` で alias）。プロバイダー抽象（Local FM / OpenAI / Gemini / DeepSeek）完成済み。
 - **内容**:
   1. 基盤PR（C）: `SummaryGenerationConfig` を拡張 — `template: MeetingNoteTemplate?` / `providerOverride: AIProvider?` / `modelID: String?` / `detailLevel: 短・標準・詳細` / `outputLanguage`。`SummarizationEngine` でテンプレート別プロンプトを組み立て。新規SwiftDataモデル `SummaryTemplate`（ユーザー定義: 名前・プロンプト・出力セクション）を組み込み6種と同列に扱う。`Summary` を1:N化して再要約履歴を保持（スキーマ変更、マイグレーション報告必須）。
   2. 基盤PR（C）: ローカル（Foundation Models）経路は `@Generable` 構造化出力に置換。FMのコンテキスト約4Kトークン制約のため、長文transcriptは map-reduce（区間要約→統合）を `SummarizationEngine` 内に実装。
   3. UI PR（A）: 要約実行時のテンプレート＋モデル選択シート、ファイル単位の選択記憶、再要約と履歴切替UI、ユーザーテンプレート編集画面。
-- **検証**: SwiftUI側ビルド + parseJSON系のユニットテスト + 各テンプレートの出力例をPRに添付。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + parseJSON系のユニットテスト + 各テンプレートの出力例をPRに添付。
 - **受け入れ**: 同一transcriptに対しテンプレートを変えて再要約でき、過去の結果に切り替えられる。
 
 ---
@@ -113,13 +149,13 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
 
 ### P2-1 AskAI: ハイブリッド検索＋UserMemory
 
-- **ブランチ**: `feat/askai-hybrid-retrieval` → `feat/askai-user-memory` / **レーン**: C
+- **ブランチ**: `feat/askai-hybrid-retrieval` → `feat/askai-user-memory` / **レーン**: C（実体は `MemoraSharedAskAI`。Lane H細分化により機能レーンCが保有）
 - **内容**:
   1. `NLContextualEmbedding`（iOS 17+、オンデバイス、日本語対応）で `KnowledgeChunk` をベクトル化。埋め込みは `KnowledgeIndexingService` のインデックス時に計算し、チャンクに `[Float]` として保存。`LocalRetrievalEngine` のスコアを `キーワードスコア × 0.4 + コサイン類似度 × 0.6` のハイブリッドに（係数は定数化して調整可能に）。既存インデックスは初回起動時にバックグラウンド再構築。
   2. `MemoryExtractionService` を本稼働: 要約完了時に事実候補（役職・プロジェクト名・人名・固有名詞）を抽出→新規SwiftDataモデル `UserMemory`（内容・出典fileID・確度・作成日）に保存。設定画面に記憶の一覧・削除UI（プライバシー配慮で全削除も）。AskAIのシステムプロンプトに上位N件を注入。
   3. AskAI回答への 👍/👎 フィードバックを保存し、👎の多い記憶を注入から除外。
 - **PR分割**: (a) 埋め込み+ハイブリッド検索 → (b) UserMemory+抽出 → (c) フィードバック の3PR。
-- **検証**: SwiftUI側ビルド + 検索スコアのユニットテスト + 「キーワード一致しないが意味が近い質問」がヒットする実例をPRに記載。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 検索スコアのユニットテスト + 「キーワード一致しないが意味が近い質問」がヒットする実例をPRに記載。
 
 ### P2-2 🔒 話者分離: enrollment＋修正学習
 
@@ -131,26 +167,27 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   3. 短セグメントスムージング: 1.5秒未満の孤立話者ターンを前後にマージ。
   4. `isEstimatedTiming == false`（実タイムスタンプあり）のセグメントは比例配分でなくタイムスタンプ優先で割当。
 - **PR分割**: (a) enrollment+マッチング → (b) 修正学習 → (c) スムージング+割当改善 の3PR。話者登録のSwiftDataモデル確定はboundary docの制約どおり(a)で埋め込み仕様を固めてから。
-- **検証**: SwiftUI側ビルド + 2〜3名の実会話サンプルでDER改善をbefore/afterでPRに記載 + §8報告。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 2〜3名の実会話サンプルでDER改善をbefore/afterでPRに記載 + §8報告。
 
 ### P2-3 🔒 VAD＋音声前処理
 
-- **ブランチ**: `feat/stt-vad-preprocess` / **レーン**: B
+- **ブランチ**: `feat/stt-vad-preprocess` / **レーン**: B（実体は `MemoraSharedCore/AudioChunker.swift`。Lane H細分化により機能レーンBが保有）
 - **内容**:
-  1. FluidAudio同梱のVADでチャンク分割位置を無音に合わせる（`AudioChunker.swift` = 共有パッケージ側）。無音区間はSTT投入をスキップし処理時間短縮。
+  1. FluidAudio同梱のVADでチャンク分割位置を無音に合わせる（`Packages/MemoraSharedData/Sources/MemoraSharedCore/AudioChunker.swift`）。無音区間はSTT投入をスキップし処理時間短縮。
   2. STT投入前のラウドネス正規化（小音量音声の底上げ）。
   3. 録音経路に `AVAudioEngine` voice processing（ノイズ抑制）のオプション追加（既定OFF、設定でON）。
 - **注意**: チャンク境界変更はマージロジックに影響 → P0-1のテストが緑であることを確認してから着手。§8報告必須。
-- **検証**: `swift test --package-path Packages/MemoraSharedData` + SwiftUI側ビルド + 同一音源の処理時間before/after。
+- **検証**: `swift test --package-path Packages/MemoraSharedData` + ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 同一音源の処理時間before/after。
 
 ### P2-4 機能別ルーティング設定（BYOK/ローカル切替）
 
-- **ブランチ**: `feat/per-feature-provider-routing` / **レーン**: C（基盤）→ A（設定UI）
+- **ブランチ**: `feat/per-feature-provider-routing` / **レーン**: C（基盤）→ F（RN設定UI）
+- **PR分割**: 契約（H相当: `MemoraSharedSummary`のAIProvider契約）→ ファクトリ（C: `AIServiceProviderFactory`はapp側）→ UI（F: RN Settings）の3段
 - **内容**:
   1. `AIServiceProviderFactory` に用途enum `AIUseCase { stt, summary, askAI, postprocess }` を追加し、用途ごとに `ローカル / BYOK(プロバイダー+モデル)` を独立指定。UserDefaultsではなく設定用SwiftDataモデルに保存。
   2. 設定画面: 用途×プロバイダーのマトリクス1画面。各行に可用性バッジ（FM非対応端末・APIキー未設定・モデル未DL）とフォールバック順を表示。
   3. プリセット3種: プライバシー優先（全ローカル）/ 品質優先（全BYOK）/ バランス。
-- **検証**: SwiftUI側ビルド + 各用途で異なるプロバイダーを指定して動作することを手動確認しPRに記載。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 各用途で異なるプロバイダーを指定して動作することを手動確認しPRに記載。
 
 ### P2-5 TODO抽出の強化（P1-4完了後）
 
@@ -161,7 +198,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   3. 重複検知: 既存TODOとタイトル類似度で照合し、二重登録を確認ダイアログで防止。
   4. EventKitでリマインダー/カレンダーへワンタップ登録（権限リクエスト含む）。
   5. 抽出時に出典セグメントIDを保持し「発言箇所へジャンプ」（P1-1の機構を流用）。
-- **検証**: SwiftUI側ビルド + パースのユニットテスト + 抽出例をPRに添付。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + パースのユニットテスト + 抽出例をPRに添付。
 
 ---
 
@@ -177,7 +214,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   4. `TranscriptionActivity`（Live Activity）を拡張し進捗をDynamic Island/ロック画面に表示。処理完了のローカル通知。
   5. **制約**: Foundation ModelsはBGでレート制限が厳しいため、BG処理はSTTまで。要約はフォアグラウンド復帰時にキュー実行。
 - **PR分割**: (a) D基盤 → (b) 録音中並行STT → (c) BGProcessingTask → (d) Live Activity+通知 の4PR。§8報告必須。
-- **検証**: SwiftUI側ビルド + 実機での BG 実行ログ（`start_sim_log_cap` またはConsole）をPRに記載。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 実機での BG 実行ログ（`start_sim_log_cap` またはConsole）をPRに記載。
 
 ### P3-2 OS統合（App Intents / Spotlight / 共有シート / 通知）
 
@@ -187,7 +224,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   2. Spotlight: `CSSearchableIndex` にtranscript/要約を登録（P2-1のチャンクを流用）。削除時のインデックス除去も。
   3. 共有シート拡張: 他アプリの音声ファイルを受け取り `AudioFileImportService` へ渡すShare Extension。
 - **PR分割**: (a) App Intents → (b) Spotlight → (c) Share Extension の3PR（それぞれtarget追加を含むためLane D管理）。
-- **検証**: SwiftUI側ビルド + 各入口の動作スクショ。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 各入口の動作スクショ。
 
 ### P3-3 データ保全とバックアップ
 
@@ -196,7 +233,7 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   1. `PersistentStoreSafetyService` を拡張し、スキーマ移行前の自動スナップショット＋失敗時ロールバック。
   2. 完全エクスポート/インポート: 全録音＋transcript＋要約＋設定をzip一括書き出し・読み込み（`ExportService` 拡張）。機種変更・P4-3前の暫定バックアップ手段。
   3. `LocalDataDeletionService` とエクスポートを対にした「データ管理」設定画面。
-- **検証**: SwiftUI側ビルド + エクスポート→全削除→インポートで復元されるラウンドトリップを手動確認しPRに記載。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + エクスポート→全削除→インポートで復元されるラウンドトリップを手動確認しPRに記載。
 
 ---
 
@@ -210,20 +247,21 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
   2. コアPR（B/🔒）: `STTService` のバックエンド選択に `whisperKit` を追加。位置づけはboundary docどおり「SpeechAnalyzer非対応端末向け高精度バックエンド」＋全端末向け「高精度モード」。選択順の真実は `STTService.swift` にのみ置く。
   3. 語彙ヒント配線（🔒）: P1-2で用意した `vocabularyHints` を `contextualStrings` / Whisper `prompt` へ配線。
   4. 言語自動検出: 冒頭30秒を先行STTして言語判定→本処理。日英混在はWhisper系に自動ルーティング。
+     ※**Gemini文字起こしは対応済み**（PR #70 は「mainに統合済み」でclose。`AIProvider.supportsTranscription` が openai/gemini でtrue）。
   5. 電力・発熱: P0-3のサーマル制御をWhisperKit経路にも適用。
 - **前提**: P0-1のテストが緑。§8報告必須（バックエンド選択順の変更を含むため特に詳細に）。
-- **検証**: `swift test` + SwiftUI側ビルド + フィクスチャCER比較（SpeechAnalyzer vs WhisperKit）+ RTF・発熱の実測をPRに記載。
+- **検証**: `swift test` + ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + フィクスチャCER比較（SpeechAnalyzer vs WhisperKit）+ RTF・発熱の実測をPRに記載。
 
 ### P4-2 ライフログ: カレンダー複合情報
 
-- **ブランチ**: `feat/lifelog-calendar-fusion` / **レーン**: C → A
+- **ブランチ**: `feat/lifelog-calendar-fusion` / **レーン**: C → F（RN UI。日次ビューはRN新規画面）
 - **内容**:
   1. 録音開始時刻とEventKit予定の突き合わせ→自動タイトル・プロジェクト自動振り分け（`CalendarService` 拡張）。
   2. 予定の参加者リストを話者ラベル候補としてサジェスト（P2-2のプロファイルと接続）。
   3. 要約プロンプトへ会議名・アジェンダを文脈注入。
   4. 録音時にCLLocationを1回取得し場所を記録（許可はwhen-in-use、設定でOFF可）。
   5. 日次ビュー: 予定＋録音＋TODOの時系列合成画面（UI PR、Lane A）。
-- **検証**: SwiftUI側ビルド + カレンダー突き合わせのユニットテスト。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + カレンダー突き合わせのユニットテスト。
 
 ### P4-3 CloudKit同期＋課金（P3-3完了後）
 
@@ -239,18 +277,19 @@ Phase 4（大型）:     P4-1, P4-2, P4-3, P4-4, P4-5   ※P4-3はP3-3完了後
 ### P4-4 BYOKコスト可視化
 
 - **ブランチ**: `feat/byok-cost-tracking` / **レーン**: C
-- **内容**: プロバイダー別トークン使用量の記録（`RemoteLLMProvider` のレスポンスusage欄から取得）と月次概算コスト表示。同一transcript×同一テンプレートの要約キャッシュ（P1-4の履歴機構を流用）で再課金防止。APIキーのiCloud Keychain同期を有効化。
-- **検証**: SwiftUI側ビルド + 使用量記録のユニットテスト。
+- **内容**: プロバイダー別トークン使用量の記録（`RemoteLLMProvider` のレスポンスusage欄から取得）と月次概算コスト表示。同一transcript×同一テンプレートの要約キャッシュ（P1-4の履歴機構を流用）で再課金防止。~~APIキーのiCloud Keychain同期を有効化。~~ **要再設計**: 現行の鍵はRN専用Keychain（#117）で、
+  SwiftUI前提の本記述と食い違う。RN側KeychainでのiCloud同期可否を別途設計してから着手する。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 使用量記録のユニットテスト。
 
 ### P4-5 AskAI音声会話モード
 
-- **ブランチ**: `feat/askai-voice-mode` / **レーン**: A + C
+- **ブランチ**: `feat/askai-voice-mode` / **レーン**: F（RN AskAIScreen）+ C
 - **内容**:
   1. 入力: SpeechAnalyzerライブ認識をAskAI入力欄に接続。
   2. 出力: `AVSpeechSynthesizer`＋拡張音声を既定に。BYOK時はOpenAI TTS / Gemini TTSを選択可（P2-4のルーティングに `tts` 用途を追加）。
   3. 回答ストリーミングと文単位TTSの組み合わせ（生成完了前に読み上げ開始）。
   4. ハンズフリーモード: 読み上げ終了→自動でマイク再開。
-- **検証**: SwiftUI側ビルド + 会話デモの動画/GIF。
+- **検証**: ホスト両系ビルド（`xcodebuild`(Memora) + `npm run qa:ios:build`(RN)） + 会話デモの動画/GIF。
 
 ---
 
