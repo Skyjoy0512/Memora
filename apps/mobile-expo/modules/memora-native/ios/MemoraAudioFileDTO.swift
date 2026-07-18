@@ -57,6 +57,9 @@ public protocol MemoraAudioFileReading {
 
   func listAudioFiles() throws -> [MemoraAudioFileDTO]
   func getAudioFile(id: String) throws -> MemoraAudioFileDTO?
+  /// Resolves the audio files owned by this reader for native playback.
+  /// A segmented recording returns its segments in chronological order.
+  func playbackFilePaths(forId id: String) throws -> [String]
 }
 
 public protocol MemoraAudioFileMutating {
@@ -99,6 +102,13 @@ public struct MemoraNativeFileAudioFileStore: MemoraAudioFileReading, MemoraAudi
     }
 
     return try fallbackReader.getAudioFile(id: id)
+  }
+
+  public func playbackFilePaths(forId id: String) throws -> [String] {
+    guard let filePath = try MemoraNativeAudioFileMetadataStore.filePath(forId: id) else {
+      return []
+    }
+    return [filePath]
   }
 
   public func upsertAudioFile(_ dto: MemoraAudioFileDTO, fileURL: URL) throws {
@@ -324,6 +334,10 @@ public struct MemoraSampleAudioFileReader: MemoraAudioFileReading {
   public func getAudioFile(id: String) throws -> MemoraAudioFileDTO? {
     guard id == "native-sample" else { return nil }
     return makeSampleAudioFile()
+  }
+
+  public func playbackFilePaths(forId id: String) throws -> [String] {
+    []
   }
 
   private func makeSampleAudioFile() -> MemoraAudioFileDTO {
