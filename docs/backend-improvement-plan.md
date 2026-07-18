@@ -9,6 +9,14 @@
 - ブランチ名は各項目に記載。PRは Squash merge + auto-merge。
 - **STTコア保護（CLAUDE.md §8）**: 🔒マークの項目はコアファイル変更の明示依頼を本計画で与える。ただしPR本文に §8 の報告（バックエンド選択順への影響 / SpeechAnalyzer・SFSpeechRecognizer・APIへの影響 / 話者分離・保存フォーマットへの影響 / build・test結果）を必須とする。
 - SwiftDataスキーマを変更する項目は、既存データのマイグレーション確認をPR内で報告する。
+- **マイグレーションテストは固定スナップショット型で書く**（#125の偽陽性・#129の対応で確立）。
+  過去バージョンのストアを作るテストで**現行の `@Model` クラスを使うと必ず偽陽性になる**。
+  現行クラスは新バージョンのプロパティを既に持つため、生成されるのは「新版と同一チェックサムの旧版もどき」であり、
+  本物の旧バージョンストアを再現できない。必ず当該 `VersionedSchema` 内に**固定したモデル型のスナップショット**を定義し
+  （例: `MemoraSchemaV3.AudioFile`）、それでストアを生成してから本番の
+  `MemoraSharedStoreFactory.makePersistentContainer` で開いて検証する。
+  実例: `#125` はこの罠でマイグレーションテストが緑のまま、**V4以前のストアを持つ既存インストールが
+  起動時に `Duplicate version checksums detected` で全滅**する不具合を見逃した（`#129` で修正）。
 - レーン別検証（CLAUDE.md §3.3）に従う。下記の各項目にも必須コマンドを記載。
 
 ### 本計画の前提（2026-07-17 確定・RN移行完了後に改訂）
@@ -22,8 +30,10 @@
 - **UI非依存の項目（過半数）は今すぐ着手可**。UI項目はSwiftUI削除後に着手すると二重実装を避けられる。
 - **スキーマ変更は同時に1本だけ**。方式は既存の `VersionedSchema`（`MemoraSchemaV1→V2→V3` +
   `MigrationStage.lightweight`、正本=`MemoraSharedSchema/MemoraSchema.swift`）を踏襲し、**V4以降を1本ずつ積む**。
-  推奨順: `P1-4(スキーマ部/V4) → P0-2(b) → P1-2 → P2-1 → P2-4 → P2-2 → P4-3(CloudKit最後)`。
+  推奨順: `P1-4(スキーマ部) → P0-2(b) → P1-2 → P2-1 → P2-4 → P2-2 → P4-3(CloudKit最後)`。
   **「Phase 1 全並列可」はスキーマ観点では成立しない**。
+  **実績（2026-07-18）**: 上記の推奨順とは逆に **`P0-2(b)` が V4 を先に消費**した（#125、#129で修正）。
+  よって **`P1-4` のスキーマ部は V5** から積む。以降も「次に空いている番号」を使うこと。
 - **共有ターゲットを新設したら**、`Package.swift` の library 公開 **と** RNホスト
   `apps/mobile-expo/ios/MemoraRN.xcodeproj` の `packageProductDependencies` + Sources 登録の**両方**が必要
   （片方漏れると `no such module`。CIの `rn-ios-build` が検出する）。
