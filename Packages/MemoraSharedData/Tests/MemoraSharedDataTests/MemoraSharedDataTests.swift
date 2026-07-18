@@ -155,32 +155,44 @@ struct MemoraSharedDataTests {
     #expect(decoded.segmentPaths.count == 2)
   }
 
-  @Test("V3 store migrates to V4 with legacy single-path audio intact")
-  func v3StoreMigratesToV4WithEmptySegmentPaths() throws {
+  @Test("V3 and V4 have distinct schema checksums")
+  func v3AndV4SchemasAreDistinct() {
+    let v3 = Schema(versionedSchema: MemoraSchemaV3.self)
+    let v4 = Schema(versionedSchema: MemoraSchemaV4.self)
+
+    #expect(v3 != v4)
+  }
+
+  @Test("V3 AudioFile migrates through the shared store factory")
+  func v3AudioFileMigratesThroughSharedStoreFactory() throws {
     let root = FileManager.default.temporaryDirectory
       .appendingPathComponent("memora-v3-v4-\(UUID().uuidString)", isDirectory: true)
     let storeURL = root.appendingPathComponent("Memora.store")
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
 
+    let legacyID = UUID()
     do {
-      let v3 = try ModelContainer(
+      let container = try ModelContainer(
         for: Schema(versionedSchema: MemoraSchemaV3.self),
         configurations: ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
       )
-      let context = ModelContext(v3)
-      context.insert(AudioFile(title: "V3 recording", audioURL: "/tmp/legacy.m4a"))
+      let context = ModelContext(container)
+      let legacy = MemoraSchemaV3.AudioFile(
+        title: "V3 recording",
+        audioURL: "/tmp/legacy.m4a"
+      )
+      legacy.id = legacyID
+      context.insert(legacy)
       try context.save()
     }
 
-    let v4 = try ModelContainer(
-      for: Schema(versionedSchema: MemoraSchemaV4.self),
-      migrationPlan: MemoraMigrationPlan.self,
-      configurations: ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
-    )
-    let migrated = try #require(try ModelContext(v4).fetch(FetchDescriptor<AudioFile>()).first)
-    #expect(migrated.audioURL == "/tmp/legacy.m4a")
-    #expect(migrated.segmentPaths.isEmpty)
+    let migrated = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
+    let files = try ModelContext(migrated).fetch(FetchDescriptor<AudioFile>())
+    let file = try #require(files.first(where: { $0.id == legacyID }))
+    #expect(file.title == "V3 recording")
+    #expect(file.audioURL == "/tmp/legacy.m4a")
+    #expect(file.segmentPaths.isEmpty)
   }
 
   @Test("in-memory store supports page, update, and delete")
@@ -220,7 +232,7 @@ struct MemoraSharedSchemaRepositoryTests {
   func audioFileRepositoryCRUD() throws {
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try ModelContainer(
-      for: Schema(versionedSchema: MemoraSchemaV3.self),
+      for: Schema(versionedSchema: MemoraSchemaV4.self),
       configurations: configuration
     )
     let repository = AudioFileRepository(modelContext: ModelContext(container))
