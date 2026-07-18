@@ -41,10 +41,17 @@ final class V6RecordingSessionController {
         activeProjectID = pendingProjectID
         pendingProjectID = nil
         errorMessage = nil
+        recordingViewModel.startRecording()
+        audioRecorder.diskSpaceDidChange = { [weak self] decision in
+            self?.handleDiskSpaceDecision(decision)
+        }
         do {
             try audioRecorder.startRecording()
         } catch {
-            errorMessage = "録音の開始に失敗しました。マイクへのアクセスを確認してください。"
+            recordingViewModel.stopRecording()
+            errorMessage = error.localizedDescription
+            recordingViewModel.errorMessage = error.localizedDescription
+            audioRecorder.diskSpaceDidChange = nil
             return
         }
         if let recordingURL = audioRecorder.primaryRecordingURL {
@@ -61,7 +68,6 @@ final class V6RecordingSessionController {
                 for: activeAudioFile
             )
         }
-        recordingViewModel.startRecording()
         isActive = true
         isPaused = false
         elapsed = 0
@@ -100,6 +106,7 @@ final class V6RecordingSessionController {
         defer {
             activeAudioFile = nil
             audioRecorder.completedSegmentsDidChange = nil
+            audioRecorder.diskSpaceDidChange = nil
         }
         if let activeAudioFile {
             return recordingViewModel.finishSegmentedRecording(result, title: title, for: activeAudioFile)
@@ -114,11 +121,43 @@ final class V6RecordingSessionController {
         recordingViewModel.discardSegmentedRecording(activeAudioFile)
         activeAudioFile = nil
         audioRecorder.completedSegmentsDidChange = nil
+        audioRecorder.diskSpaceDidChange = nil
         recordingViewModel.cancelRecording()
         isActive = false
         isPaused = false
         elapsed = 0
         highlightCount = 0
+    }
+
+    func dismissError() {
+        errorMessage = nil
+    }
+
+    private func handleDiskSpaceDecision(_ decision: RecordingDiskSpaceDecision) {
+        guard let message = decision.userMessage else { return }
+        errorMessage = message
+        recordingViewModel.errorMessage = message
+        guard decision == .stop else { return }
+
+        stopTimers()
+        recordingViewModel.stopRecording()
+        let result = try? audioRecorder.stopRecordingWithSegments()
+        let projectID = activeProjectID
+        isActive = false
+        isPaused = false
+        activeProjectID = nil
+        defer {
+            activeAudioFile = nil
+            audioRecorder.completedSegmentsDidChange = nil
+            audioRecorder.diskSpaceDidChange = nil
+        }
+        guard let result else { return }
+        let title = "録音 \(Self.diskStopTitleFormatter.string(from: .now))"
+        if let activeAudioFile {
+            _ = recordingViewModel.finishSegmentedRecording(result, title: title, for: activeAudioFile)
+        } else {
+            _ = recordingViewModel.saveRecording(title: title, fileURL: result.fileURL, duration: result.duration, projectID: projectID)
+        }
     }
 
     private func startTimers() {
@@ -153,6 +192,12 @@ final class V6RecordingSessionController {
         levelsTask?.cancel()
         levelsTask = nil
     }
+
+    private static let diskStopTitleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return formatter
+    }()
 
     /// Formats elapsed time as `M:SS`, matching `.dc.html`'s `formatMMSS`.
     var elapsedLabel: String {
@@ -247,6 +292,17 @@ struct V6RecordingView: View {
             if !showDiscardConfirm {
                 island.enterLiveRecording()
             }
+        }
+        .alert(
+            "録音の状態",
+            isPresented: Binding(
+                get: { session.errorMessage != nil },
+                set: { if !$0 { session.dismissError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) { session.dismissError() }
+        } message: {
+            Text(session.errorMessage ?? "")
         }
     }
 

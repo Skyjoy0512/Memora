@@ -117,6 +117,7 @@
 		81AEF1450AF431174E12F315 /* MeetingCaptureProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27BAF7EBFD53226A2B45B367 /* MeetingCaptureProgressView.swift */; };
 		833D0D3B34276CA570577805 /* AudioFileRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B0E6085A202875DA87BBF8 /* AudioFileRow.swift */; };
 		8375E72353D31B6559872467 /* NotionIntegrationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D29E695672907D45D929D22 /* NotionIntegrationSection.swift */; };
+		85757F2B3ECC19D0F5B64CAD /* RecordingDiskSpaceGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4976D5159028DADE63B74B35 /* RecordingDiskSpaceGuardTests.swift */; };
 		85A93595444BB9CDCD6E5B14 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B9B239A10FD480509DFB57B /* ShareSheet.swift */; };
 		85FEAA20061453D62AB6BA2B /* ExpandableGlassEffect.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AE5E37F76567438836EDEC /* ExpandableGlassEffect.swift */; };
 		87AAFF280720E9CF570F19F9 /* TaskPlannerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBD0F5F237593A207E44875 /* TaskPlannerService.swift */; };
@@ -159,6 +160,7 @@
 		ABA75B650BF5A87DE3741076 /* MemoraSharedAudioFileStoreAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1595E0DB88E7843DA433911 /* MemoraSharedAudioFileStoreAdapterTests.swift */; };
 		AC077218DC20C6F70A9DEF1F /* V6AccountPlanSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0850111EF75C27905C2B8ADA /* V6AccountPlanSection.swift */; };
 		AED883C46A40DBD106C487A7 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95E55698D7A418A8FC30D32 /* EmptyStateView.swift */; };
+		AF2ACD9F94E7DC45AEF44D0C /* RecordingDiskSpaceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8F50ED0E9BF0BD431653FE2 /* RecordingDiskSpaceGuard.swift */; };
 		B289435D7C45DCB84E2E1031 /* NothingTabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BB27B6DAAB0BDC34E0BBAF5 /* NothingTabPicker.swift */; };
 		B2B4C6FCF960E174D7948F9D /* APIKeySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD7331935FC980D189F38A5 /* APIKeySection.swift */; };
 		B3859A53C684BAFCA2721EAE /* TodoItemSummarySaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D97A2BA6E2577405EE4E11E0 /* TodoItemSummarySaver.swift */; };
@@ -308,6 +310,7 @@
 		4261F1B68C2F943A7586DB5F /* GoogleMeetSettings+Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GoogleMeetSettings+Keychain.swift"; sourceTree = "<group>"; };
 		427F55F56EF19B78D3165265 /* PlaudMCPTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudMCPTypes.swift; sourceTree = "<group>"; };
 		491305817A04792B920C84DE /* MemoraAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoraAnimation.swift; sourceTree = "<group>"; };
+		4976D5159028DADE63B74B35 /* RecordingDiskSpaceGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDiskSpaceGuardTests.swift; sourceTree = "<group>"; };
 		4A11A114A2A24DDFC2D7057B /* TranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptTests.swift; sourceTree = "<group>"; };
 		4C2E849B4772C55BF6F4876C /* MeetingWebhookReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingWebhookReceiver.swift; sourceTree = "<group>"; };
 		4C98E1AAF0F819D596219AF0 /* TranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionEngine.swift; sourceTree = "<group>"; };
@@ -459,6 +462,7 @@
 		F76FDEBF007388E9359C830B /* PersistentStoreSafetyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistentStoreSafetyService.swift; sourceTree = "<group>"; };
 		F780FEDD2F07DC45648DD79C /* SpeakerProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerProfileStore.swift; sourceTree = "<group>"; };
 		F848386F9F51426F48C6975B /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
+		F8F50ED0E9BF0BD431653FE2 /* RecordingDiskSpaceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDiskSpaceGuard.swift; sourceTree = "<group>"; };
 		F976DECF01B7B80665AE885F /* LocalDataDeletionServiceCoverageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDataDeletionServiceCoverageTests.swift; sourceTree = "<group>"; };
 		FA7E242D95B2B86EDB58ECD4 /* GoogleAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthService.swift; sourceTree = "<group>"; };
 		FDC6535DDE4D1AFC10D90EE8 /* TemplateSelectSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSelectSheet.swift; sourceTree = "<group>"; };
@@ -676,6 +680,7 @@
 				427F55F56EF19B78D3165265 /* PlaudMCPTypes.swift */,
 				78A39563D755711D640B86DA /* PlaudService.swift */,
 				6BA50970588243441120B0E9 /* ProcessingStatusCenter.swift */,
+				F8F50ED0E9BF0BD431653FE2 /* RecordingDiskSpaceGuard.swift */,
 				683BDDF7F5D7217B9B39D628 /* RemoteLLMProvider.swift */,
 				7E12022A7B46A8A00E26F7B8 /* SegmentedAudioFileResolver.swift */,
 				058B06299797571747E4B64C /* SpeakerDiarizationService.swift */,
@@ -863,6 +868,7 @@
 				855C85865B09046C10B73313 /* OpenAIExportServiceTests.swift */,
 				AF106F713A7D8A1486AD89C3 /* PersistentStoreSafetyServiceTests.swift */,
 				A22A7FA247F81475BB0ED07E /* PipelineReferenceDataTests.swift */,
+				4976D5159028DADE63B74B35 /* RecordingDiskSpaceGuardTests.swift */,
 				E0ED0108BC9A5810D057A9E8 /* STTPreflightTests.swift */,
 				3DE72288623660E9D5CC5449 /* STTServiceDependencyInjectionTests.swift */,
 				EFB351463211868036AE25D4 /* STTServiceRecoveryTests.swift */,
@@ -1159,6 +1165,7 @@
 				EC8EB5AC0D4F467DC0F59E63 /* PlaudCloudSyncLedgerTests.swift in Sources */,
 				4E6D4F58ACEEDCBEBD180442 /* PlaudMCPTypesTests.swift in Sources */,
 				C2240CA7F45DE5392524341F /* ProjectsViewModelTests.swift in Sources */,
+				85757F2B3ECC19D0F5B64CAD /* RecordingDiskSpaceGuardTests.swift in Sources */,
 				7EAA607ED871E0A46CD65BE0 /* STTPreflightTests.swift in Sources */,
 				4A5A804D7BB2F4016F1B8499 /* STTServiceDependencyInjectionTests.swift in Sources */,
 				A00298FFEBFCD28FD2539F3C /* STTServiceRecoveryTests.swift in Sources */,
@@ -1312,6 +1319,7 @@
 				7F290601D5EB11908360BE1A /* ProjectRepository.swift in Sources */,
 				95F93D2BCDA772CA23A51C95 /* ProjectsViewModel.swift in Sources */,
 				18F1574329612A74A422B0CB /* RealtimeTranscriptionSection.swift in Sources */,
+				AF2ACD9F94E7DC45AEF44D0C /* RecordingDiskSpaceGuard.swift in Sources */,
 				9E0C9CEEC8798C46CAEB7D44 /* RecordingViewModel.swift in Sources */,
 				933327D42D86BC079CC744FC /* RemoteLLMProvider.swift in Sources */,
 				979F9BCB1F74304FBFF5B810 /* STTCapabilityHostDependencies.swift in Sources */,
