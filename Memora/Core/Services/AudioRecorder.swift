@@ -47,9 +47,15 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
     private var recordingFileID: UUID?
     private var completedSegmentURLs: [URL] = []
     private var completedSegmentDuration: TimeInterval = 0
+    private var terminalResult: RecordingResult?
+    private var didSurfaceLowDiskWarning = false
+    private let diskSpaceGuard: RecordingDiskSpaceGuard
     /// Called only after a segment has been closed, so callers can persist the
     /// recoverable prefix before a subsequent segment begins.
     var completedSegmentsDidChange: (([URL]) -> Void)?
+    /// Delivered at most once for a low-space warning, or once when recording
+    /// is safely stopped before opening a new segment.
+    var diskSpaceDidChange: ((RecordingDiskSpaceDecision) -> Void)?
     private var levelContinuations: [UUID: AsyncStream<Float>.Continuation] = [:]
     private var meteringTimer: Timer?
     private var shouldResumeAfterInterruption = false
@@ -58,7 +64,8 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
 
     var primaryRecordingURL: URL? { firstRecordingURL }
 
-    override init() {
+    init(diskSpaceGuard: RecordingDiskSpaceGuard = RecordingDiskSpaceGuard()) {
+        self.diskSpaceGuard = diskSpaceGuard
         super.init()
         observeAudioSessionNotifications()
     }
@@ -109,6 +116,8 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         recordingFileID = nil
         completedSegmentURLs = []
         completedSegmentDuration = 0
+        terminalResult = nil
+        didSurfaceLowDiskWarning = false
         isRecording = false
         isPaused = false
         shouldResumeAfterInterruption = false
@@ -143,6 +152,9 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
     }
 
     private func startRecordingCore() throws {
+        didSurfaceLowDiskWarning = false
+        terminalResult = nil
+        try validateDiskSpaceBeforeStartingSegment(isInitialSegment: true)
         let session = AVAudioSession.sharedInstance()
 
         switch AVAudioApplication.shared.recordPermission {
@@ -185,6 +197,16 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
     }
 
     private func stopRecordingCore() throws -> RecordingResult {
+        if let terminalResult {
+            self.terminalResult = nil
+            completedSegmentURLs = []
+            completedSegmentDuration = 0
+            firstRecordingURL = nil
+            recordingFileID = nil
+            stopMetering()
+            finishAudioLevels()
+            return terminalResult
+        }
         guard let recorder, let firstRecordingURL, let recordingFileID else {
             throw RecordingError.noActiveRecording
         }
@@ -200,6 +222,8 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         self.recordingFileID = nil
         self.completedSegmentURLs = []
         self.completedSegmentDuration = 0
+        self.terminalResult = nil
+        self.didSurfaceLowDiskWarning = false
         isRecording = false
         isPaused = false
         shouldResumeAfterInterruption = false
@@ -402,12 +426,15 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         completedSegmentsDidChange?(completedSegmentURLs)
 
         do {
+            try validateDiskSpaceBeforeStartingSegment(isInitialSegment: false)
             let nextURL = try makeSegmentURL(id: UUID())
             let nextRecorder = try makeRecorder(at: nextURL)
             guard beginSegmentRecording(nextRecorder) else { throw RecordingError.recordingFailed() }
             self.recorder = nextRecorder
             self.recordingURL = nextURL
             DebugLogger.shared.addLog("AudioRecorder", "5分セグメントを確定し、次の録音セグメントを開始しました", level: .info)
+        } catch RecordingError.insufficientDiskSpace {
+            stopForInsufficientDiskSpace()
         } catch {
             self.recorder = nil
             self.recordingURL = nil
@@ -439,10 +466,47 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
         recorder.record(forDuration: max(0.01, Self.segmentDuration - recorder.currentTime))
     }
 
+    private func validateDiskSpaceBeforeStartingSegment(isInitialSegment: Bool) throws {
+        let audioDirectory = try STTFileLocations.audioDirectory()
+        let decision = diskSpaceGuard.decision(for: audioDirectory)
+        switch decision {
+        case .sufficient:
+            return
+        case .warning:
+            guard !didSurfaceLowDiskWarning else { return }
+            didSurfaceLowDiskWarning = true
+            diskSpaceDidChange?(.warning)
+            DebugLogger.shared.addLog("AudioRecorder", "録音保存先の空き容量が500 MB未満です。録音は継続します", level: .warning)
+        case .stop:
+            if !isInitialSegment {
+                DebugLogger.shared.addLog("AudioRecorder", "録音保存先の空き容量が200 MB未満です。新しいセグメントを開始しません", level: .error)
+            }
+            throw RecordingError.insufficientDiskSpace
+        }
+    }
+
+    private func stopForInsufficientDiskSpace() {
+        guard let firstRecordingURL, let recordingFileID else { return }
+        terminalResult = RecordingResult(
+            fileID: recordingFileID,
+            fileURL: firstRecordingURL,
+            segmentURLs: completedSegmentURLs,
+            duration: completedSegmentDuration
+        )
+        recorder = nil
+        recordingURL = nil
+        isRecording = false
+        isPaused = false
+        shouldResumeAfterInterruption = false
+        pauseMetering()
+        diskSpaceDidChange?(.stop)
+    }
+
     enum RecordingError: LocalizedError {
         case noActiveRecording
         case microphonePermissionDenied
         case audioSessionFailed(Error)
+        case insufficientDiskSpace
         case recordingFailed(Error? = nil)
 
         var errorDescription: String? {
@@ -453,6 +517,8 @@ final class AudioRecorder: NSObject, AudioRecorderProtocol {
                 return "マイクへのアクセスが許可されていません"
             case .audioSessionFailed(let error):
                 return "オーディオセッションの設定に失敗しました: \(error.localizedDescription)"
+            case .insufficientDiskSpace:
+                return "空き容量が不足しています。200 MB以上の空き容量を確保してから録音してください。"
             case .recordingFailed(let error):
                 if let error {
                     return "録音に失敗しました: \(error.localizedDescription)"
