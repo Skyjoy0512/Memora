@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PlayerBar } from '../components/PlayerBar';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
@@ -70,6 +70,43 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
   const pendingMoreActionRef = useRef<MoreSheetAction | null>(null);
   const pendingExportActionRef = useRef<ExportSheetAction | null>(null);
   const tabOpacity = useRef(new Animated.Value(1)).current;
+  const transcriptScrollRef = useRef<ScrollView>(null);
+  const transcriptRowOffsetsRef = useRef<Record<string, number>>({});
+  const transcriptAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isTranscriptAutoScrollPaused, setIsTranscriptAutoScrollPaused] = useState(false);
+  const activeTranscriptSegmentId = useMemo(
+    () => activeTranscriptSegmentIdForPosition(file?.transcript ?? [], playback.status?.position),
+    [file?.transcript, playback.status?.position],
+  );
+
+  const resumeTranscriptAutoScrollAfterDelay = useCallback(() => {
+    if (transcriptAutoScrollTimerRef.current) {
+      clearTimeout(transcriptAutoScrollTimerRef.current);
+    }
+    setIsTranscriptAutoScrollPaused(true);
+    transcriptAutoScrollTimerRef.current = setTimeout(() => {
+      setIsTranscriptAutoScrollPaused(false);
+      transcriptAutoScrollTimerRef.current = null;
+    }, 3_000);
+  }, []);
+
+  const scrollTranscriptToSegment = useCallback((segmentId: string) => {
+    const offset = transcriptRowOffsetsRef.current[segmentId];
+    if (offset === undefined) return;
+    transcriptScrollRef.current?.scrollTo({ animated: true, y: Math.max(0, offset - spacing.md) });
+  }, []);
+
+  useEffect(() => {
+    if (tab !== 'transcript' || isTranscriptAutoScrollPaused || !activeTranscriptSegmentId) return;
+    const frame = requestAnimationFrame(() => scrollTranscriptToSegment(activeTranscriptSegmentId));
+    return () => cancelAnimationFrame(frame);
+  }, [activeTranscriptSegmentId, isTranscriptAutoScrollPaused, scrollTranscriptToSegment, tab]);
+
+  useEffect(() => () => {
+    if (transcriptAutoScrollTimerRef.current) {
+      clearTimeout(transcriptAutoScrollTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     tabOpacity.setValue(0);
@@ -376,15 +413,44 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             {transcriptCount === 0 ? (
               <View style={styles.transcriptEmpty}><Text style={styles.transcriptEmptyTitle}>文字起こしはまだありません</Text><Text style={styles.transcriptEmptyBody}>録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。</Text><Pressable onPress={transcription.start} style={styles.startTranscription}><Text style={styles.startTranscriptionText}>文字起こしを開始</Text></Pressable></View>
             ) : (
-              file.transcript.map((segment) => (
-                <Pressable key={segment.id} onPress={() => void playback.seek(timeToSeconds(segment.time))} style={[styles.segment, isSegmentActive(segment.time, playback.status?.position) ? styles.segmentActive : null]}>
-                  <View style={styles.segmentMeta}>
-                    <Text style={styles.speaker}>{segment.speaker}</Text>
-                    <Text style={styles.time}>{segment.time}</Text>
-                  </View>
-                  <Text style={styles.bodyText}>{segment.text}</Text>
-                </Pressable>
-              ))
+              <ScrollView
+                contentContainerStyle={styles.transcriptScrollContent}
+                nestedScrollEnabled
+                onMomentumScrollBegin={resumeTranscriptAutoScrollAfterDelay}
+                onMomentumScrollEnd={resumeTranscriptAutoScrollAfterDelay}
+                onScrollBeginDrag={resumeTranscriptAutoScrollAfterDelay}
+                onScrollEndDrag={resumeTranscriptAutoScrollAfterDelay}
+                ref={transcriptScrollRef}
+                showsVerticalScrollIndicator
+                style={styles.transcriptScroll}
+              >
+                {file.transcript.map((segment) => (
+                  <Pressable
+                    accessibilityLabel={`${segment.speaker}、${segment.time}から再生`}
+                    accessibilityRole="button"
+                    key={segment.id}
+                    onLayout={(event) => {
+                      transcriptRowOffsetsRef.current[segment.id] = event.nativeEvent.layout.y;
+                      if (!isTranscriptAutoScrollPaused && activeTranscriptSegmentId === segment.id) {
+                        requestAnimationFrame(() => scrollTranscriptToSegment(segment.id));
+                      }
+                    }}
+                    onPress={() => {
+                      void (async () => {
+                        await playback.seek(timeToSeconds(segment.time));
+                        await playback.play();
+                      })();
+                    }}
+                    style={[styles.segment, activeTranscriptSegmentId === segment.id ? styles.segmentActive : null]}
+                  >
+                    <View style={styles.segmentMeta}>
+                      <Text style={styles.speaker}>{segment.speaker}</Text>
+                      <Text style={styles.time}>{segment.time}</Text>
+                    </View>
+                    <Text style={styles.bodyText}>{segment.text}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             )}
           </View>
         </Section>
@@ -543,10 +609,18 @@ function timeToSeconds(time: string) {
   return Number(minutes) * 60 + Number(seconds);
 }
 
-function isSegmentActive(time: string, position?: number) {
-  if (position === undefined) return false;
-  const start = timeToSeconds(time);
-  return position >= start && position < start + 25;
+function activeTranscriptSegmentIdForPosition(
+  transcript: AudioFile['transcript'],
+  position?: number,
+): string | undefined {
+  if (position === undefined) return undefined;
+  let activeSegmentId: string | undefined;
+  for (const segment of transcript) {
+    if (timeToSeconds(segment.time) <= position) {
+      activeSegmentId = segment.id;
+    }
+  }
+  return activeSegmentId;
 }
 
 const styles = StyleSheet.create({
@@ -847,10 +921,11 @@ const styles = StyleSheet.create({
   segment: {
     borderRadius: 10,
     gap: 3,
+    minHeight: 44,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
-  segmentActive: { backgroundColor: colors.surfaceAlt },
+  segmentActive: { backgroundColor: colors.accentSoft },
   segmentMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -865,6 +940,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Menlo',
     fontSize: 10.5,
     fontWeight: '500',
+  },
+  transcriptScroll: {
+    height: 420,
+  },
+  transcriptScrollContent: {
+    gap: spacing.xs,
+    paddingBottom: spacing.md,
   },
   transcriptEmpty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
   transcriptEmptyTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
