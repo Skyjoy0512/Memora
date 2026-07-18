@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { PlayerBar } from '../components/PlayerBar';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
@@ -74,6 +74,8 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
   const transcriptRowOffsetsRef = useRef<Record<string, number>>({});
   const transcriptAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isTranscriptAutoScrollPaused, setIsTranscriptAutoScrollPaused] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+  const transcriptMaxHeight = Math.max(spacing.xxl * 4, Math.round(windowHeight * 0.52));
   const activeTranscriptSegmentId = useMemo(
     () => activeTranscriptSegmentIdForPosition(file?.transcript ?? [], playback.status?.position),
     [file?.transcript, playback.status?.position],
@@ -416,13 +418,11 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               <ScrollView
                 contentContainerStyle={styles.transcriptScrollContent}
                 nestedScrollEnabled
-                onMomentumScrollBegin={resumeTranscriptAutoScrollAfterDelay}
-                onMomentumScrollEnd={resumeTranscriptAutoScrollAfterDelay}
                 onScrollBeginDrag={resumeTranscriptAutoScrollAfterDelay}
                 onScrollEndDrag={resumeTranscriptAutoScrollAfterDelay}
                 ref={transcriptScrollRef}
                 showsVerticalScrollIndicator
-                style={styles.transcriptScroll}
+                style={[styles.transcriptScroll, { maxHeight: transcriptMaxHeight }]}
               >
                 {file.transcript.map((segment) => (
                   <Pressable
@@ -942,7 +942,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   transcriptScroll: {
-    height: 420,
+    flexShrink: 1,
   },
   transcriptScrollContent: {
     gap: spacing.xs,
