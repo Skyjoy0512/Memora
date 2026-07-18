@@ -163,6 +163,38 @@ struct MemoraSharedDataTests {
     #expect(v3 != v4)
   }
 
+  @Test("V3 AudioFile migrates through the shared store factory")
+  func v3AudioFileMigratesThroughSharedStoreFactory() throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-v3-v4-\(UUID().uuidString)", isDirectory: true)
+    let storeURL = root.appendingPathComponent("Memora.store")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let legacyID = UUID()
+    do {
+      let container = try ModelContainer(
+        for: Schema(versionedSchema: MemoraSchemaV3.self),
+        configurations: ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
+      )
+      let context = ModelContext(container)
+      let legacy = MemoraSchemaV3.AudioFile(
+        title: "V3 recording",
+        audioURL: "/tmp/legacy.m4a"
+      )
+      legacy.id = legacyID
+      context.insert(legacy)
+      try context.save()
+    }
+
+    let migrated = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
+    let files = try ModelContext(migrated).fetch(FetchDescriptor<AudioFile>())
+    let file = try #require(files.first(where: { $0.id == legacyID }))
+    #expect(file.title == "V3 recording")
+    #expect(file.audioURL == "/tmp/legacy.m4a")
+    #expect(file.segmentPaths.isEmpty)
+  }
+
   @Test("in-memory store supports page, update, and delete")
   func inMemoryStoreCRUD() throws {
     let first = MemoraSharedAudioFileRecord(
