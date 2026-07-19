@@ -1,7 +1,9 @@
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -46,6 +48,7 @@ export function HomeScreen() {
   const [moreTarget, setMoreTarget] = useState<AudioFile | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<AudioFile | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | undefined>();
 
   useFocusEffect(useCallback(() => { void refresh({ silent: true }); }, [refresh]));
@@ -73,6 +76,27 @@ export function HomeScreen() {
     } finally { setIsDeleting(false); }
   }
 
+  async function handleImport() {
+    if (isImporting) return;
+    setBridgeError(undefined);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: false,
+        type: ['audio/*'],
+      });
+      if (result.canceled || !result.assets[0]?.uri) return;
+
+      setIsImporting(true);
+      await capture.importAudio(result.assets[0].uri);
+      await refresh({ silent: true });
+    } catch {
+      setBridgeError('ファイルの取り込みに失敗しました。音声ファイルを選んでもう一度お試しください。');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   // ── computed ───────────────────────────────────────────
   const filtered = searchQuery.trim()
     ? files.filter((f) => `${f.title} ${f.summary} ${f.project ?? ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase()))
@@ -91,14 +115,25 @@ export function HomeScreen() {
         refreshControl={<RefreshControl colors={[colors.accent]} onRefresh={handleRefresh} refreshing={isRefreshing} tintColor={colors.accent} />}
         titleContent={<Text style={homeStyles.screenTitle}>Memora</Text>}
         headerAccessory={
-          <Pressable
-            accessibilityLabel="設定"
-            accessibilityRole="button"
-            onPress={() => router.push('/settings')}
-            style={({ pressed }) => [homeStyles.headerBtn, pressed && homeStyles.pressed]}
-          >
-            <Ionicons color={colors.text} name="settings-outline" size={20} />
-          </Pressable>
+          <View style={homeStyles.headerActions}>
+            <Pressable
+              accessibilityLabel="音声ファイルを読み込む"
+              accessibilityRole="button"
+              disabled={isImporting}
+              onPress={() => void handleImport()}
+              style={({ pressed }) => [homeStyles.headerBtn, (pressed || isImporting) && homeStyles.pressed]}
+            >
+              {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.text} name="attach-outline" size={20} />}
+            </Pressable>
+            <Pressable
+              accessibilityLabel="設定"
+              accessibilityRole="button"
+              onPress={() => router.push('/settings')}
+              style={({ pressed }) => [homeStyles.headerBtn, pressed && homeStyles.pressed]}
+            >
+              <Ionicons color={colors.text} name="settings-outline" size={20} />
+            </Pressable>
+          </View>
         }
       >
         {/* search */}
@@ -118,12 +153,24 @@ export function HomeScreen() {
 
         {/* empty — first time */}
         {isEmpty && !isLoading && !error ? (
-          <EmptyState
-            title="最初の記録を残してみましょう"
-            body="タブバーの + から録音、またはファイルを取り込めます"
-            actionLabel="録音を始める"
-            onAction={() => capture.openRecording().catch(() => {})}
-          />
+          <View style={homeStyles.emptyActions}>
+            <EmptyState
+              title="最初の記録を残してみましょう"
+              body="タブバーの + から録音、またはファイルを取り込めます"
+              actionLabel="録音を始める"
+              onAction={() => capture.openRecording().catch(() => {})}
+            />
+            <Pressable
+              accessibilityLabel="音声ファイルを読み込む"
+              accessibilityRole="button"
+              disabled={isImporting}
+              onPress={() => void handleImport()}
+              style={({ pressed }) => [homeStyles.importEmptyAction, (pressed || isImporting) && homeStyles.pressed]}
+            >
+              {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.accent} name="attach-outline" size={18} />}
+              <Text style={homeStyles.importEmptyActionText}>{isImporting ? '読み込み中…' : '音声ファイルを読み込む'}</Text>
+            </Pressable>
+          </View>
         ) : null}
 
         {/* empty — search */}
@@ -308,8 +355,12 @@ function groupByDate(files: AudioFile[]) {
 // ── styles ───────────────────────────────────────────────
 const homeStyles = StyleSheet.create({
   screenTitle: { color: colors.text, fontSize: 30, fontWeight: '700', letterSpacing: -0.4 },
+  headerActions: { flexDirection: 'row' },
   headerBtn: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
+  emptyActions: { gap: spacing.sm },
+  importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: -spacing.xs, minHeight: 44, paddingHorizontal: spacing.lg },
+  importEmptyActionText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
 
   // projects
   projectsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
