@@ -54,6 +54,22 @@ struct TranscriptPostProcessorTests {
         #expect(TranscriptPostProcessor().clean(text) == expected)
     }
 
+    @Test("複合語・固有名詞・数値の接頭辞を言い直しとして削除しない", arguments: [
+        ("会議、会議室を予約します。", "会議、会議室を予約します。"),
+        ("決済、決済サイクルの話です。", "決済、決済サイクルの話です。"),
+        ("解約、解約率が上がる。", "解約、解約率が上がる。"),
+        ("代理、代理店の話。", "代理、代理店の話。"),
+        ("山田、山田さんが来ました。", "山田、山田さんが来ました。"),
+        ("第1、第10期の数字です。", "第1、第10期の数字です。"),
+        ("15、15日に決済。", "15、15日に決済。"),
+        ("これは、これは重要です。", "これは重要です。"),
+        ("私は、私は行きます。", "私は行きます。"),
+        ("はい、はい。", "はい。")
+    ])
+    func normalizesOnlyCompletePhrases(text: String, expected: String) {
+        #expect(TranscriptPostProcessor().clean(text) == expected)
+    }
+
     @Test("空白と句読点の既存正規化を維持する")
     func preservesWhitespaceAndPunctuationNormalization() {
         #expect(TranscriptPostProcessor().clean("今日は  テスト です。。") == "今日はテストです。")

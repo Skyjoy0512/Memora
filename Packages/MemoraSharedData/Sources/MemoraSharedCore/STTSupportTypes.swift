@@ -185,9 +185,9 @@ public struct TranscriptPostProcessor {
 
     private func normalizeImmediateRepetitions(_ text: String) -> String {
         text.replacingOccurrences(
-            // 一文字語・数値は、後続語の接頭辞（例: 5、50個）と区別できないため対象外にする。
-            // 二文字以上の言い直しは、後続文の先頭に続く場合も正規化する。
-            of: #"(?m)(^|[。！？\n]\s*)(?!(?:[0-9０-９]+)[、,])([^、。！？\n]{2,})[、,]\s*\2"#,
+            // 言い直しは助詞・語尾で終わる完結句、または短い応答語に限定する。
+            // これにより「会議、会議室」「決済、決済サイクル」など複合語の接頭辞を保持する。
+            of: #"(?m)(^|[。！？\n]\s*)((?:[^、。！？\n]*(?:は|が|を|に|で|も|と|ね|よ|の|へ|か))|(?:はい|ええ|うん|そう))[、,]\s*\2"#,
             with: "$1$2",
             options: .regularExpression
         )
