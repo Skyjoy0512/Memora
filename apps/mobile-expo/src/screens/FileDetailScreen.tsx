@@ -58,6 +58,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
   }, [setAudioFile]);
   const transcription = useTranscriptionTask(fileId ?? '', refreshTranscribedFile);
   const transcriptCount = useMemo(() => file?.transcript.length ?? 0, [file]);
+  const [showCleanedTranscript, setShowCleanedTranscript] = useState(true);
   const canRenameFile = file ? isRenameableBridgeFile(file) : false;
   const playback = usePlayback(fileId);
   const memoNotes = useMemoNotes(fileId);
@@ -412,6 +413,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             task={transcription.task}
           /> : null}
           <View style={styles.panel}>
+            {transcriptCount > 0 ? <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
+              <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
+            </Pressable> : null}
             {transcriptCount === 0 ? (
               <View style={styles.transcriptEmpty}><Text style={styles.transcriptEmptyTitle}>文字起こしはまだありません</Text><Text style={styles.transcriptEmptyBody}>録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。</Text><Pressable onPress={transcription.start} style={styles.startTranscription}><Text style={styles.startTranscriptionText}>文字起こしを開始</Text></Pressable></View>
             ) : (
@@ -447,7 +451,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                       <Text style={styles.speaker}>{segment.speaker}</Text>
                       <Text style={styles.time}>{segment.time}</Text>
                     </View>
-                    <Text style={styles.bodyText}>{segment.text}</Text>
+                    <Text style={styles.bodyText}>{showCleanedTranscript ? (segment.cleanedText ?? segment.text) : segment.text}</Text>
                   </Pressable>
                 ))}
               </ScrollView>

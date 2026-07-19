@@ -131,6 +131,9 @@ final class MemoraRNTranscriptionHandler: MemoraTranscriptionHandling {
     }
     transcript.text = result.fullText
     transcript.replaceSpeakerSegments(result.segments)
+    let cleaned = TranscriptPostProcessor().process(result)
+    transcript.cleanedText = cleaned.fullText
+    transcript.cleanedSegmentTexts = cleaned.segments.map(\.text)
     audioFile.isTranscribed = true
     try context.save()
   }

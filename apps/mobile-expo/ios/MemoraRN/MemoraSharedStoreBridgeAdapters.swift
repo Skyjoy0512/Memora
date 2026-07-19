@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import MemoraSharedData
+import MemoraSharedCore
 import MemoraSharedSchema
 internal import MemoraNative
 
@@ -112,12 +113,15 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     let modelContext = ModelContext(modelContainer)
     let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == audioFileID })
     guard let transcript = try modelContext.fetch(descriptor).first?.transcripts.first else { return [] }
-    return zip(zip(transcript.speakerLabels, transcript.segmentStartTimes), zip(transcript.segmentEndTimes, transcript.segmentTexts)).enumerated().map { index, value in
+    let cleaned = transcript.cleanedSegmentTexts
+    let postProcessor = TranscriptPostProcessor()
+    return transcript.segmentTexts.enumerated().map { index, text in
       [
         "id": "segment-\(index)",
-        "speaker": value.0.0,
-        "time": formattedDuration(value.0.1),
-        "text": value.1.1,
+        "speaker": index < transcript.speakerLabels.count ? transcript.speakerLabels[index] : "",
+        "time": formattedDuration(index < transcript.segmentStartTimes.count ? transcript.segmentStartTimes[index] : 0),
+        "text": text,
+        "cleanedText": index < cleaned.count ? cleaned[index] : postProcessor.clean(text),
         "confidence": 1.0
       ]
     }
