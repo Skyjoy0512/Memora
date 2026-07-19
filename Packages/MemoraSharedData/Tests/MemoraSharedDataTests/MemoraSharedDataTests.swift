@@ -155,6 +155,14 @@ struct MemoraSharedDataTests {
     #expect(decoded.segmentPaths.count == 2)
   }
 
+  @Test("V4 and V5 have distinct schema checksums")
+  func v4AndV5SchemasAreDistinct() {
+    let v4 = Schema(versionedSchema: MemoraSchemaV4.self)
+    let v5 = Schema(versionedSchema: MemoraSchemaV5.self)
+
+    #expect(v4 != v5)
+  }
+
   @Test("V3 and V4 have distinct schema checksums")
   func v3AndV4SchemasAreDistinct() {
     let v3 = Schema(versionedSchema: MemoraSchemaV3.self)
@@ -163,10 +171,10 @@ struct MemoraSharedDataTests {
     #expect(v3 != v4)
   }
 
-  @Test("V3 AudioFile migrates through the shared store factory")
-  func v3AudioFileMigratesThroughSharedStoreFactory() throws {
+  @Test("V4 fixed snapshot store migrates through the shared store factory")
+  func v4StoreMigratesThroughSharedStoreFactory() throws {
     let root = FileManager.default.temporaryDirectory
-      .appendingPathComponent("memora-v3-v4-\(UUID().uuidString)", isDirectory: true)
+      .appendingPathComponent("memora-v4-v5-\(UUID().uuidString)", isDirectory: true)
     let storeURL = root.appendingPathComponent("Memora.store")
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
@@ -174,25 +182,35 @@ struct MemoraSharedDataTests {
     let legacyID = UUID()
     do {
       let container = try ModelContainer(
-        for: Schema(versionedSchema: MemoraSchemaV3.self),
+        for: Schema(versionedSchema: MemoraSchemaV4.self),
         configurations: ModelConfiguration(url: storeURL, allowsSave: true, cloudKitDatabase: .none)
       )
       let context = ModelContext(container)
-      let legacy = MemoraSchemaV3.AudioFile(
-        title: "V3 recording",
-        audioURL: "/tmp/legacy.m4a"
+      let legacy = MemoraSchemaV4.AudioFile(
+        title: "V4 recording",
+        audioURL: "/tmp/v4.m4a"
       )
       legacy.id = legacyID
       context.insert(legacy)
+      let legacyTranscript = MemoraSchemaV4.Transcript(audioFileID: legacyID, text: "元の文字起こし")
+      legacyTranscript.audioFile = legacy
+      legacyTranscript.segmentTexts = ["元のセグメント"]
+      context.insert(legacyTranscript)
       try context.save()
     }
 
     let migrated = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
     let files = try ModelContext(migrated).fetch(FetchDescriptor<AudioFile>())
     let file = try #require(files.first(where: { $0.id == legacyID }))
-    #expect(file.title == "V3 recording")
-    #expect(file.audioURL == "/tmp/legacy.m4a")
+    #expect(file.title == "V4 recording")
+    #expect(file.audioURL == "/tmp/v4.m4a")
     #expect(file.segmentPaths.isEmpty)
+    let transcripts = try ModelContext(migrated).fetch(FetchDescriptor<Transcript>())
+    let transcript = try #require(transcripts.first(where: { $0.audioFileID == legacyID }))
+    #expect(transcript.text == "元の文字起こし")
+    #expect(transcript.segmentTexts == ["元のセグメント"])
+    #expect(transcript.cleanedText == nil)
+    #expect(transcript.cleanedSegmentTexts.isEmpty)
   }
 
   @Test("in-memory store supports page, update, and delete")
@@ -232,7 +250,7 @@ struct MemoraSharedSchemaRepositoryTests {
   func audioFileRepositoryCRUD() throws {
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try ModelContainer(
-      for: Schema(versionedSchema: MemoraSchemaV4.self),
+      for: Schema(versionedSchema: MemoraSchemaV5.self),
       configurations: configuration
     )
     let repository = AudioFileRepository(modelContext: ModelContext(container))
