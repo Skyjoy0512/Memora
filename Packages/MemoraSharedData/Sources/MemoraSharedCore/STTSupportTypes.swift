@@ -83,7 +83,16 @@ public enum DurationFormatter {
 }
 
 public struct TranscriptPostProcessor {
-    public init() {}
+    /// 既定の日本語フィラー。呼び出し側は `init(fillers:)` で置き換えられる。
+    public static let defaultFillers: Set<String> = [
+        "えー", "ええと", "えっと", "あの", "あのー", "その", "そのー", "まあ", "なんか", "うーん"
+    ]
+
+    private let fillers: Set<String>
+
+    public init(fillers: Set<String> = Self.defaultFillers) {
+        self.fillers = fillers
+    }
 
     public func process(_ result: TranscriptionResult) -> TranscriptionResult {
         let cleanedSegments = result.segments.map { segment in
@@ -112,7 +121,8 @@ public struct TranscriptPostProcessor {
         value = normalizeLineBreaks(value)
         value = normalizeJapaneseSpacing(value)
         value = normalizePunctuation(value)
-        value = removeStandaloneFillers(value)
+        value = removeContextualFillers(value)
+        value = normalizeImmediateRepetitions(value)
         return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -142,8 +152,45 @@ public struct TranscriptPostProcessor {
         return value
     }
 
-    private func removeStandaloneFillers(_ text: String) -> String {
-        text.replacingOccurrences(of: #"(?m)^\s*(えー|ええと|えっと|あの|その|まあ|うーん)\s*[、。,.]?\s*$\n?"#, with: "", options: .regularExpression)
+    private func removeContextualFillers(_ text: String) -> String {
+        guard !fillers.isEmpty else { return text }
+
+        let alternatives = fillers
+            .sorted { $0.count > $1.count }
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+        var value = text
+
+        // 単独行のフィラーは従来どおり除去する。
+        value = value.replacingOccurrences(
+            of: "(?m)^[ \\t]*(?:\(alternatives))[ \\t]*[、。,.]?[ \\t]*(?:\\n|$)",
+            with: "",
+            options: .regularExpression
+        )
+        // 行頭・文頭のフィラーは、直後に読点がある場合だけ除去する。
+        value = value.replacingOccurrences(
+            of: "(^|[\\n。！？])[ \\t]*(?:\(alternatives))[ \\t]*[、,][ \\t]*",
+            with: "$1",
+            options: .regularExpression
+        )
+        // 文中は前後を読点で区切られた独立したフィラーだけを除去する。
+        // そのため「あの人」「その件」のような連体詞は一致しない。
+        value = value.replacingOccurrences(
+            of: "([、,])[ \\t]*(?:\(alternatives))[ \\t]*[、,][ \\t]*",
+            with: "$1",
+            options: .regularExpression
+        )
+        return value
+    }
+
+    private func normalizeImmediateRepetitions(_ text: String) -> String {
+        text.replacingOccurrences(
+            // 言い直しは助詞・語尾で終わる完結句、または短い応答語に限定する。
+            // これにより「会議、会議室」「決済、決済サイクル」など複合語の接頭辞を保持する。
+            of: #"(?m)(^|[。！？\n]\s*)((?:[^、。！？\n]*(?:は|が|を|に|で|も|と|ね|よ|の|へ|か))|(?:はい|ええ|うん|そう))[、,]\s*\2"#,
+            with: "$1$2",
+            options: .regularExpression
+        )
     }
 }
 
