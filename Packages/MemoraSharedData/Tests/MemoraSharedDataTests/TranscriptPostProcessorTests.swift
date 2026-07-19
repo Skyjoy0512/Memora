@@ -40,9 +40,18 @@ struct TranscriptPostProcessorTests {
         #expect(TranscriptPostProcessor().clean("そのそのものを確認します") == "そのそのものを確認します")
     }
 
-    @Test("読点で区切られた直後の重複語を正規化する")
-    func normalizesImmediateRepetition() {
-        #expect(TranscriptPostProcessor().clean("これは、これは重要です") == "これは重要です")
+    @Test("接頭辞・数値を保持しつつ読点で区切られた言い直しを正規化する", arguments: [
+        ("5、50個です。", "5、50個です。"),
+        ("1、10日に決済します。", "1、10日に決済します。"),
+        ("母、母親が来た。", "母、母親が来た。"),
+        ("赤、赤色を選ぶ。", "赤、赤色を選ぶ。"),
+        ("あ、ありがとうございます。", "あ、ありがとうございます。"),
+        ("これは、これは重要です。", "これは重要です。"),
+        ("私は、私は行きます。", "私は行きます。"),
+        ("はい、はい。", "はい。")
+    ])
+    func normalizesOnlyImmediateRepetition(text: String, expected: String) {
+        #expect(TranscriptPostProcessor().clean(text) == expected)
     }
 
     @Test("空白と句読点の既存正規化を維持する")

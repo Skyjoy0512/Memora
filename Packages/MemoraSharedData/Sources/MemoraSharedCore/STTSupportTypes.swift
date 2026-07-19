@@ -185,7 +185,9 @@ public struct TranscriptPostProcessor {
 
     private func normalizeImmediateRepetitions(_ text: String) -> String {
         text.replacingOccurrences(
-            of: #"(?m)(^|[。！？\n]\s*)([^、。！？\n]+)[、,]\s*\2"#,
+            // 一文字語・数値は、後続語の接頭辞（例: 5、50個）と区別できないため対象外にする。
+            // 二文字以上の言い直しは、後続文の先頭に続く場合も正規化する。
+            of: #"(?m)(^|[。！？\n]\s*)(?!(?:[0-9０-９]+)[、,])([^、。！？\n]{2,})[、,]\s*\2"#,
             with: "$1$2",
             options: .regularExpression
         )
