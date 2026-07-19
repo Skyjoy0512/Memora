@@ -413,9 +413,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             task={transcription.task}
           /> : null}
           <View style={styles.panel}>
-            <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
+            {transcriptCount > 0 ? <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
               <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
-            </Pressable>
+            </Pressable> : null}
             {transcriptCount === 0 ? (
               <View style={styles.transcriptEmpty}><Text style={styles.transcriptEmptyTitle}>文字起こしはまだありません</Text><Text style={styles.transcriptEmptyBody}>録音を文字起こしすると、全文とタイムスタンプ付きセグメントをこのタブで確認できます。</Text><Pressable onPress={transcription.start} style={styles.startTranscription}><Text style={styles.startTranscriptionText}>文字起こしを開始</Text></Pressable></View>
             ) : (
