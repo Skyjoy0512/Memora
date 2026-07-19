@@ -30,6 +30,15 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     return try store.fetch(id: uuid).map(makeDTO)
   }
 
+  func playbackFilePaths(forId id: String) throws -> [String] {
+    guard let uuid = UUID(uuidString: id), let record = try store.fetch(id: uuid) else {
+      return []
+    }
+
+    let paths = record.segmentPaths.isEmpty ? [record.audioURL] : record.segmentPaths
+    return paths.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  }
+
   func upsertAudioFile(_ dto: MemoraAudioFileDTO, fileURL: URL) throws {
     guard UUID(uuidString: dto.id) != nil else {
       throw MemoraSharedStoreBridgeError.invalidAudioFileID(dto.id)

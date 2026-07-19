@@ -139,6 +139,7 @@ public protocol MemoraAudioFileReading {
 
   func listAudioFiles() throws -> [MemoraAudioFileDTO]
   func getAudioFile(id: String) throws -> MemoraAudioFileDTO?
+  func playbackFilePaths(forId id: String) throws -> [String]
 }
 
 public enum MemoraNativeAudioFileReaderRegistry {
@@ -163,6 +164,9 @@ The current default reader loads JSON metadata produced by native-file recording
 Its `sourceDescription` is `native-files`.
 The current default mutator writes the same local JSON metadata and stored files.
 Its `sourceDescription` is also `native-files`.
+For playback, the reader resolves the owned file paths: one JSON-backed path for
+the default store, or the complete ordered `segmentPaths` sequence for a
+SwiftData-backed segmented recording.
 
 The first full real-data pass should define an adapter in the host app target that can see existing Memora SwiftData/repository types, then assign it to both `MemoraNativeAudioFileReaderRegistry.audioFileReader` and `MemoraNativeAudioFileMutationRegistry.audioFileMutator` during app startup.
 This keeps the Expo module decoupled from app-target SwiftData model definitions while still giving React Native real read and mutation paths.
@@ -187,6 +191,11 @@ struct SwiftDataAudioFileReader: MemoraAudioFileReading {
   func getAudioFile(id: String) throws -> MemoraAudioFileDTO? {
     guard let uuid = UUID(uuidString: id) else { return nil }
     return try repository.fetch(id: uuid).map(mapAudioFile)
+  }
+
+  func playbackFilePaths(forId id: String) throws -> [String] {
+    guard let uuid = UUID(uuidString: id), let file = try repository.fetch(id: uuid) else { return [] }
+    return file.segmentPaths.isEmpty ? [file.audioURL] : file.segmentPaths
   }
 }
 ```
