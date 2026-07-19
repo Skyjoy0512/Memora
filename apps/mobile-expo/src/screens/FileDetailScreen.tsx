@@ -12,6 +12,7 @@ import { Section } from '../components/Section';
 import { SheetCard } from '../components/SheetCard';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { StatusPill } from '../components/StatusPill';
+import { formatRecordedAt } from '../utils/formatRecordedAt';
 import { TranscriptionProgressCard } from '../components/TranscriptionProgressCard';
 import { colors, radius, shadow, spacing } from '../design/tokens';
 import { useAudioFile } from '../features/files/useAudioFiles';
@@ -320,7 +321,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         <View style={styles.detailHeader}>
           <Text numberOfLines={1} style={styles.detailTitle}>{file.title}</Text>
           <View style={styles.detailMetaRow}>
-            <Text style={styles.detailMeta}>{`${file.recordedAt} · ${file.duration}`}</Text>
+<Text style={styles.detailMeta}>{`${formatRecordedAt(file.recordedAt)} · ${file.duration}`}</Text>
             <StatusPill status={file.status} />
           </View>
         </View>

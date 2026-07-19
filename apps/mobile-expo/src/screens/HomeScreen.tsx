@@ -339,8 +339,8 @@ function groupByDate(files: AudioFile[]) {
 
   for (const f of files) {
     const ts = Date.parse(f.recordedAt);
-    if (f.recordedAt.includes('今日') || (!Number.isNaN(ts) && ts >= startOfToday)) { today.push(f); }
-    else if (f.recordedAt.includes('昨日') || (!Number.isNaN(ts) && ts >= startOfYesterday && ts < startOfToday)) { yesterday.push(f); }
+    if (!Number.isNaN(ts) && ts >= startOfToday) { today.push(f); }
+    else if (!Number.isNaN(ts) && ts >= startOfYesterday && ts < startOfToday) { yesterday.push(f); }
     else if (!Number.isNaN(ts) && ts >= startOfToday - 6 * 86_400_000) { week.push(f); }
     else { earlier.push(f); }
   }

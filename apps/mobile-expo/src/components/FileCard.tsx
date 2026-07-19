@@ -3,6 +3,7 @@ import { AppIcon } from './AppIcon';
 import { StatusPill } from './StatusPill';
 import { colors, radius, spacing, shadow } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
+import { formatRecordedAt } from '../utils/formatRecordedAt';
 
 type FileCardProps = {
   file: AudioFile;
@@ -40,7 +41,7 @@ export function FileCard({
           {file.title}
         </Text>
         <Text style={fcStyles.meta}>
-          {file.recordedAt} · {file.duration}
+          {formatRecordedAt(file.recordedAt)} · {file.duration}
         </Text>
         {showSummary && file.summary ? (
           <Text numberOfLines={1} style={fcStyles.summary}>

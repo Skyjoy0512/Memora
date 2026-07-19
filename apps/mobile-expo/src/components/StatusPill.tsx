@@ -4,7 +4,7 @@ import type { AudioStatus } from '../types/memora';
 
 const statusCopy: Record<AudioStatus, string> = {
   queued: '文字起こし待ち',
-  ready: 'Ready',
+  ready: '文字起こし済み',
   summarized: '要約済み',
   transcribing: '文字起こし中',
   failed: '確認が必要',
