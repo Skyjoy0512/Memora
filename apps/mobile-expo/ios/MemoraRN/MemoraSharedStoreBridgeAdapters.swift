@@ -113,13 +113,14 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == audioFileID })
     guard let transcript = try modelContext.fetch(descriptor).first?.transcripts.first else { return [] }
     let cleaned = transcript.cleanedSegmentTexts
+    let postProcessor = TranscriptPostProcessor()
     return transcript.segmentTexts.enumerated().map { index, text in
       [
         "id": "segment-\(index)",
         "speaker": index < transcript.speakerLabels.count ? transcript.speakerLabels[index] : "",
         "time": formattedDuration(index < transcript.segmentStartTimes.count ? transcript.segmentStartTimes[index] : 0),
         "text": text,
-        "cleanedText": index < cleaned.count ? cleaned[index] : NSNull(),
+        "cleanedText": index < cleaned.count ? cleaned[index] : postProcessor.clean(text),
         "confidence": 1.0
       ]
     }
