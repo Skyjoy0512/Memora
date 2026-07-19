@@ -53,6 +53,16 @@ public class MemoraNativeModule: Module {
       try self.settingsStore.saveSettings(MemoraSettingsDTO(dictionary: settings))
     }
 
+    AsyncFunction("listCustomVocabulary") { () -> [[String: Any]] in
+      try self.customVocabularyManager.list().map { $0.asDictionary() }
+    }
+    AsyncFunction("saveCustomVocabulary") { (value: [String: Any]) -> [String: Any] in
+      try self.customVocabularyManager.save(MemoraCustomVocabularyDTO(dictionary: value)).asDictionary()
+    }
+    AsyncFunction("deleteCustomVocabulary") { (id: String) -> Bool in
+      try self.customVocabularyManager.delete(id: id)
+    }
+
     AsyncFunction("getSecureCredentialStatus") { (providerValue: String) -> Bool in
       guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { return false }
       return try MemoraNativeSecureCredentialRegistry.writer.isCredentialConfigured(for: provider)
@@ -192,6 +202,10 @@ public class MemoraNativeModule: Module {
 
   private var settingsStore: MemoraSettingsReadingWriting {
     MemoraNativeSettingsRegistry.settingsStore
+  }
+
+  private var customVocabularyManager: MemoraCustomVocabularyManaging {
+    MemoraNativeCustomVocabularyRegistry.manager
   }
 
   private var recordingImportHandler: MemoraRecordingImportHandling {
