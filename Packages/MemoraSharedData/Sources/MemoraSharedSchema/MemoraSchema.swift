@@ -499,6 +499,11 @@ public enum MemoraSchemaV5: VersionedSchema {
     ]
 }
 
+public enum MemoraSchemaV6: VersionedSchema {
+    public static var versionIdentifier = Schema.Version(6, 0, 0)
+    public static let models: [any PersistentModel.Type] = MemoraSchemaV5.models + [CustomVocabulary.self]
+}
+
 // MARK: - Migration Plan
 
 /// スキーママイグレーションプラン。
@@ -523,7 +528,7 @@ public enum MemoraSchemaV5: VersionedSchema {
 /// ```
 public enum MemoraMigrationPlan: SchemaMigrationPlan {
     public static var schemas: [any VersionedSchema.Type] {
-        [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self, MemoraSchemaV4.self, MemoraSchemaV5.self]
+        [MemoraSchemaV1.self, MemoraSchemaV2.self, MemoraSchemaV3.self, MemoraSchemaV4.self, MemoraSchemaV5.self, MemoraSchemaV6.self]
     }
 
     public static let stages: [MigrationStage] = [
@@ -542,6 +547,10 @@ public enum MemoraMigrationPlan: SchemaMigrationPlan {
         MigrationStage.lightweight(
             fromVersion: MemoraSchemaV4.self,
             toVersion: MemoraSchemaV5.self
+        ),
+        MigrationStage.lightweight(
+            fromVersion: MemoraSchemaV5.self,
+            toVersion: MemoraSchemaV6.self
         )
     ]
 
