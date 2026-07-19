@@ -56,19 +56,24 @@ enum MemoraPlaybackError: LocalizedError {
   }
 }
 
-public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackControlling {
+public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackControlling, AVAudioPlayerDelegate {
   public let sourceDescription = "native-file"
 
   private var player: AVAudioPlayer?
+  private var segmentPlayers: [AVAudioPlayer] = []
+  private var segmentStartOffsets: [TimeInterval] = []
+  private var currentSegmentIndex = 0
   private var currentAudioFileId: String?
+  private var playbackRate: Float = 1
 
   public override init() {
     super.init()
   }
 
   public func load(audioFileId: String) throws -> MemoraPlaybackStatusDTO {
-    guard let filePath = try MemoraNativeAudioFileMetadataStore.filePath(forId: audioFileId),
-          FileManager.default.fileExists(atPath: filePath) else {
+    let filePaths = try MemoraNativeAudioFileReaderRegistry.audioFileReader.playbackFilePaths(forId: audioFileId)
+    guard !filePaths.isEmpty,
+          filePaths.allSatisfy({ FileManager.default.fileExists(atPath: $0) }) else {
       throw MemoraPlaybackError.fileNotFound
     }
 
@@ -76,12 +81,24 @@ public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackCont
     try session.setCategory(.playback, mode: .default)
     try session.setActive(true)
 
-    let nextPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: filePath))
-    nextPlayer.enableRate = true
-    nextPlayer.prepareToPlay()
+    let nextPlayers = try filePaths.map { filePath in
+      let nextPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: filePath))
+      nextPlayer.enableRate = true
+      nextPlayer.delegate = self
+      nextPlayer.prepareToPlay()
+      return nextPlayer
+    }
 
     player?.stop()
-    player = nextPlayer
+    segmentPlayers = nextPlayers
+    var offset: TimeInterval = 0
+    segmentStartOffsets = nextPlayers.map { segmentPlayer in
+      defer { offset += segmentPlayer.duration }
+      return offset
+    }
+    currentSegmentIndex = 0
+    playbackRate = 1
+    player = nextPlayers[0]
     currentAudioFileId = audioFileId
 
     return currentStatus()
@@ -101,13 +118,33 @@ public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackCont
 
   public func seek(to position: Double) throws -> MemoraPlaybackStatusDTO {
     guard let player else { throw MemoraPlaybackError.noFileLoaded }
-    player.currentTime = max(0, min(position, player.duration))
+    let totalDuration = segmentPlayers.reduce(0) { $0 + $1.duration }
+    let clampedPosition = max(0, min(position, totalDuration))
+    let targetIndex = segmentStartOffsets.lastIndex(where: { $0 <= clampedPosition }) ?? 0
+    let targetPlayer = segmentPlayers[targetIndex]
+    let wasPlaying = player.isPlaying
+
+    if targetPlayer !== player {
+      player.stop()
+      self.player = targetPlayer
+      currentSegmentIndex = targetIndex
+    }
+
+    targetPlayer.currentTime = min(
+      max(0, clampedPosition - segmentStartOffsets[targetIndex]),
+      targetPlayer.duration
+    )
+    targetPlayer.rate = playbackRate
+    if wasPlaying {
+      targetPlayer.play()
+    }
     return currentStatus()
   }
 
   public func setRate(_ rate: Double) throws -> MemoraPlaybackStatusDTO {
     guard let player else { throw MemoraPlaybackError.noFileLoaded }
-    player.rate = Float(rate)
+    playbackRate = Float(rate)
+    player.rate = playbackRate
     return currentStatus()
   }
 
@@ -124,9 +161,23 @@ public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackCont
     return MemoraPlaybackStatusDTO(
       audioFileId: currentAudioFileId ?? "",
       isPlaying: player.isPlaying,
-      position: player.currentTime,
-      duration: player.duration,
+      position: segmentStartOffsets[currentSegmentIndex] + player.currentTime,
+      duration: segmentPlayers.reduce(0) { $0 + $1.duration },
       rate: Double(player.rate == 0 ? 1 : player.rate)
     )
+  }
+
+  public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    guard flag,
+          currentSegmentIndex + 1 < segmentPlayers.count,
+          player === self.player else {
+      return
+    }
+
+    currentSegmentIndex += 1
+    let nextPlayer = segmentPlayers[currentSegmentIndex]
+    nextPlayer.rate = playbackRate
+    self.player = nextPlayer
+    nextPlayer.play()
   }
 }

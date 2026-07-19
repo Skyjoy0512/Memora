@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Testing
 @testable import MemoraRN
@@ -31,6 +32,87 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.duration == "02:05")
     #expect(dto.status == "ready")
     #expect(dto.summary == "Summary")
+  }
+
+  @Test("playback paths are resolved from the same shared record as the DTO")
+  func resolvesPlaybackPathsFromSharedStore() throws {
+    let singleFileID = UUID()
+    let segmentedFileID = UUID()
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: [
+        MemoraSharedAudioFileRecord(
+          id: singleFileID,
+          title: "Single",
+          createdAt: Date(),
+          duration: 1,
+          audioURL: "/tmp/single.m4a"
+        ),
+        MemoraSharedAudioFileRecord(
+          id: segmentedFileID,
+          title: "Segmented",
+          createdAt: Date(),
+          duration: 2,
+          audioURL: "/tmp/legacy-primary.m4a",
+          segmentPaths: ["/tmp/segment-1.m4a", "/tmp/segment-2.m4a"]
+        )
+      ])
+    )
+
+    #expect(try adapter.playbackFilePaths(forId: singleFileID.uuidString) == ["/tmp/single.m4a"])
+    #expect(try adapter.playbackFilePaths(forId: segmentedFileID.uuidString) == [
+      "/tmp/segment-1.m4a", "/tmp/segment-2.m4a"
+    ])
+    #expect(try adapter.playbackFilePaths(forId: UUID().uuidString).isEmpty)
+  }
+
+  @Test("native playback loads a SwiftData-owned audio path without JSON metadata")
+  func loadsPlaybackFromSharedStoreWithoutNativeMetadata() throws {
+    let id = UUID()
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-playback-tests-\(UUID().uuidString)", isDirectory: true)
+    let firstSegmentURL = directory.appendingPathComponent("segment-1.wav")
+    let secondSegmentURL = directory.appendingPathComponent("segment-2.wav")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try writeSilentAudio(to: firstSegmentURL)
+    try writeSilentAudio(to: secondSegmentURL)
+
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: [
+        MemoraSharedAudioFileRecord(
+          id: id,
+          title: "SwiftData only",
+          createdAt: Date(),
+          duration: 0.2,
+          audioURL: firstSegmentURL.path,
+          segmentPaths: [firstSegmentURL.path, secondSegmentURL.path]
+        )
+      ])
+    )
+    let originalReader = MemoraNativeAudioFileReaderRegistry.audioFileReader
+    defer { MemoraNativeAudioFileReaderRegistry.audioFileReader = originalReader }
+    MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
+
+    let controller = MemoraAVAudioPlaybackController()
+    let status = try controller.load(audioFileId: id.uuidString)
+    #expect(status.audioFileId == id.uuidString)
+    #expect(status.duration > 0.15)
+
+    let soughtStatus = try controller.seek(to: 0.11)
+    #expect(soughtStatus.position >= 0.1)
+  }
+
+  private func writeSilentAudio(to url: URL) throws {
+    let format = AVAudioFormat(
+      commonFormat: .pcmFormatInt16,
+      sampleRate: 8_000,
+      channels: 1,
+      interleaved: true
+    )!
+    let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 800)!
+    buffer.frameLength = 800
+    try audioFile.write(from: buffer)
   }
 
   @Test("rename, move, and delete mutate the injected shared store")

@@ -627,13 +627,21 @@ export const MemoraNative: MemoraNativeModule = {
     );
   },
   async loadPlayback(audioFileId: string) {
-    const nativeStatus = await withNative<PlaybackStatusDTO>((nativeModule) =>
-      nativeModule.loadPlayback?.(audioFileId),
-    );
+    const nativeModule = loadNativeModule();
+    if (nativeModule?.loadPlayback) {
+      try {
+        const nativeStatus = await nativeModule.loadPlayback(audioFileId);
+        fallbackPlayback = undefined;
+        return nativeStatus;
+      } catch {
+        if ((await this.getBridgeInfo()).isRealDataConnected) {
+          throw new Error('この録音には再生可能な音声ファイルがありません。');
+        }
+      }
+    }
 
-    if (nativeStatus) {
-      fallbackPlayback = undefined;
-      return nativeStatus;
+    if ((await this.getBridgeInfo()).isRealDataConnected) {
+      throw new Error('この録音には再生可能な音声ファイルがありません。');
     }
 
     stopFallbackPlaybackTimer();
