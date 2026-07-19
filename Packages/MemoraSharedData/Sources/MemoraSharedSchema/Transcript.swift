@@ -12,6 +12,8 @@ public final class Transcript {
     public var segmentStartTimes: [Double] = []
     public var segmentEndTimes: [Double] = []
     public var segmentTexts: [String] = []
+    public var cleanedText: String?
+    public var cleanedSegmentTexts: [String] = []
 
     public init(audioFileID: UUID, text: String) {
         self.id = UUID()
@@ -22,6 +24,8 @@ public final class Transcript {
         self.segmentStartTimes = []
         self.segmentEndTimes = []
         self.segmentTexts = []
+        self.cleanedText = nil
+        self.cleanedSegmentTexts = []
     }
 
     /// スピーカーセグメントを追加するヘルパーメソッド
