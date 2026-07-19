@@ -163,6 +163,13 @@ struct MemoraSharedDataTests {
     #expect(v4 != v5)
   }
 
+  @Test("V5 and V6 have distinct schema checksums and V6 starts with no custom vocabulary")
+  func v5AndV6SchemasAreDistinct() throws {
+    #expect(Schema(versionedSchema: MemoraSchemaV5.self) != Schema(versionedSchema: MemoraSchemaV6.self))
+    let container = try ModelContainer(for: Schema(versionedSchema: MemoraSchemaV6.self), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    #expect(try ModelContext(container).fetch(FetchDescriptor<CustomVocabulary>()).isEmpty)
+  }
+
   @Test("V3 and V4 have distinct schema checksums")
   func v3AndV4SchemasAreDistinct() {
     let v3 = Schema(versionedSchema: MemoraSchemaV3.self)
