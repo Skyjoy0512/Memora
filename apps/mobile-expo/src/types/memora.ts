@@ -5,6 +5,7 @@ export type TranscriptSegment = {
   speaker: string;
   time: string;
   text: string;
+  cleanedText?: string;
   confidence: number;
 };
 

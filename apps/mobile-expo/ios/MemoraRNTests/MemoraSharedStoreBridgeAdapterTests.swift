@@ -1,8 +1,10 @@
 import AVFoundation
 import Foundation
+import SwiftData
 import Testing
 @testable import MemoraRN
 import MemoraSharedData
+import MemoraSharedSchema
 internal import MemoraNative
 
 @Suite("RN shared store bridge adapter")
@@ -216,5 +218,26 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(throws: MemoraProcessingRetryError.self) {
       try queue.enqueue(audioFileId: "audio-1", operation: "export", lastError: nil)
     }
+  }
+
+  @Test("transcript DTO preserves raw segments and fills missing cleaned text")
+  func transcriptDTOUsesRawIndexesAndCleaningFallback() throws {
+    let container = try ModelContainer(for: Schema(versionedSchema: MemoraSchemaV5.self), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Fixture", audioURL: "/tmp/a.m4a")
+    let transcript = Transcript(audioFileID: file.id, text: "raw")
+    transcript.audioFile = file
+    transcript.segmentTexts = ["えー、最初です", "あの、次です", "はい、最後です"]
+    transcript.cleanedSegmentTexts = ["保存済み"]
+    transcript.speakerLabels = ["A"]
+    transcript.segmentStartTimes = [1]
+    context.insert(file); context.insert(transcript); try context.save()
+    let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
+    let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
+    #expect(dto.transcript.count == 3)
+    #expect(dto.transcript[0]["text"] as? String == "えー、最初です")
+    #expect(dto.transcript[0]["cleanedText"] as? String == "保存済み")
+    #expect(dto.transcript[1]["cleanedText"] as? String == "次です")
+    #expect(dto.transcript[2]["speaker"] as? String == "")
   }
 }
