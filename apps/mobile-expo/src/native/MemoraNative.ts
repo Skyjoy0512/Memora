@@ -249,7 +249,9 @@ export const MemoraNative: MemoraNativeModule = {
       nativeModule.listAudioFiles?.(),
     );
 
-    if (nativeFiles?.length) {
+    // An empty array is a valid response from a connected SwiftData store.
+    // Only use fixture data when the native module itself is unavailable.
+    if (nativeFiles) {
       return nativeFiles;
     }
 
