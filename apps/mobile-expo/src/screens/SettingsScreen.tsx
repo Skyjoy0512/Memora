@@ -154,7 +154,7 @@ export function SettingsScreen() {
             </Pressable>
             <Switch
               accessibilityLabel={`${vocabulary.pattern} を${vocabulary.enabled ? '無効' : '有効'}にする`}
-              onValueChange={(enabled) => void saveCustomVocabulary({ ...vocabulary, enabled })}
+              onValueChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
               thumbColor={colors.surface}
               trackColor={{ false: colors.border, true: colors.accent }}
               value={vocabulary.enabled}
@@ -415,6 +415,13 @@ export function SettingsScreen() {
     if (deleted) {
       setCustomVocabulary((current) => current.filter((item) => item.id !== id));
       setEditingVocabulary(null);
+    }
+  }
+
+  async function setCustomVocabularyEnabled(id: string, enabled: boolean) {
+    const updated = await MemoraNative.setCustomVocabularyEnabled(id, enabled);
+    if (updated) {
+      setCustomVocabulary((current) => current.map((item) => item.id === id ? updated : item));
     }
   }
 }

@@ -40,6 +40,14 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
     return previousLength !== this.customVocabulary.length;
   }
 
+  async setCustomVocabularyEnabled(id: string, enabled: boolean): Promise<CustomVocabularyDTO | null> {
+    const value = this.customVocabulary.find((item) => item.id === id);
+    if (!value) return null;
+    const updated = { ...value, enabled };
+    await this.saveCustomVocabulary(updated);
+    return updated;
+  }
+
   async listAudioFiles(): Promise<AudioFileDTO[]> {
     return [];
   }

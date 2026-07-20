@@ -62,6 +62,9 @@ public class MemoraNativeModule: Module {
     AsyncFunction("deleteCustomVocabulary") { (id: String) -> Bool in
       try self.customVocabularyManager.delete(id: id)
     }
+    AsyncFunction("setCustomVocabularyEnabled") { (id: String, enabled: Bool) -> [String: Any]? in
+      try self.customVocabularyManager.setEnabled(id: id, enabled: enabled)?.asDictionary()
+    }
 
     AsyncFunction("getSecureCredentialStatus") { (providerValue: String) -> Bool in
       guard let provider = MemoraSecureCredentialProvider(bridgeValue: providerValue) else { return false }

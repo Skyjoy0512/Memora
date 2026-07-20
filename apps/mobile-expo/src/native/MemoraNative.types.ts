@@ -156,6 +156,7 @@ export type MemoraNativeModule = {
   listCustomVocabulary: () => Promise<CustomVocabularyDTO[]>;
   saveCustomVocabulary: (value: CustomVocabularyDTO) => Promise<CustomVocabularyDTO>;
   deleteCustomVocabulary: (id: string) => Promise<boolean>;
+  setCustomVocabularyEnabled: (id: string, enabled: boolean) => Promise<CustomVocabularyDTO | undefined>;
   getBridgeInfo: () => Promise<BridgeInfoDTO>;
   loadPlayback: (audioFileId: string) => Promise<PlaybackStatusDTO>;
   playPlayback: () => Promise<PlaybackStatusDTO>;

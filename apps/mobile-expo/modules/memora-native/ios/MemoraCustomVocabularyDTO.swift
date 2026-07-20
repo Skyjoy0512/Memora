@@ -24,6 +24,7 @@ public protocol MemoraCustomVocabularyManaging {
   func list() throws -> [MemoraCustomVocabularyDTO]
   func save(_ value: MemoraCustomVocabularyDTO) throws -> MemoraCustomVocabularyDTO
   func delete(id: String) throws -> Bool
+  func setEnabled(id: String, enabled: Bool) throws -> MemoraCustomVocabularyDTO?
 }
 
 public enum MemoraNativeCustomVocabularyRegistry {
@@ -37,4 +38,11 @@ public final class MemoraSampleCustomVocabularyManager: MemoraCustomVocabularyMa
   public func list() throws -> [MemoraCustomVocabularyDTO] { values }
   public func save(_ value: MemoraCustomVocabularyDTO) throws -> MemoraCustomVocabularyDTO { values.removeAll { $0.id == value.id }; values.append(value); return value }
   public func delete(id: String) throws -> Bool { let count = values.count; values.removeAll { $0.id == id }; return values.count != count }
+  public func setEnabled(id: String, enabled: Bool) throws -> MemoraCustomVocabularyDTO? {
+    guard let index = values.firstIndex(where: { $0.id == id }) else { return nil }
+    let current = values[index]
+    let updated = MemoraCustomVocabularyDTO(dictionary: ["id": current.id, "pattern": current.pattern, "replacement": current.replacement, "reading": current.reading ?? NSNull(), "enabled": enabled, "createdAt": current.createdAt])
+    values[index] = updated
+    return updated
+  }
 }

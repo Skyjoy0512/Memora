@@ -21,5 +21,14 @@ final class MemoraSharedStoreCustomVocabularyManager: MemoraCustomVocabularyMana
     if existing == nil { context.insert(model) }; try context.save(); return dto(model)
   }
   func delete(id: String) throws -> Bool { guard let uuid = UUID(uuidString: id) else { return false }; let context = ModelContext(container); let d = FetchDescriptor<CustomVocabulary>(predicate: #Predicate { $0.id == uuid }); guard let value = try context.fetch(d).first else { return false }; context.delete(value); try context.save(); return true }
+  func setEnabled(id: String, enabled: Bool) throws -> MemoraCustomVocabularyDTO? {
+    guard let uuid = UUID(uuidString: id) else { return nil }
+    let context = ModelContext(container)
+    let descriptor = FetchDescriptor<CustomVocabulary>(predicate: #Predicate { $0.id == uuid })
+    guard let value = try context.fetch(descriptor).first else { return nil }
+    value.enabled = enabled
+    try context.save()
+    return dto(value)
+  }
   private func dto(_ value: CustomVocabulary) -> MemoraCustomVocabularyDTO { MemoraCustomVocabularyDTO(dictionary: ["id": value.id.uuidString, "pattern": value.pattern, "replacement": value.replacement, "reading": value.reading ?? NSNull(), "enabled": value.enabled, "createdAt": formatter.string(from: value.createdAt)]) }
 }

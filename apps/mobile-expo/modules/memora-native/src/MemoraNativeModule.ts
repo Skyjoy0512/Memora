@@ -28,6 +28,7 @@ declare class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> 
   listCustomVocabulary(): Promise<CustomVocabularyDTO[]>;
   saveCustomVocabulary(value: CustomVocabularyDTO): Promise<CustomVocabularyDTO>;
   deleteCustomVocabulary(id: string): Promise<boolean>;
+  setCustomVocabularyEnabled(id: string, enabled: boolean): Promise<CustomVocabularyDTO | null>;
   startRecording(): Promise<RecordingSessionDTO>;
   pauseRecording(sessionId: string): Promise<void>;
   resumeRecording(sessionId: string): Promise<void>;

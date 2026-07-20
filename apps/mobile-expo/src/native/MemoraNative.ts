@@ -33,6 +33,7 @@ type NativeExpoModule = {
   listCustomVocabulary?: () => Promise<CustomVocabularyDTO[]>;
   saveCustomVocabulary?: (value: CustomVocabularyDTO) => Promise<CustomVocabularyDTO>;
   deleteCustomVocabulary?: (id: string) => Promise<boolean>;
+  setCustomVocabularyEnabled?: (id: string, enabled: boolean) => Promise<CustomVocabularyDTO | null>;
   startRecording?: () => Promise<{ id: string; startedAt: string; source: 'iPhone' }>;
   pauseRecording?: (sessionId: string) => Promise<void>;
   resumeRecording?: (sessionId: string) => Promise<void>;
@@ -638,6 +639,20 @@ export const MemoraNative: MemoraNativeModule = {
     const previousLength = fallbackCustomVocabulary.length;
     fallbackCustomVocabulary = fallbackCustomVocabulary.filter((item) => item.id !== id);
     return previousLength !== fallbackCustomVocabulary.length;
+  },
+  async setCustomVocabularyEnabled(id: string, enabled: boolean) {
+    const nativeItem = await withNative<CustomVocabularyDTO>((nativeModule) =>
+      nativeModule.setCustomVocabularyEnabled?.(id, enabled),
+    );
+    if (nativeItem) return nativeItem;
+
+    const current = fallbackCustomVocabulary.find((item) => item.id === id);
+    if (!current) return undefined;
+    const updated = { ...current, enabled };
+    fallbackCustomVocabulary = fallbackCustomVocabulary.map((item) =>
+      item.id === id ? updated : item,
+    );
+    return updated;
   },
   async getBridgeInfo() {
     const nativeInfo = await withNative<BridgeInfoDTO>((nativeModule) =>
