@@ -119,7 +119,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     let vocabularyApplier = MemoraCustomVocabularyApplier(vocabulary: vocabulary)
     return transcript.segmentTexts.enumerated().map { index, text in
       let cleanedText = index < cleaned.count ? cleaned[index] : postProcessor.clean(text)
-      [
+      return [
         "id": "segment-\(index)",
         "speaker": index < transcript.speakerLabels.count ? transcript.speakerLabels[index] : "",
         "time": formattedDuration(index < transcript.segmentStartTimes.count ? transcript.segmentStartTimes[index] : 0),
