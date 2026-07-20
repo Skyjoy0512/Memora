@@ -280,6 +280,11 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(applier.apply(to: "AB 未使用") == "BC 未使用")
   }
 
+  @Test("empty custom vocabulary leaves cleaned text unchanged")
+  func emptyCustomVocabularyLeavesTextUnchanged() {
+    #expect(MemoraCustomVocabularyApplier(vocabulary: []).apply(to: "既存の整形結果") == "既存の整形結果")
+  }
+
   @Test("transcript DTO applies vocabulary to saved and fallback cleaned text without changing raw")
   func transcriptDTOVocabularyPreservesRawText() throws {
     let container = try ModelContainer(
