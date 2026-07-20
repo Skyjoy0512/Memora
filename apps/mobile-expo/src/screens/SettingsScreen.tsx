@@ -1,12 +1,12 @@
 import { Children, Fragment, useEffect, useState, type ReactNode } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
 import { colors, radius, spacing } from '../design/tokens';
 import { MemoraNative } from '../native/MemoraNative';
-import type { BridgeInfoDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
+import type { BridgeInfoDTO, CustomVocabularyDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { SettingsGroup } from '../types/memora';
 
 const NOT_CONNECTED_MESSAGE =
@@ -35,14 +35,21 @@ export function SettingsScreen() {
   const [settings, setSettings] = useState<SettingsDTO>(defaultSettings);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
+  const [customVocabulary, setCustomVocabulary] = useState<CustomVocabularyDTO[]>([]);
+  const [editingVocabulary, setEditingVocabulary] = useState<CustomVocabularyDTO | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([MemoraNative.getBridgeInfo(), MemoraNative.loadSettings()]).then(([info, nextSettings]) => {
+    Promise.all([
+      MemoraNative.getBridgeInfo(),
+      MemoraNative.loadSettings(),
+      MemoraNative.listCustomVocabulary(),
+    ]).then(([info, nextSettings, vocabulary]) => {
       if (isMounted) {
         setBridgeInfo(info);
         setSettings(nextSettings);
+        setCustomVocabulary(vocabulary);
       }
     });
 
@@ -129,6 +136,40 @@ export function SettingsScreen() {
             value={settings.speechAnalyzerEnabled}
           />
         </View>
+      </SettingsGroupCard>
+
+      <SettingsGroupCard title="ユーザー辞書">
+        {customVocabulary.map((vocabulary) => (
+          <View key={vocabulary.id} style={styles.vocabularyRow}>
+            <Pressable
+              accessibilityLabel={`${vocabulary.pattern} を編集`}
+              accessibilityRole="button"
+              onPress={() => setEditingVocabulary(vocabulary)}
+              style={styles.vocabularyEditButton}
+            >
+              <View style={styles.vocabularyText}>
+                <Text style={styles.v6RowTitle}>{vocabulary.pattern}</Text>
+                <Text style={styles.vocabularyReplacement}>→ {vocabulary.replacement || '削除'}</Text>
+              </View>
+            </Pressable>
+            <Switch
+              accessibilityLabel={`${vocabulary.pattern} を${vocabulary.enabled ? '無効' : '有効'}にする`}
+              onValueChange={(enabled) => void saveCustomVocabulary({ ...vocabulary, enabled })}
+              thumbColor={colors.surface}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              value={vocabulary.enabled}
+            />
+          </View>
+        ))}
+        <Pressable
+          accessibilityLabel="ユーザー辞書を追加"
+          accessibilityRole="button"
+          onPress={() => setEditingVocabulary(newVocabulary())}
+          style={styles.vocabularyAddButton}
+        >
+          <Ionicons color={colors.accent} name="add" size={20} />
+          <Text style={styles.vocabularyAddText}>辞書を追加</Text>
+        </Pressable>
       </SettingsGroupCard>
 
       <SettingsGroupCard title="データ">
@@ -304,6 +345,12 @@ export function SettingsScreen() {
         </View>
       </Section>
       </> : null}
+      <VocabularyEditor
+        onClose={() => setEditingVocabulary(null)}
+        onDelete={(id) => void deleteCustomVocabulary(id)}
+        onSave={(value) => void saveCustomVocabulary(value)}
+        value={editingVocabulary}
+      />
     </Screen>
   );
 
@@ -348,6 +395,108 @@ export function SettingsScreen() {
       setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
     }
   }
+
+  async function saveCustomVocabulary(value: CustomVocabularyDTO) {
+    const pattern = value.pattern.trim();
+    if (!pattern) {
+      Alert.alert('登録できません', '置換したい語を入力してください。');
+      return;
+    }
+    const saved = await MemoraNative.saveCustomVocabulary({ ...value, pattern });
+    setCustomVocabulary((current) => [
+      saved,
+      ...current.filter((item) => item.id !== saved.id),
+    ]);
+    setEditingVocabulary(null);
+  }
+
+  async function deleteCustomVocabulary(id: string) {
+    const deleted = await MemoraNative.deleteCustomVocabulary(id);
+    if (deleted) {
+      setCustomVocabulary((current) => current.filter((item) => item.id !== id));
+      setEditingVocabulary(null);
+    }
+  }
+}
+
+function newVocabulary(): CustomVocabularyDTO {
+  return {
+    createdAt: new Date().toISOString(),
+    enabled: true,
+    id: `vocabulary-${Date.now()}`,
+    pattern: '',
+    reading: null,
+    replacement: '',
+  };
+}
+
+function VocabularyEditor({
+  onClose,
+  onDelete,
+  onSave,
+  value,
+}: {
+  onClose: () => void;
+  onDelete: (id: string) => void;
+  onSave: (value: CustomVocabularyDTO) => void;
+  value: CustomVocabularyDTO | null;
+}) {
+  const [draft, setDraft] = useState<CustomVocabularyDTO | null>(value);
+
+  useEffect(() => setDraft(value), [value]);
+  if (!draft) return null;
+
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{draft.id.startsWith('vocabulary-') ? '辞書を追加' : '辞書を編集'}</Text>
+          <TextInput
+            accessibilityLabel="置換前の語"
+            autoCapitalize="none"
+            onChangeText={(pattern) => setDraft({ ...draft, pattern })}
+            placeholder="置換前の語"
+            placeholderTextColor={colors.textTertiary}
+            style={styles.modalInput}
+            value={draft.pattern}
+          />
+          <TextInput
+            accessibilityLabel="置換後の語"
+            autoCapitalize="none"
+            onChangeText={(replacement) => setDraft({ ...draft, replacement })}
+            placeholder="置換後の語（空欄で削除）"
+            placeholderTextColor={colors.textTertiary}
+            style={styles.modalInput}
+            value={draft.replacement}
+          />
+          <TextInput
+            accessibilityLabel="読み仮名"
+            autoCapitalize="none"
+            onChangeText={(reading) => setDraft({ ...draft, reading: reading || null })}
+            placeholder="読み仮名（任意）"
+            placeholderTextColor={colors.textTertiary}
+            style={styles.modalInput}
+            value={draft.reading ?? ''}
+          />
+          <View style={styles.modalActions}>
+            {!draft.id.startsWith('vocabulary-') ? (
+              <Pressable accessibilityLabel="辞書を削除" onPress={() => onDelete(draft.id)} style={styles.modalDeleteButton}>
+                <Text style={styles.modalDeleteText}>削除</Text>
+              </Pressable>
+            ) : <View />}
+            <View style={styles.modalPrimaryActions}>
+              <Pressable accessibilityLabel="辞書の編集をキャンセル" onPress={onClose} style={styles.modalButton}>
+                <Text style={styles.modalButtonText}>キャンセル</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="辞書を保存" onPress={() => onSave(draft)} style={[styles.modalButton, styles.modalSaveButton]}>
+                <Text style={styles.modalSaveText}>保存</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 function buildSettingsGroups(
@@ -559,6 +708,100 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 50,
     paddingVertical: 14,
+  },
+  vocabularyRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 50,
+  },
+  vocabularyEditButton: {
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingVertical: spacing.sm,
+    flex: 1,
+  },
+  vocabularyText: {
+    gap: spacing.xs,
+  },
+  vocabularyReplacement: {
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  vocabularyAddButton: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 50,
+  },
+  vocabularyAddText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: colors.overlay,
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    gap: spacing.md,
+    padding: spacing.lg,
+    width: '100%',
+  },
+  modalTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  modalInput: {
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    color: colors.text,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  modalActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalPrimaryActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  modalButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  modalButtonText: {
+    color: colors.textSecondary,
+    fontSize: 15,
+  },
+  modalSaveButton: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+  },
+  modalSaveText: {
+    color: colors.textInverse,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalDeleteButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  modalDeleteText: {
+    color: colors.danger,
+    fontSize: 15,
   },
   groupCard: {
     backgroundColor: colors.surface,

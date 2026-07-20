@@ -3,6 +3,7 @@ import { registerWebModule, NativeModule } from 'expo';
 import {
   AudioFileDTO,
   BridgeInfoDTO,
+  CustomVocabularyDTO,
   KnowledgeQueryRequestDTO,
   KnowledgeQueryResponseDTO,
   MemoraNativeModuleEvents,
@@ -17,6 +18,27 @@ import {
 
 class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
   private retries: ProcessingRetryDTO[] = [];
+  private customVocabulary: CustomVocabularyDTO[] = [];
+
+  async listCustomVocabulary(): Promise<CustomVocabularyDTO[]> {
+    return [...this.customVocabulary];
+  }
+
+  async saveCustomVocabulary(value: CustomVocabularyDTO): Promise<CustomVocabularyDTO> {
+    const existingIndex = this.customVocabulary.findIndex((item) => item.id === value.id);
+    if (existingIndex >= 0) {
+      this.customVocabulary[existingIndex] = value;
+    } else {
+      this.customVocabulary.push(value);
+    }
+    return value;
+  }
+
+  async deleteCustomVocabulary(id: string): Promise<boolean> {
+    const previousLength = this.customVocabulary.length;
+    this.customVocabulary = this.customVocabulary.filter((item) => item.id !== id);
+    return previousLength !== this.customVocabulary.length;
+  }
 
   async listAudioFiles(): Promise<AudioFileDTO[]> {
     return [];

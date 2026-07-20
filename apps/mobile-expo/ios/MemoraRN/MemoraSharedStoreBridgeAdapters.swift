@@ -115,13 +115,16 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     guard let transcript = try modelContext.fetch(descriptor).first?.transcripts.first else { return [] }
     let cleaned = transcript.cleanedSegmentTexts
     let postProcessor = TranscriptPostProcessor()
+    let vocabulary = try modelContext.fetch(FetchDescriptor<CustomVocabulary>())
+    let vocabularyApplier = MemoraCustomVocabularyApplier(vocabulary: vocabulary)
     return transcript.segmentTexts.enumerated().map { index, text in
+      let cleanedText = index < cleaned.count ? cleaned[index] : postProcessor.clean(text)
       [
         "id": "segment-\(index)",
         "speaker": index < transcript.speakerLabels.count ? transcript.speakerLabels[index] : "",
         "time": formattedDuration(index < transcript.segmentStartTimes.count ? transcript.segmentStartTimes[index] : 0),
         "text": text,
-        "cleanedText": index < cleaned.count ? cleaned[index] : postProcessor.clean(text),
+        "cleanedText": vocabularyApplier.apply(to: cleanedText),
         "confidence": 1.0
       ]
     }

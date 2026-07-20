@@ -222,7 +222,7 @@ struct MemoraSharedStoreBridgeAdapterTests {
 
   @Test("transcript DTO preserves raw segments and fills missing cleaned text")
   func transcriptDTOUsesRawIndexesAndCleaningFallback() throws {
-    let container = try ModelContainer(for: Schema(versionedSchema: MemoraSchemaV5.self), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let container = try ModelContainer(for: Schema(versionedSchema: MemoraSchemaV6.self), configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let context = ModelContext(container)
     let file = AudioFile(title: "Fixture", audioURL: "/tmp/a.m4a")
     let transcript = Transcript(audioFileID: file.id, text: "raw")
@@ -239,5 +239,70 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.transcript[0]["cleanedText"] as? String == "保存済み")
     #expect(dto.transcript[1]["cleanedText"] as? String == "次です")
     #expect(dto.transcript[2]["speaker"] as? String == "")
+  }
+
+  @Test("custom vocabulary CRUD persists in the shared SwiftData container")
+  func customVocabularyCRUD() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let manager = MemoraSharedStoreCustomVocabularyManager(container: container)
+    let created = try manager.save(MemoraCustomVocabularyDTO(dictionary: [
+      "id": UUID().uuidString,
+      "pattern": "メモラ",
+      "replacement": "Memora",
+      "enabled": true,
+      "createdAt": "2026-07-20T00:00:00Z"
+    ]))
+    #expect(try manager.list().count == 1)
+
+    let updated = try manager.save(MemoraCustomVocabularyDTO(dictionary: [
+      "id": created.id,
+      "pattern": "メモラ",
+      "replacement": "Memora AI",
+      "enabled": false,
+      "createdAt": created.createdAt
+    ]))
+    #expect(updated.replacement == "Memora AI")
+    #expect(updated.enabled == false)
+    #expect(try manager.delete(id: created.id))
+    #expect(try manager.list().isEmpty)
+  }
+
+  @Test("custom vocabulary only applies enabled rules without chaining replacements")
+  func customVocabularyAppliesEnabledRulesWithoutChaining() {
+    let enabledFirst = CustomVocabulary(pattern: "A", replacement: "B", enabled: true, createdAt: .distantPast)
+    let enabledSecond = CustomVocabulary(pattern: "B", replacement: "C", enabled: true, createdAt: .distantFuture)
+    let disabled = CustomVocabulary(pattern: "未使用", replacement: "変更", enabled: false)
+    let applier = MemoraCustomVocabularyApplier(vocabulary: [enabledFirst, enabledSecond, disabled])
+
+    #expect(applier.apply(to: "AB 未使用") == "BC 未使用")
+  }
+
+  @Test("transcript DTO applies vocabulary to saved and fallback cleaned text without changing raw")
+  func transcriptDTOVocabularyPreservesRawText() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Vocabulary fixture", audioURL: "/tmp/vocabulary.m4a")
+    let transcript = Transcript(audioFileID: file.id, text: "えー、メモラです")
+    transcript.audioFile = file
+    transcript.segmentTexts = ["えー、メモラです", "メモラを確認します"]
+    transcript.cleanedSegmentTexts = ["メモラです"]
+    context.insert(file)
+    context.insert(transcript)
+    context.insert(CustomVocabulary(pattern: "メモラ", replacement: "Memora", enabled: true))
+    context.insert(CustomVocabulary(pattern: "確認", replacement: "確認済み", enabled: false))
+    try context.save()
+
+    let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
+    let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
+    #expect(dto.transcript[0]["text"] as? String == "えー、メモラです")
+    #expect(dto.transcript[0]["cleanedText"] as? String == "Memoraです")
+    #expect(dto.transcript[1]["text"] as? String == "メモラを確認します")
+    #expect(dto.transcript[1]["cleanedText"] as? String == "Memoraを確認します")
   }
 }

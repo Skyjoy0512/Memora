@@ -3,6 +3,7 @@ import { NativeModule, requireNativeModule } from 'expo';
 import {
   AudioFileDTO,
   BridgeInfoDTO,
+  CustomVocabularyDTO,
   KnowledgeQueryRequestDTO,
   KnowledgeQueryResponseDTO,
   MemoraNativeModuleEvents,
@@ -24,6 +25,9 @@ declare class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> 
   getBridgeInfo(): Promise<BridgeInfoDTO>;
   loadSettings(): Promise<SettingsDTO>;
   saveSettings(settings: SettingsDTO): Promise<void>;
+  listCustomVocabulary(): Promise<CustomVocabularyDTO[]>;
+  saveCustomVocabulary(value: CustomVocabularyDTO): Promise<CustomVocabularyDTO>;
+  deleteCustomVocabulary(id: string): Promise<boolean>;
   startRecording(): Promise<RecordingSessionDTO>;
   pauseRecording(sessionId: string): Promise<void>;
   resumeRecording(sessionId: string): Promise<void>;

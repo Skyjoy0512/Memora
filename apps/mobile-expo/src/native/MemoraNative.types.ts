@@ -64,6 +64,15 @@ export type SettingsDTO = {
   speechAnalyzerEnabled: boolean;
 };
 
+export type CustomVocabularyDTO = {
+  id: string;
+  pattern: string;
+  replacement: string;
+  reading?: string | null;
+  enabled: boolean;
+  createdAt: string;
+};
+
 export type KnowledgeQueryScope = 'file' | 'project' | 'global';
 
 export type KnowledgeQueryRequestDTO = {
@@ -144,6 +153,9 @@ export type MemoraNativeModule = {
   queryKnowledge: (request: KnowledgeQueryRequestDTO) => Promise<KnowledgeQueryResponseDTO>;
   loadSettings: () => Promise<SettingsDTO>;
   saveSettings: (settings: SettingsDTO) => Promise<void>;
+  listCustomVocabulary: () => Promise<CustomVocabularyDTO[]>;
+  saveCustomVocabulary: (value: CustomVocabularyDTO) => Promise<CustomVocabularyDTO>;
+  deleteCustomVocabulary: (id: string) => Promise<boolean>;
   getBridgeInfo: () => Promise<BridgeInfoDTO>;
   loadPlayback: (audioFileId: string) => Promise<PlaybackStatusDTO>;
   playPlayback: () => Promise<PlaybackStatusDTO>;
