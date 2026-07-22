@@ -1,4 +1,6 @@
 import { AppIcon as Ionicons } from '../components/AppIcon';
+import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
+import { SheetCard } from '../components/SheetCard';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen } from '../components/Screen';
@@ -6,7 +8,7 @@ import { EmptyState, LoadingState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { askMessages } from '../mocks/memoraData';
 import { MemoraNative } from '../native/MemoraNative';
-import type { KnowledgeQueryScope } from '../native/MemoraNative.types';
+import type { KnowledgeQueryScope, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { AskMessage } from '../types/memora';
 
 const scopeOptions: Array<{ label: string; value: KnowledgeQueryScope }> = [
@@ -14,6 +16,16 @@ const scopeOptions: Array<{ label: string; value: KnowledgeQueryScope }> = [
   { label: 'プロジェクト', value: 'project' },
   { label: 'ファイル', value: 'file' },
 ];
+
+type AskModel = 'auto' | SummaryOptionsDTO['provider'];
+
+const ASK_MODEL_LABELS: Record<AskModel, string> = {
+  auto: 'Auto',
+  OpenAI: 'OpenAI',
+  Gemini: 'Gemini',
+  DeepSeek: 'DeepSeek',
+  Local: 'On-device',
+};
 
 const initialMessagesByScope: Record<KnowledgeQueryScope, AskMessage[]> = {
   file: askMessages,
@@ -36,6 +48,8 @@ export function AskAIScreen() {
   const [draft, setDraft] = useState('');
   const [isAnswering, setIsAnswering] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [askModel, setAskModel] = useState<AskModel>('auto');
+  const [isModelSheetOpen, setIsModelSheetOpen] = useState(false);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -136,6 +150,10 @@ export function AskAIScreen() {
             <Pressable accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.attachButton}>
               <Ionicons color={colors.textTertiary} name="attach-outline" size={18} />
             </Pressable>
+            <Pressable accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsModelSheetOpen(true)} style={styles.modelPill}>
+              <Text style={styles.modelPillText}>{ASK_MODEL_LABELS[askModel]}</Text>
+              <Ionicons color={colors.textSecondary} name="chevron-down" size={12} />
+            </Pressable>
             <Pressable
               accessibilityLabel="Ask AI send"
               accessibilityRole="button"
@@ -209,6 +227,24 @@ export function AskAIScreen() {
         {isAnswering ? <View style={styles.typingDots}><View style={styles.typingDot} /><View style={styles.typingDot} /><View style={styles.typingDot} /></View> : null}
       </View>
 
+      <FloatingBottomSheet isOpen={isModelSheetOpen} onClose={() => setIsModelSheetOpen(false)}>
+        <SheetCard style={styles.modelSheet}>
+          {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
+            <Pressable
+              accessibilityRole="button"
+              key={model}
+              onPress={() => {
+                setAskModel(model);
+                setIsModelSheetOpen(false);
+              }}
+              style={styles.modelSheetRow}
+            >
+              <Text style={styles.modelSheetRowText}>{ASK_MODEL_LABELS[model]}</Text>
+              {askModel === model ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
+            </Pressable>
+          ))}
+        </SheetCard>
+      </FloatingBottomSheet>
     </Screen>
   );
 }
@@ -309,6 +345,33 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   attachButton: { alignItems: 'center', height: 32, justifyContent: 'center', width: 28 },
+  modelPill: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  modelPillText: {
+    color: colors.textSecondary,
+    ...textStyles.caption,
+  },
+  modelSheet: {
+    paddingVertical: spacing.xs,
+  },
+  modelSheetRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  modelSheetRowText: {
+    color: colors.text,
+    ...textStyles.body,
+  },
   askDock: {
     backgroundColor: colors.surface,
     paddingBottom: 94,
