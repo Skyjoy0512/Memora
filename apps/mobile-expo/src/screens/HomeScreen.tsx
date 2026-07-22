@@ -23,7 +23,7 @@ import { Screen } from '../components/Screen';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { SheetCard } from '../components/SheetCard';
 import { EmptyState, ErrorState } from '../components/StateViews';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
 import { useAudioFiles } from '../features/files/useAudioFiles';
 import { MemoraNative } from '../native/MemoraNative';
@@ -239,7 +239,7 @@ function ProjectsGrid({ projects, files, onSelect }: { projects: string[]; files
             onPress={() => onSelect(project)}
             style={({ pressed }) => [homeStyles.projectCard, pressed && homeStyles.cardPressed]}
           >
-            <View style={[homeStyles.projectAvatar, { backgroundColor: ['#1A7F6B', '#5F6368', '#9AA0A6', '#3C4043'][i % 4] }]}>
+            <View style={[homeStyles.projectAvatar, { backgroundColor: [colors.categorySlate, colors.categoryTeal, colors.categoryOlive, colors.categoryMauve][i % 4] }]}>
               <Text style={homeStyles.projectAvatarText}>{project.slice(0, 1)}</Text>
             </View>
             <View>
@@ -354,43 +354,43 @@ function groupByDate(files: AudioFile[]) {
 
 // ── styles ───────────────────────────────────────────────
 const homeStyles = StyleSheet.create({
-  screenTitle: { color: colors.text, fontSize: 30, fontWeight: '700', letterSpacing: -0.4 },
+  screenTitle: { color: colors.text, ...textStyles.screenTitle },
   headerActions: { flexDirection: 'row' },
   headerBtn: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
   emptyActions: { gap: spacing.sm },
   importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: -spacing.xs, minHeight: 44, paddingHorizontal: spacing.lg },
-  importEmptyActionText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+  importEmptyActionText: { color: colors.accent, ...textStyles.footnoteBold },
 
   // projects
   projectsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   projectCard: { borderColor: colors.borderLight, borderRadius: radius.md, borderWidth: 1, gap: 28, padding: spacing.md, width: '48%' },
   cardPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
   projectAvatar: { alignItems: 'center', borderRadius: radius.sm, height: 26, justifyContent: 'center', width: 26 },
-  projectAvatarText: { color: colors.surface, fontSize: 12, fontWeight: '700' },
-  projectName: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  projectCount: { color: colors.textTertiary, fontSize: 12, marginTop: 2 },
+  projectAvatarText: { color: colors.surface, ...textStyles.captionBold },
+  projectName: { color: colors.text, ...textStyles.footnoteBold },
+  projectCount: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
   projectView: { gap: spacing.xs },
   projectHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  projectViewTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  projectViewTitle: { color: colors.text, ...textStyles.callout },
   backBtn: { alignItems: 'center', height: 44, justifyContent: 'center', marginLeft: -spacing.sm, width: 44 },
 
   // sheets
   sheet: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   sheetRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 50, paddingHorizontal: spacing.md },
-  sheetRowText: { color: colors.text, flex: 1, fontSize: 15, fontWeight: '500' },
-  sheetDeleteText: { color: colors.danger, flex: 1, fontSize: 15, fontWeight: '500' },
+  sheetRowText: { color: colors.text, flex: 1, ...textStyles.bodyBold },
+  sheetDeleteText: { color: colors.danger, flex: 1, ...textStyles.bodyBold },
   sheetRowPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 
   // modal
   modalBackdrop: { alignItems: 'center', backgroundColor: colors.overlay, flex: 1, justifyContent: 'center', padding: spacing.lg },
   modalCard: { backgroundColor: colors.surface, borderRadius: radius.lg, gap: spacing.sm, padding: spacing.lg, width: '100%' },
-  modalTitle: { color: colors.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  modalBody: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  modalTitle: { color: colors.text, textAlign: 'center', ...textStyles.callout },
+  modalBody: { color: colors.textSecondary, textAlign: 'center', ...textStyles.footnote },
   modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   modalCancel: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderRadius: radius.md, flex: 1, paddingVertical: spacing.md },
   modalDelete: { alignItems: 'center', backgroundColor: colors.danger, borderRadius: radius.md, flex: 1, paddingVertical: spacing.md },
-  modalCancelText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  modalDeleteText: { color: colors.surface, fontSize: 14, fontWeight: '600' },
+  modalCancelText: { color: colors.text, ...textStyles.footnoteBold },
+  modalDeleteText: { color: colors.surface, ...textStyles.footnoteBold },
   disabled: { opacity: 0.58 },
 });

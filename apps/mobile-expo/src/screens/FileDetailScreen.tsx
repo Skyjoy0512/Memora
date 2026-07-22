@@ -14,7 +14,7 @@ import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { StatusPill } from '../components/StatusPill';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 import { TranscriptionProgressCard } from '../components/TranscriptionProgressCard';
-import { colors, radius, shadow, spacing } from '../design/tokens';
+import { colors, radius, shadow, spacing, textStyles } from '../design/tokens';
 import { useAudioFile } from '../features/files/useAudioFiles';
 import { useMemoNotes } from '../features/memo/useMemoNotes';
 import { usePlayback } from '../features/playback/usePlayback';
@@ -630,27 +630,27 @@ function activeTranscriptSegmentIdForPosition(
 
 const styles = StyleSheet.create({
   summaryTab: { gap: spacing.lg, paddingBottom: spacing.lg, paddingTop: spacing.sm },
-  summaryMeta: { color: colors.textTertiary, fontSize: 12.5 },
+  summaryMeta: { color: colors.textTertiary, ...textStyles.caption },
   summarySection: { gap: spacing.sm },
-  summarySectionTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  summarySectionTitle: { color: colors.text, ...textStyles.bodyBold },
   chapterRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
-  chapterTime: { color: colors.textTertiary, fontFamily: 'Menlo', fontSize: 12, width: 38 },
-  chapterText: { color: colors.text, flex: 1, fontSize: 14 },
-  decisionText: { color: colors.textSecondary, fontSize: 14, lineHeight: 24 },
+  chapterTime: { color: colors.textTertiary, width: 38, ...textStyles.monoBody },
+  chapterText: { color: colors.text, flex: 1, ...textStyles.body },
+  decisionText: { color: colors.textSecondary, ...textStyles.body },
   actionList: { gap: spacing.md },
   actionItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  actionItemText: { color: colors.text, flex: 1, fontSize: 14, lineHeight: 20 },
+  actionItemText: { color: colors.text, flex: 1, ...textStyles.body },
   taskifyButton: { alignItems: 'center', flexDirection: 'row', gap: 2, minHeight: 36, paddingHorizontal: spacing.xs },
-  taskifyText: { color: colors.textTertiary, fontSize: 11.5, fontWeight: '600' },
+  taskifyText: { color: colors.textTertiary, ...textStyles.captionBold },
   attachmentHeading: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
-  attachmentCaption: { color: colors.textTertiary, fontSize: 11 },
+  attachmentCaption: { color: colors.textTertiary, ...textStyles.caption },
   attachmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   attachmentThumbWrap: { aspectRatio: 1, borderRadius: radius.md, overflow: 'hidden', width: '30.8%' },
   attachmentThumb: { height: '100%', width: '100%' },
   attachmentLocalBadge: { backgroundColor: 'rgba(13,13,13,0.7)', borderRadius: 6, left: 5, paddingHorizontal: 5, paddingVertical: 2, position: 'absolute', top: 5 },
-  attachmentLocalBadgeText: { color: colors.surface, fontSize: 8.5, fontWeight: '600' },
+  attachmentLocalBadgeText: { color: colors.surface, ...textStyles.captionBold },
   attachmentAdd: { alignItems: 'center', aspectRatio: 1, borderColor: colors.border, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1.5, justifyContent: 'center', width: '30.8%' },
-  attachmentStorageNote: { color: colors.textTertiary, fontSize: 12, fontWeight: '500', marginTop: 2 },
+  attachmentStorageNote: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
   detailTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginHorizontal: -6 },
   headerActions: {
     alignItems: 'center',
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   sourceMeta: {
     color: colors.textTertiary,
     flex: 1,
-    fontSize: 12,
+    ...textStyles.caption,
   },
   summaryIntro: {
     gap: spacing.lg,
@@ -750,18 +750,15 @@ const styles = StyleSheet.create({
   },
   renameError: {
     color: colors.danger,
-    fontSize: 13,
-    fontWeight: '800',
+    ...textStyles.footnoteBold,
   },
   summaryError: {
     color: colors.danger,
-    fontSize: 13,
-    fontWeight: '800',
+    ...textStyles.footnoteBold,
   },
   summaryMetadata: {
     color: colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '800',
+    ...textStyles.caption,
   },
   heroSummary: {
     color: colors.text,
@@ -798,7 +795,7 @@ const styles = StyleSheet.create({
   },
   summaryButtonText: {
     color: colors.surface,
-    fontWeight: '900',
+    ...textStyles.bodyBold,
   },
   ghostButton: {
     alignItems: 'center',
@@ -814,9 +811,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   detailHeader: { flex: 1, gap: spacing.xs },
-  detailTitle: { color: colors.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.24 },
+  detailTitle: { color: colors.text, letterSpacing: -0.24, ...textStyles.title2 },
   detailMetaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  detailMeta: { color: colors.textTertiary, fontSize: 12.5 },
+  detailMeta: { color: colors.textTertiary, ...textStyles.caption },
   tabs: {
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
@@ -835,8 +832,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: colors.textTertiary,
-    fontSize: 14,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
   },
   tabTextActive: {
     color: colors.text,
@@ -870,7 +866,7 @@ const styles = StyleSheet.create({
   },
   askSuggestionText: {
     color: colors.text,
-    fontSize: 14,
+    ...textStyles.body,
   },
   askInputRow: {
     alignItems: 'center',
@@ -884,30 +880,29 @@ const styles = StyleSheet.create({
   },
   askInputPlaceholder: {
     color: colors.textInverse,
-    fontSize: 14,
+    ...textStyles.body,
   },
   sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.32)', flex: 1, justifyContent: 'flex-end' },
   sheetPress: { width: '100%' },
   sheet: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   sheetFallback: { backgroundColor: colors.surface },
   sheetRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 50, paddingHorizontal: spacing.md },
-  sheetRowText: { color: colors.text, fontSize: 15, fontWeight: '500' },
-  deleteText: { color: colors.danger, fontSize: 15, fontWeight: '500' },
+  sheetRowText: { color: colors.text, ...textStyles.bodyBold },
+  deleteText: { color: colors.danger, ...textStyles.bodyBold },
   renameBackdrop: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.32)', flex: 1, justifyContent: 'center', padding: spacing.lg },
   renameSheet: { borderRadius: radius.lg, gap: spacing.md, overflow: 'hidden', padding: spacing.lg, width: '100%' },
-  renameSheetTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  renameSheetInput: { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.text, fontSize: 15, minHeight: 46, paddingHorizontal: spacing.md },
+  renameSheetTitle: { color: colors.text, ...textStyles.callout },
+  renameSheetInput: { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.text, minHeight: 46, paddingHorizontal: spacing.md, ...textStyles.body },
   renameSheetActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
   renameCancel: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  renameCancelText: { color: colors.textTertiary, fontSize: 14, fontWeight: '600' },
+  renameCancelText: { color: colors.textTertiary, ...textStyles.footnoteBold },
   renameSave: { backgroundColor: colors.text, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  renameSaveText: { color: colors.surface, fontSize: 14, fontWeight: '600' },
-  deleteDescription: { color: colors.textSecondary, fontSize: 12.5, lineHeight: 19, textAlign: 'center' }, deleteConfirm: { backgroundColor: colors.danger, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  exportTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: spacing.sm, marginLeft: spacing.xs }, exportRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md }, exportIcon: { alignItems: 'center', borderRadius: 6, height: 24, justifyContent: 'center', width: 24 }, exportRowLabel: { color: colors.text, flex: 1, fontSize: 14.5, fontWeight: '500' }, exportRowStatus: { color: colors.textTertiary, fontSize: 11.5 },
+  renameSaveText: { color: colors.surface, ...textStyles.footnoteBold },
+  deleteDescription: { color: colors.textSecondary, textAlign: 'center', ...textStyles.footnote }, deleteConfirm: { backgroundColor: colors.danger, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  exportTitle: { color: colors.text, marginBottom: spacing.sm, marginLeft: spacing.xs, ...textStyles.callout }, exportRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md }, exportIcon: { alignItems: 'center', borderRadius: 6, height: 24, justifyContent: 'center', width: 24 }, exportRowLabel: { color: colors.text, flex: 1, ...textStyles.body }, exportRowStatus: { color: colors.textTertiary, ...textStyles.caption },
   bodyText: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 24,
+    ...textStyles.body,
   },
   todoList: {
     gap: spacing.md,
@@ -920,8 +915,7 @@ const styles = StyleSheet.create({
   todoText: {
     color: colors.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+    ...textStyles.bodyBold,
   },
   segment: {
     borderRadius: 10,
@@ -937,14 +931,11 @@ const styles = StyleSheet.create({
   },
   speaker: {
     color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
+    ...textStyles.captionBold,
   },
   time: {
     color: colors.textTertiary,
-    fontFamily: 'Menlo',
-    fontSize: 10.5,
-    fontWeight: '500',
+    ...textStyles.monoBody,
   },
   transcriptScroll: {
     flexShrink: 1,
@@ -954,10 +945,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   transcriptEmpty: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  transcriptEmptyTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  transcriptEmptyBody: { color: colors.textTertiary, fontSize: 12.5, lineHeight: 20, textAlign: 'center' },
+  transcriptEmptyTitle: { color: colors.text, ...textStyles.bodyBold },
+  transcriptEmptyBody: { color: colors.textTertiary, textAlign: 'center', ...textStyles.footnote },
   startTranscription: { backgroundColor: colors.text, borderRadius: radius.md, marginTop: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  startTranscriptionText: { color: colors.surface, fontSize: 13.5, fontWeight: '600' },
+  startTranscriptionText: { color: colors.surface, ...textStyles.footnoteBold },
   memoEditBlock: {
     gap: spacing.sm,
   },
@@ -967,11 +958,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 25,
     minHeight: 120,
     padding: spacing.md,
     textAlignVertical: 'top',
+    ...textStyles.body,
   },
   memoSaveButton: {
     alignItems: 'center',
@@ -983,8 +973,7 @@ const styles = StyleSheet.create({
   },
   memoSaveText: {
     color: colors.surface,
-    fontSize: 13.5,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
   },
   memoDisplayBlock: {
     backgroundColor: '#FAFAFA',
@@ -993,13 +982,11 @@ const styles = StyleSheet.create({
   },
   memoDisplayText: {
     color: colors.text,
-    fontSize: 14,
-    lineHeight: 25,
+    ...textStyles.body,
   },
   memoPlaceholderText: {
     color: colors.border,
-    fontSize: 14,
-    lineHeight: 25,
+    ...textStyles.body,
   },
   photoRow: {
     flexDirection: 'row',

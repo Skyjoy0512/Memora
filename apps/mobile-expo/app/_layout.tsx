@@ -2,10 +2,29 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  useFonts,
+  IBMPlexSansJP_200ExtraLight,
+  IBMPlexSansJP_300Light,
+  IBMPlexSansJP_400Regular,
+  IBMPlexSansJP_500Medium,
+  IBMPlexSansJP_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-sans-jp';
 import { colors } from '../src/design/tokens';
 import { CaptureFlowProvider } from '../src/features/capture/CaptureFlowProvider';
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    IBMPlexSansJP_200ExtraLight,
+    IBMPlexSansJP_300Light,
+    IBMPlexSansJP_400Regular,
+    IBMPlexSansJP_500Medium,
+    IBMPlexSansJP_600SemiBold,
+  });
+
+  // フォント確定までは描画しない（Figma の IBM Plex とのズレ防止）
+  if (!fontsLoaded) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>

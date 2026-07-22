@@ -82,6 +82,7 @@ enum MemoraNativeBridgeBootstrap {
     recordingImportHandler: MemoraRecordingImportHandling? = nil
   ) {
     let adapter = MemoraSharedStoreBridgeAdapter(store: store, container: container)
+    MemoraNativeCustomVocabularyRegistry.manager = MemoraSharedStoreCustomVocabularyManager(container: container)
     MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
     MemoraNativeAudioFileMutationRegistry.audioFileMutator = adapter
     MemoraNativeTranscriptionRegistry.handler = transcriptionHandler

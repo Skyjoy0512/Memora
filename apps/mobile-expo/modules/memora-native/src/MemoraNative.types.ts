@@ -59,6 +59,15 @@ export type SettingsDTO = {
   speechAnalyzerEnabled: boolean;
 };
 
+export type CustomVocabularyDTO = {
+  id: string;
+  pattern: string;
+  replacement: string;
+  reading?: string | null;
+  enabled: boolean;
+  createdAt: string;
+};
+
 export type KnowledgeQueryScope = 'file' | 'project' | 'global';
 
 export type KnowledgeQueryRequestDTO = {

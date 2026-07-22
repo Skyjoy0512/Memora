@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { EmptyState, LoadingState } from '../components/StateViews';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { askMessages } from '../mocks/memoraData';
 import { MemoraNative } from '../native/MemoraNative';
 import type { KnowledgeQueryScope } from '../native/MemoraNative.types';
@@ -232,15 +232,14 @@ const styles = StyleSheet.create({
   },
   scopeText: {
     color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
     textAlign: 'center',
+    ...textStyles.footnoteBold,
   },
   scopeTextActive: {
     borderRadius: radius.pill,
     color: colors.text,
   },
-  scopeCaption: { color: colors.textTertiary, fontSize: 11.5, lineHeight: 17, marginTop: -8 },
+  scopeCaption: { color: colors.textTertiary, marginTop: -8, ...textStyles.caption },
   newChatButton: { alignItems: 'center', height: 44, justifyContent: 'center', marginRight: -spacing.sm, width: 44 },
   iconPressed: { opacity: 0.45 },
   thread: {
@@ -258,8 +257,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: colors.text,
-    fontSize: 14.5,
-    lineHeight: 21,
+    ...textStyles.body,
   },
   assistantBlock: {
     borderBottomColor: colors.borderLight,
@@ -268,21 +266,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   messageActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginTop: 2 },
-  messageActionText: { color: colors.textTertiary, fontSize: 11, fontWeight: '500' },
-  messageTime: { color: colors.border, fontSize: 10.5, marginLeft: 'auto' },
+  messageActionText: { color: colors.textTertiary, ...textStyles.caption },
+  messageTime: { color: colors.border, marginLeft: 'auto', ...textStyles.caption },
   emptyAsk: { gap: spacing.xs, paddingTop: spacing.xl },
-  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
-  emptySubtitle: { color: colors.textTertiary, fontSize: 12, fontWeight: '600', letterSpacing: 0.2, paddingBottom: spacing.sm },
+  emptyTitle: { color: colors.text, ...textStyles.callout },
+  emptySubtitle: { color: colors.textTertiary, paddingBottom: spacing.sm, ...textStyles.captionBold },
   suggestions: { borderTopColor: colors.borderLight, borderTopWidth: 1 },
   suggestion: { alignItems: 'center', borderBottomColor: colors.borderLight, borderBottomWidth: 1, flexDirection: 'row', minHeight: 52, paddingHorizontal: 2 },
   suggestionPressed: { opacity: 0.46 },
-  suggestionText: { color: colors.text, flex: 1, fontSize: 14, lineHeight: 20 },
+  suggestionText: { color: colors.text, flex: 1, ...textStyles.body },
   typingDots: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.sm },
   typingDot: { backgroundColor: colors.border, borderRadius: 3, height: 6, width: 6 },
   assistantText: {
     color: colors.text,
-    fontSize: 15,
-    lineHeight: 25,
+    ...textStyles.body,
   },
   sources: {
     flexDirection: 'row',
@@ -297,8 +294,7 @@ const styles = StyleSheet.create({
   },
   sourceText: {
     color: colors.textTertiary,
-    fontSize: 10.5,
-    fontWeight: '500',
+    ...textStyles.caption,
   },
   askBox: {
     alignItems: 'center',
@@ -325,11 +321,9 @@ const styles = StyleSheet.create({
   askInput: {
     color: colors.text,
     flex: 1,
-    fontSize: 15,
-    fontWeight: '400',
-    lineHeight: 21,
     maxHeight: 96,
     minHeight: 24,
+    ...textStyles.body,
   },
   sendButton: {
     alignItems: 'center',
