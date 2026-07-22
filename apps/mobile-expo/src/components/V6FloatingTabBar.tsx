@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
+import { textStyles } from '../design/tokens';
 
 const items = [
   { icon: 'home' as AppIconName, label: 'ホーム', routeName: 'index' },
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     right: 1,
     top: 0,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 10, fontVariant: ['tabular-nums'], fontWeight: '800', lineHeight: 12, textAlign: 'center' },
+  badgeText: { color: '#FFFFFF', fontVariant: ['tabular-nums'], textAlign: 'center', ...textStyles.captionBold, lineHeight: 12 },
   container: { backgroundColor: 'transparent', paddingHorizontal: 16 },
   dock: { flexDirection: 'row', gap: 10, height: 60 },
   fab: {
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.93 }] },
-  menuText: { color: '#0D0D0D', fontSize: 14.5, fontWeight: '600' },
+  menuText: { color: '#0D0D0D', ...textStyles.body },
   modalRoot: { flex: 1 },
   pressed: { opacity: 0.9, transform: [{ scale: 0.93 }] },
   recordingDot: { backgroundColor: '#FF3030', borderRadius: 5, height: 10, width: 10 },

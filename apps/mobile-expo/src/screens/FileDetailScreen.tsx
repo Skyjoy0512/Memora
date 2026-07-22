@@ -1028,6 +1028,6 @@ const styles = StyleSheet.create({
   scalePress: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   photoAddText: {
     color: colors.textTertiary,
-    fontSize: 11,
+    ...textStyles.caption,
   },
 });

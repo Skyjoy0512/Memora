@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { audioFiles } from '../mocks/memoraData';
 
 export function PreviewIndexScreen() {
@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '800',
+    ...textStyles.callout,
   },
 });

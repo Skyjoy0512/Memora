@@ -127,6 +127,6 @@ const fcStyles = StyleSheet.create({
   },
   moreText: {
     color: colors.textTertiary,
-    fontSize: 18,
+    ...textStyles.callout,
   },
 });
