@@ -6,7 +6,7 @@ import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { SheetCard } from '../components/SheetCard';
 import { EmptyState } from '../components/StateViews';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 type DueChoice = '今日' | '明日' | '日付を選択';
 
@@ -176,29 +176,29 @@ const styles = StyleSheet.create({
   doneButton: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   doneGroup: { gap: spacing.sm },
   group: { gap: spacing.sm },
-  groupLabel: { fontSize: 12, fontWeight: '600' },
-  input: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, color: colors.text, fontSize: 15, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  groupLabel: { ...textStyles.captionBold },
+  input: { backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.md, paddingVertical: spacing.md, ...textStyles.body },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   saveButton: { alignItems: 'center', backgroundColor: colors.text, borderRadius: radius.lg, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: spacing.lg, paddingVertical: spacing.md },
-  saveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  saveButtonText: { color: '#FFFFFF', ...textStyles.callout },
   sheet: { minHeight: 340, padding: spacing.lg },
-  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '700', marginBottom: spacing.md },
-  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginBottom: spacing.xs, marginTop: spacing.md },
+  sheetTitle: { color: colors.text, marginBottom: spacing.md, ...textStyles.callout },
+  fieldLabel: { color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md, ...textStyles.captionBold },
   dueRow: { flexDirection: 'row', gap: spacing.sm },
   dueChip: { backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   dueChipActive: { backgroundColor: colors.text },
-  dueChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  dueChipText: { color: colors.textSecondary, ...textStyles.footnoteBold },
   dueChipTextActive: { color: '#FFFFFF' },
   projectRow: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
-  projectText: { color: colors.text, fontSize: 14.5 },
+  projectText: { color: colors.text, ...textStyles.body },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 3 },
   metaDot: { backgroundColor: colors.textTertiary, borderRadius: 1.5, height: 3, width: 3 },
   sourceShrink: { flexShrink: 1 },
-  sourceLink: { color: colors.textTertiary, fontSize: 12, textDecorationLine: 'underline' },
-  sourceText: { color: colors.textTertiary, fontSize: 12 },
-  dueBadge: { fontSize: 11.5, fontWeight: '600' },
+  sourceLink: { color: colors.textTertiary, textDecorationLine: 'underline', ...textStyles.caption },
+  sourceText: { color: colors.textTertiary, ...textStyles.caption },
+  dueBadge: { ...textStyles.captionBold },
   taskBody: { flex: 1 },
   taskRow: { borderBottomColor: colors.borderLight, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, paddingVertical: 14 },
-  taskTitle: { color: colors.text, fontSize: 14.5, fontWeight: '500', lineHeight: 20 },
+  taskTitle: { color: colors.text, ...textStyles.body },
   taskTitleCompleted: { color: colors.textTertiary, textDecorationLine: 'line-through' },
 });

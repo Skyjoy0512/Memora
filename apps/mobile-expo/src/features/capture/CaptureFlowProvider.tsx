@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, radius } from "../../design/tokens";
+import { colors, fonts, radius, textStyles } from "../../design/tokens";
 import { MemoraNative } from "../../native/MemoraNative";
 import type { SummaryOptionsDTO } from "../../native/MemoraNative.types";
 import type { AudioFile } from "../../types/memora";
@@ -775,13 +775,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
-  backgroundButtonText: { color: colors.text, fontSize: 13, fontWeight: "600" },
+  backgroundButtonText: { color: colors.text, ...textStyles.footnoteBold },
   confirmActions: { flexDirection: "row", gap: 8, marginTop: 16 },
   confirmBody: {
     color: colors.textTertiary,
-    fontSize: 12.5,
-    lineHeight: 18,
     textAlign: "center",
+    ...textStyles.caption,
   },
   confirmCancel: {
     alignItems: "center",
@@ -791,7 +790,7 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: "center",
   },
-  confirmCancelText: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  confirmCancelText: { color: colors.text, ...textStyles.footnoteBold },
   confirmCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: radius.lg,
@@ -806,7 +805,7 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: "center",
   },
-  confirmDeleteText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  confirmDeleteText: { color: colors.surface, ...textStyles.footnoteBold },
   confirmOverlay: {
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -819,10 +818,9 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
     marginBottom: 6,
     textAlign: "center",
+    ...textStyles.callout,
   },
   generateBack: {
     alignItems: "center",
@@ -838,8 +836,7 @@ const styles = StyleSheet.create({
   },
   generateButtonText: {
     color: colors.surface,
-    fontSize: 16,
-    fontWeight: "600",
+    ...textStyles.callout,
   },
   generateCenter: {
     alignItems: "center",
@@ -855,12 +852,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   generateChipActive: { backgroundColor: colors.text },
-  generateChipText: { color: colors.text, fontSize: 12.5, fontWeight: "600" },
+  generateChipText: { color: colors.text, ...textStyles.captionBold },
   generateDesc: {
     color: colors.textTertiary,
-    fontSize: 13,
-    lineHeight: 22,
     textAlign: "center",
+    ...textStyles.footnote,
   },
   generateHandle: {
     alignSelf: "center",
@@ -895,19 +891,17 @@ const styles = StyleSheet.create({
   generateModeCardActive: { backgroundColor: colors.text },
   generateModeDesc: {
     color: colors.textTertiary,
-    fontSize: 11,
-    lineHeight: 15,
     marginTop: 2,
+    ...textStyles.caption,
   },
   generateModeRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
   generateModeTextActive: { color: colors.surface },
   generateModeTitle: {
     color: colors.text,
-    fontSize: 13.5,
-    fontWeight: "600",
     marginBottom: 2,
+    ...textStyles.footnoteBold,
   },
-  generateModelLabel: { color: colors.text, fontSize: 14.5, fontWeight: "500" },
+  generateModelLabel: { color: colors.text, ...textStyles.footnoteBold },
   generateModelRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -916,7 +910,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingTop: 6,
   },
-  generateModelValue: { color: colors.textTertiary, fontSize: 14 },
+  generateModelValue: { color: colors.textTertiary, ...textStyles.footnote },
   generateModelValueWrap: {
     alignItems: "center",
     flexDirection: "row",
@@ -924,11 +918,10 @@ const styles = StyleSheet.create({
   },
   generateName: {
     color: colors.text,
-    fontSize: 21,
-    fontWeight: "700",
     paddingBottom: 18,
     paddingHorizontal: 18,
     paddingTop: 2,
+    ...textStyles.sectionTitle,
   },
   generatePanel: {
     borderTopColor: "#F2F2F2",
@@ -946,8 +939,7 @@ const styles = StyleSheet.create({
   },
   generateSkipText: {
     color: colors.textTertiary,
-    fontSize: 13,
-    fontWeight: "600",
+    ...textStyles.footnoteBold,
   },
   generateTemplateRow: {
     flexDirection: "row",
@@ -957,10 +949,9 @@ const styles = StyleSheet.create({
   },
   generateTitle: {
     color: colors.text,
-    fontSize: 19,
-    fontWeight: "700",
     marginBottom: 8,
     textAlign: "center",
+    ...textStyles.sectionTitle,
   },
   generationContent: {
     alignItems: "center",
@@ -970,18 +961,16 @@ const styles = StyleSheet.create({
   },
   generationDescription: {
     color: colors.textTertiary,
-    fontSize: 12.5,
-    lineHeight: 18,
     marginBottom: 20,
     maxWidth: 260,
     textAlign: "center",
+    ...textStyles.caption,
   },
   generationLabel: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
     marginBottom: 22,
     marginTop: 22,
+    ...textStyles.callout,
   },
   generationScreen: { backgroundColor: "#FFFFFF", flex: 1 },
   highlightButton: {
@@ -995,9 +984,7 @@ const styles = StyleSheet.create({
   highlightCount: {
     backgroundColor: colors.text,
     borderRadius: 8,
-    color: "#FFFFFF",
-    fontSize: 9,
-    fontWeight: "700",
+    color: colors.surface,
     minWidth: 16,
     overflow: "hidden",
     paddingHorizontal: 3,
@@ -1005,6 +992,7 @@ const styles = StyleSheet.create({
     right: -2,
     textAlign: "center",
     top: -2,
+    ...textStyles.captionBold,
   },
   island: {
     alignItems: "center",
@@ -1029,10 +1017,9 @@ const styles = StyleSheet.create({
   islandDotPaused: { backgroundColor: colors.textTertiary },
   islandGeneration: { gap: 8, height: 36, paddingHorizontal: 14, width: 198 },
   islandGenerationText: {
-    color: "#FFFFFF",
+    color: colors.surface,
     flex: 1,
-    fontSize: 12,
-    fontWeight: "500",
+    ...textStyles.caption,
   },
   islandRecording: { gap: 8, height: 36, paddingHorizontal: 14, width: 156 },
   islandSnackbar: {
@@ -1043,16 +1030,14 @@ const styles = StyleSheet.create({
     width: 304,
   },
   islandSnackbarText: {
-    color: "#FFFFFF",
+    color: colors.surface,
     flex: 1,
-    fontSize: 13,
-    fontWeight: "500",
+    ...textStyles.footnote,
   },
   islandTimer: {
-    color: "#FFFFFF",
-    fontFamily: "Menlo",
+    color: colors.surface,
     fontSize: 12,
-    fontWeight: "500",
+    ...fonts.mono.regular,
   },
   islandWave: { backgroundColor: "#FFFFFF", borderRadius: 1, width: 2 },
   islandWaveform: {
@@ -1092,17 +1077,15 @@ const styles = StyleSheet.create({
   },
   recordingStatus: {
     color: colors.textTertiary,
-    fontSize: 14,
-    fontWeight: "500",
     marginBottom: 8,
+    ...textStyles.footnote,
   },
   recordingTime: {
     color: colors.text,
-    fontFamily: "Menlo",
     fontSize: 44,
-    fontWeight: "600",
     letterSpacing: -0.44,
     marginBottom: 36,
+    ...fonts.mono.regular,
   },
   roundIcon: {
     alignItems: "center",
@@ -1111,7 +1094,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   skipButton: { alignItems: "center", paddingBottom: 20 },
-  skipButtonText: { color: colors.textTertiary, fontSize: 13, fontWeight: "500" },
+  skipButtonText: { color: colors.textTertiary, ...textStyles.footnote },
   stopButton: {
     alignItems: "center",
     backgroundColor: colors.text,
@@ -1133,7 +1116,7 @@ const styles = StyleSheet.create({
     minHeight: 96,
     paddingTop: 14,
   },
-  transcriptText: { color: colors.textTertiary, fontSize: 13.5, lineHeight: 24 },
+  transcriptText: { color: colors.textTertiary, ...textStyles.footnote },
   wave: { borderRadius: 2, width: 4 },
   waveform: {
     alignItems: "flex-end",

@@ -1,6 +1,6 @@
 import { AppIcon } from './AppIcon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import type {
   TranscriptionEventDTO,
   TranscriptionTaskDTO,
@@ -93,13 +93,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
+    ...textStyles.callout,
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
+    ...textStyles.footnote,
   },
   progressTrack: {
     backgroundColor: colors.surfaceAlt,
@@ -114,14 +112,12 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
     textAlign: 'right',
+    ...textStyles.captionBold,
   },
   errorText: {
     color: colors.danger,
-    fontSize: 13,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
   },
   actions: {
     flexDirection: 'row',
@@ -139,7 +135,7 @@ const styles = StyleSheet.create({
   },
   primaryText: {
     color: colors.surface,
-    fontWeight: '700',
+    ...textStyles.bodyBold,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -150,7 +146,7 @@ const styles = StyleSheet.create({
   },
   secondaryText: {
     color: colors.accent,
-    fontWeight: '700',
+    ...textStyles.bodyBold,
   },
   disabledText: {
     color: colors.textTertiary,

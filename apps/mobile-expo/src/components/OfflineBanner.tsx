@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { AppIcon } from './AppIcon';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 type OfflineBannerProps = {
   message?: string;
@@ -30,7 +30,6 @@ const obStyles = StyleSheet.create({
   text: {
     color: colors.text,
     flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
+    ...textStyles.footnoteBold,
   },
 });

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import type { AudioStatus } from '../types/memora';
 
 const statusCopy: Record<AudioStatus, string> = {
@@ -39,7 +39,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...textStyles.captionBold,
   },
 });
