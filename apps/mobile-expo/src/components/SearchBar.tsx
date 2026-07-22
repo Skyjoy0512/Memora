@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { AppIcon } from './AppIcon';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 type SearchBarProps = {
   value: string;
@@ -65,9 +65,9 @@ const searchBarStyles = StyleSheet.create({
   input: {
     color: colors.text,
     flex: 1,
-    fontSize: 15,
     minHeight: 44,
     paddingVertical: spacing.xs,
+    ...textStyles.body,
   },
   clearButton: {
     alignItems: 'center',

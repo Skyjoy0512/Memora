@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
 
 type Props = {
   title: string;
@@ -31,8 +31,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 12,
-    fontWeight: '500',
+    ...textStyles.captionBold,
     letterSpacing: 0,
     textTransform: 'uppercase',
   },

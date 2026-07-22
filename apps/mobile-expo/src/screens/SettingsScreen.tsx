@@ -4,7 +4,7 @@ import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { MemoraNative } from '../native/MemoraNative';
 import type { BridgeInfoDTO, CustomVocabularyDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { SettingsGroup } from '../types/memora';
@@ -664,8 +664,7 @@ const styles = StyleSheet.create({
   },
   v6GroupTitle: {
     color: colors.textTertiary,
-    fontSize: 13,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
   },
   v6Card: {
     backgroundColor: colors.canvas,
@@ -676,7 +675,7 @@ const styles = StyleSheet.create({
   },
   developerToggle: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   developerTogglePressed: { opacity: 0.65, transform: [{ scale: 0.96 }] },
-  developerToggleText: { color: colors.textTertiary, fontSize: 12, fontWeight: '500' },
+  developerToggleText: { color: colors.textTertiary, ...textStyles.caption },
   v6Row: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -687,7 +686,7 @@ const styles = StyleSheet.create({
   v6RowTitle: {
     color: colors.text,
     flexShrink: 0,
-    fontSize: 15,
+    ...textStyles.body,
   },
   v6RowTitleDestructive: {
     color: colors.danger,
@@ -696,8 +695,8 @@ const styles = StyleSheet.create({
   v6RowValue: {
     color: colors.textTertiary,
     flex: 1,
-    fontSize: 13,
     textAlign: 'right',
+    ...textStyles.footnote,
   },
   v6Badge: {
     borderRadius: 8,
@@ -706,8 +705,7 @@ const styles = StyleSheet.create({
   },
   v6BadgeText: {
     color: colors.surface,
-    fontSize: 11,
-    fontWeight: '700',
+    ...textStyles.captionBold,
   },
   toggleRow: {
     alignItems: 'center',
@@ -732,7 +730,7 @@ const styles = StyleSheet.create({
   },
   vocabularyReplacement: {
     color: colors.textSecondary,
-    fontSize: 13,
+    ...textStyles.footnote,
   },
   vocabularyAddButton: {
     alignItems: 'center',
@@ -742,8 +740,7 @@ const styles = StyleSheet.create({
   },
   vocabularyAddText: {
     color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
   },
   modalBackdrop: {
     alignItems: 'center',
@@ -761,8 +758,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
+    ...textStyles.sectionTitle,
   },
   modalInput: {
     borderColor: colors.border,
@@ -789,7 +785,7 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     color: colors.textSecondary,
-    fontSize: 15,
+    ...textStyles.body,
   },
   modalSaveButton: {
     backgroundColor: colors.accent,
@@ -797,8 +793,7 @@ const styles = StyleSheet.create({
   },
   modalSaveText: {
     color: colors.textInverse,
-    fontSize: 15,
-    fontWeight: '600',
+    ...textStyles.bodyBold,
   },
   modalDeleteButton: {
     alignItems: 'center',
@@ -808,7 +803,7 @@ const styles = StyleSheet.create({
   },
   modalDeleteText: {
     color: colors.danger,
-    fontSize: 15,
+    ...textStyles.body,
   },
   groupCard: {
     backgroundColor: colors.surface,
@@ -817,8 +812,7 @@ const styles = StyleSheet.create({
   },
   description: {
     color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
+    ...textStyles.footnote,
   },
   rows: {
     gap: spacing.md,
@@ -852,8 +846,7 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
+    ...textStyles.footnoteBold,
   },
   segmentTextSelected: {
     color: colors.surface,
@@ -876,14 +869,12 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '500',
+    ...textStyles.bodyBold,
   },
   value: {
     color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '400',
     marginTop: 4,
+    ...textStyles.footnote,
   },
   dot: {
     borderRadius: radius.pill,

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppIcon } from './AppIcon';
 import { StatusPill } from './StatusPill';
-import { colors, radius, spacing, shadow } from '../design/tokens';
+import { colors, radius, spacing, shadow, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 
@@ -40,7 +40,7 @@ export function FileCard({
         <Text numberOfLines={1} style={fcStyles.title}>
           {file.title}
         </Text>
-        <Text style={fcStyles.meta}>
+        <Text numberOfLines={1} style={fcStyles.meta}>
           {formatRecordedAt(file.recordedAt)} · {file.duration}
         </Text>
         {showSummary && file.summary ? (
@@ -102,18 +102,17 @@ const fcStyles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
+    ...textStyles.bodyBold,
   },
   meta: {
     color: colors.textSecondary,
-    fontSize: 11,
     marginTop: 1,
+    ...textStyles.caption,
   },
   summary: {
     color: colors.textSecondary,
-    fontSize: 13,
     marginTop: 4,
+    ...textStyles.footnote,
   },
   more: {
     alignItems: 'center',

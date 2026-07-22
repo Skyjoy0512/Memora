@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
 
 type Props = {
   title?: string;
@@ -82,19 +82,13 @@ const styles = StyleSheet.create({
   title: {
     color: colors.text,
     flex: 1,
-    fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: -0.6,
-    lineHeight: 36,
+    ...textStyles.screenTitle,
   },
   homeTitle: {
-    fontSize: 32,
-    letterSpacing: -0.64,
-    lineHeight: 38,
+    ...textStyles.screenTitle,
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
+    ...textStyles.body,
   },
 });

@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { colors, radius } from "../design/tokens";
+import { colors, fonts, radius, textStyles } from "../design/tokens";
 
 type Stage = "onboarding" | "login" | "email" | "code" | "paywall";
 const slides = [
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   page: { flex: 1, paddingBottom: 36, paddingHorizontal: 28, paddingTop: 20 },
   skipRow: { alignItems: "flex-end" },
-  skip: { color: colors.textTertiary, fontSize: 13, fontWeight: "500" },
+  skip: { color: colors.textTertiary, ...textStyles.footnoteBold },
   onboardingCenter: {
     alignItems: "center",
     flex: 1,
@@ -429,15 +429,13 @@ const styles = StyleSheet.create({
   onboardingCopy: { gap: 8, paddingHorizontal: 18 },
   authTitle: {
     color: colors.text,
-    fontSize: 22,
-    fontWeight: "700",
     textAlign: "center",
+    ...textStyles.title2,
   },
   authBody: {
     color: colors.textTertiary,
-    fontSize: 14,
-    lineHeight: 24,
     textAlign: "center",
+    ...textStyles.body,
   },
   recordGlyph: {
     alignItems: "center",
@@ -462,9 +460,8 @@ const styles = StyleSheet.create({
   },
   glyphTitle: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
     marginBottom: 1,
+    ...textStyles.footnoteBold,
   },
   glyphLineLong: {
     backgroundColor: colors.border,
@@ -495,7 +492,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     width: 220,
   },
-  askGlyphText: { color: colors.textTertiary, flex: 1, fontSize: 13 },
+  askGlyphText: { color: colors.textTertiary, flex: 1, ...textStyles.footnote },
   askGlyphCircle: {
     backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 15,
@@ -520,7 +517,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryDisabled: { backgroundColor: colors.border },
-  primaryText: { color: colors.surface, fontSize: 16, fontWeight: "600" },
+  primaryText: { color: colors.surface, ...textStyles.callout },
   loginHero: {
     alignItems: "center",
     flex: 1,
@@ -529,9 +526,7 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     color: colors.text,
-    fontSize: 34,
-    fontWeight: "700",
-    letterSpacing: -0.68,
+    ...textStyles.display,
   },
   loginActions: { gap: 10 },
   googleButton: {
@@ -544,8 +539,8 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: "center",
   },
-  googleG: { color: "#4285F4", fontSize: 18, fontWeight: "700" },
-  googleText: { color: colors.text, fontSize: 15, fontWeight: "600" },
+  googleG: { color: "#4285F4", ...textStyles.callout },
+  googleText: { color: colors.text, ...textStyles.bodyBold },
   emailButton: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
@@ -553,13 +548,12 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: "center",
   },
-  emailText: { color: colors.text, fontSize: 15, fontWeight: "600" },
+  emailText: { color: colors.text, ...textStyles.bodyBold },
   terms: {
     color: colors.textTertiary,
-    fontSize: 11,
-    lineHeight: 16,
     marginTop: 16,
     textAlign: "center",
+    ...textStyles.caption,
   },
   back: {
     alignItems: "center",
@@ -573,16 +567,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     color: colors.text,
-    fontSize: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    ...textStyles.callout,
   },
   codeHint: {
     color: colors.textTertiary,
-    fontSize: 13,
-    lineHeight: 20,
     marginTop: 6,
     textAlign: "center",
+    ...textStyles.footnote,
   },
   codeBoxes: { flexDirection: "row", gap: 8 },
   codeBox: {
@@ -596,27 +589,25 @@ const styles = StyleSheet.create({
   },
   codeDigit: {
     color: colors.text,
-    fontFamily: "Menlo",
     fontSize: 18,
-    fontWeight: "600",
+    ...fonts.mono.regular,
   },
   codeInput: {
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
     color: colors.text,
-    fontFamily: "Menlo",
     fontSize: 15,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    ...fonts.mono.regular,
   },
   paywallContent: { flex: 1, paddingHorizontal: 6, paddingTop: 6 },
   paywallHero: { alignItems: "center", gap: 4, marginBottom: 22 },
   proTitle: {
     color: colors.text,
-    fontSize: 26,
-    fontWeight: "700",
     letterSpacing: -0.26,
+    ...textStyles.title2,
   },
   features: { gap: 12, marginBottom: 22 },
   feature: { alignItems: "center", flexDirection: "row", gap: 10 },
@@ -628,7 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 18,
   },
-  featureText: { color: colors.text, flex: 1, fontSize: 13.5 },
+  featureText: { color: colors.text, flex: 1, ...textStyles.footnote },
   plans: { flexDirection: "row", gap: 10 },
   plan: {
     borderColor: colors.border,
@@ -643,28 +634,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
     borderRadius: 6,
     color: colors.surface,
-    fontSize: 9.5,
-    fontWeight: "700",
     left: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
     position: "absolute",
     top: -10,
+    ...textStyles.captionBold,
   },
   planLabel: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "600",
     marginBottom: 4,
+    ...textStyles.footnoteBold,
   },
-  planPrice: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  planNote: { color: colors.textTertiary, fontSize: 11, marginTop: 2 },
+  planPrice: { color: colors.text, ...textStyles.callout },
+  planNote: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
   cancelHint: {
     color: colors.textTertiary,
-    fontSize: 11.5,
     marginBottom: 16,
     marginTop: 8,
     textAlign: "center",
+    ...textStyles.caption,
   },
-  legal: { color: colors.textTertiary, fontSize: 11, textAlign: "center" },
+  legal: { color: colors.textTertiary, textAlign: "center", ...textStyles.caption },
 });

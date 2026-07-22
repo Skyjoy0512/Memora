@@ -1,5 +1,5 @@
 import { LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, shadow } from '../design/tokens';
+import { colors, radius, spacing, shadow, textStyles } from '../design/tokens';
 
 type SegmentedControlProps<T extends string> = {
   segments: Array<{ key: T; label: string }>;
@@ -60,8 +60,7 @@ const segStyles = StyleSheet.create({
   },
   label: {
     color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
+    ...textStyles.footnoteBold,
   },
   labelActive: {
     color: colors.text,

@@ -1,6 +1,6 @@
 import { AppIcon } from './AppIcon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 export function LoadingState({ label = '読み込み中' }: { label?: string }) {
   return (
@@ -88,19 +88,17 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
     marginTop: spacing.sm,
+    ...textStyles.callout,
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
     textAlign: 'center',
+    ...textStyles.footnote,
   },
   retryButton: { alignItems: 'center', backgroundColor: colors.text, borderRadius: radius.md, marginTop: spacing.sm, minWidth: 112, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   retryButtonPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-  retryButtonText: { color: colors.surface, fontSize: 14, fontWeight: '600' },
+  retryButtonText: { color: colors.surface, ...textStyles.footnoteBold },
   ctaButton: { alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.md, marginTop: spacing.md, minWidth: 160, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  ctaButtonText: { color: colors.surface, fontSize: 14, fontWeight: '600' },
+  ctaButtonText: { color: colors.surface, ...textStyles.footnoteBold },
 });

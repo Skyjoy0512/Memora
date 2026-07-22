@@ -1,7 +1,7 @@
 import { AppIcon } from './AppIcon';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type GestureResponderEvent } from 'react-native';
-import { colors } from '../design/tokens';
+import { colors, textStyles } from '../design/tokens';
 import type { PlaybackStatusDTO } from '../native/MemoraNative.types';
 
 type Props = {
@@ -79,9 +79,8 @@ const styles = StyleSheet.create({
   },
   time: {
     color: colors.text,
-    fontSize: 13,
     fontVariant: ['tabular-nums'],
-    fontWeight: '500',
+    ...textStyles.footnote,
   },
   spacer: { flex: 1 },
   rateButton: {
@@ -92,8 +91,7 @@ const styles = StyleSheet.create({
   },
   rateText: {
     color: colors.text,
-    fontSize: 11.5,
-    fontWeight: '600',
+    ...textStyles.captionBold,
   },
   pressed: { opacity: 0.74, transform: [{ scale: 0.93 }] },
   trackWrap: {

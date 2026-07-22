@@ -7,16 +7,20 @@
 import type { LayoutAnimationConfig } from 'react-native';
 
 // ── Fonts ──────────────────────────────────────────────────
+// Figma: IBM Plex Sans JP（本文=ExtraLight / 強調=Light）。
+// fontFamily がウェイトを内包するため fontWeight は Android フォールバック用。
 export const fonts = {
   sans: {
-    regular:  { fontFamily: 'NotoSansJP_400Regular', fontWeight: '400' as const },
-    medium:   { fontFamily: 'NotoSansJP_500Medium',  fontWeight: '500' as const },
-    bold:     { fontFamily: 'NotoSansJP_700Bold',     fontWeight: '700' as const },
+    extralight: { fontFamily: 'IBMPlexSansJP_200ExtraLight', fontWeight: '200' as const },
+    light:      { fontFamily: 'IBMPlexSansJP_300Light',      fontWeight: '300' as const },
+    regular:    { fontFamily: 'IBMPlexSansJP_400Regular',    fontWeight: '400' as const },
+    medium:     { fontFamily: 'IBMPlexSansJP_500Medium',     fontWeight: '500' as const },
+    semibold:   { fontFamily: 'IBMPlexSansJP_600SemiBold',   fontWeight: '600' as const },
   },
+  // display も IBM Plex に統一（旧 M PLUS 1p は廃止）
   display: {
-    regular:  { fontFamily: 'MPLUS1p_400Regular', fontWeight: '400' as const },
-    medium:   { fontFamily: 'MPLUS1p_500Medium',  fontWeight: '500' as const },
-    bold:     { fontFamily: 'MPLUS1p_700Bold',     fontWeight: '700' as const },
+    extralight: { fontFamily: 'IBMPlexSansJP_200ExtraLight', fontWeight: '200' as const },
+    light:      { fontFamily: 'IBMPlexSansJP_300Light',      fontWeight: '300' as const },
   },
   mono: {
     regular:  { fontFamily: 'Menlo', fontWeight: '400' as const },
@@ -26,35 +30,35 @@ export const fonts = {
 
 // ── Colors (Light) ─────────────────────────────────────────
 export const colors = {
-  canvas:         '#FAFAF8',
+  canvas:         '#F7F7F6',
   surface:        '#FFFFFF',
-  surfaceAlt:     '#F3F3F2',
+  surfaceAlt:     '#F1F1F0',
   surfaceElevated:'#FFFFFF',
 
-  text:           '#1A1C1E',
-  textSecondary:  '#5F6368',
-  textTertiary:   '#9AA0A6',
+  text:           '#16171A',
+  textSecondary:  '#6B6D70',
+  textTertiary:   '#A0A2A5',
   textInverse:    '#FFFFFF',
 
-  border:         '#E2E3E5',
-  borderLight:    '#EEEEEF',
-  separator:      '#F0F0F0',
+  border:         '#E4E4E3',
+  borderLight:    '#EDEDEC',
+  separator:      '#EFEFEE',
 
-  accent:         '#1A7F6B',
-  accentSoft:     '#E8F5F1',
-  accentMuted:    '#B8D8CF',
+  accent:         '#5B6B7A',
+  accentSoft:     '#EEF0F2',
+  accentMuted:    '#C4CAD1',
 
-  success:        '#2E7D32',
-  successSoft:    '#E8F5E9',
-  warning:        '#E65100',
-  warningSoft:    '#FFF3E0',
-  danger:         '#C62828',
-  dangerSoft:     '#FFEBEE',
-  info:           '#1565C0',
-  infoSoft:       '#E3F2FD',
+  success:        '#4F7A55',
+  successSoft:    '#EDF2ED',
+  warning:        '#8A6A3C',
+  warningSoft:    '#F5EFE7',
+  danger:         '#A34B45',
+  dangerSoft:     '#F6ECEB',
+  info:           '#46647D',
+  infoSoft:       '#ECF0F3',
 
-  recording:      '#C62828',
-  recordingSoft:  '#FFEBEE',
+  recording:      '#A34B45',
+  recordingSoft:  '#F6ECEB',
 
   skeleton:       '#E8E8E6',
   skeletonShimmer:'#F0F0EE',
@@ -62,45 +66,57 @@ export const colors = {
   overlay:        'rgba(0,0,0,0.40)',
   overlayLight:   'rgba(0,0,0,0.20)',
 
+  // Category（アプリアイコン由来・タグ/アバター用）
+  categorySlate:  '#5B6B7A',
+  categoryTeal:   '#4E7D78',
+  categoryOlive:  '#6B7052',
+  categoryMauve:  '#766A80',
+
 } as const;
 
 // ── Colors (Dark) ──────────────────────────────────────────
 export const darkColors = {
-  canvas:         '#0F1114',
-  surface:        '#1A1D21',
-  surfaceAlt:     '#23262A',
-  surfaceElevated:'#2A2D32',
+  canvas:         '#101112',
+  surface:        '#17181A',
+  surfaceAlt:     '#202123',
+  surfaceElevated:'#26272A',
 
-  text:           '#E8EAED',
-  textSecondary:  '#9AA0A6',
-  textTertiary:   '#5F6368',
-  textInverse:    '#1A1C1E',
+  text:           '#E9E9E8',
+  textSecondary:  '#9C9D9F',
+  textTertiary:   '#616264',
+  textInverse:    '#16171A',
 
-  border:         '#3C4043',
-  borderLight:    '#313437',
-  separator:      '#2A2D32',
+  border:         '#313234',
+  borderLight:    '#2A2B2D',
+  separator:      '#26272A',
 
-  accent:         '#3DD9B0',
-  accentSoft:     '#1A332E',
-  accentMuted:    '#2A5C52',
+  accent:         '#9AA7B3',
+  accentSoft:     '#23272B',
+  accentMuted:    '#3D444B',
 
-  success:        '#4CAF50',
-  successSoft:    '#1B3320',
-  warning:        '#FF9800',
-  warningSoft:    '#332A1A',
-  danger:         '#EF5350',
-  dangerSoft:     '#331A1D',
-  info:           '#42A5F5',
-  infoSoft:       '#1A2533',
+  success:        '#7FA187',
+  successSoft:    '#1E2A20',
+  warning:        '#B99A6C',
+  warningSoft:    '#2B2620',
+  danger:         '#C98884',
+  dangerSoft:     '#2E2120',
+  info:           '#7C9AB0',
+  infoSoft:       '#1E262C',
 
-  recording:      '#EF5350',
-  recordingSoft:  '#331A1D',
+  recording:      '#C98884',
+  recordingSoft:  '#2E2120',
 
   skeleton:       '#23262A',
   skeletonShimmer:'#2A2D32',
 
   overlay:        'rgba(0,0,0,0.60)',
   overlayLight:   'rgba(0,0,0,0.35)',
+
+  // Category（アプリアイコン由来・タグ/アバター用）
+  categorySlate:  '#8A97A3',
+  categoryTeal:   '#7FA69F',
+  categoryOlive:  '#9AA07E',
+  categoryMauve:  '#A99DB2',
 } as const;
 
 // ── Spacing (golden ratio) ─────────────────────────────────
@@ -149,44 +165,71 @@ export const typography = {
 } as const;
 
 // ── Text style presets ─────────────────────────────────────
+// Figma「02 Components → Text styles」と 1:1 対応（サイズ/行間は Figma 実値）。
 export const textStyles = {
-  screenTitle: {
-    fontSize: typography.size.title1,
-    lineHeight: typography.lineHeight(30, 1.3),
+  display: {
+    fontSize: 36,
+    lineHeight: 41,
     letterSpacing: typography.letterSpacing.tight,
-    ...fonts.sans.bold,
+    ...fonts.display.extralight,
+  },
+  screenTitle: {
+    fontSize: 30,
+    lineHeight: 39,
+    letterSpacing: typography.letterSpacing.tight,
+    ...fonts.sans.extralight,
+  },
+  title2: {
+    fontSize: 24,
+    lineHeight: 34,
+    ...fonts.sans.extralight,
   },
   sectionTitle: {
-    fontSize: typography.size.title3,
-    lineHeight: typography.lineHeight(20, 1.4),
-    ...fonts.sans.bold,
+    fontSize: 20,
+    lineHeight: 28,
+    ...fonts.sans.extralight,
+  },
+  callout: {
+    fontSize: 17,
+    lineHeight: 26,
+    ...fonts.sans.extralight,
   },
   body: {
-    fontSize: typography.size.body,
-    lineHeight: typography.lineHeight(15, 1.6),
-    ...fonts.sans.regular,
+    fontSize: 15,
+    lineHeight: 24,
+    ...fonts.sans.extralight,
   },
   bodyBold: {
-    fontSize: typography.size.body,
-    lineHeight: typography.lineHeight(15, 1.6),
-    ...fonts.sans.bold,
+    fontSize: 15,
+    lineHeight: 24,
+    ...fonts.sans.light,
+  },
+  footnote: {
+    fontSize: 13,
+    lineHeight: 20,
+    ...fonts.sans.extralight,
+  },
+  footnoteBold: {
+    fontSize: 13,
+    lineHeight: 20,
+    ...fonts.sans.light,
   },
   caption: {
-    fontSize: typography.size.caption,
-    lineHeight: typography.lineHeight(11, 1.4),
+    fontSize: 11,
+    lineHeight: 15,
     letterSpacing: typography.letterSpacing.wide,
-    ...fonts.sans.regular,
+    ...fonts.sans.light,
+  },
+  captionBold: {
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: typography.letterSpacing.wide,
+    ...fonts.sans.light,
   },
   monoBody: {
     fontSize: 13,
-    lineHeight: typography.lineHeight(13, 1.5),
+    lineHeight: 20,
     ...fonts.mono.regular,
-  },
-  display: {
-    fontSize: typography.size.headline,
-    lineHeight: typography.lineHeight(36, 1.15),
-    letterSpacing: typography.letterSpacing.tight,
-    ...fonts.display.bold,
   },
 };
 

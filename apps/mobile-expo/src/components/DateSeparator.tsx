@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
 
 type DateSeparatorProps = {
   date: string;
@@ -29,7 +29,6 @@ const dsStyles = StyleSheet.create({
   },
   label: {
     color: colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '500',
+    ...textStyles.caption,
   },
 });
