@@ -18,6 +18,7 @@ export function PreviewIndexScreen() {
           <PreviewLink href="/settings" label="Settings" />
           <PreviewLink href="/auth" label="Auth: onboarding / login / paywall" />
           <PreviewLink href="/file/empty-transcript" label="File: empty transcript state" />
+          <PreviewLink href="/file/queued-preview" label="File: queued (pre-transcription) state" />
           <PreviewLink href="/file/not-found" label="File: not found state" />
           {audioFiles.map((file) => (
             <PreviewLink href={`/file/${file.id}`} key={file.id} label={`File: ${file.title}`} />

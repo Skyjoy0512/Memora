@@ -287,6 +287,18 @@ export const MemoraNative: MemoraNativeModule = {
       };
     }
 
+    if (id === 'queued-preview') {
+      return {
+        ...audioFiles[0],
+        id,
+        status: 'queued',
+        summary: '',
+        title: 'Queued preview',
+        transcript: [],
+        memo: [],
+      };
+    }
+
     return audioFiles.find((file) => file.id === id);
   },
   async renameAudioFile(id: string, title: string) {
