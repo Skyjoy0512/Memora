@@ -525,41 +525,55 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         <Section title="文字起こし">
           {playback.error ? <Text style={styles.summaryError}>{playback.error}</Text> : null}
 
-          {transcriptCount === 0 ? <TranscriptionProgressCard
-            error={transcription.error}
-            event={transcription.latestEvent}
-            isRunning={transcription.isRunning}
-            onCancel={transcription.cancel}
-            onStart={transcription.start}
-            task={transcription.task}
-          /> : null}
-          <View style={styles.panel}>
-            {transcriptCount > 0 ? <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
-              <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
-            </Pressable> : null}
-            {transcriptCount === 0 ? (
-              <View style={styles.generateCta}>
-                <View style={styles.generateIconRow}>
-                  <View style={styles.generateIconCircle}>
-                    <Ionicons color={colors.text} name="pulse-outline" size={32} weight="Filled" />
-                  </View>
-                  <Ionicons color={colors.textTertiary} name="arrow-forward" size={22} style={styles.generateArrow} />
-                  <View style={styles.generateIconCircle}>
-                    <Ionicons color={colors.text} name="document-outline" size={30} weight="Filled" />
-                  </View>
-                </View>
-                <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
-                <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
+          {transcriptCount === 0 ? (
+            transcription.isRunning ? (
+              <TranscriptionProgressCard
+                event={transcription.latestEvent}
+                onCancel={transcription.cancel}
+                task={transcription.task}
+              />
+            ) : transcription.error ? (
+              <View style={styles.panel}>
+                <Text style={styles.summaryError}>{transcription.error}</Text>
                 <Pressable
-                  accessibilityLabel="AI生成"
+                  accessibilityLabel="文字起こしを再試行"
                   accessibilityRole="button"
                   onPress={transcription.start}
                   style={styles.generateButton}
                 >
-                  <Text style={styles.generateButtonText}>AI生成</Text>
+                  <Text style={styles.generateButtonText}>再試行</Text>
                 </Pressable>
               </View>
-            ) : (
+            ) : transcription.task === null ? (
+              <View style={styles.panel}>
+                <View style={styles.generateCta}>
+                  <View style={styles.generateIconRow}>
+                    <View style={styles.generateIconCircle}>
+                      <Ionicons color={colors.text} name="pulse-outline" size={32} weight="Filled" />
+                    </View>
+                    <Ionicons color={colors.textTertiary} name="arrow-forward" size={22} style={styles.generateArrow} />
+                    <View style={styles.generateIconCircle}>
+                      <Ionicons color={colors.text} name="document-outline" size={30} weight="Filled" />
+                    </View>
+                  </View>
+                  <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
+                  <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
+                  <Pressable
+                    accessibilityLabel="AI生成"
+                    accessibilityRole="button"
+                    onPress={transcription.start}
+                    style={styles.generateButton}
+                  >
+                    <Text style={styles.generateButtonText}>AI生成</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null
+          ) : (
+            <View style={styles.panel}>
+              <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
+              <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
+              </Pressable>
               <ScrollView
                 contentContainerStyle={styles.transcriptScrollContent}
                 nestedScrollEnabled
@@ -596,8 +610,8 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   </Pressable>
                 ))}
               </ScrollView>
-            )}
-          </View>
+            </View>
+          )}
         </Section>
       ) : null}
 

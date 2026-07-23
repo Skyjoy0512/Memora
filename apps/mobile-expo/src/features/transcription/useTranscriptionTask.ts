@@ -22,6 +22,10 @@ export function useTranscriptionTask(
   }, []);
 
   const start = useCallback(async () => {
+    if (task?.status === 'running') {
+      return;
+    }
+
     setError(null);
     try {
       subscriptionRef.current?.remove();
@@ -54,12 +58,14 @@ export function useTranscriptionTask(
         );
         if (event.type === 'completed') {
           void onCompleted?.(audioFileId);
+        } else if (event.type === 'failed') {
+          setError(event.message || '文字起こしに失敗しました');
         }
       });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '文字起こしの開始に失敗しました');
     }
-  }, [audioFileId, onCompleted]);
+  }, [audioFileId, onCompleted, task?.status]);
 
   const cancel = useCallback(async () => {
     if (!task) {
