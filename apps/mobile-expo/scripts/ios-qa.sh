@@ -31,4 +31,5 @@ xcodebuild \
   -quiet \
   ARCHS="${ARCHS_VALUE}" \
   ONLY_ACTIVE_ARCH=YES \
+  ENABLE_USER_SCRIPT_SANDBOXING=NO \
   "${ACTION}"
