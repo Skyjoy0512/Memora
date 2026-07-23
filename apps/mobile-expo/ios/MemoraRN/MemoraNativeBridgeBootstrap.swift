@@ -8,6 +8,11 @@ import MemoraSharedAskAI
 
 @MainActor
 enum MemoraNativeBridgeBootstrap {
+  static var lastSharedStoreError: String? {
+    get { MemoraNativeBridgeDiagnostics.sharedStoreError }
+    set { MemoraNativeBridgeDiagnostics.sharedStoreError = newValue }
+  }
+
   static func makeSharedStoreContractProbe() -> any MemoraSharedAudioFileStore {
     MemoraInMemoryAudioFileStore()
   }
@@ -53,7 +58,9 @@ enum MemoraNativeBridgeBootstrap {
           sourceDescription: "swiftdata"
         )
       )
+      lastSharedStoreError = nil
     } catch {
+      lastSharedStoreError = String(describing: error)
       configureDefaults()
     }
   }

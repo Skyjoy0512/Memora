@@ -118,6 +118,7 @@ export type BridgeInfoDTO = {
   summarySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   retryQueueSource: 'native-file' | 'mock' | 'unknown';
   persistenceScope: 'app-sandbox' | 'app-group' | 'shared-swiftdata' | 'mock' | 'unknown';
+  sharedStoreError?: string;
   isRealDataConnected: boolean;
 };
 

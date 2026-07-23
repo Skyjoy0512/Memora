@@ -341,6 +341,11 @@ export function SettingsScreen() {
               value={bridgeInfo?.persistenceScope ?? 'checking'}
               state={bridgeInfo?.persistenceScope === 'shared-swiftdata' ? 'ok' : 'warning'}
             />
+            <InfoRow
+              label="Shared store error"
+              value={bridgeInfo?.sharedStoreError ?? '—'}
+              state={bridgeInfo?.sharedStoreError ? 'warning' : 'ok'}
+            />
           </View>
         </View>
       </Section>
