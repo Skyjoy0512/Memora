@@ -3,6 +3,7 @@ import ExpoModulesCore
 
 public enum MemoraNativeBridgeDiagnostics {
   public static var sharedStoreError: String?
+  public static var storeMode: String?
 }
 
 public class MemoraNativeModule: Module {
@@ -49,6 +50,9 @@ public class MemoraNativeModule: Module {
       ]
       if let sharedStoreError = MemoraNativeBridgeDiagnostics.sharedStoreError {
         info["sharedStoreError"] = sharedStoreError
+      }
+      if let storeMode = MemoraNativeBridgeDiagnostics.storeMode {
+        info["storeMode"] = storeMode
       }
       return info
     }
@@ -248,6 +252,10 @@ public class MemoraNativeModule: Module {
   }
 
   private var persistenceScope: String {
+    if isSharedSwiftDataConnected && MemoraNativeBridgeDiagnostics.storeMode == "app-sandbox" {
+      return "sandbox-swiftdata"
+    }
+
     if isSharedSwiftDataConnected {
       return "shared-swiftdata"
     }

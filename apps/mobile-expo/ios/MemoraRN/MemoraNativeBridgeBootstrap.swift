@@ -18,6 +18,7 @@ enum MemoraNativeBridgeBootstrap {
   }
 
   static func configureDefaults() {
+    MemoraNativeBridgeDiagnostics.storeMode = nil
     let nativeFileStore = MemoraNativeFileAudioFileStore()
     configure(
       audioFileReader: nativeFileStore,
@@ -34,35 +35,60 @@ enum MemoraNativeBridgeBootstrap {
 
   static func configureSharedAudioStoreOrDefaults() {
     do {
-      guard let appGroupURL = FileManager.default.containerURL(
+      guard let appGroupContainer = FileManager.default.containerURL(
         forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
       ) else {
         throw MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
           MemoraSharedStoreLocation.primaryAppGroupIdentifier
         )
       }
-      let storeURL = try MemoraSharedStoreLocation.applicationGroupStoreURL(
-        groupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
-      )
-      let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
-      configureDefaults()
-      configureSharedAudioStore(
-        MemoraSharedSwiftDataAudioFileStore(container: container),
-        container: container,
-        transcriptionHandler: MemoraRNTranscriptionHandler(
-          container: container,
-          audioDirectory: MemoraSharedStoreLocation.audioFilesDirectory(in: appGroupURL)
-        ),
-        recordingImportHandler: MemoraNativeFileRecordingImportHandler(
-          storageDirectory: MemoraSharedStoreLocation.audioFilesDirectory(in: appGroupURL),
-          sourceDescription: "swiftdata"
-        )
-      )
+      try configureSwiftDataStore(in: appGroupContainer, storeMode: "app-group")
       lastSharedStoreError = nil
+      return
     } catch {
       lastSharedStoreError = String(describing: error)
+    }
+
+    do {
+      let applicationSupport = FileManager.default.urls(
+        for: .applicationSupportDirectory,
+        in: .userDomainMask
+      ).first!
+      let sandboxContainer = applicationSupport.appendingPathComponent(
+        "MemoraShared",
+        isDirectory: true
+      )
+      try FileManager.default.createDirectory(
+        at: sandboxContainer,
+        withIntermediateDirectories: true
+      )
+      try configureSwiftDataStore(in: sandboxContainer, storeMode: "app-sandbox")
+    } catch {
       configureDefaults()
     }
+  }
+
+  private static func configureSwiftDataStore(
+    in containerURL: URL,
+    storeMode: String
+  ) throws {
+    let storeURL = MemoraSharedStoreLocation.storeURL(in: containerURL)
+    let audioDirectory = MemoraSharedStoreLocation.audioFilesDirectory(in: containerURL)
+    let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
+    configureDefaults()
+    configureSharedAudioStore(
+      MemoraSharedSwiftDataAudioFileStore(container: container),
+      container: container,
+      transcriptionHandler: MemoraRNTranscriptionHandler(
+        container: container,
+        audioDirectory: audioDirectory
+      ),
+      recordingImportHandler: MemoraNativeFileRecordingImportHandler(
+        storageDirectory: audioDirectory,
+        sourceDescription: "swiftdata"
+      )
+    )
+    MemoraNativeBridgeDiagnostics.storeMode = storeMode
   }
 
   static func configure(
