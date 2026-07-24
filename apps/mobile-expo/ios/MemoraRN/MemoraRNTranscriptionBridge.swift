@@ -202,8 +202,10 @@ enum MemoraRNSTTServiceFactory {
     let executionDependencies = STTServiceExecutionDependencies(
       backend: STTBackendExecutionDependencies(
         remoteTranscriber: MemoraRNUnavailableRemoteTranscriber(),
-        localBackendFactory: MemoraRNLocalBackendFactory(),
-        speechAnalyzerPreflight: MemoraRNSpeechAnalyzerDisabledPreflight()
+        localBackendFactory: MemoraRNLocalBackendFactory(
+          consoleLogger: dependencies.consoleLogger
+        ),
+        speechAnalyzerPreflight: MemoraRNSpeechAnalyzerPreflight()
       ),
       diarizationService: MemoraRNNoopDiarizationService()
     )
@@ -224,7 +226,7 @@ enum MemoraRNSTTServiceFactory {
 
 private struct MemoraRNNoopLogger: STTLogging { func log(_ category: String, _ message: String, level: STTLogLevel) {} }
 private struct MemoraRNNoopConsoleLogger: STTConsoleLogging { func logDetailed(_ message: @autoclosure () -> String) {} }
-private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = false; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
+private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = true; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
 private struct MemoraRNNoopDiagnostics: STTDiagnosticsRecording { func record(_ entry: STTBackendDiagnosticEntry) {} }
 private struct MemoraRNNoopBackgroundTasks: STTBackgroundTaskManaging { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken? { nil }; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) {} }
 private struct MemoraRNNoopIdleTimer: STTIdleTimerManaging { @MainActor func setIdleTimerDisabled(_ isDisabled: Bool) {} }
@@ -232,10 +234,34 @@ private struct MemoraRNNoopMemoryWarnings: STTMemoryWarningObserving { func obse
 private struct MemoraRNNoopProgressPresenter: STTProgressPresenting { @MainActor func start(fileName: String, totalChunks: Int) {}; @MainActor func update(progress: Double, currentChunk: Int, totalChunks: Int) {}; @MainActor func finish(success: Bool, characterCount: Int) {} }
 private struct MemoraRNNoopDiarizationService: SpeakerDiarizationProtocol { func detectSpeakers(audioURL: URL, segments: [TranscriptionSegment], numSpeakers: Int?) async -> [TranscriptionSegment] { segments } }
 private struct MemoraRNUnavailableRemoteTranscriber: RemoteTranscribing { func transcribe(_ request: RemoteTranscriptionRequest) async throws -> String { throw CoreError.transcriptionError(.transcriptionFailed("API transcription is not configured for MemoraRN.")) } }
-private struct MemoraRNUnavailableSpeechAnalyzer: SpeechAnalyzerTranscribing { func transcribe(audioURL: URL) async throws -> String { throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer is disabled for MemoraRN local transcription.")) } }
-private struct MemoraRNLocalBackendFactory: LocalSTTBackendFactory { @available(iOS 26.0, *) func makeSpeechAnalyzerTranscriber(locale: Locale) -> any SpeechAnalyzerTranscribing { MemoraRNUnavailableSpeechAnalyzer() }; func makeSpeechRecognizer(locale: Locale) -> SFSpeechRecognizer? { SFSpeechRecognizer(locale: locale) } }
-private struct MemoraRNSpeechAnalyzerDisabledPreflight: SpeechAnalyzerPreflighting {
-  func run(locale: Locale) async -> SpeechAnalyzerPreflightResult { .unavailable(reason: .featureFlagOff, diagnostics: diagnosticsValue(locale: locale)) }
-  func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics { diagnosticsValue(locale: locale) }
-  private func diagnosticsValue(locale: Locale) -> SpeechAnalyzerDiagnostics { SpeechAnalyzerDiagnostics(isTranscriberAvailable: false, featureFlagEnabled: false, requestedLocale: locale.identifier, supportedLocale: nil, assetStatus: "disabled", compatibleFormatsDescription: "", unavailableReason: .featureFlagOff, checkedAt: Date(), checkDurationMs: 0) }
+private struct MemoraRNLocalBackendFactory: LocalSTTBackendFactory {
+  let consoleLogger: any STTConsoleLogging
+
+  @available(iOS 26.0, *)
+  func makeSpeechAnalyzerTranscriber(locale: Locale) -> any SpeechAnalyzerTranscribing {
+    SpeechAnalyzerService26(
+      locale: locale,
+      consoleLogger: consoleLogger
+    )
+  }
+
+  func makeSpeechRecognizer(locale: Locale) -> SFSpeechRecognizer? {
+    SFSpeechRecognizer(locale: locale)
+  }
+}
+
+private struct MemoraRNSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {
+  func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
+    guard #available(iOS 26.0, *) else {
+      preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+    }
+    return await SpeechAnalyzerPreflight(featureEnabled: true).run(locale: locale)
+  }
+
+  func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
+    guard #available(iOS 26.0, *) else {
+      preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+    }
+    return await SpeechAnalyzerPreflight(featureEnabled: true).diagnostics(for: locale)
+  }
 }
