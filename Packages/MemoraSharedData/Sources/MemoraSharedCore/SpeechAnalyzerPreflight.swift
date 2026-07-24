@@ -1,0 +1,171 @@
+import Foundation
+@preconcurrency import Speech
+
+// CL-A1: SpeechAnalyzer preflight checks.
+// Runs BEFORE any transcription attempt to decide whether SpeechAnalyzer
+// can be used safely. Produces structured diagnostics for logging and UI.
+
+@available(iOS 26.0, macOS 26.0, *)
+public final class SpeechAnalyzerPreflight: SpeechAnalyzerPreflighting, Sendable {
+    private let featureEnabled: Bool
+
+    public init(featureEnabled: Bool = true) {
+        self.featureEnabled = featureEnabled
+    }
+
+    /// Run all preflight checks for the given locale.
+    /// Returns `.ready` if SpeechAnalyzer can be used, `.unavailable` with a reason otherwise.
+    public func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
+        let start = ContinuousClock.now
+
+        let isAvailable = SpeechTranscriber.isAvailable
+        var assetStatusDescription = "unknown"
+        var compatibleFormats = "not checked"
+
+        // Step 1: Feature flag
+        guard featureEnabled else {
+            let reason = SpeechAnalyzerUnavailableReason.featureFlagOff
+            let diag = makeDiagnostics(
+                isAvailable: isAvailable,
+                featureEnabled: featureEnabled,
+                locale: locale,
+                supportedLocale: nil,
+                assetStatus: assetStatusDescription,
+                formats: compatibleFormats,
+                reason: reason,
+                start: start
+            )
+            return .unavailable(reason: reason, diagnostics: diag)
+        }
+
+        // Step 2: Availability
+        guard isAvailable else {
+            let reason = SpeechAnalyzerUnavailableReason.notAvailable
+            let diag = makeDiagnostics(
+                isAvailable: isAvailable,
+                featureEnabled: featureEnabled,
+                locale: locale,
+                supportedLocale: nil,
+                assetStatus: assetStatusDescription,
+                formats: compatibleFormats,
+                reason: reason,
+                start: start
+            )
+            return .unavailable(reason: reason, diagnostics: diag)
+        }
+
+        // Step 3: Locale equivalence
+        let resolvedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale)
+        guard let resolvedLocale else {
+            let reason = SpeechAnalyzerUnavailableReason.localeNotSupported(requestedLocale: locale.identifier)
+            let diag = makeDiagnostics(
+                isAvailable: isAvailable,
+                featureEnabled: featureEnabled,
+                locale: locale,
+                supportedLocale: nil,
+                assetStatus: assetStatusDescription,
+                formats: compatibleFormats,
+                reason: reason,
+                start: start
+            )
+            return .unavailable(reason: reason, diagnostics: diag)
+        }
+
+        // Step 4: Asset status
+        let preset = SpeechTranscriber.Preset.transcription
+        let transcriber = SpeechTranscriber(locale: resolvedLocale, preset: preset)
+        let assetStatus = await AssetInventory.status(forModules: [transcriber])
+        assetStatusDescription = String(describing: assetStatus)
+
+        if assetStatus != .installed {
+            // Try to install assets
+            do {
+                if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                    try await request.downloadAndInstall()
+                    let finalStatus = await AssetInventory.status(forModules: [transcriber])
+                    assetStatusDescription = String(describing: finalStatus)
+
+                    if finalStatus != .installed {
+                        let reason = SpeechAnalyzerUnavailableReason.assetsNotReady(statusDescription: assetStatusDescription)
+                        let diag = makeDiagnostics(
+                            isAvailable: isAvailable,
+                            featureEnabled: featureEnabled,
+                            locale: locale,
+                            supportedLocale: resolvedLocale,
+                            assetStatus: assetStatusDescription,
+                            formats: compatibleFormats,
+                            reason: reason,
+                            start: start
+                        )
+                        return .unavailable(reason: reason, diagnostics: diag)
+                    }
+                }
+            } catch {
+                let reason = SpeechAnalyzerUnavailableReason.assetsNotReady(statusDescription: error.localizedDescription)
+                let diag = makeDiagnostics(
+                    isAvailable: isAvailable,
+                    featureEnabled: featureEnabled,
+                    locale: locale,
+                    supportedLocale: resolvedLocale,
+                    assetStatus: assetStatusDescription,
+                    formats: compatibleFormats,
+                    reason: reason,
+                    start: start
+                )
+                return .unavailable(reason: reason, diagnostics: diag)
+            }
+        }
+
+        // Step 5: Compatible audio formats
+        let formats = await transcriber.availableCompatibleAudioFormats
+        compatibleFormats = formats.map { String(describing: $0) }.joined(separator: ", ")
+
+        let diag = makeDiagnostics(
+            isAvailable: isAvailable,
+            featureEnabled: featureEnabled,
+            locale: locale,
+            supportedLocale: resolvedLocale,
+            assetStatus: assetStatusDescription,
+            formats: compatibleFormats,
+            reason: nil,
+            start: start
+        )
+
+        return .ready(diagnostics: diag)
+    }
+
+    /// Convenience: returns diagnostics without running full install flow.
+    public func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
+        let result = await run(locale: locale)
+        switch result {
+        case .ready(let diag), .unavailable(_, let diag):
+            return diag
+        }
+    }
+
+    private func makeDiagnostics(
+        isAvailable: Bool,
+        featureEnabled: Bool,
+        locale: Locale,
+        supportedLocale: Locale?,
+        assetStatus: String,
+        formats: String,
+        reason: SpeechAnalyzerUnavailableReason?,
+        start: ContinuousClock.Instant
+    ) -> SpeechAnalyzerDiagnostics {
+        let duration = start.duration(to: ContinuousClock.now)
+        let ms = DurationFormatter.milliseconds(duration)
+
+        return SpeechAnalyzerDiagnostics(
+            isTranscriberAvailable: isAvailable,
+            featureFlagEnabled: featureEnabled,
+            requestedLocale: locale.identifier,
+            supportedLocale: supportedLocale,
+            assetStatus: assetStatus,
+            compatibleFormatsDescription: formats,
+            unavailableReason: reason,
+            checkedAt: Date(),
+            checkDurationMs: ms
+        )
+    }
+}
