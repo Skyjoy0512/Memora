@@ -172,3 +172,6 @@ skills-lock.json
 
 # Reference materials (not source)
 References/
+
+# Codex task transcripts (scripts/codex-task.sh)
+.codex-logs/
