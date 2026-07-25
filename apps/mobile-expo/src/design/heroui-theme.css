@@ -67,9 +67,9 @@
     --separator: #E5E4E2;
     --focus: #5B6B7A;
     --link: #5B6B7A;
-      --surface-shadow: 0px 2px 8px rgba(0, 0, 0, 0.07);
-      --overlay-shadow: 0px 10px 28px rgba(0, 0, 0, 0.16);
-      --field-shadow: 0px 2px 8px rgba(0, 0, 0, 0.07);
+      --surface-shadow: 0px 0px 0px rgba(NaN, NaN, NaN, 0);
+      --overlay-shadow: 0px 0px 0px rgba(NaN, NaN, NaN, 0);
+      --field-shadow: 0px 0px 0px rgba(NaN, NaN, NaN, 0);
     }
 
     @variant dark {

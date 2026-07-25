@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Avatar, Button, PressableFeedback } from 'heroui-native';
+import { Avatar, Button, ListGroup, PressableFeedback } from 'heroui-native';
 import { SearchBar } from '../components/SearchBar';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { FileCard } from '../components/FileCard';
@@ -229,28 +229,30 @@ export function HomeScreen() {
 function ProjectsGrid({ projects, files, onSelect }: { projects: string[]; files: AudioFile[]; onSelect: (p: string) => void }) {
   if (!projects.length) return <EmptyState title="プロジェクトはまだありません" body="録音をプロジェクトに整理すると、ここに表示されます。" />;
   return (
-    <View style={homeStyles.projectsGrid}>
+    <ListGroup className="border border-border" variant="secondary">
       {projects.map((project, i) => {
         const count = files.filter((f) => f.project === project).length;
         return (
-          <PressableFeedback
+          <ListGroup.Item
             accessibilityLabel={`${project}を開く`}
             accessibilityRole="button"
             key={project}
             onPress={() => onSelect(project)}
-            style={homeStyles.projectCard}
           >
-            <Avatar style={[homeStyles.projectAvatar, { backgroundColor: [colors.categorySlate, colors.categoryTeal, colors.categoryOlive, colors.categoryMauve][i % 4] }]}>
+            <ListGroup.ItemPrefix>
+              <Avatar className="bg-surface-tertiary">
               <Avatar.Fallback>{project.slice(0, 1)}</Avatar.Fallback>
-            </Avatar>
-            <View>
-              <Text numberOfLines={1} style={homeStyles.projectName}>{project}</Text>
-              <Text style={homeStyles.projectCount}>{count}件の記録</Text>
-            </View>
-          </PressableFeedback>
+              </Avatar>
+            </ListGroup.ItemPrefix>
+            <ListGroup.ItemContent>
+              <ListGroup.ItemTitle numberOfLines={1}>{project}</ListGroup.ItemTitle>
+              <ListGroup.ItemDescription>{count}件の記録</ListGroup.ItemDescription>
+            </ListGroup.ItemContent>
+            <ListGroup.ItemSuffix />
+          </ListGroup.Item>
         );
       })}
-    </View>
+    </ListGroup>
   );
 }
 
@@ -364,16 +366,10 @@ const homeStyles = StyleSheet.create({
   importEmptyActionText: { color: colors.accent, ...textStyles.footnoteBold },
 
   // projects
-  projectsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  projectCard: { borderColor: colors.borderLight, borderRadius: radius.md, borderWidth: 1, gap: 28, padding: spacing.md, width: '48%' },
-  cardPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
-  projectAvatar: { alignItems: 'center', borderRadius: radius.sm, height: 26, justifyContent: 'center', width: 26 },
-  projectAvatarText: { color: colors.surface, ...textStyles.captionBold },
-  projectName: { color: colors.text, ...textStyles.footnoteBold },
-  projectCount: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
   projectView: { gap: spacing.xs },
   projectHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   projectViewTitle: { color: colors.text, ...textStyles.callout },
+  projectCount: { color: colors.textSecondary, ...textStyles.footnote },
   backBtn: { alignItems: 'center', height: 44, justifyContent: 'center', marginLeft: -spacing.sm, width: 44 },
 
   // sheets
