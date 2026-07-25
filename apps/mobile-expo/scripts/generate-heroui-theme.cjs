@@ -1,3 +1,5 @@
+// Run `npm run theme:generate` after changing tokens.ts; development scripts run it automatically.
+// Use `npm run theme:check` in CI to detect an uncommitted generated CSS update.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -106,4 +108,13 @@ ${theme(darkColors).join('\n')}
 }
 `;
 
-fs.writeFileSync(outputPath, css);
+if (process.argv.includes('--check')) {
+  const currentCss = fs.readFileSync(outputPath, 'utf8');
+
+  if (currentCss !== css) {
+    console.error('src/design/heroui-theme.css is out of date. Run npm run theme:generate and commit the result.');
+    process.exitCode = 1;
+  }
+} else {
+  fs.writeFileSync(outputPath, css);
+}

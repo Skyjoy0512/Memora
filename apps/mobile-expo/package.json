@@ -46,14 +46,21 @@
   },
   "scripts": {
     "start": "expo start",
+    "prestart": "npm run theme:generate",
     "android": "expo run:android",
+    "preandroid": "npm run theme:generate",
     "ios": "expo run:ios",
+    "preios": "npm run theme:generate",
     "web": "expo start --web",
+    "preweb": "npm run theme:generate",
     "prebuild": "expo prebuild",
     "run:ios": "expo run:ios",
+    "prerun:ios": "npm run theme:generate",
     "qa:ios:build": "./scripts/ios-qa.sh build-for-testing",
     "qa:ios:test": "./scripts/ios-qa.sh test-without-building",
-    "typecheck": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit",
+    "theme:generate": "node scripts/generate-heroui-theme.cjs",
+    "theme:check": "node scripts/generate-heroui-theme.cjs --check"
   },
   "private": true
 }
