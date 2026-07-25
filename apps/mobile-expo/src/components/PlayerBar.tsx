@@ -1,7 +1,9 @@
 import { AppIcon } from './AppIcon';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type GestureResponderEvent } from 'react-native';
-import { colors, textStyles } from '../design/tokens';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { PressableFeedback } from 'heroui-native/pressable-feedback';
+import { Slider } from 'heroui-native/slider';
+import { colors, darkColors, radius, spacing, textStyles } from '../design/tokens';
 import type { PlaybackStatusDTO } from '../native/MemoraNative.types';
 
 type Props = {
@@ -18,60 +20,82 @@ function formatTime(seconds: number) {
 }
 
 export function PlayerBar({ onCycleRate, onSeek, onTogglePlay, status }: Props) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const ratio = status.duration > 0 ? Math.min(status.position / status.duration, 1) : 0;
+  const [seekPosition, setSeekPosition] = useState(status.position);
+  const isSeekingRef = useRef(false);
+  const palette = useColorScheme() === 'dark' ? darkColors : colors;
+  const duration = Math.max(status.duration, 0);
 
-  function handleLayout(event: LayoutChangeEvent) {
-    setTrackWidth(event.nativeEvent.layout.width);
+  useEffect(() => {
+    if (!isSeekingRef.current) setSeekPosition(status.position);
+  }, [status.position]);
+
+  function getValue(value: number | number[]) {
+    return Array.isArray(value) ? value[0] ?? 0 : value;
   }
 
-  function handleSeekPress(event: GestureResponderEvent) {
-    if (trackWidth <= 0 || status.duration <= 0) return;
-    const pct = Math.max(0, Math.min(event.nativeEvent.locationX / trackWidth, 1));
-    onSeek(pct * status.duration);
+  function handleSeekChange(value: number | number[]) {
+    isSeekingRef.current = true;
+    setSeekPosition(getValue(value));
+  }
+
+  function handleSeekEnd(value: number | number[]) {
+    const nextPosition = getValue(value);
+    isSeekingRef.current = false;
+    setSeekPosition(nextPosition);
+    onSeek(nextPosition);
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { borderBottomColor: palette.separator }]}>
       <View style={styles.row}>
-        <Pressable accessibilityLabel={status.isPlaying ? '一時停止' : '再生'} accessibilityRole="button" onPress={onTogglePlay} style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}>
-          <AppIcon color={colors.text} name={status.isPlaying ? 'pause' : 'play'} size={13} weight="Filled" />
-        </Pressable>
-        <Text style={styles.time}>
+        <PressableFeedback accessibilityLabel={status.isPlaying ? '一時停止' : '再生'} accessibilityRole="button" animation={{ scale: { value: 0.97 } }} onPress={onTogglePlay} style={[styles.playButton, { borderColor: palette.border }]}>
+          <AppIcon color={palette.text} name={status.isPlaying ? 'pause' : 'play'} size={13} weight="Filled" />
+        </PressableFeedback>
+        <Text style={[styles.time, { color: palette.text }]}>
           {formatTime(status.position)} / {formatTime(status.duration)}
         </Text>
         <View style={styles.spacer} />
-        <Pressable accessibilityLabel={`再生速度を変更、現在 ${status.rate}倍速`} accessibilityRole="button" onPress={onCycleRate} style={({ pressed }) => [styles.rateButton, pressed && styles.pressed]}>
-          <Text style={styles.rateText}>{status.rate}x</Text>
-        </Pressable>
+        <PressableFeedback accessibilityLabel={`再生速度を変更、現在 ${status.rate}倍速`} accessibilityRole="button" animation={{ scale: { value: 0.97 } }} onPress={onCycleRate} style={[styles.rateButton, { backgroundColor: palette.surfaceAlt }]}>
+          <Text style={[styles.rateText, { color: palette.text }]}>{status.rate}x</Text>
+        </PressableFeedback>
       </View>
 
-      <Pressable accessibilityLabel={`再生位置、${formatTime(status.position)} / ${formatTime(status.duration)}`} accessibilityRole="button" onLayout={handleLayout} onPress={handleSeekPress} style={styles.trackWrap}>
-        <View style={styles.track}>
-          <View style={[styles.trackFill, { width: `${ratio * 100}%` }]} />
-        </View>
-      </Pressable>
+      <Slider
+        accessibilityLabel={`再生位置、${formatTime(seekPosition)} / ${formatTime(status.duration)}`}
+        isDisabled={duration === 0}
+        maxValue={duration || 1}
+        minValue={0}
+        onChange={handleSeekChange}
+        onChangeEnd={handleSeekEnd}
+        step={0.1}
+        style={styles.trackWrap}
+        value={Math.min(seekPosition, duration || 1)}
+      >
+        <Slider.Track style={[styles.track, { backgroundColor: palette.surfaceAlt }]}>
+          <Slider.Fill style={[styles.trackFill, { backgroundColor: palette.text }]} />
+          <Slider.Thumb styles={{ thumbContainer: { backgroundColor: palette.text } }} />
+        </Slider.Track>
+      </Slider>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    borderBottomColor: colors.surfaceAlt,
     borderBottomWidth: 1,
-    gap: 8,
-    paddingBottom: 10,
-    paddingTop: 6,
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.xs,
   },
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   playButton: {
     alignItems: 'center',
     borderColor: colors.border,
-    borderRadius: 19,
+    borderRadius: radius.pill,
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
@@ -84,28 +108,25 @@ const styles = StyleSheet.create({
   },
   spacer: { flex: 1 },
   rateButton: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    borderRadius: radius.sm,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   rateText: {
     color: colors.text,
     ...textStyles.captionBold,
   },
-  pressed: { opacity: 0.74, transform: [{ scale: 0.93 }] },
   trackWrap: {
-    height: 12,
+    height: spacing.md,
     justifyContent: 'center',
   },
   track: {
-    backgroundColor: '#EEEEEE',
-    borderRadius: 2,
-    height: 3,
-    overflow: 'hidden',
+    borderRadius: radius.xs,
+    height: spacing.xxs,
   },
   trackFill: {
-    backgroundColor: colors.text,
     height: '100%',
   },
 });

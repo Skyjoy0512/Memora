@@ -1,6 +1,7 @@
 import { AppIcon, type AppIconName } from './AppIcon';
 import { LiquidGlassContainerView, LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import * as DocumentPicker from 'expo-document-picker';
+import { PressableFeedback } from 'heroui-native/pressable-feedback';
 import { useState } from 'react';
 import {
   Alert,
@@ -12,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
-import { textStyles } from '../design/tokens';
+import { shadow, textStyles } from '../design/tokens';
 
 const items = [
   { icon: 'home' as AppIconName, label: 'ホーム', routeName: 'index' },
@@ -129,19 +130,20 @@ export function V6FloatingTabBar({ navigation, state }: FloatingTabBarProps) {
               const badgeCount = item.routeName === 'tasks' ? 1 : 0;
 
               return (
-                <Pressable
+                <PressableFeedback
                   accessibilityLabel={item.label}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: focused }}
+                  animation={{ scale: { value: 0.97 } }}
                   key={item.routeName}
                   onPress={() => navigate(item.routeName)}
-                  style={({ pressed }) => [styles.tabButton, pressed && styles.pressed]}
+                  style={styles.tabButton}
                 >
                   <View style={[styles.tabIcon, focused && styles.tabIconFocused]}>
                     <AppIcon color={focused ? '#0D0D0D' : 'rgba(13,13,13,0.55)'} name={item.icon} size={21} weight={focused ? 'Filled' : 'Outline'} />
                   </View>
                   {badgeCount > 0 ? <View accessibilityLabel={`未完了タスク ${badgeCount} 件`} style={styles.badge}><Text style={styles.badgeText}>{badgeCount}</Text></View> : null}
-                </Pressable>
+                </PressableFeedback>
               );
             })}
           </LiquidGlassView>
@@ -153,14 +155,15 @@ export function V6FloatingTabBar({ navigation, state }: FloatingTabBarProps) {
             style={[styles.fab, !isLiquidGlassSupported && styles.glassFallback]}
             tintColor="rgba(255,255,255,0.04)"
           >
-            <Pressable
+            <PressableFeedback
               accessibilityLabel={isMenuOpen ? '追加メニューを閉じる' : '追加メニューを開く'}
               accessibilityRole="button"
+              animation={{ scale: { value: 0.97 } }}
               onPress={() => setIsMenuOpen((open) => !open)}
-              style={({ pressed }) => [styles.fabPress, pressed && styles.pressed]}
+              style={styles.fabPress}
             >
               <AppIcon color="#0D0D0D" name={isMenuOpen ? 'close' : 'add'} size={isMenuOpen ? 18 : 20} />
-            </Pressable>
+            </PressableFeedback>
           </LiquidGlassView>
         </LiquidGlassContainerView>
       </View>
@@ -170,10 +173,10 @@ export function V6FloatingTabBar({ navigation, state }: FloatingTabBarProps) {
 
 function MenuItem({ disabled, label, onPress, recording = false }: { disabled: boolean; label: string; onPress: () => void; recording?: boolean }) {
   return (
-    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.menuItem, (pressed || disabled) && styles.menuItemPressed]}>
+    <PressableFeedback animation={{ scale: { value: 0.97 } }} isDisabled={disabled} onPress={onPress} style={[styles.menuItem, disabled && styles.menuItemDisabled]}>
       <Text style={styles.menuText}>{label}</Text>
       {recording ? <View style={styles.recordingDot} /> : null}
-    </Pressable>
+    </PressableFeedback>
   );
 }
 
@@ -204,10 +207,7 @@ const styles = StyleSheet.create({
     height: 60,
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
+    ...shadow.elevated,
     width: 60,
   },
   fabPress: { alignItems: 'center', height: '100%', justifyContent: 'center', width: '100%' },
@@ -221,10 +221,7 @@ const styles = StyleSheet.create({
     height: 60,
     overflow: 'hidden',
     padding: 8,
-    shadowColor: '#000000',
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
+    ...shadow.elevated,
   },
   menu: { alignItems: 'flex-end', gap: 12, position: 'absolute', right: 16 },
   menuItem: {
@@ -236,10 +233,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  menuItemPressed: { opacity: 0.7, transform: [{ scale: 0.93 }] },
+  menuItemDisabled: { opacity: 0.7 },
   menuText: { color: '#0D0D0D', ...textStyles.body },
   modalRoot: { flex: 1 },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.93 }] },
   recordingDot: { backgroundColor: '#FF3030', borderRadius: 5, height: 10, width: 10 },
   scrim: { backgroundColor: 'rgba(0,0,0,0.28)', ...StyleSheet.absoluteFill },
   tabButton: { alignItems: 'center', flex: 1, height: 44, justifyContent: 'center' },

@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
-import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { BottomSheet } from 'heroui-native/bottom-sheet';
+import type { ReactNode } from 'react';
+import { colors, darkColors, radius, spacing } from '../design/tokens';
 
 type FloatingBottomSheetProps = {
   children: ReactNode;
@@ -9,48 +10,31 @@ type FloatingBottomSheetProps = {
 };
 
 export function FloatingBottomSheet({ children, isOpen, onClose }: FloatingBottomSheetProps) {
-  const sheetRef = useRef<BottomSheetModal>(null);
-  const isPresentedRef = useRef(false);
-
-  useEffect(() => {
-    const sheet = sheetRef.current;
-
-    if (isOpen) {
-      if (!sheet || isPresentedRef.current) return;
-      isPresentedRef.current = true;
-      sheet.present();
-      return;
-    }
-
-    if (isPresentedRef.current) sheet?.dismiss();
-  }, [isOpen]);
-
-  function handleDismiss() {
-    isPresentedRef.current = false;
-    onClose();
-  }
+  const palette = useColorScheme() === 'dark' ? darkColors : colors;
 
   return (
-    <BottomSheetModal
-      accessible={false}
-      ref={sheetRef}
-      backdropComponent={(props) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />}
-      backgroundStyle={styles.transparent}
-      enableDynamicSizing
-      enablePanDownToClose
-      handleIndicatorStyle={styles.handleIndicator}
-      handleStyle={styles.handle}
-      index={0}
-      onDismiss={handleDismiss}
-    >
-      <BottomSheetView accessible={false} style={styles.content}>{children}</BottomSheetView>
-    </BottomSheetModal>
+    <BottomSheet isOpen={isOpen} onOpenChange={(nextIsOpen) => !nextIsOpen && onClose()}>
+      <BottomSheet.Portal>
+        <BottomSheet.Overlay isCloseOnPress />
+        <BottomSheet.Content
+        backgroundStyle={styles.transparent}
+        contentContainerProps={{ accessible: false, style: styles.content }}
+        enableDynamicSizing
+        enablePanDownToClose
+        handleIndicatorStyle={[styles.handleIndicator, { backgroundColor: palette.border }]}
+        handleStyle={styles.handle}
+        index={0}
+        >
+          {children}
+        </BottomSheet.Content>
+      </BottomSheet.Portal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   content: { backgroundColor: 'transparent' },
-  handle: { paddingBottom: 8, paddingTop: 12 },
-  handleIndicator: { backgroundColor: '#D1D1D6', height: 4, width: 36 },
+  handle: { paddingBottom: spacing.sm, paddingTop: spacing.md },
+  handleIndicator: { borderRadius: radius.pill, height: radius.xs, width: spacing.xl },
   transparent: { backgroundColor: 'transparent' },
 });
