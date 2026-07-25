@@ -4,12 +4,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, ScrollView, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Input, PressableFeedback, TextArea } from 'heroui-native';
 import { PlayerBar } from '../components/PlayerBar';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
 import { SheetCard } from '../components/SheetCard';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { StatusPill } from '../components/StatusPill';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
@@ -351,7 +353,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
 
   return (
     <Screen
-      topRow={<View style={styles.detailTopRow}><Pressable accessibilityLabel="ファイル一覧に戻る" accessibilityRole="button" onPress={() => router.back()} style={styles.headerIcon}><Ionicons color={colors.text} name="chevron-back" size={19} /></Pressable><View style={styles.headerActions}><Pressable accessibilityLabel="ファイルを共有" accessibilityRole="button" onPress={() => setIsExportOpen(true)} style={styles.headerIcon}><Ionicons color={colors.text} name="share-outline" size={18} /></Pressable><Pressable accessibilityLabel="その他の操作" accessibilityRole="button" onPress={handleMore} style={styles.headerIcon}><Ionicons color={colors.text} name="ellipsis-horizontal" size={19} /></Pressable></View></View>}
+      topRow={<View style={styles.detailTopRow}><PressableFeedback accessibilityLabel="ファイル一覧に戻る" accessibilityRole="button" onPress={() => router.back()} style={styles.headerIcon}><Ionicons color={colors.text} name="chevron-back" size={19} /></PressableFeedback><View style={styles.headerActions}><PressableFeedback accessibilityLabel="ファイルを共有" accessibilityRole="button" onPress={() => setIsExportOpen(true)} style={styles.headerIcon}><Ionicons color={colors.text} name="share-outline" size={18} /></PressableFeedback><PressableFeedback accessibilityLabel="その他の操作" accessibilityRole="button" onPress={handleMore} style={styles.headerIcon}><Ionicons color={colors.text} name="ellipsis-horizontal" size={19} /></PressableFeedback></View></View>}
       footerAccessory={
         <>
           {playback.status ? (
@@ -367,7 +369,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             </View>
           ) : null}
           <View style={styles.fileAskDock}>
-            <Pressable
+            <PressableFeedback
               accessibilityLabel="プロジェクトを選択"
               accessibilityRole="button"
               onPress={() => Alert.alert('プロジェクトを選択', 'この操作は現在利用できません。')}
@@ -375,9 +377,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             >
               <Ionicons color={colors.textTertiary} name="folder" size={14} />
               <Text style={styles.fileAskProjectChipText}>プロジェクトを選択</Text>
-            </Pressable>
+            </PressableFeedback>
             <View style={styles.fileAskBox}>
-              <TextInput
+              <Input
                 accessibilityLabel="この記録について質問する"
                 multiline
                 onChangeText={setFileAskDraft}
@@ -388,23 +390,23 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 value={fileAskDraft}
               />
               <View style={styles.fileAskBoxRow}>
-                <Pressable accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.fileAskAttachButton}>
+                <PressableFeedback accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.fileAskAttachButton}>
                   <Ionicons color={colors.textTertiary} name="attach-outline" size={18} />
-                </Pressable>
-                <Pressable accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsFileAskModelSheetOpen(true)} style={styles.modelPill}>
+                </PressableFeedback>
+                <PressableFeedback accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsFileAskModelSheetOpen(true)} style={styles.modelPill}>
                   <Text style={styles.modelPillText}>{ASK_MODEL_LABELS[fileAskModel]}</Text>
                   <Ionicons color={colors.textSecondary} name="chevron-down" size={12} />
-                </Pressable>
+                </PressableFeedback>
                 <View style={styles.fileAskSpacer} />
-                <Pressable
+                <PressableFeedback
                   accessibilityLabel="この記録について聞く"
                   accessibilityRole="button"
-                  disabled={!fileAskDraft.trim()}
+                  isDisabled={!fileAskDraft.trim()}
                   onPress={handleFileAskSubmit}
                   style={[styles.fileAskSendButton, !fileAskDraft.trim() ? styles.fileAskSendButtonDisabled : null]}
                 >
                   <Ionicons color={colors.surface} name="mic-outline" size={16} />
-                </Pressable>
+                </PressableFeedback>
               </View>
             </View>
           </View>
@@ -420,21 +422,15 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         </View>
       }
     >
-      <View style={styles.tabs}>
-        {(['summary', 'transcript', 'memo'] as const).map((item) => (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === item }}
-            key={item}
-            onPress={() => setTab(item)}
-            style={[styles.tab, tab === item && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === item && styles.tabTextActive]}>
-              {TAB_LABEL[item]}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedControl
+        onSelect={setTab}
+        segments={([
+          { key: 'summary', label: TAB_LABEL.summary },
+          { key: 'transcript', label: TAB_LABEL.transcript },
+          { key: 'memo', label: TAB_LABEL.memo },
+        ])}
+        selected={tab}
+      />
 
       <Animated.View style={{ opacity: tabOpacity }}>
       {tab === 'summary' ? (
@@ -442,12 +438,12 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           {!isGeneratingSummary && file.status !== 'queued' ? (
             <Text style={styles.summaryMeta}>{file.duration} ・ 話者{new Set(file.transcript.map((segment) => segment.speaker).filter(Boolean)).size}名 ・ タスク{file.memo.length}件</Text>
           ) : null}
-          {!isGeneratingSummary && file.transcript.length ? <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>チャプター</Text><View>{file.transcript.slice(0, 4).map((segment) => <Pressable accessibilityRole="button" key={segment.id} onPress={() => setTab('transcript')} style={styles.chapterRow}><Text style={styles.chapterTime}>{segment.time}</Text><Text numberOfLines={1} style={styles.chapterText}>{segment.text}</Text><Ionicons color={colors.border} name="chevron-forward" size={12} /></Pressable>)}</View></View> : null}
+          {!isGeneratingSummary && file.transcript.length ? <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>チャプター</Text><View>{file.transcript.slice(0, 4).map((segment) => <PressableFeedback accessibilityRole="button" key={segment.id} onPress={() => setTab('transcript')} style={styles.chapterRow}><Text style={styles.chapterTime}>{segment.time}</Text><Text numberOfLines={1} style={styles.chapterText}>{segment.text}</Text><Ionicons color={colors.border} name="chevron-forward" size={12} /></PressableFeedback>)}</View></View> : null}
           {isGeneratingSummary ? <FileDetailGeneratingSkeleton /> : null}
           {!isGeneratingSummary && file.status !== 'queued' ? (
             <>
               <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>決定事項</Text><Text style={styles.decisionText}>・{file.summary}</Text></View>
-              <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>次のアクション</Text><View style={styles.actionList}>{file.memo.map((item) => <View key={item} style={styles.actionItem}><Text style={styles.actionItemText}>{item}</Text><Pressable accessibilityRole="button" onPress={() => Alert.alert('タスクに追加', 'この操作は現在利用できません。')} style={styles.taskifyButton}><Ionicons color={colors.textTertiary} name="add" size={14} /><Text style={styles.taskifyText}>タスク</Text></Pressable></View>)}</View></View>
+              <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>次のアクション</Text><View style={styles.actionList}>{file.memo.map((item) => <View key={item} style={styles.actionItem}><Text style={styles.actionItemText}>{item}</Text><PressableFeedback accessibilityRole="button" onPress={() => Alert.alert('タスクに追加', 'この操作は現在利用できません。')} style={styles.taskifyButton}><Ionicons color={colors.textTertiary} name="add" size={14} /><Text style={styles.taskifyText}>タスク</Text></PressableFeedback></View>)}</View></View>
             </>
           ) : null}
           <View style={styles.summarySection}>
@@ -464,14 +460,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   </View>
                 </View>
               ))}
-              <Pressable
+              <PressableFeedback
                 accessibilityLabel="メモで写真を添付"
                 accessibilityRole="button"
                 onPress={() => setTab('memo')}
-                style={({ pressed }) => [styles.attachmentAdd, pressed && styles.scalePress]}
+                style={styles.attachmentAdd}
               >
                 <Ionicons color={colors.textTertiary} name="add" size={20} />
-              </Pressable>
+              </PressableFeedback>
             </View>
             <Text style={styles.attachmentStorageNote}>クラウド保存と全デバイス同期は Pro で ›</Text>
           </View>
@@ -488,14 +484,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               </View>
               <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
               <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
-              <Pressable
+              <PressableFeedback
                 accessibilityLabel="AI生成"
                 accessibilityRole="button"
                 onPress={() => setGenerateSheetView('main')}
                 style={styles.generateButton}
               >
                 <Text style={styles.generateButtonText}>AI生成</Text>
-              </Pressable>
+              </PressableFeedback>
             </View>
           ) : (
             <View style={styles.summarySection}>
@@ -507,7 +503,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 </Text>
               ) : null}
               {summaryError ? <Text style={styles.summaryError}>{summaryError}</Text> : null}
-              <Pressable
+              <PressableFeedback
                 accessibilityLabel="要約を再生成"
                 accessibilityRole="button"
                 onPress={() => void handleGenerateSummary()}
@@ -515,7 +511,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               >
                 <Ionicons color={colors.accent} name="refresh" size={17} />
                 <Text style={styles.summaryButtonText}>要約を再生成</Text>
-              </Pressable>
+              </PressableFeedback>
             </View>
           )}
         </View>
@@ -535,14 +531,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             ) : transcription.error ? (
               <View style={styles.panel}>
                 <Text style={styles.summaryError}>{transcription.error}</Text>
-                <Pressable
+                <PressableFeedback
                   accessibilityLabel="文字起こしを再試行"
                   accessibilityRole="button"
                   onPress={transcription.start}
                   style={styles.generateButton}
                 >
                   <Text style={styles.generateButtonText}>再試行</Text>
-                </Pressable>
+                </PressableFeedback>
               </View>
             ) : transcription.task === null ? (
               <View style={styles.panel}>
@@ -558,22 +554,22 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   </View>
                   <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
                   <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
-                  <Pressable
+                  <PressableFeedback
                     accessibilityLabel="AI生成"
                     accessibilityRole="button"
                     onPress={transcription.start}
                     style={styles.generateButton}
                   >
                     <Text style={styles.generateButtonText}>AI生成</Text>
-                  </Pressable>
+                  </PressableFeedback>
                 </View>
               </View>
             ) : null
           ) : (
             <View style={styles.panel}>
-              <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
+              <PressableFeedback accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
               <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
-              </Pressable>
+              </PressableFeedback>
               <ScrollView
                 contentContainerStyle={styles.transcriptScrollContent}
                 nestedScrollEnabled
@@ -584,7 +580,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 style={[styles.transcriptScroll, { maxHeight: transcriptMaxHeight }]}
               >
                 {file.transcript.map((segment) => (
-                  <Pressable
+                  <PressableFeedback
                     accessibilityLabel={`${segment.speaker}、${segment.time}から再生`}
                     accessibilityRole="button"
                     key={segment.id}
@@ -607,7 +603,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                       <Text style={styles.time}>{segment.time}</Text>
                     </View>
                     <Text style={styles.bodyText}>{showCleanedTranscript ? (segment.cleanedText ?? segment.text) : segment.text}</Text>
-                  </Pressable>
+                  </PressableFeedback>
                 ))}
               </ScrollView>
             </View>
@@ -620,7 +616,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           <View style={styles.panel}>
             {isEditingMemo ? (
               <View style={styles.memoEditBlock}>
-                <TextInput
+                <TextArea
                   multiline
                   onChangeText={setMemoDraftText}
                   placeholder="メモを入力"
@@ -628,7 +624,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   style={styles.memoInput}
                   value={memoDraftText}
                 />
-                <Pressable
+                <PressableFeedback
                   accessibilityRole="button"
                   onPress={() => {
                     void memoNotes.saveDraft(memoDraftText);
@@ -637,14 +633,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   style={styles.memoSaveButton}
                 >
                   <Text style={styles.memoSaveText}>保存</Text>
-                </Pressable>
+                </PressableFeedback>
               </View>
             ) : (
-              <Pressable onPress={() => setIsEditingMemo(true)} style={({ pressed }) => [styles.memoDisplayBlock, pressed && styles.scalePress]}>
+              <PressableFeedback onPress={() => setIsEditingMemo(true)} style={styles.memoDisplayBlock}>
                 <Text style={memoDraftText ? styles.memoDisplayText : styles.memoPlaceholderText}>
                   {memoDraftText || 'タップしてメモを追加'}
                 </Text>
-              </Pressable>
+              </PressableFeedback>
             )}
 
             {memoNotes.error ? <Text style={styles.summaryError}>{memoNotes.error}</Text> : null}
@@ -653,20 +649,20 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               {memoNotes.photos.map((photo) => (
                 <View key={photo.id} style={styles.photoThumbWrap}>
                   <Image source={{ uri: photo.uri }} style={styles.photoThumb} transition={150} />
-                  <Pressable
+                  <PressableFeedback
                     accessibilityLabel="写真を削除"
                     onPress={() => void memoNotes.deletePhoto(photo.id)}
                     style={styles.photoDeleteButton}
                   >
                     <Ionicons color={colors.surface} name="close" size={12} />
-                  </Pressable>
+                  </PressableFeedback>
                 </View>
               ))}
-              {memoNotes.photos.length === 0 ? <Pressable
+              {memoNotes.photos.length === 0 ? <PressableFeedback
                 accessibilityLabel="写真を添付"
-                disabled={isAttachingPhoto}
+                isDisabled={isAttachingPhoto}
                 onPress={() => void handleAttachPhoto()}
-                style={({ pressed }) => [styles.photoEmptyAdd, pressed && styles.scalePress]}
+                style={styles.photoEmptyAdd}
               >
                 {isAttachingPhoto ? (
                   <ActivityIndicator color={colors.textTertiary} />
@@ -676,7 +672,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                     <Text style={styles.photoAddText}>写真を添付</Text>
                   </>
                 )}
-              </Pressable> : <Pressable accessibilityLabel="写真を添付" disabled={isAttachingPhoto} onPress={() => void handleAttachPhoto()} style={({ pressed }) => [styles.photoAddButton, pressed && styles.scalePress]}>{isAttachingPhoto ? <ActivityIndicator color={colors.textTertiary} /> : <Ionicons color={colors.textTertiary} name="add" size={18} />}</Pressable>}
+              </PressableFeedback> : <PressableFeedback accessibilityLabel="写真を添付" isDisabled={isAttachingPhoto} onPress={() => void handleAttachPhoto()} style={styles.photoAddButton}>{isAttachingPhoto ? <ActivityIndicator color={colors.textTertiary} /> : <Ionicons color={colors.textTertiary} name="add" size={18} />}</PressableFeedback>}
             </View>
           </View>
         </Section>
@@ -686,53 +682,53 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
 
       <FloatingBottomSheet isOpen={isMoreOpen} onClose={handleMoreDismiss}>
         <SheetCard style={styles.sheet}>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('rename')} style={styles.sheetRow}><Ionicons color={colors.text} name="create-outline" size={18} /><Text style={styles.sheetRowText}>タイトルを変更</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('move')} style={styles.sheetRow}><Ionicons color={colors.text} name="file-tray-outline" size={18} /><Text style={styles.sheetRowText}>プロジェクトに移動</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('delete')} style={styles.sheetRow}><Ionicons color={colors.danger} name="trash-outline" size={18} /><Text style={styles.deleteText}>削除</Text></Pressable>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeMoreThen('rename')} style={styles.sheetRow}><Ionicons color={colors.text} name="create-outline" size={18} /><Text style={styles.sheetRowText}>タイトルを変更</Text></PressableFeedback>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeMoreThen('move')} style={styles.sheetRow}><Ionicons color={colors.text} name="file-tray-outline" size={18} /><Text style={styles.sheetRowText}>プロジェクトに移動</Text></PressableFeedback>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeMoreThen('delete')} style={styles.sheetRow}><Ionicons color={colors.danger} name="trash-outline" size={18} /><Text style={styles.deleteText}>削除</Text></PressableFeedback>
         </SheetCard>
       </FloatingBottomSheet>
       <Modal animationType="fade" onRequestClose={() => setIsDeleteOpen(false)} presentationStyle="overFullScreen" statusBarTranslucent transparent visible={isDeleteOpen}>
-        <View style={styles.renameBackdrop}><LiquidGlassView colorScheme="light" effect="regular" tintColor="rgba(255,255,255,0.82)" style={[styles.renameSheet, !isLiquidGlassSupported && styles.sheetFallback]}><Text style={styles.renameSheetTitle}>このファイルを削除しますか？</Text><Text style={styles.deleteDescription}>録音・文字起こし・メモはすべて削除されます。</Text><View style={styles.renameSheetActions}><Pressable onPress={() => setIsDeleteOpen(false)} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></Pressable><Pressable onPress={() => void handleDelete()} style={styles.deleteConfirm}><Text style={styles.renameSaveText}>削除</Text></Pressable></View></LiquidGlassView></View>
+        <View style={styles.renameBackdrop}><LiquidGlassView colorScheme="light" effect="regular" tintColor="rgba(255,255,255,0.82)" style={[styles.renameSheet, !isLiquidGlassSupported && styles.sheetFallback]}><Text style={styles.renameSheetTitle}>このファイルを削除しますか？</Text><Text style={styles.deleteDescription}>録音・文字起こし・メモはすべて削除されます。</Text><View style={styles.renameSheetActions}><PressableFeedback onPress={() => setIsDeleteOpen(false)} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></PressableFeedback><PressableFeedback onPress={() => void handleDelete()} style={styles.deleteConfirm}><Text style={styles.renameSaveText}>削除</Text></PressableFeedback></View></LiquidGlassView></View>
       </Modal>
       <FloatingBottomSheet isOpen={isExportOpen} onClose={handleExportDismiss}>
         <SheetCard style={styles.sheet}>
           <Text style={styles.exportTitle}>書き出す</Text>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('notion')} style={styles.exportRow}>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeExportThen('notion')} style={styles.exportRow}>
             <View style={[styles.exportIcon, { backgroundColor: '#000000' }]}><Ionicons color="#FFFFFF" name="document-outline" size={14} /></View>
             <Text style={styles.exportRowLabel}>Notion に転記</Text>
             <Text style={styles.exportRowStatus}>未接続</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('chatgpt')} style={styles.exportRow}>
+          </PressableFeedback>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeExportThen('chatgpt')} style={styles.exportRow}>
             <View style={[styles.exportIcon, { backgroundColor: '#10A37F' }]}><Ionicons color="#FFFFFF" name="chatbubble-outline" size={14} /></View>
             <Text style={styles.exportRowLabel}>ChatGPT に共有</Text>
             <Text style={styles.exportRowStatus}>未接続</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('share')} style={styles.exportRow}>
+          </PressableFeedback>
+          <PressableFeedback accessibilityRole="button" onPress={() => closeExportThen('share')} style={styles.exportRow}>
             <View style={[styles.exportIcon, { backgroundColor: '#8E8EA0' }]}><Ionicons color="#FFFFFF" name="share-outline" size={14} /></View>
             <Text numberOfLines={1} style={styles.exportRowLabel}>Markdown / TXT / SRT で書き出す</Text>
-          </Pressable>
+          </PressableFeedback>
         </SheetCard>
       </FloatingBottomSheet>
       <FloatingBottomSheet isOpen={generateSheetView === 'main'} onClose={handleGenerateSheetDismiss}>
         <SheetCard style={styles.sheet}>
-          <Pressable accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetRow}>
+          <PressableFeedback accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetRow}>
             <Ionicons color={colors.text} name="sparkles" size={20} />
             <View style={styles.generateSheetRowText}>
               <Text style={styles.generateSheetRowTitle}>自動生成</Text>
               <Text style={styles.generateSheetRowDesc}>内容に応じて最適な形に自動要約</Text>
             </View>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setGenerateSheetView('template')} style={styles.generateSheetRow}>
+          </PressableFeedback>
+          <PressableFeedback accessibilityRole="button" onPress={() => setGenerateSheetView('template')} style={styles.generateSheetRow}>
             <Ionicons color={colors.text} name="file-tray-outline" size={20} />
             <View style={styles.generateSheetRowText}>
               <Text style={styles.generateSheetRowTitle}>カスタム生成</Text>
               <Text style={styles.generateSheetRowDesc}>テンプレートを選択して要約</Text>
             </View>
             <Ionicons color={colors.border} name="chevron-forward" size={16} />
-          </Pressable>
-          <Pressable accessibilityLabel="生成" accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetPrimary}>
+          </PressableFeedback>
+          <PressableFeedback accessibilityLabel="生成" accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetPrimary}>
             <Text style={styles.generateButtonText}>生成</Text>
-          </Pressable>
+          </PressableFeedback>
         </SheetCard>
       </FloatingBottomSheet>
       <FloatingBottomSheet isOpen={generateSheetView === 'template'} onClose={handleGenerateSheetDismiss}>
@@ -740,7 +736,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           <Text style={styles.exportTitle}>テンプレートを選択</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.generateTemplateScroll}>
             {GENERATE_TEMPLATES.map((template) => (
-              <Pressable
+              <PressableFeedback
                 accessibilityRole="button"
                 key={template.id}
                 onPress={() => setGenerateTemplateId(template.id)}
@@ -748,18 +744,18 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               >
                 <Text style={styles.generateTemplateCardTitle}>{template.label}</Text>
                 <Text numberOfLines={3} style={styles.generateTemplateCardDesc}>{template.description}</Text>
-              </Pressable>
+              </PressableFeedback>
             ))}
           </ScrollView>
-          <Pressable accessibilityRole="button" onPress={() => setGenerateSheetView('model')} style={styles.generateModelPickerRow}>
+          <PressableFeedback accessibilityRole="button" onPress={() => setGenerateSheetView('model')} style={styles.generateModelPickerRow}>
             <Ionicons color={colors.text} name="sparkles" size={16} />
             <Text style={styles.generateModelPickerLabel}>AIモデル</Text>
             <Text style={styles.generateModelPickerValue}>{SUMMARY_PROVIDER_LABELS[summaryProvider]}</Text>
             <Ionicons color={colors.border} name="chevron-forward" size={14} />
-          </Pressable>
-          <Pressable accessibilityLabel="生成" accessibilityRole="button" onPress={handleCustomGenerate} style={styles.generateSheetPrimary}>
+          </PressableFeedback>
+          <PressableFeedback accessibilityLabel="生成" accessibilityRole="button" onPress={handleCustomGenerate} style={styles.generateSheetPrimary}>
             <Text style={styles.generateButtonText}>生成</Text>
-          </Pressable>
+          </PressableFeedback>
         </SheetCard>
       </FloatingBottomSheet>
       <FloatingBottomSheet
@@ -775,7 +771,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         <SheetCard style={styles.sheet}>
           {isFileAskModelSheetOpen ? (
             (Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
-              <Pressable
+              <PressableFeedback
                 accessibilityRole="button"
                 key={model}
                 onPress={() => {
@@ -786,13 +782,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               >
                 <Text style={styles.sheetRowText}>{ASK_MODEL_LABELS[model]}</Text>
                 {fileAskModel === model ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-              </Pressable>
+              </PressableFeedback>
             ))
           ) : (
             <>
               <Text style={styles.exportTitle}>AIモデルを選択</Text>
               {(Object.keys(SUMMARY_PROVIDER_LABELS) as SummaryOptionsDTO['provider'][]).map((provider) => (
-                <Pressable
+                <PressableFeedback
                   accessibilityRole="button"
                   key={provider}
                   onPress={() => {
@@ -803,7 +799,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 >
                   <Text style={styles.sheetRowText}>{SUMMARY_PROVIDER_LABELS[provider]}</Text>
                   {summaryProvider === provider ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-                </Pressable>
+                </PressableFeedback>
               ))}
             </>
           )}
@@ -813,11 +809,11 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.renameBackdrop}>
           <LiquidGlassView colorScheme="light" effect="regular" tintColor="rgba(255,255,255,0.82)" style={[styles.renameSheet, !isLiquidGlassSupported && styles.sheetFallback]}>
             <Text style={styles.renameSheetTitle}>タイトルを変更</Text>
-            <TextInput accessibilityLabel="ファイル名入力" autoFocus onChangeText={setDraftTitle} onSubmitEditing={handleRename} returnKeyType="done" style={styles.renameSheetInput} value={draftTitle} />
+            <Input accessibilityLabel="ファイル名入力" autoFocus onChangeText={setDraftTitle} onSubmitEditing={handleRename} returnKeyType="done" style={styles.renameSheetInput} value={draftTitle} />
             {renameError ? <Text style={styles.renameError}>{renameError}</Text> : null}
             <View style={styles.renameSheetActions}>
-              <Pressable onPress={() => { setIsEditingTitle(false); setRenameError(null); }} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></Pressable>
-              <Pressable disabled={isSavingTitle} onPress={handleRename} style={[styles.renameSave, isSavingTitle && styles.disabledButton]}><Text style={styles.renameSaveText}>{isSavingTitle ? '保存中' : '保存'}</Text></Pressable>
+              <PressableFeedback onPress={() => { setIsEditingTitle(false); setRenameError(null); }} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></PressableFeedback>
+              <PressableFeedback isDisabled={isSavingTitle} onPress={handleRename} style={[styles.renameSave, isSavingTitle && styles.disabledButton]}><Text style={styles.renameSaveText}>{isSavingTitle ? '保存中' : '保存'}</Text></PressableFeedback>
             </View>
           </LiquidGlassView>
         </KeyboardAvoidingView>
