@@ -1,7 +1,9 @@
-import type { ReactElement, ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type RefreshControlProps } from 'react-native';
+import { useState, type ReactElement, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, textStyles } from '../design/tokens';
+
+const minimumContentBottomPadding = 112;
 
 type Props = {
   title?: string;
@@ -28,6 +30,16 @@ export function Screen({
   children,
   refreshControl,
 }: Props) {
+  const [footerHeight, setFooterHeight] = useState(0);
+  const contentBottomPadding = Math.max(
+    minimumContentBottomPadding,
+    footerHeight + spacing.lg,
+  );
+
+  const handleFooterLayout = (event: LayoutChangeEvent) => {
+    setFooterHeight(event.nativeEvent.layout.height);
+  };
+
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -35,7 +47,10 @@ export function Screen({
         style={styles.flex}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: contentBottomPadding },
+          ]}
           keyboardShouldPersistTaps="handled"
           refreshControl={refreshControl}
           showsVerticalScrollIndicator={false}
@@ -51,7 +66,7 @@ export function Screen({
           </View>
           {children}
         </ScrollView>
-        {footerAccessory}
+        <View onLayout={handleFooterLayout}>{footerAccessory}</View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -67,7 +82,6 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: spacing.lg,
-    paddingBottom: 112,
     paddingHorizontal: 18,
     paddingTop: 10,
   },
