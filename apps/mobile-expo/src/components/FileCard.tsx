@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Card, PressableFeedback } from 'heroui-native';
 import { AppIcon } from './AppIcon';
+import { MotionAppear } from './MotionAppear';
+import { MotionPressable } from './MotionPressable';
 import { StatusPill } from './StatusPill';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
@@ -20,53 +22,52 @@ export function FileCard({
   showSummary = true,
 }: FileCardProps) {
   return (
-    <PressableFeedback
-      accessibilityLabel={`${file.title}を開く`}
-      accessibilityRole="button"
-      onPress={onPress}
-      animation={{ scale: { value: 0.97, ignoreScaleCoefficient: true } }}
-    >
-      <Card style={fcStyles.card}>
-        <View style={fcStyles.icon}>
-          <AppIcon
-            color={colors.textSecondary}
-            name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
-            size={16}
-          />
-        </View>
+    <MotionAppear>
+      <PressableFeedback
+        accessibilityLabel={`${file.title}を開く`}
+        accessibilityRole="button"
+        onPress={onPress}
+        animation={{ scale: { value: 0.97, ignoreScaleCoefficient: true } }}
+      >
+        <Card style={fcStyles.card}>
+          <View style={fcStyles.icon}>
+            <AppIcon
+              color={colors.textSecondary}
+              name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
+              size={16}
+            />
+          </View>
 
-        <View style={fcStyles.body}>
-          <Text numberOfLines={1} style={fcStyles.title}>
-            {file.title}
-          </Text>
-          <Text numberOfLines={1} style={fcStyles.meta}>
-            {formatRecordedAt(file.recordedAt)} · {file.duration}
-          </Text>
-          {showSummary && file.summary ? (
-            <Text numberOfLines={1} style={fcStyles.summary}>
-              {file.summary}
+          <View style={fcStyles.body}>
+            <Text numberOfLines={1} style={fcStyles.title}>
+              {file.title}
             </Text>
+            <Text numberOfLines={1} style={fcStyles.meta}>
+              {formatRecordedAt(file.recordedAt)} · {file.duration}
+            </Text>
+            {showSummary && file.summary ? (
+              <Text numberOfLines={1} style={fcStyles.summary}>
+                {file.summary}
+              </Text>
+            ) : null}
+          </View>
+
+          <StatusPill status={file.status} />
+
+          {onMore ? (
+            <MotionPressable
+              accessibilityLabel="その他の操作"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={onMore}
+              style={fcStyles.more}
+            >
+              <Text style={fcStyles.moreText}>⋯</Text>
+            </MotionPressable>
           ) : null}
-        </View>
-
-        <StatusPill status={file.status} />
-
-        {onMore ? (
-          <Pressable
-            accessibilityLabel="その他の操作"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={onMore}
-            style={({ pressed }) => [
-              fcStyles.more,
-              pressed && fcStyles.morePressed,
-            ]}
-          >
-            <Text style={fcStyles.moreText}>⋯</Text>
-          </Pressable>
-        ) : null}
-      </Card>
-    </PressableFeedback>
+        </Card>
+      </PressableFeedback>
+    </MotionAppear>
   );
 }
 
@@ -112,9 +113,6 @@ const fcStyles = StyleSheet.create({
     justifyContent: 'center',
     margin: -6,
     width: 44,
-  },
-  morePressed: {
-    opacity: 0.5,
   },
   moreText: {
     color: colors.textTertiary,

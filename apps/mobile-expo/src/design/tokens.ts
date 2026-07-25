@@ -272,8 +272,40 @@ export const motion = {
     fast:   150,
     normal: 200,
     slow:   350,
+    pressDown: 100,
+    reducedCrossfade: 120,
   },
   spring: {
+    // Reanimated conversion: stiffness = mass × (2π / response)²;
+    // damping = 2 × dampingRatio × √(stiffness × mass).
+    // Critical damping (ratio 1.0), response 0.3s: immediate press recovery without overshoot.
+    press: {
+      damping: 42,
+      mass: 1,
+      stiffness: 439,
+    },
+    // Critical damping (ratio 1.0), response 0.4s: quiet list/content entrance and reordering.
+    entrance: {
+      damping: 31,
+      mass: 1,
+      stiffness: 247,
+    },
+    exit: {
+      damping: 42,
+      mass: 1,
+      stiffness: 439,
+    },
+    reorder: {
+      damping: 31,
+      mass: 1,
+      stiffness: 247,
+    },
+    // Damping ratio 0.8, response 0.3s: reserved for momentum-driven drawers and sheets.
+    sheet: {
+      damping: 34,
+      mass: 1,
+      stiffness: 439,
+    },
     tap: {
       damping: 15,
       stiffness: 300,
