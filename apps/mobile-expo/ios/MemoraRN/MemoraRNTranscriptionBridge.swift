@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Speech
 import SwiftData
 import AVFoundation
@@ -194,8 +195,8 @@ private enum MemoraRNTranscriptionBridgeError: LocalizedError {
 enum MemoraRNSTTServiceFactory {
   static func makeLocalService() -> STTService {
     let dependencies = STTReadOnlyHostDependencies(
-      logger: MemoraRNNoopLogger(),
-      consoleLogger: MemoraRNNoopConsoleLogger(),
+      logger: MemoraRNSTTLogger(),
+      consoleLogger: MemoraRNSTTConsoleLogger(),
       settings: MemoraRNLocalSTTSettings(),
       diagnostics: MemoraRNNoopDiagnostics()
     )
@@ -224,8 +225,40 @@ enum MemoraRNSTTServiceFactory {
   }
 }
 
-private struct MemoraRNNoopLogger: STTLogging { func log(_ category: String, _ message: String, level: STTLogLevel) {} }
-private struct MemoraRNNoopConsoleLogger: STTConsoleLogging { func logDetailed(_ message: @autoclosure () -> String) {} }
+private struct MemoraRNSTTLogger: STTLogging {
+  private static let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "MemoraRN",
+    category: "STT"
+  )
+
+  func log(_ category: String, _ message: String, level: STTLogLevel) {
+    switch level {
+    case .debug:
+      Self.logger.debug("[\(category, privacy: .public)] \(message, privacy: .public)")
+    case .info:
+      Self.logger.info("[\(category, privacy: .public)] \(message, privacy: .public)")
+    case .warning:
+      Self.logger.warning("[\(category, privacy: .public)] \(message, privacy: .public)")
+    case .error:
+      Self.logger.error("[\(category, privacy: .public)] \(message, privacy: .public)")
+    }
+  }
+}
+
+private struct MemoraRNSTTConsoleLogger: STTConsoleLogging {
+  private static let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "MemoraRN",
+    category: "STT"
+  )
+
+  func logDetailed(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    let evaluatedMessage = message()
+    Self.logger.debug("\(evaluatedMessage, privacy: .public)")
+    #endif
+  }
+}
+
 private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = true; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
 private struct MemoraRNNoopDiagnostics: STTDiagnosticsRecording { func record(_ entry: STTBackendDiagnosticEntry) {} }
 private struct MemoraRNNoopBackgroundTasks: STTBackgroundTaskManaging { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken? { nil }; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) {} }
