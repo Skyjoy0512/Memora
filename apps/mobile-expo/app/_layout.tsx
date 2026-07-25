@@ -1,6 +1,10 @@
+// @ts-expect-error Expo Metro resolves the Uniwind global CSS entry.
+import '../global.css';
+
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { HeroUINativeProvider } from 'heroui-native/provider';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
@@ -27,31 +31,33 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <CaptureFlowProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              contentStyle: { backgroundColor: colors.canvas },
-              headerShadowVisible: false,
-              headerTintColor: colors.text,
-              headerTitleStyle: { fontWeight: '700' },
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'card' }} />
-            <Stack.Screen
-              name="file/[id]"
-              options={{
-                headerShown: false,
-                presentation: 'card',
+      <HeroUINativeProvider>
+        <BottomSheetModalProvider>
+          <CaptureFlowProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                contentStyle: { backgroundColor: colors.canvas },
+                headerShadowVisible: false,
+                headerTintColor: colors.text,
+                headerTitleStyle: { fontWeight: '700' },
               }}
-            />
-            <Stack.Screen name="preview" options={{ title: 'Preview Index' }} />
-            <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
-          </Stack>
-        </CaptureFlowProvider>
-      </BottomSheetModalProvider>
+            >
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'card' }} />
+              <Stack.Screen
+                name="file/[id]"
+                options={{
+                  headerShown: false,
+                  presentation: 'card',
+                }}
+              />
+              <Stack.Screen name="preview" options={{ title: 'HeroUI Native Spike' }} />
+              <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
+            </Stack>
+          </CaptureFlowProvider>
+        </BottomSheetModalProvider>
+      </HeroUINativeProvider>
     </GestureHandlerRootView>
   );
 }
