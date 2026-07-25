@@ -1,15 +1,16 @@
 import { AppIcon } from './AppIcon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Description, Spinner, Text as HeroText } from 'heroui-native';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 export function LoadingState({ label = '読み込み中' }: { label?: string }) {
   return (
     <View style={styles.stateCard}>
       <View style={styles.iconWrap}>
-        <AppIcon color={colors.accent} name="sync-outline" size={20} />
+        <Spinner size="sm" />
       </View>
-      <Text style={styles.title}>{label}</Text>
-      <Text style={styles.body}>Native bridge へ差し替えても同じ状態表示を使います。</Text>
+      <HeroText style={styles.title}>{label}</HeroText>
+      <Description style={styles.body}>Native bridge へ差し替えても同じ状態表示を使います。</Description>
     </View>
   );
 }
@@ -30,8 +31,8 @@ export function EmptyState({
       <View style={styles.iconWrap}>
         <AppIcon color={colors.accent} name="file-tray-outline" size={20} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.body}>{body}</Text>
+      <HeroText style={styles.title}>{title}</HeroText>
+      <Description style={styles.body}>{body}</Description>
       {actionLabel && onAction ? (
         <Pressable
           accessibilityLabel={actionLabel}
@@ -51,14 +52,14 @@ export function EmptyState({
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <View style={[styles.stateCard, styles.errorCard]}>
-      <View style={[styles.iconWrap, styles.errorIcon]}>
-        <AppIcon color={colors.danger} name="warning-outline" size={20} />
-      </View>
-      <Text style={styles.title}>読み込みに失敗しました</Text>
-      <Text style={styles.body}>{message}</Text>
-      {onRetry ? <Pressable accessibilityLabel="ファイルを再読み込み" accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}><Text style={styles.retryButtonText}>再試行</Text></Pressable> : null}
-    </View>
+    <Alert accessibilityRole="alert" status="danger" style={styles.errorAlert}>
+      <Alert.Indicator />
+      <Alert.Content style={styles.alertContent}>
+        <Alert.Title>読み込みに失敗しました</Alert.Title>
+        <Alert.Description>{message}</Alert.Description>
+        {onRetry ? <Pressable accessibilityLabel="ファイルを再読み込み" accessibilityRole="button" onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}><Text style={styles.retryButtonText}>再試行</Text></Pressable> : null}
+      </Alert.Content>
+    </Alert>
   );
 }
 
@@ -72,8 +73,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.xl,
   },
-  errorCard: {
-    borderColor: colors.dangerSoft,
+  errorAlert: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
   },
   iconWrap: {
     alignItems: 'center',
@@ -83,8 +86,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 42,
   },
-  errorIcon: {
-    backgroundColor: colors.dangerSoft,
+  alertContent: {
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   title: {
     color: colors.text,

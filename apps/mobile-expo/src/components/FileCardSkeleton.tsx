@@ -1,48 +1,22 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { StyleSheet, View } from 'react-native';
+import { SkeletonGroup } from 'heroui-native';
+import { radius, spacing } from '../design/tokens';
 
 type FileCardSkeletonProps = {
   count?: number;
 };
 
 function SkeletonCard() {
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmer, {
-          toValue: 0,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [shimmer]);
-
-  const opacity = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
-
   return (
-    <Animated.View style={[skStyles.card, { opacity }]}>
-      <View style={[skStyles.block, skStyles.iconBlock]} />
+    <SkeletonGroup isLoading style={skStyles.card}>
+      <SkeletonGroup.Item style={skStyles.iconBlock} />
       <View style={skStyles.body}>
-        <View style={[skStyles.block, skStyles.titleBlock]} />
-        <View style={[skStyles.block, skStyles.metaBlock]} />
-        <View style={[skStyles.block, skStyles.summaryBlock]} />
+        <SkeletonGroup.Item style={skStyles.titleBlock} />
+        <SkeletonGroup.Item style={skStyles.metaBlock} />
+        <SkeletonGroup.Item style={skStyles.summaryBlock} />
       </View>
-      <View style={[skStyles.block, skStyles.pillBlock]} />
-    </Animated.View>
+      <SkeletonGroup.Item style={skStyles.pillBlock} />
+    </SkeletonGroup>
   );
 }
 
@@ -59,18 +33,11 @@ export function FileCardSkeleton({ count = 5 }: FileCardSkeletonProps) {
 const skStyles = StyleSheet.create({
   card: {
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
-    borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.md,
     minHeight: 72,
     padding: spacing.md,
-  },
-  block: {
-    backgroundColor: colors.skeleton,
-    borderRadius: 4,
   },
   iconBlock: {
     borderRadius: radius.sm,

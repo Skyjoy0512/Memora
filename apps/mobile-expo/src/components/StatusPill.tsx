@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, textStyles } from '../design/tokens';
+import { StyleSheet } from 'react-native';
+import { Chip } from 'heroui-native';
 import type { AudioStatus } from '../types/memora';
 
 const statusCopy: Record<AudioStatus, string> = {
@@ -10,35 +10,29 @@ const statusCopy: Record<AudioStatus, string> = {
   failed: '確認が必要',
 };
 
-const statusColors: Record<AudioStatus, { backgroundColor: string; color: string }> = {
-  queued: { backgroundColor: colors.surfaceAlt, color: colors.textSecondary },
-  ready: { backgroundColor: colors.surfaceAlt, color: colors.textSecondary },
-  summarized: { backgroundColor: colors.successSoft, color: colors.success },
-  transcribing: { backgroundColor: colors.warningSoft, color: colors.warning },
-  failed: { backgroundColor: colors.dangerSoft, color: colors.danger },
+const statusColors: Record<AudioStatus, 'default' | 'success' | 'warning' | 'danger'> = {
+  queued: 'default',
+  ready: 'default',
+  summarized: 'success',
+  transcribing: 'warning',
+  failed: 'danger',
 };
 
 const fallbackCopy = '処理待ち';
-const fallbackTone = { backgroundColor: colors.surfaceAlt, color: colors.textSecondary };
+const fallbackTone = 'default';
 
 export function StatusPill({ status }: { status: AudioStatus | string }) {
   const tone = statusColors[status as AudioStatus] ?? fallbackTone;
   const copy = statusCopy[status as AudioStatus] ?? fallbackCopy;
   return (
-    <View style={[styles.pill, { backgroundColor: tone.backgroundColor }]}>
-      <Text style={[styles.label, { color: tone.color }]}>{copy}</Text>
-    </View>
+    <Chip color={tone} size="sm" style={styles.pill} variant="soft">
+      {copy}
+    </Chip>
   );
 }
 
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  label: {
-    ...textStyles.captionBold,
   },
 });
