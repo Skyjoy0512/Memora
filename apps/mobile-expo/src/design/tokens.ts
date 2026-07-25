@@ -7,7 +7,7 @@
 import type { LayoutAnimationConfig } from 'react-native';
 
 // ── Fonts ──────────────────────────────────────────────────
-// Figma: IBM Plex Sans JP（本文=ExtraLight / 強調=Light）。
+// Figma: IBM Plex Sans JP。本文は Regular、強調は Medium。
 // fontFamily がウェイトを内包するため fontWeight は Android フォールバック用。
 export const fonts = {
   sans: {
@@ -30,9 +30,9 @@ export const fonts = {
 
 // ── Colors (Light) ─────────────────────────────────────────
 export const colors = {
-  canvas:         '#F7F7F6',
+  canvas:         '#F3F3F1',
   surface:        '#FFFFFF',
-  surfaceAlt:     '#F1F1F0',
+  surfaceAlt:     '#EEEDEC',
   surfaceElevated:'#FFFFFF',
 
   text:           '#16171A',
@@ -40,9 +40,9 @@ export const colors = {
   textTertiary:   '#A0A2A5',
   textInverse:    '#FFFFFF',
 
-  border:         '#E4E4E3',
-  borderLight:    '#EDEDEC',
-  separator:      '#EFEFEE',
+  border:         '#DCDBD9',
+  borderLight:    '#E7E6E4',
+  separator:      '#E5E4E2',
 
   accent:         '#5B6B7A',
   accentSoft:     '#EEF0F2',
@@ -76,19 +76,19 @@ export const colors = {
 
 // ── Colors (Dark) ──────────────────────────────────────────
 export const darkColors = {
-  canvas:         '#101112',
+  canvas:         '#0D0E0F',
   surface:        '#17181A',
-  surfaceAlt:     '#202123',
-  surfaceElevated:'#26272A',
+  surfaceAlt:     '#212224',
+  surfaceElevated:'#292A2D',
 
   text:           '#E9E9E8',
   textSecondary:  '#9C9D9F',
   textTertiary:   '#616264',
   textInverse:    '#16171A',
 
-  border:         '#313234',
-  borderLight:    '#2A2B2D',
-  separator:      '#26272A',
+  border:         '#3A3B3E',
+  borderLight:    '#303134',
+  separator:      '#343538',
 
   accent:         '#9AA7B3',
   accentSoft:     '#23272B',
@@ -169,62 +169,62 @@ export const typography = {
 export const textStyles = {
   display: {
     fontSize: 36,
-    lineHeight: 41,
+    lineHeight: 44,
     letterSpacing: typography.letterSpacing.tight,
     ...fonts.display.extralight,
   },
   screenTitle: {
     fontSize: 30,
-    lineHeight: 39,
+    lineHeight: 38,
     letterSpacing: typography.letterSpacing.tight,
     ...fonts.sans.extralight,
   },
   title2: {
     fontSize: 24,
-    lineHeight: 34,
-    ...fonts.sans.extralight,
+    lineHeight: 33,
+    ...fonts.sans.light,
   },
   sectionTitle: {
     fontSize: 20,
     lineHeight: 28,
-    ...fonts.sans.extralight,
+    ...fonts.sans.light,
   },
   callout: {
     fontSize: 17,
     lineHeight: 26,
-    ...fonts.sans.extralight,
+    ...fonts.sans.regular,
   },
   body: {
     fontSize: 15,
     lineHeight: 24,
-    ...fonts.sans.extralight,
+    ...fonts.sans.regular,
   },
   bodyBold: {
     fontSize: 15,
     lineHeight: 24,
-    ...fonts.sans.light,
+    ...fonts.sans.medium,
   },
   footnote: {
     fontSize: 13,
     lineHeight: 20,
-    ...fonts.sans.extralight,
+    ...fonts.sans.regular,
   },
   footnoteBold: {
     fontSize: 13,
     lineHeight: 20,
-    ...fonts.sans.light,
+    ...fonts.sans.medium,
   },
   caption: {
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 16,
     letterSpacing: typography.letterSpacing.wide,
-    ...fonts.sans.light,
+    ...fonts.sans.regular,
   },
   captionBold: {
     fontSize: 11,
-    lineHeight: 15,
+    lineHeight: 16,
     letterSpacing: typography.letterSpacing.wide,
-    ...fonts.sans.light,
+    ...fonts.sans.medium,
   },
   monoBody: {
     fontSize: 13,
@@ -237,24 +237,24 @@ export const textStyles = {
 export const shadow = {
   card: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   elevated: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   },
   floating: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 10,
   },
 } as const;
 

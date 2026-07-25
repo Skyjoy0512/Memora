@@ -1,0 +1,113 @@
+/* Generated from src/design/tokens.ts by scripts/generate-heroui-theme.cjs. */
+@theme inline static {
+  --font-sans: var(--memora-font-regular);
+  --font-normal: var(--memora-font-regular);
+  --font-medium: var(--memora-font-medium);
+  --font-semibold: var(--memora-font-semibold);
+  --spacing: var(--memora-space-xs);
+  --radius: var(--memora-radius-md);
+  --radius-xs: var(--memora-radius-xs);
+  --radius-sm: var(--memora-radius-sm);
+  --radius-md: var(--memora-radius-md);
+  --radius-lg: var(--memora-radius-md);
+  --radius-xl: var(--memora-radius-lg);
+  --radius-2xl: var(--memora-radius-lg);
+  --radius-3xl: var(--memora-radius-lg);
+  --radius-4xl: var(--memora-radius-lg);
+}
+
+@layer theme {
+  :root {
+    --memora-font-regular: 'IBMPlexSansJP_400Regular';
+    --memora-font-medium: 'IBMPlexSansJP_500Medium';
+    --memora-font-semibold: 'IBMPlexSansJP_600SemiBold';
+    --memora-space-xxs: 3px;
+    --memora-space-xs: 5px;
+    --memora-space-sm: 8px;
+    --memora-space-md: 13px;
+    --memora-space-lg: 21px;
+    --memora-space-xl: 34px;
+    --memora-space-xxl: 55px;
+    --memora-radius-xs: 4px;
+    --memora-radius-sm: 8px;
+    --memora-radius-md: 13px;
+    --memora-radius-lg: 21px;
+    --memora-radius-pill: 999px;
+
+    @variant light {
+    --background: #F3F3F1;
+    --foreground: #16171A;
+    --surface: #FFFFFF;
+    --surface-foreground: #16171A;
+    --surface-secondary: #EEEDEC;
+    --surface-secondary-foreground: #16171A;
+    --surface-tertiary: #FFFFFF;
+    --surface-tertiary-foreground: #16171A;
+    --overlay: #FFFFFF;
+    --overlay-foreground: #16171A;
+    --backdrop: rgba(0,0,0,0.20);
+    --muted: #6B6D70;
+    --default: #EEEDEC;
+    --default-foreground: #16171A;
+    --accent: #5B6B7A;
+    --accent-foreground: #FFFFFF;
+    --field-background: #FFFFFF;
+    --field-foreground: #16171A;
+    --field-placeholder: #A0A2A5;
+    --field-border: #DCDBD9;
+    --success: #4F7A55;
+    --success-foreground: #FFFFFF;
+    --warning: #8A6A3C;
+    --warning-foreground: #FFFFFF;
+    --danger: #A34B45;
+    --danger-foreground: #FFFFFF;
+    --segment: #FFFFFF;
+    --segment-foreground: #16171A;
+    --border: #DCDBD9;
+    --separator: #E5E4E2;
+    --focus: #5B6B7A;
+    --link: #5B6B7A;
+      --surface-shadow: 0px 2px 8px rgba(0, 0, 0, 0.07);
+      --overlay-shadow: 0px 10px 28px rgba(0, 0, 0, 0.16);
+      --field-shadow: 0px 2px 8px rgba(0, 0, 0, 0.07);
+    }
+
+    @variant dark {
+    --background: #0D0E0F;
+    --foreground: #E9E9E8;
+    --surface: #17181A;
+    --surface-foreground: #E9E9E8;
+    --surface-secondary: #212224;
+    --surface-secondary-foreground: #E9E9E8;
+    --surface-tertiary: #292A2D;
+    --surface-tertiary-foreground: #E9E9E8;
+    --overlay: #292A2D;
+    --overlay-foreground: #E9E9E8;
+    --backdrop: rgba(0,0,0,0.35);
+    --muted: #9C9D9F;
+    --default: #212224;
+    --default-foreground: #E9E9E8;
+    --accent: #9AA7B3;
+    --accent-foreground: #16171A;
+    --field-background: #17181A;
+    --field-foreground: #E9E9E8;
+    --field-placeholder: #616264;
+    --field-border: #3A3B3E;
+    --success: #7FA187;
+    --success-foreground: #16171A;
+    --warning: #B99A6C;
+    --warning-foreground: #16171A;
+    --danger: #C98884;
+    --danger-foreground: #16171A;
+    --segment: #17181A;
+    --segment-foreground: #E9E9E8;
+    --border: #3A3B3E;
+    --separator: #343538;
+    --focus: #9AA7B3;
+    --link: #9AA7B3;
+      --surface-shadow: none;
+      --overlay-shadow: none;
+      --field-shadow: none;
+    }
+  }
+}
