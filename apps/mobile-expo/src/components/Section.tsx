@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Surface } from 'heroui-native';
 import { colors, spacing, textStyles } from '../design/tokens';
 
 type Props = {
@@ -11,10 +12,10 @@ type Props = {
 export function Section({ title, children, action }: Props) {
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
+      <Surface style={styles.header} variant="transparent">
         <Text style={styles.title}>{title}</Text>
         {action}
-      </View>
+      </Surface>
       {children}
     </View>
   );

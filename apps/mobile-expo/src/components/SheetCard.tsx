@@ -1,7 +1,8 @@
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
+import { Surface } from 'heroui-native';
 import type { ReactNode } from 'react';
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { StyleSheet, type StyleProp, type ViewStyle, useColorScheme } from 'react-native';
+import { colors, darkColors, radius, spacing } from '../design/tokens';
 
 type SheetCardProps = {
   children: ReactNode;
@@ -9,15 +10,19 @@ type SheetCardProps = {
 };
 
 export function SheetCard({ children, style }: SheetCardProps) {
+  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+
   return (
-    <LiquidGlassView
-      colorScheme="light"
-      effect="regular"
-      tintColor="rgba(255,255,255,0.78)"
-      style={[styles.card, !isLiquidGlassSupported && styles.fallback, style]}
-    >
-      {children}
-    </LiquidGlassView>
+    <Surface asChild variant="transparent">
+      <LiquidGlassView
+        colorScheme={colorScheme}
+        effect="regular"
+        tintColor={colorScheme === 'dark' ? darkColors.surface : colors.surface}
+        style={[styles.card, !isLiquidGlassSupported && styles.fallback, style]}
+      >
+        {children}
+      </LiquidGlassView>
+    </Surface>
   );
 }
 
