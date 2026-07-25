@@ -5,6 +5,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native/provider';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
@@ -18,7 +19,7 @@ import { colors } from '../src/design/tokens';
 import { CaptureFlowProvider } from '../src/features/capture/CaptureFlowProvider';
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     IBMPlexSansJP_200ExtraLight,
     IBMPlexSansJP_300Light,
     IBMPlexSansJP_400Regular,
@@ -26,8 +27,14 @@ export default function RootLayout() {
     IBMPlexSansJP_600SemiBold,
   });
 
+  useEffect(() => {
+    if (fontError) {
+      console.error('IBM Plex Sans JP の読み込みに失敗しました。システムフォントで続行します。', fontError);
+    }
+  }, [fontError]);
+
   // フォント確定までは描画しない（Figma の IBM Plex とのズレ防止）
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
