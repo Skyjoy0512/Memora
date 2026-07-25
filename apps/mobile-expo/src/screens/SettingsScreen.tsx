@@ -1,9 +1,11 @@
-import { Children, Fragment, useEffect, useState, type ReactNode } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Children, useEffect, useState, type ReactNode } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Button, Card, Chip, ListGroup, Switch as HeroSwitch } from 'heroui-native';
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { MemoraNative } from '../native/MemoraNative';
 import type { BridgeInfoDTO, CustomVocabularyDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
@@ -13,12 +15,6 @@ const NOT_CONNECTED_MESSAGE =
   'ネイティブブリッジがこのアクションにまだ接続されていません。SwiftUI版の実データ接続後に有効化します。';
 
 const APP_VERSION = '1.0.0';
-
-const stateColors = {
-  ok: colors.success,
-  warning: colors.warning,
-  off: colors.textTertiary,
-} as const;
 
 const defaultSettings: SettingsDTO = {
   speechAnalyzerEnabled: false,
@@ -76,7 +72,7 @@ export function SettingsScreen() {
     <Screen title="設定">
       <SettingsGroupCard title="アカウント">
         <SettingsRow onPress={notConnected} title="未設定" />
-        <SettingsBadgeRow badgeColor={colors.text} badgeText="Free" onPress={() => router.push('/auth?stage=paywall')} title="プラン" />
+        <SettingsBadgeRow badgeText="Free" onPress={() => router.push('/auth?stage=paywall')} title="プラン" />
       </SettingsGroupCard>
 
       <SettingsGroupCard title="デバイス">
@@ -94,12 +90,7 @@ export function SettingsScreen() {
       <SettingsGroupCard title="通知">
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>プッシュ通知</Text>
-          <Switch
-            onValueChange={setNotifEnabled}
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.border, true: colors.text }}
-            value={notifEnabled}
-          />
+          <HeroSwitch isSelected={notifEnabled} onSelectedChange={setNotifEnabled} />
         </View>
       </SettingsGroupCard>
 
@@ -129,11 +120,9 @@ export function SettingsScreen() {
         <SettingsRow onPress={notConnected} title="要約テンプレート" value="議事録" />
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>音声解析（話者識別）</Text>
-          <Switch
-            onValueChange={(speechAnalyzerEnabled) => saveSettings({ ...settings, speechAnalyzerEnabled })}
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.border, true: colors.text }}
-            value={settings.speechAnalyzerEnabled}
+          <HeroSwitch
+            isSelected={settings.speechAnalyzerEnabled}
+            onSelectedChange={(speechAnalyzerEnabled) => saveSettings({ ...settings, speechAnalyzerEnabled })}
           />
         </View>
       </SettingsGroupCard>
@@ -152,12 +141,10 @@ export function SettingsScreen() {
                 <Text style={styles.vocabularyReplacement}>→ {vocabulary.replacement || '削除'}</Text>
               </View>
             </Pressable>
-            <Switch
+            <HeroSwitch
               accessibilityLabel={`${vocabulary.pattern} を${vocabulary.enabled ? '無効' : '有効'}にする`}
-              onValueChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
-              thumbColor={colors.surface}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              value={vocabulary.enabled}
+              isSelected={vocabulary.enabled}
+              onSelectedChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
             />
           </View>
         ))}
@@ -213,41 +200,34 @@ export function SettingsScreen() {
 
       {isDeveloperOpen ? <>
       <Section title="開発ツール">
-        <View style={styles.groupCard}>
+        <Card style={styles.groupCard}>
+          <ListGroup>
           <SettingsRow onPress={() => router.push('/dev-fonts')} title="フォント候補を試す" />
           <SettingsRow onPress={() => router.push('/preview')} title="HeroUI コンポーネントを見る" />
-        </View>
+          </ListGroup>
+        </Card>
       </Section>
       <Section title="設定を編集">
-        <View style={styles.groupCard}>
+        <Card style={styles.groupCard}>
           <View style={styles.controlBlock}>
             <Text style={styles.label}>Transcription mode</Text>
-            <View style={styles.segmentRow}>
-              <SegmentButton
-                isSelected={settings.transcriptionMode === 'local'}
-                label="Local"
-                onPress={() => saveSettings({ ...settings, transcriptionMode: 'local' })}
-              />
-              <SegmentButton
-                isSelected={settings.transcriptionMode === 'api'}
-                label="API"
-                onPress={() => saveSettings({ ...settings, transcriptionMode: 'api' })}
-              />
-            </View>
+            <SegmentedControl
+              onSelect={(transcriptionMode) => saveSettings({ ...settings, transcriptionMode })}
+              segments={[
+                { key: 'local', label: 'Local' },
+                { key: 'api', label: 'API' },
+              ]}
+              selected={settings.transcriptionMode}
+            />
           </View>
 
           <View style={styles.controlBlock}>
             <Text style={styles.label}>Summary provider</Text>
-            <View style={styles.providerGrid}>
-              {providerOptions.map((provider) => (
-                <SegmentButton
-                  key={provider}
-                  isSelected={settings.summaryProvider === provider}
-                  label={provider}
-                  onPress={() => saveSettings({ ...settings, summaryProvider: provider })}
-                />
-              ))}
-            </View>
+            <SegmentedControl
+              onSelect={(summaryProvider) => saveSettings({ ...settings, summaryProvider })}
+              segments={providerOptions.map((provider) => ({ key: provider, label: provider }))}
+              selected={settings.summaryProvider}
+            />
           </View>
 
           <View style={styles.switchRow}>
@@ -257,44 +237,31 @@ export function SettingsScreen() {
                 {settings.speechAnalyzerEnabled ? 'Feature flag on' : 'Feature flag off'}
               </Text>
             </View>
-            <Switch
-              onValueChange={(speechAnalyzerEnabled) =>
+            <HeroSwitch
+              isSelected={settings.speechAnalyzerEnabled}
+              onSelectedChange={(speechAnalyzerEnabled) =>
                 saveSettings({ ...settings, speechAnalyzerEnabled })
               }
-              thumbColor={colors.surface}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              value={settings.speechAnalyzerEnabled}
             />
           </View>
-        </View>
+        </Card>
       </Section>
 
       {buildSettingsGroups(settings, bridgeInfo).map((group) => (
         <Section key={group.title} title={group.title}>
-          <View style={styles.groupCard}>
-            <View style={styles.rows}>
+          <Card style={styles.groupCard}>
+            <ListGroup>
               {group.items.map((item) => (
-                <View key={item.label} style={styles.row}>
-                  <View>
-                    <Text style={styles.label}>{item.label}</Text>
-                    <Text style={styles.value}>{item.value}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: stateColors[item.state ?? 'off'] },
-                    ]}
-                  />
-                </View>
+                <InfoRow key={item.label} label={item.label} state={item.state ?? 'off'} value={item.value} />
               ))}
-            </View>
-          </View>
+            </ListGroup>
+          </Card>
         </Section>
       ))}
 
       <Section title="Bridge">
-        <View style={styles.groupCard}>
-          <View style={styles.rows}>
+        <Card style={styles.groupCard}>
+          <ListGroup>
             <InfoRow label="Module" value={bridgeInfo?.moduleName ?? 'Loading'} state="ok" />
             <InfoRow label="Platform" value={bridgeInfo?.platform ?? 'checking'} state="ok" />
             <InfoRow
@@ -353,8 +320,8 @@ export function SettingsScreen() {
               value={bridgeInfo?.sharedStoreError ?? '—'}
               state={bridgeInfo?.sharedStoreError ? 'warning' : 'ok'}
             />
-          </View>
-        </View>
+          </ListGroup>
+        </Card>
       </Section>
       </> : null}
       <VocabularyEditor
@@ -569,14 +536,9 @@ function SettingsGroupCard({ children, title }: { children: ReactNode; title: st
   return (
     <View style={styles.v6Group}>
       <Text style={styles.v6GroupTitle}>{title}</Text>
-      <View style={styles.v6Card}>
-        {rows.map((row, index) => (
-          <Fragment key={index}>
-            {row}
-            {index < rows.length - 1 ? <View style={styles.v6Divider} /> : null}
-          </Fragment>
-        ))}
-      </View>
+      <Card>
+        <ListGroup>{rows}</ListGroup>
+      </Card>
     </View>
   );
 }
@@ -594,38 +556,53 @@ function SettingsRow({
   title: string;
   value?: string;
 }) {
+  if (destructive) {
+    return (
+      <Button accessibilityRole="button" onPress={onPress} style={styles.v6Row} variant="danger">
+        <Button.Label>{title}</Button.Label>
+      </Button>
+    );
+  }
+
   return (
-    <Pressable onPress={onPress} style={styles.v6Row}>
-      <Text style={[styles.v6RowTitle, destructive && styles.v6RowTitleDestructive]}>{title}</Text>
+    <ListGroup.Item accessibilityLabel={title} accessibilityRole="button" onPress={onPress} style={styles.v6Row}>
+      <ListGroup.ItemContent>
+        <ListGroup.ItemTitle style={styles.v6RowTitle}>{title}</ListGroup.ItemTitle>
+      </ListGroup.ItemContent>
       {value ? (
-        <Text numberOfLines={1} style={styles.v6RowValue}>
-          {value}
-        </Text>
+        <ListGroup.ItemSuffix style={styles.rowSuffix}>
+          <Text numberOfLines={1} style={styles.v6RowValue}>
+            {value}
+          </Text>
+          {showChevron ? <Ionicons color={colors.border} name="chevron-forward" size={12} /> : null}
+        </ListGroup.ItemSuffix>
       ) : null}
-      {showChevron ? <Ionicons color={colors.border} name="chevron-forward" size={12} /> : null}
-    </Pressable>
+      {!value && showChevron ? <ListGroup.ItemSuffix><Ionicons color={colors.border} name="chevron-forward" size={12} /></ListGroup.ItemSuffix> : null}
+    </ListGroup.Item>
   );
 }
 
 function SettingsBadgeRow({
-  badgeColor,
   badgeText,
   onPress,
   title,
 }: {
-  badgeColor: string;
   badgeText: string;
   onPress: () => void;
   title: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.v6Row}>
-      <Text style={styles.v6RowTitle}>{title}</Text>
-      <View style={[styles.v6Badge, { backgroundColor: badgeColor }]}>
-        <Text style={styles.v6BadgeText}>{badgeText}</Text>
-      </View>
-      <Ionicons color={colors.border} name="chevron-forward" size={12} />
-    </Pressable>
+    <ListGroup.Item accessibilityLabel={title} accessibilityRole="button" onPress={onPress} style={styles.v6Row}>
+      <ListGroup.ItemContent>
+        <ListGroup.ItemTitle style={styles.v6RowTitle}>{title}</ListGroup.ItemTitle>
+      </ListGroup.ItemContent>
+      <ListGroup.ItemSuffix style={styles.rowSuffix}>
+        <Chip color="default" variant="primary">
+          <Chip.Label>{badgeText}</Chip.Label>
+        </Chip>
+        <Ionicons color={colors.border} name="chevron-forward" size={12} />
+      </ListGroup.ItemSuffix>
+    </ListGroup.Item>
   );
 }
 
@@ -635,38 +612,23 @@ function InfoRow({
   value,
 }: {
   label: string;
-  state: keyof typeof stateColors;
+  state: 'ok' | 'warning' | 'off';
   value: string;
 }) {
-  return (
-    <View style={styles.row}>
-      <View>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value}</Text>
-      </View>
-      <View style={[styles.dot, { backgroundColor: stateColors[state] }]} />
-    </View>
-  );
-}
+  const chipColor = state === 'ok' ? 'success' : state === 'warning' ? 'warning' : 'default';
 
-function SegmentButton({
-  isSelected,
-  label,
-  onPress,
-}: {
-  isSelected: boolean;
-  label: string;
-  onPress: () => void;
-}) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: isSelected }}
-      onPress={onPress}
-      style={[styles.segmentButton, isSelected && styles.segmentButtonSelected]}
-    >
-      <Text style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>{label}</Text>
-    </Pressable>
+    <ListGroup.Item accessibilityLabel={`${label}: ${value}`} style={styles.row}>
+      <ListGroup.ItemContent>
+        <ListGroup.ItemTitle style={styles.label}>{label}</ListGroup.ItemTitle>
+        <ListGroup.ItemDescription style={styles.value}>{value}</ListGroup.ItemDescription>
+      </ListGroup.ItemContent>
+      <ListGroup.ItemSuffix>
+        <Chip accessibilityLabel={state} color={chipColor} size="sm" variant="soft">
+          <Chip.Label>{state}</Chip.Label>
+        </Chip>
+      </ListGroup.ItemSuffix>
+    </ListGroup.Item>
   );
 }
 
@@ -678,13 +640,6 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     ...textStyles.footnoteBold,
   },
-  v6Card: {
-    backgroundColor: colors.canvas,
-  },
-  v6Divider: {
-    backgroundColor: colors.borderLight,
-    height: 1,
-  },
   developerToggle: {
     alignItems: 'center',
     backgroundColor: colors.canvas,
@@ -692,25 +647,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
     minHeight: 50,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
   },
-  developerTogglePressed: { opacity: 0.65 },
+  developerTogglePressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
   developerToggleText: { color: colors.textSecondary, ...textStyles.body },
   v6Row: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
     minHeight: 50,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
   },
   v6RowTitle: {
     color: colors.text,
     flexShrink: 0,
     ...textStyles.body,
-  },
-  v6RowTitleDestructive: {
-    color: colors.danger,
-    flex: 1,
   },
   v6RowValue: {
     color: colors.textTertiary,
@@ -718,21 +669,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     ...textStyles.footnote,
   },
-  v6Badge: {
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  v6BadgeText: {
-    color: colors.surface,
-    ...textStyles.captionBold,
-  },
   toggleRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 50,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
   },
   vocabularyRow: {
     alignItems: 'center',
@@ -826,7 +768,6 @@ const styles = StyleSheet.create({
     ...textStyles.body,
   },
   groupCard: {
-    backgroundColor: colors.surface,
     gap: spacing.md,
     paddingBottom: spacing.sm,
   },
@@ -834,42 +775,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     ...textStyles.footnote,
   },
-  rows: {
-    gap: spacing.md,
-  },
   controlBlock: {
     gap: spacing.sm,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  providerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  segmentButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    minHeight: 40,
-    minWidth: 88,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  segmentButtonSelected: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
-  segmentText: {
-    color: colors.textSecondary,
-    ...textStyles.footnoteBold,
-  },
-  segmentTextSelected: {
-    color: colors.surface,
   },
   switchRow: {
     alignItems: 'center',
@@ -881,11 +788,8 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: spacing.md,
   },
   label: {
     color: colors.text,
@@ -896,9 +800,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     ...textStyles.footnote,
   },
-  dot: {
-    borderRadius: radius.pill,
-    height: 10,
-    width: 10,
+  rowSuffix: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });
