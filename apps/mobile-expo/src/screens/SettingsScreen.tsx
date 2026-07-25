@@ -215,6 +215,7 @@ export function SettingsScreen() {
       <Section title="開発ツール">
         <View style={styles.groupCard}>
           <SettingsRow onPress={() => router.push('/dev-fonts')} title="フォント候補を試す" />
+          <SettingsRow onPress={() => router.push('/preview')} title="HeroUI コンポーネントを見る" />
         </View>
       </Section>
       <Section title="設定を編集">
