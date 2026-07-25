@@ -6,13 +6,13 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Avatar, Button, PressableFeedback } from 'heroui-native';
 import { SearchBar } from '../components/SearchBar';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { FileCard } from '../components/FileCard';
@@ -116,23 +116,23 @@ export function HomeScreen() {
         titleContent={<Text style={homeStyles.screenTitle}>Memora</Text>}
         headerAccessory={
           <View style={homeStyles.headerActions}>
-            <Pressable
+            <PressableFeedback
               accessibilityLabel="音声ファイルを読み込む"
               accessibilityRole="button"
-              disabled={isImporting}
+              isDisabled={isImporting}
               onPress={() => void handleImport()}
-              style={({ pressed }) => [homeStyles.headerBtn, (pressed || isImporting) && homeStyles.pressed]}
+              style={homeStyles.headerBtn}
             >
               {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.text} name="attach-outline" size={20} />}
-            </Pressable>
-            <Pressable
+            </PressableFeedback>
+            <PressableFeedback
               accessibilityLabel="設定"
               accessibilityRole="button"
               onPress={() => router.push('/settings')}
-              style={({ pressed }) => [homeStyles.headerBtn, pressed && homeStyles.pressed]}
+              style={homeStyles.headerBtn}
             >
               <Ionicons color={colors.text} name="settings-outline" size={20} />
-            </Pressable>
+            </PressableFeedback>
           </View>
         }
       >
@@ -160,16 +160,17 @@ export function HomeScreen() {
               actionLabel="録音を始める"
               onAction={() => capture.openRecording().catch(() => {})}
             />
-            <Pressable
+            <Button
               accessibilityLabel="音声ファイルを読み込む"
               accessibilityRole="button"
-              disabled={isImporting}
+              isDisabled={isImporting}
               onPress={() => void handleImport()}
-              style={({ pressed }) => [homeStyles.importEmptyAction, (pressed || isImporting) && homeStyles.pressed]}
+              style={homeStyles.importEmptyAction}
+              variant="outline"
             >
               {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.accent} name="attach-outline" size={18} />}
               <Text style={homeStyles.importEmptyActionText}>{isImporting ? '読み込み中…' : '音声ファイルを読み込む'}</Text>
-            </Pressable>
+            </Button>
           </View>
         ) : null}
 
@@ -232,21 +233,21 @@ function ProjectsGrid({ projects, files, onSelect }: { projects: string[]; files
       {projects.map((project, i) => {
         const count = files.filter((f) => f.project === project).length;
         return (
-          <Pressable
+          <PressableFeedback
             accessibilityLabel={`${project}を開く`}
             accessibilityRole="button"
             key={project}
             onPress={() => onSelect(project)}
-            style={({ pressed }) => [homeStyles.projectCard, pressed && homeStyles.cardPressed]}
+            style={homeStyles.projectCard}
           >
-            <View style={[homeStyles.projectAvatar, { backgroundColor: [colors.categorySlate, colors.categoryTeal, colors.categoryOlive, colors.categoryMauve][i % 4] }]}>
-              <Text style={homeStyles.projectAvatarText}>{project.slice(0, 1)}</Text>
-            </View>
+            <Avatar style={[homeStyles.projectAvatar, { backgroundColor: [colors.categorySlate, colors.categoryTeal, colors.categoryOlive, colors.categoryMauve][i % 4] }]}>
+              <Avatar.Fallback>{project.slice(0, 1)}</Avatar.Fallback>
+            </Avatar>
             <View>
               <Text numberOfLines={1} style={homeStyles.projectName}>{project}</Text>
               <Text style={homeStyles.projectCount}>{count}件の記録</Text>
             </View>
-          </Pressable>
+          </PressableFeedback>
         );
       })}
     </View>
@@ -258,9 +259,9 @@ function ProjectFiles({ files, onBack, onOpen, onMore, project }: { files: Audio
   return (
     <View style={homeStyles.projectView}>
       <View style={homeStyles.projectHeader}>
-        <Pressable accessibilityLabel="プロジェクト一覧に戻る" accessibilityRole="button" onPress={onBack} style={homeStyles.backBtn}>
+        <PressableFeedback accessibilityLabel="プロジェクト一覧に戻る" accessibilityRole="button" onPress={onBack} style={homeStyles.backBtn}>
           <Ionicons color={colors.text} name="chevron-back" size={18} />
-        </Pressable>
+        </PressableFeedback>
         <View>
           <Text numberOfLines={1} style={homeStyles.projectViewTitle}>{project}</Text>
           <Text style={homeStyles.projectCount}>{files.length}件の記録</Text>
@@ -292,14 +293,14 @@ function FileMoreSheet({ file, onClose, onDelete }: { file?: AudioFile; onClose:
   return (
     <FloatingBottomSheet isOpen={Boolean(file)} onClose={handleDismiss}>
       <SheetCard style={homeStyles.sheet}>
-        <Pressable accessibilityRole="button" onPress={() => closeThen('rename')} style={({ pressed }) => [homeStyles.sheetRow, pressed && homeStyles.sheetRowPressed]}>
+        <PressableFeedback accessibilityRole="button" onPress={() => closeThen('rename')} style={homeStyles.sheetRow}>
           <Ionicons color={colors.text} name="create-outline" size={18} />
           <Text style={homeStyles.sheetRowText}>タイトルを変更</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => closeThen('delete')} style={({ pressed }) => [homeStyles.sheetRow, pressed && homeStyles.sheetRowPressed]}>
+        </PressableFeedback>
+        <PressableFeedback accessibilityRole="button" onPress={() => closeThen('delete')} style={homeStyles.sheetRow}>
           <Ionicons color={colors.danger} name="trash-outline" size={18} />
           <Text style={homeStyles.sheetDeleteText}>削除</Text>
-        </Pressable>
+        </PressableFeedback>
       </SheetCard>
     </FloatingBottomSheet>
   );
@@ -314,12 +315,12 @@ function DeleteConfirm({ file, isDeleting, onCancel, onConfirm }: { file?: Audio
           <Text style={homeStyles.modalTitle}>この記録を削除しますか？</Text>
           <Text style={homeStyles.modalBody}>録音・文字起こし・メモはすべて削除されます。この操作は元に戻せません。</Text>
           <View style={homeStyles.modalActions}>
-            <Pressable accessibilityRole="button" disabled={isDeleting} onPress={onCancel} style={[homeStyles.modalCancel, isDeleting && homeStyles.disabled]}>
+            <Button accessibilityRole="button" isDisabled={isDeleting} onPress={onCancel} style={[homeStyles.modalCancel, isDeleting && homeStyles.disabled]} variant="secondary">
               <Text style={homeStyles.modalCancelText}>キャンセル</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" disabled={isDeleting} onPress={onConfirm} style={[homeStyles.modalDelete, isDeleting && homeStyles.disabled]}>
+            </Button>
+            <Button accessibilityRole="button" isDisabled={isDeleting} onPress={onConfirm} style={[homeStyles.modalDelete, isDeleting && homeStyles.disabled]} variant="danger">
               <Text style={homeStyles.modalDeleteText}>{isDeleting ? '削除中…' : '削除'}</Text>
-            </Pressable>
+            </Button>
           </View>
         </View>
       </View>

@@ -1,7 +1,8 @@
 import { AppIcon } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { Button, Checkbox, Chip, Input, PressableFeedback } from 'heroui-native';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { SheetCard } from '../components/SheetCard';
@@ -63,7 +64,7 @@ export function TasksScreen() {
 
   return (
     <Screen
-      headerAccessory={<Pressable accessibilityLabel="タスクを追加" accessibilityRole="button" hitSlop={6} onPress={() => setIsAddOpen(true)} style={({ pressed }) => [styles.headerAddButton, pressed && styles.pressed]}><AppIcon color={colors.text} name="add" size={25} /></Pressable>}
+      headerAccessory={<PressableFeedback accessibilityLabel="タスクを追加" accessibilityRole="button" hitSlop={6} onPress={() => setIsAddOpen(true)} style={styles.headerAddButton}><AppIcon color={colors.text} name="add" size={25} /></PressableFeedback>}
       title="タスク"
     >
       <View style={styles.content}>
@@ -82,10 +83,10 @@ export function TasksScreen() {
 
             {grouped.done.length ? (
               <View style={styles.doneGroup}>
-                <Pressable accessibilityRole="button" accessibilityState={{ expanded: isDoneExpanded }} onPress={() => setIsDoneExpanded((expanded) => !expanded)} style={styles.doneButton}>
+                <PressableFeedback accessibilityRole="button" accessibilityState={{ expanded: isDoneExpanded }} onPress={() => setIsDoneExpanded((expanded) => !expanded)} style={styles.doneButton}>
                   <Text style={styles.groupLabel}>完了（{grouped.done.length}）</Text>
                   <AppIcon color={colors.textTertiary} name="chevron-down" size={12} style={{ transform: [{ rotate: isDoneExpanded ? '0deg' : '-90deg' }] }} />
-                </Pressable>
+                </PressableFeedback>
                 {isDoneExpanded ? <TaskGroup color={colors.textTertiary} onOpenSource={(id) => router.push({ pathname: '/file/[id]', params: { id } })} onToggle={toggleTask} tasks={grouped.done} /> : null}
               </View>
             ) : null}
@@ -98,14 +99,14 @@ export function TasksScreen() {
           <SheetCard style={styles.sheet}>
             <Text style={styles.sheetTitle}>タスクを追加</Text>
             <Text style={styles.fieldLabel}>内容</Text>
-            <TextInput accessibilityLabel="タスクの内容" autoFocus onChangeText={setNewTitle} onSubmitEditing={addTask} placeholder="タスクの内容" placeholderTextColor={colors.textTertiary} returnKeyType="done" style={styles.input} value={newTitle} />
+            <Input accessibilityLabel="タスクの内容" autoFocus onChangeText={setNewTitle} onSubmitEditing={addTask} placeholder="タスクの内容" placeholderTextColor={colors.textTertiary} returnKeyType="done" style={styles.input} value={newTitle} />
 
             <Text style={styles.fieldLabel}>期限</Text>
             <View style={styles.dueRow}>
               {dueChoices.map((choice) => {
                 const isActive = newDue === choice;
                 return (
-                  <Pressable
+                  <Chip
                     accessibilityRole="radio"
                     accessibilityState={{ checked: isActive }}
                     key={choice}
@@ -117,9 +118,10 @@ export function TasksScreen() {
                       setNewDue(choice);
                     }}
                     style={[styles.dueChip, isActive && styles.dueChipActive]}
+                    variant={isActive ? 'primary' : 'soft'}
                   >
-                    <Text style={[styles.dueChipText, isActive && styles.dueChipTextActive]}>{choice}</Text>
-                  </Pressable>
+                    {choice}
+                  </Chip>
                 );
               })}
             </View>
@@ -129,10 +131,10 @@ export function TasksScreen() {
               <Text style={styles.projectText}>個人タスク</Text>
             </View>
 
-            <Pressable accessibilityRole="button" onPress={addTask} style={({ pressed }) => [styles.saveButton, pressed && styles.pressed]}>
+            <Button accessibilityRole="button" onPress={addTask} style={styles.saveButton}>
               <AppIcon color="#FFFFFF" name="add" size={18} />
               <Text style={styles.saveButtonText}>追加する</Text>
-            </Pressable>
+            </Button>
           </SheetCard>
         </KeyboardAvoidingView>
       </FloatingBottomSheet>
@@ -147,16 +149,14 @@ function TaskGroup({ color, label, onOpenSource, onToggle, tasks }: { color: str
       {label ? <Text style={[styles.groupLabel, { color }]}>{label}</Text> : null}
       {tasks.map((task) => (
         <View key={task.id} style={styles.taskRow}>
-          <Pressable accessibilityLabel={task.title} accessibilityRole="checkbox" accessibilityState={{ checked: task.completed }} onPress={() => onToggle(task.id)} style={[styles.checkbox, task.completed && styles.checkboxCompleted]}>
-            {task.completed ? <AppIcon color="#FFFFFF" name="checkmark" size={13} /> : null}
-          </Pressable>
+          <Checkbox accessibilityLabel={task.title} accessibilityState={{ checked: task.completed }} isSelected={task.completed} onPress={() => onToggle(task.id)} style={[styles.checkbox, task.completed && styles.checkboxCompleted]} />
           <View style={styles.taskBody}>
             <Text style={[styles.taskTitle, task.completed && styles.taskTitleCompleted]}>{task.title}</Text>
             <View style={styles.metaRow}>
               {task.sourceFileId ? (
-                <Pressable accessibilityLabel={`${task.sourceTitle}を開く`} accessibilityRole="link" hitSlop={4} onPress={() => onOpenSource(task.sourceFileId!)} style={styles.sourceShrink}>
+                <PressableFeedback accessibilityLabel={`${task.sourceTitle}を開く`} accessibilityRole="link" hitSlop={4} onPress={() => onOpenSource(task.sourceFileId!)} style={styles.sourceShrink}>
                   <Text numberOfLines={1} style={styles.sourceLink}>{task.sourceTitle}</Text>
-                </Pressable>
+                </PressableFeedback>
               ) : <Text numberOfLines={1} style={[styles.sourceText, styles.sourceShrink]}>{task.sourceTitle}</Text>}
               <View style={styles.metaDot} />
               <Text style={[styles.dueBadge, { color: task.due === '期限切れ' ? colors.accent : colors.textTertiary }]}>{task.due}</Text>

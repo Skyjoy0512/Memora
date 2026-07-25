@@ -2,7 +2,8 @@ import { AppIcon as Ionicons } from '../components/AppIcon';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { SheetCard } from '../components/SheetCard';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, LayoutAnimation, Platform, StyleSheet, Text, View } from 'react-native';
+import { Button, Chip, Input, PressableFeedback } from 'heroui-native';
 import { Screen } from '../components/Screen';
 import { EmptyState, LoadingState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
@@ -136,7 +137,7 @@ export function AskAIScreen() {
       footerAccessory={
         <View style={[styles.askDock, isKeyboardOpen && styles.askDockKeyboard]}>
           <View style={styles.askBox}>
-            <TextInput
+            <Input
               accessibilityLabel="Ask AI question"
               multiline
               onChangeText={setDraft}
@@ -147,33 +148,33 @@ export function AskAIScreen() {
               style={styles.askInput}
               value={draft}
             />
-            <Pressable accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.attachButton}>
+            <PressableFeedback accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.attachButton}>
               <Ionicons color={colors.textTertiary} name="attach-outline" size={18} />
-            </Pressable>
-            <Pressable accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsModelSheetOpen(true)} style={styles.modelPill}>
-              <Text style={styles.modelPillText}>{ASK_MODEL_LABELS[askModel]}</Text>
+            </PressableFeedback>
+            <Chip accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsModelSheetOpen(true)} style={styles.modelPill} variant="soft">
+              <Chip.Label style={styles.modelPillText}>{ASK_MODEL_LABELS[askModel]}</Chip.Label>
               <Ionicons color={colors.textSecondary} name="chevron-down" size={12} />
-            </Pressable>
-            <Pressable
+            </Chip>
+            <Button
               accessibilityLabel="Ask AI send"
               accessibilityRole="button"
-              disabled={!canSend}
+              isDisabled={!canSend}
               onPress={() => void sendQuestion()}
               style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
             >
               <Ionicons color={colors.surface} name="arrow-forward" size={17} />
-            </Pressable>
+            </Button>
           </View>
         </View>
       }
-      headerAccessory={<Pressable accessibilityLabel="新しい会話" accessibilityRole="button" hitSlop={6} onPress={handleNewChat} style={({ pressed }) => [styles.newChatButton, pressed && styles.iconPressed]}><Ionicons color={colors.text} name="create-outline" size={21} /></Pressable>}
+      headerAccessory={<PressableFeedback accessibilityLabel="新しい会話" accessibilityRole="button" hitSlop={6} onPress={handleNewChat} style={styles.newChatButton}><Ionicons color={colors.text} name="create-outline" size={21} /></PressableFeedback>}
       title="聞く"
     >
       <View style={styles.scopeBar}>
         {scopeOptions.map((scope) => {
           const isActive = activeScope === scope.value;
           return (
-            <Pressable
+            <PressableFeedback
               key={scope.value}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
@@ -183,7 +184,7 @@ export function AskAIScreen() {
               <Text style={[styles.scopeText, isActive ? styles.scopeTextActive : null]}>
                 {scope.label}
               </Text>
-            </Pressable>
+            </PressableFeedback>
           );
         })}
       </View>
@@ -194,7 +195,7 @@ export function AskAIScreen() {
           <View style={styles.emptyAsk}>
             <Text style={styles.emptyTitle}>調べたいことを質問してください</Text>
             <Text style={styles.emptySubtitle}>最近の記録から</Text>
-            <View style={styles.suggestions}>{suggestedQuestions.map((question) => <Pressable accessibilityLabel={`${question}を質問する`} accessibilityRole="button" key={question} onPress={() => void sendQuestion(question)} style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}><Text style={styles.suggestionText}>{question}</Text><Ionicons color={colors.border} name="arrow-forward" size={15} /></Pressable>)}</View>
+            <View style={styles.suggestions}>{suggestedQuestions.map((question) => <PressableFeedback accessibilityLabel={`${question}を質問する`} accessibilityRole="button" key={question} onPress={() => void sendQuestion(question)} style={styles.suggestion}><Text style={styles.suggestionText}>{question}</Text><Ionicons color={colors.border} name="arrow-forward" size={15} /></PressableFeedback>)}</View>
           </View>
         ) : (
           messages.map((message) =>
@@ -210,16 +211,16 @@ export function AskAIScreen() {
                 {message.sources ? (
                   <View style={styles.sources}>
                     {message.sources.map((source) => (
-                      <View key={source} style={styles.sourcePill}>
+                      <Chip key={source} style={styles.sourcePill} variant="soft">
                         <Ionicons color={colors.textTertiary} name="document-outline" size={10} />
                         <Text numberOfLines={1} style={styles.sourceText}>
                           {source}
                         </Text>
-                      </View>
+                      </Chip>
                     ))}
                   </View>
                 ) : null}
-                <View style={styles.messageActions}><Pressable accessibilityLabel="回答をコピー" accessibilityRole="button" onPress={() => Alert.alert('コピー', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>コピー</Text></Pressable><Pressable accessibilityLabel="回答からタスクを作成" accessibilityRole="button" onPress={() => Alert.alert('タスク化', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>タスク化</Text></Pressable><Text style={styles.messageTime}>たった今</Text></View>
+                <View style={styles.messageActions}><PressableFeedback accessibilityLabel="回答をコピー" accessibilityRole="button" onPress={() => Alert.alert('コピー', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>コピー</Text></PressableFeedback><PressableFeedback accessibilityLabel="回答からタスクを作成" accessibilityRole="button" onPress={() => Alert.alert('タスク化', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>タスク化</Text></PressableFeedback><Text style={styles.messageTime}>たった今</Text></View>
               </View>
             ),
           )
@@ -230,7 +231,7 @@ export function AskAIScreen() {
       <FloatingBottomSheet isOpen={isModelSheetOpen} onClose={() => setIsModelSheetOpen(false)}>
         <SheetCard style={styles.modelSheet}>
           {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
-            <Pressable
+            <PressableFeedback
               accessibilityRole="button"
               key={model}
               onPress={() => {
@@ -241,7 +242,7 @@ export function AskAIScreen() {
             >
               <Text style={styles.modelSheetRowText}>{ASK_MODEL_LABELS[model]}</Text>
               {askModel === model ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-            </Pressable>
+            </PressableFeedback>
           ))}
         </SheetCard>
       </FloatingBottomSheet>
