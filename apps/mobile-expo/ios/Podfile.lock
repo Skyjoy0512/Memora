@@ -2867,7 +2867,7 @@ SPEC CHECKSUMS:
   ExpoLinearGradient: 903b3f5fe566c666ff78b2599add51d094483613
   ExpoLinking: 5a796f9284535c0349537a844dd40680229b7fcb
   ExpoLogBox: 8a3cfa2897e088083cd49fc1ff7fdb2de4385547
-  ExpoModulesCore: e735446a38afbff6f145d5b1a6e325dc7b9866c1
+  ExpoModulesCore: 3c0f879148d00c2b3b16b6d0b8a818be3e9005e6
   ExpoModulesJSI: b20fefa4cdd9097e7e6b715466d1900b8c5d4711
   ExpoModulesWorklets: b21b8f233b5fd71ca74327217601fa4ead9ddaaf
   ExpoModulesWorkletsAdapter: 6b3dffb299973f4f2b1a96738aa2cb46987b18e1
@@ -2876,7 +2876,7 @@ SPEC CHECKSUMS:
   ExpoUI: 19f2ca6e82d91240530ee9762dedccc31fc6f429
   EXUpdatesInterface: 92d2aa5194b6fb93ca8ab749db75665cb28b2e60
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
-  hermes-engine: 60408f95a3750005cb8138b9a2ca54f07f5f2ec5
+  hermes-engine: 12b4a59dbaee8687204f854aa59bf03e6033f886
   LiquidGlass: 9dd6be7ac113cae8b84f895d8a3eede578dbef98
   MemoraNative: dbb4db5b25a13b61b88fb2901112a9377920bad2
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b
