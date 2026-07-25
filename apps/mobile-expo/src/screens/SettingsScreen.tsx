@@ -201,8 +201,14 @@ export function SettingsScreen() {
         />
       </SettingsGroupCard>
 
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: isDeveloperOpen }} onPress={() => setIsDeveloperOpen((open) => !open)} style={({ pressed }) => [styles.developerToggle, pressed && styles.developerTogglePressed]}>
-        <Text style={styles.developerToggleText}>開発者向け</Text><Ionicons color={colors.textTertiary} name={isDeveloperOpen ? 'chevron-up' : 'chevron-down'} size={14} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isDeveloperOpen }}
+        onPress={() => setIsDeveloperOpen((open) => !open)}
+        style={({ pressed }) => [styles.developerToggle, pressed && styles.developerTogglePressed]}
+      >
+        <Text style={styles.developerToggleText}>開発者向け</Text>
+        <Ionicons color={colors.textSecondary} name={isDeveloperOpen ? 'chevron-up' : 'chevron-down'} size={14} />
       </Pressable>
 
       {isDeveloperOpen ? <>
@@ -678,9 +684,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderLight,
     height: 1,
   },
-  developerToggle: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  developerTogglePressed: { opacity: 0.65, transform: [{ scale: 0.96 }] },
-  developerToggleText: { color: colors.textTertiary, ...textStyles.caption },
+  developerToggle: {
+    alignItems: 'center',
+    backgroundColor: colors.canvas,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    minHeight: 50,
+    paddingVertical: 14,
+  },
+  developerTogglePressed: { opacity: 0.65 },
+  developerToggleText: { color: colors.textSecondary, ...textStyles.body },
   v6Row: {
     alignItems: 'center',
     flexDirection: 'row',
