@@ -5,13 +5,18 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import {
+  Input,
+  InputOTP,
+  PressableFeedback,
+  REGEXP_ONLY_DIGITS,
+  TextField,
+} from "heroui-native";
 import { colors, fonts, radius, textStyles } from "../design/tokens";
 
 type Stage = "onboarding" | "login" | "email" | "code" | "paywall";
@@ -110,12 +115,12 @@ function Onboarding({
   return (
     <View style={styles.page}>
       <View style={styles.skipRow}>
-        <Pressable
+        <PressableFeedback
           accessibilityLabel="オンボーディングをスキップ"
           onPress={onSkip}
         >
           <Text style={styles.skip}>スキップ</Text>
-        </Pressable>
+        </PressableFeedback>
       </View>
       <View style={styles.onboardingCenter}>
         {slide === 0 ? (
@@ -178,21 +183,21 @@ function Login({
           label="Apple でサインイン"
           onPress={onProvider}
         />
-        <Pressable
+        <PressableFeedback
           accessibilityLabel="Google で続ける"
           onPress={onProvider}
           style={styles.googleButton}
         >
           <Text style={styles.googleG}>G</Text>
           <Text style={styles.googleText}>Google で続ける</Text>
-        </Pressable>
-        <Pressable
+        </PressableFeedback>
+        <PressableFeedback
           accessibilityLabel="メールアドレスで続ける"
           onPress={onEmail}
           style={styles.emailButton}
         >
           <Text style={styles.emailText}>メールアドレスで続ける</Text>
-        </Pressable>
+        </PressableFeedback>
       </View>
       <Text style={styles.terms}>
         続行すると利用規約とプライバシーポリシーに同意したことになります
@@ -217,17 +222,19 @@ function EmailStep({
       <BackButton onPress={onBack} />
       <View style={styles.formCenter}>
         <Text style={styles.authTitle}>メールアドレスを入力</Text>
-        <TextInput
-          accessibilityLabel="メールアドレス"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onChangeText={onChange}
-          placeholder="you@example.com"
-          placeholderTextColor={colors.textTertiary}
-          style={styles.input}
-          value={email}
-        />
+        <TextField>
+          <Input
+            accessibilityLabel="メールアドレス"
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            onChangeText={onChange}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textTertiary}
+            style={styles.input}
+            value={email}
+          />
+        </TextField>
       </View>
       <PrimaryButton
         disabled={!email.includes("@")}
@@ -261,23 +268,24 @@ function CodeStep({
             {email} 宛に6桁のコードを送信しました
           </Text>
         </View>
-        <View style={styles.codeBoxes}>
-          {Array.from({ length: 6 }, (_, index) => (
-            <View key={index} style={styles.codeBox}>
-              <Text style={styles.codeDigit}>{code[index] ?? ""}</Text>
-            </View>
-          ))}
-        </View>
-        <TextInput
-          accessibilityLabel="確認コード"
-          keyboardType="number-pad"
+        <InputOTP
           maxLength={6}
-          onChangeText={(value) => onChange(value.replace(/\D/g, ""))}
-          placeholder="コードを入力"
-          placeholderTextColor={colors.textTertiary}
-          style={styles.codeInput}
+          onChange={onChange}
+          pattern={REGEXP_ONLY_DIGITS}
+          textInputProps={{
+            accessibilityLabel: "確認コード",
+            keyboardType: "number-pad",
+          }}
           value={code}
-        />
+        >
+          <InputOTP.Group style={styles.codeBoxes}>
+            {Array.from({ length: 6 }, (_, index) => (
+              <InputOTP.Slot index={index} key={index} style={styles.codeBox}>
+                <InputOTP.SlotValue style={styles.codeDigit} />
+              </InputOTP.Slot>
+            ))}
+          </InputOTP.Group>
+        </InputOTP>
       </View>
       <PrimaryButton
         disabled={code.length !== 6}
@@ -308,9 +316,9 @@ function Paywall({
   return (
     <View style={styles.page}>
       <View style={styles.skipRow}>
-        <Pressable accessibilityLabel="あとで" onPress={onSkip}>
+        <PressableFeedback accessibilityLabel="あとで" onPress={onSkip}>
           <Text style={styles.skip}>あとで</Text>
-        </Pressable>
+        </PressableFeedback>
       </View>
       <View style={styles.paywallContent}>
         <View style={styles.paywallHero}>
@@ -370,7 +378,7 @@ function Plan({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableFeedback
       accessibilityLabel={`${label}プランを選択`}
       onPress={onPress}
       style={[styles.plan, active && styles.planActive]}
@@ -379,14 +387,14 @@ function Plan({
       <Text style={styles.planLabel}>{label}</Text>
       <Text style={styles.planPrice}>{price}</Text>
       <Text style={styles.planNote}>{note}</Text>
-    </Pressable>
+    </PressableFeedback>
   );
 }
 function BackButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable accessibilityLabel="戻る" onPress={onPress} style={styles.back}>
+    <PressableFeedback accessibilityLabel="戻る" onPress={onPress} style={styles.back}>
       <AppIcon color={colors.text} name="chevron-back" size={19} />
-    </Pressable>
+    </PressableFeedback>
   );
 }
 function PrimaryButton({
@@ -401,16 +409,16 @@ function PrimaryButton({
   icon?: "logo-apple";
 }) {
   return (
-    <Pressable
+    <PressableFeedback
       accessibilityLabel={label}
       accessibilityRole="button"
-      disabled={disabled}
+      isDisabled={disabled}
       onPress={onPress}
       style={[styles.primary, disabled && styles.primaryDisabled]}
     >
       {icon ? <AppIcon color={colors.surface} name={icon} size={18} /> : null}
       <Text style={styles.primaryText}>{label}</Text>
-    </Pressable>
+    </PressableFeedback>
   );
 }
 

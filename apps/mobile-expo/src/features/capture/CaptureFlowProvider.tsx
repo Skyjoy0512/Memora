@@ -8,15 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { Input, PressableFeedback, Spinner, TextField } from "heroui-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, fonts, radius, textStyles } from "../../design/tokens";
 import { MemoraNative } from "../../native/MemoraNative";
@@ -331,29 +329,23 @@ function RecordingOverlay({
             onPress={onTogglePause}
             size="medium"
           />
-          <Pressable
+          <PressableFeedback
             accessibilityLabel="録音を停止して保存"
             onPress={onStop}
-            style={({ pressed }) => [
-              styles.stopButton,
-              pressed && styles.pressed,
-            ]}
+            style={styles.stopButton}
           >
             <View style={styles.stopSquare} />
-          </Pressable>
-          <Pressable
+          </PressableFeedback>
+          <PressableFeedback
             accessibilityLabel="ハイライトを追加"
             onPress={onHighlight}
-            style={({ pressed }) => [
-              styles.highlightButton,
-              pressed && styles.pressed,
-            ]}
+            style={styles.highlightButton}
           >
             <Ionicons color={colors.text} name="bookmark-outline" size={19} />
             {highlightCount ? (
               <Text style={styles.highlightCount}>{highlightCount}</Text>
             ) : null}
-          </Pressable>
+          </PressableFeedback>
         </View>
       </View>
 
@@ -365,13 +357,13 @@ function RecordingOverlay({
               ここまでの録音内容は保存されません。
             </Text>
             <View style={styles.confirmActions}>
-              <Pressable
+              <PressableFeedback
                 onPress={() => setShowDiscardConfirm(false)}
                 style={styles.confirmCancel}
               >
                 <Text style={styles.confirmCancelText}>録音を続ける</Text>
-              </Pressable>
-              <Pressable
+              </PressableFeedback>
+              <PressableFeedback
                 onPress={() => {
                   setShowDiscardConfirm(false);
                   onDiscard();
@@ -379,7 +371,7 @@ function RecordingOverlay({
                 style={styles.confirmDelete}
               >
                 <Text style={styles.confirmDeleteText}>破棄する</Text>
-              </Pressable>
+              </PressableFeedback>
             </View>
           </View>
         </View>
@@ -426,34 +418,30 @@ function GenerateOverlay({
   return (
     <SafeAreaView style={styles.generateScreen}>
       <View style={styles.generateHeader}>
-        <Pressable
+        <PressableFeedback
           accessibilityLabel="録音に戻る"
           onPress={onBack}
-          style={({ pressed }) => [
-            styles.generateBack,
-            pressed && styles.pressed,
-          ]}
+          style={styles.generateBack}
         >
           <Ionicons color={colors.text} name="chevron-back" size={19} />
-        </Pressable>
-        <Pressable
+        </PressableFeedback>
+        <PressableFeedback
           accessibilityLabel="生成をスキップ"
           onPress={() => onSkip({ provider: model })}
-          style={({ pressed }) => [
-            styles.generateSkip,
-            pressed && styles.pressed,
-          ]}
+          style={styles.generateSkip}
         >
           <Text style={styles.generateSkipText}>スキップ</Text>
-        </Pressable>
+        </PressableFeedback>
       </View>
 
-      <TextInput
-        accessibilityLabel="ファイル名"
-        onChangeText={setName}
-        style={styles.generateName}
-        value={name}
-      />
+      <TextField>
+        <Input
+          accessibilityLabel="ファイル名"
+          onChangeText={setName}
+          style={styles.generateName}
+          value={name}
+        />
+      </TextField>
 
       <View style={styles.generateCenter}>
         <View>
@@ -467,7 +455,7 @@ function GenerateOverlay({
       <View style={styles.generatePanel}>
         <View style={styles.generateHandle} />
         <View style={styles.generateModeRow}>
-          <Pressable
+          <PressableFeedback
             onPress={() => setGenMode("auto")}
             style={[
               styles.generateModeCard,
@@ -490,8 +478,8 @@ function GenerateOverlay({
             >
               内容に合わせて整理
             </Text>
-          </Pressable>
-          <Pressable
+          </PressableFeedback>
+          <PressableFeedback
             onPress={() => setGenMode("custom")}
             style={[
               styles.generateModeCard,
@@ -514,13 +502,13 @@ function GenerateOverlay({
             >
               形式を選んで整理
             </Text>
-          </Pressable>
+          </PressableFeedback>
         </View>
 
         {genMode === "custom" ? (
           <View style={styles.generateTemplateRow}>
             {generateTemplates.map((item) => (
-              <Pressable
+              <PressableFeedback
                 key={item.id}
                 onPress={() => setTemplateId(item.id)}
                 style={[
@@ -536,12 +524,12 @@ function GenerateOverlay({
                 >
                   {item.label}
                 </Text>
-              </Pressable>
+              </PressableFeedback>
             ))}
           </View>
         ) : null}
 
-        <Pressable
+        <PressableFeedback
           onPress={() =>
             Alert.alert("要約モデル", "設定画面で選択したモデルを使用します。")
           }
@@ -556,9 +544,9 @@ function GenerateOverlay({
               size={12}
             />
           </View>
-        </Pressable>
+        </PressableFeedback>
 
-        <Pressable
+        <PressableFeedback
           accessibilityLabel="処理を開始"
           onPress={() =>
             onGenerate({
@@ -569,13 +557,10 @@ function GenerateOverlay({
               },
             })
           }
-          style={({ pressed }) => [
-            styles.generateButton,
-            pressed && styles.pressed,
-          ]}
+          style={styles.generateButton}
         >
           <Text style={styles.generateButtonText}>処理を開始</Text>
-        </Pressable>
+        </PressableFeedback>
       </View>
     </SafeAreaView>
   );
@@ -604,7 +589,7 @@ function GenerationOverlay({
             size={52}
           />
         ) : (
-          <ActivityIndicator color={colors.text} size="large" />
+          <Spinner color={colors.text} size="lg" />
         )}
         <Text style={styles.generationLabel}>{generationLabel(phase)}</Text>
         <View style={styles.progressTrack}>
@@ -617,27 +602,24 @@ function GenerationOverlay({
             "この処理はバックグラウンドで継続されます。ホームに戻っても続行できます。"}
         </Text>
         {!isComplete ? (
-          <Pressable
+          <PressableFeedback
             onPress={onClose}
-            style={({ pressed }) => [
-              styles.backgroundButton,
-              pressed && styles.pressed,
-            ]}
+            style={styles.backgroundButton}
           >
             <Text style={styles.backgroundButtonText}>
               バックグラウンドで続行
             </Text>
-          </Pressable>
+          </PressableFeedback>
         ) : null}
       </View>
-      <Pressable
+      <PressableFeedback
         onPress={onClose}
-        style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}
+        style={styles.skipButton}
       >
         <Text style={styles.skipButtonText}>
           {isComplete ? "閉じる" : "スキップして開く"}
         </Text>
-      </Pressable>
+      </PressableFeedback>
     </SafeAreaView>
   );
 }
@@ -667,7 +649,7 @@ function DynamicIslandPill({
 }) {
   if (showSnackbar) {
     return (
-      <Pressable
+      <PressableFeedback
         accessibilityLabel="生成完了通知を閉じる"
         onPress={onDismissSnackbar}
         style={[styles.island, styles.islandSnackbar]}
@@ -680,13 +662,13 @@ function DynamicIslandPill({
         <Text numberOfLines={1} style={styles.islandSnackbarText}>
           {snackbarError ? "生成に失敗しました" : "要約が完成しました"}
         </Text>
-      </Pressable>
+      </PressableFeedback>
     );
   }
 
   if (isRecordingActive) {
     return (
-      <Pressable
+      <PressableFeedback
         accessibilityLabel="録音を開く"
         onPress={onOpenRecording}
         style={[styles.island, styles.islandRecording]}
@@ -698,22 +680,22 @@ function DynamicIslandPill({
             <View key={index} style={[styles.islandWave, { height }]} />
           ))}
         </View>
-      </Pressable>
+      </PressableFeedback>
     );
   }
 
   if (hasBackgroundGeneration) {
     return (
-      <Pressable
+      <PressableFeedback
         accessibilityLabel="生成進捗を開く"
         onPress={onOpenGeneration}
         style={[styles.island, styles.islandGeneration]}
       >
-        <ActivityIndicator color="#FFFFFF" size="small" />
+        <Spinner color={colors.surface} size="sm" />
         <Text numberOfLines={1} style={styles.islandGenerationText}>
           {label}
         </Text>
-      </Pressable>
+      </PressableFeedback>
     );
   }
 
@@ -735,17 +717,13 @@ function RoundIcon({
 }) {
   const dimension = size === "medium" ? 52 : 40;
   return (
-    <Pressable
+    <PressableFeedback
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.roundIcon,
-        { height: dimension, width: dimension },
-        pressed && styles.pressed,
-      ]}
+      style={[styles.roundIcon, { height: dimension, width: dimension }]}
     >
       <Ionicons color={color} name={icon} size={size === "medium" ? 18 : 16} />
-    </Pressable>
+    </PressableFeedback>
   );
 }
 
