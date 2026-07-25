@@ -1,7 +1,7 @@
 {
   "name": "mobile-expo",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "dependencies": {
     "@callstack/liquid-glass": "^0.8.0",
     "@expo-google-fonts/ibm-plex-sans-jp": "^0.4.1",
