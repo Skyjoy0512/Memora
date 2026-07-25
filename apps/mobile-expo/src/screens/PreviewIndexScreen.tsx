@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type {} from 'uniwind/types';
 import { Uniwind, useUniwind } from 'uniwind';
-import { BottomSheet } from 'heroui-native/bottom-sheet';
 import { Button, type ButtonVariant } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
 import { Chip } from 'heroui-native/chip';
@@ -26,7 +25,6 @@ export function PreviewIndexScreen() {
   const { theme } = useUniwind();
   const [isEnabled, setIsEnabled] = useState(true);
   const [note, setNote] = useState('');
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const isDark = theme === 'dark';
 
   const toggleTheme = () => {
@@ -103,24 +101,7 @@ export function PreviewIndexScreen() {
           </Card.Body>
         </Card>
 
-        <BottomSheet isOpen={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <BottomSheet.Trigger asChild>
-            <Button variant="secondary">Bottom Sheet を開く</Button>
-          </BottomSheet.Trigger>
-          <BottomSheet.Portal>
-            <BottomSheet.Overlay />
-            <BottomSheet.Content>
-              <BottomSheet.Close />
-              <View className="gap-2 pb-6">
-                <BottomSheet.Title>HeroUI BottomSheet</BottomSheet.Title>
-                <BottomSheet.Description>
-                  @gorhom/bottom-sheet、Gesture Handler、HeroUI Portalの共存確認です。
-                </BottomSheet.Description>
-              </View>
-              <Button onPress={() => setIsSheetOpen(false)}>閉じる</Button>
-            </BottomSheet.Content>
-          </BottomSheet.Portal>
-        </BottomSheet>
+        {/* BottomSheet は @gorhom/bottom-sheet と Reanimated 4 の実行時非互換のため除外中。 */}
       </ScrollView>
     </View>
   );
