@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Memora app icon — refined color master v3</title>
+  <desc id="desc">Four bold vertical capsules arranged as a compact abstract audio waveform.</desc>
+  <defs>
+    <linearGradient id="memora-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#788FAE"/>
+    </linearGradient>
+    <linearGradient id="memora-teal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#6C9FA1"/>
+    </linearGradient>
+    <linearGradient id="memora-sage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#798973"/>
+    </linearGradient>
+    <linearGradient id="memora-violet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#897A99"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#FBFBF9"/>
+
+  <!--
+    Golden-ratio geometry:
+    capsule width = 132
+    outer gaps = 82 ≈ 132 / φ
+    center gap = 50 ≈ 82 / φ
+    short height = 346 ≈ 132 × φ²
+    long height = 559 ≈ 346 × φ
+    radius = 66 = width / 2
+  -->
+  <rect x="141" y="307" width="132" height="559" rx="66" fill="url(#memora-blue)"/>
+  <rect x="355" y="158" width="132" height="346" rx="66" fill="url(#memora-teal)"/>
+  <rect x="537" y="520" width="132" height="346" rx="66" fill="url(#memora-sage)"/>
+  <rect x="751" y="307" width="132" height="559" rx="66" fill="url(#memora-violet)"/>
+</svg>
