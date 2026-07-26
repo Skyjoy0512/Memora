@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 import { Chip } from 'heroui-native';
 import type { AudioStatus } from '../types/memora';
 
@@ -25,14 +24,8 @@ export function StatusPill({ status }: { status: AudioStatus | string }) {
   const tone = statusColors[status as AudioStatus] ?? fallbackTone;
   const copy = statusCopy[status as AudioStatus] ?? fallbackCopy;
   return (
-    <Chip color={tone} size="sm" style={styles.pill} variant="soft">
+    <Chip className="self-start" color={tone} size="sm" variant="soft">
       {copy}
     </Chip>
   );
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    alignSelf: 'flex-start',
-  },
-});

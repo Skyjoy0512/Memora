@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 import { SearchField } from 'heroui-native';
 
 type SearchBarProps = {
@@ -17,7 +16,7 @@ export function SearchBar({
   onBlur,
 }: SearchBarProps) {
   return (
-    <SearchField onChange={onChangeText} style={searchBarStyles.container} value={value}>
+    <SearchField className="min-h-11" onChange={onChangeText} value={value}>
       <SearchField.Group>
         <SearchField.SearchIcon />
         <SearchField.Input
@@ -34,9 +33,3 @@ export function SearchBar({
     </SearchField>
   );
 }
-
-const searchBarStyles = StyleSheet.create({
-  container: {
-    minHeight: 44,
-  },
-});

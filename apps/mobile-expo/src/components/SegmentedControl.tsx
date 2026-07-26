@@ -1,4 +1,3 @@
-import { StyleSheet } from 'react-native';
 import { Tabs } from 'heroui-native';
 
 type SegmentedControlProps<T extends string> = {
@@ -14,14 +13,19 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   return (
     <Tabs
+      className="min-h-11"
       onValueChange={(value) => onSelect(value as T)}
-      style={segStyles.container}
       value={selected}
       variant="secondary"
     >
-      <Tabs.List>
+      <Tabs.List className="min-h-11">
         {segments.map((seg) => (
-          <Tabs.Trigger accessibilityLabel={seg.label} key={seg.key} value={seg.key}>
+          <Tabs.Trigger
+            accessibilityLabel={seg.label}
+            className="min-h-11"
+            key={seg.key}
+            value={seg.key}
+          >
             <Tabs.Label>{seg.label}</Tabs.Label>
           </Tabs.Trigger>
         ))}
@@ -30,9 +34,3 @@ export function SegmentedControl<T extends string>({
     </Tabs>
   );
 }
-
-const segStyles = StyleSheet.create({
-  container: {
-    minHeight: 44,
-  },
-});

@@ -1,6 +1,4 @@
-import { StyleSheet, View } from 'react-native';
-import { Separator, Text } from 'heroui-native';
-import { spacing, textStyles } from '../design/tokens';
+import { Separator, Surface, Text } from 'heroui-native';
 
 type DateSeparatorProps = {
   date: string;
@@ -8,25 +6,14 @@ type DateSeparatorProps = {
 
 export function DateSeparator({ date }: DateSeparatorProps) {
   return (
-    <View style={dsStyles.container} accessibilityRole="header">
-      <Separator style={dsStyles.line} />
-      <Text style={dsStyles.label}>{date}</Text>
-      <Separator style={dsStyles.line} />
-    </View>
+    <Surface
+      accessibilityRole="header"
+      className="flex-row items-center gap-2 py-1"
+      variant="transparent"
+    >
+      <Separator className="flex-1" />
+      <Text color="muted" type="body-xs">{date}</Text>
+      <Separator className="flex-1" />
+    </Surface>
   );
 }
-
-const dsStyles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  line: {
-    flex: 1,
-  },
-  label: {
-    ...textStyles.caption,
-  },
-});

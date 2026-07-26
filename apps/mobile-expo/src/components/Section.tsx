@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Surface } from 'heroui-native';
-import { colors, spacing, textStyles } from '../design/tokens';
+import { Surface, Text } from 'heroui-native';
 
 type Props = {
   title: string;
@@ -11,29 +9,12 @@ type Props = {
 
 export function Section({ title, children, action }: Props) {
   return (
-    <View style={styles.section}>
-      <Surface style={styles.header} variant="transparent">
-        <Text style={styles.title}>{title}</Text>
+    <Surface className="gap-3" variant="transparent">
+      <Surface className="flex-row items-center justify-between" variant="transparent">
+        <Text color="muted" type="body-xs" weight="medium">{title}</Text>
         {action}
       </Surface>
       {children}
-    </View>
+    </Surface>
   );
 }
-
-const styles = StyleSheet.create({
-  section: {
-    gap: spacing.md,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: colors.text,
-    ...textStyles.captionBold,
-    letterSpacing: 0,
-    textTransform: 'uppercase',
-  },
-});

@@ -11,6 +11,7 @@ export function OfflineBanner({
     <Alert accessibilityLiveRegion="polite" accessibilityRole="alert" status="warning">
       <Alert.Indicator />
       <Alert.Content>
+        <Alert.Title>オフラインです</Alert.Title>
         <Alert.Description>{message}</Alert.Description>
       </Alert.Content>
     </Alert>

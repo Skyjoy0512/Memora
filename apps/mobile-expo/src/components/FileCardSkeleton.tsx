@@ -1,6 +1,4 @@
-import { StyleSheet, View } from 'react-native';
-import { SkeletonGroup } from 'heroui-native';
-import { radius, spacing } from '../design/tokens';
+import { Card, SkeletonGroup } from 'heroui-native';
 
 type FileCardSkeletonProps = {
   count?: number;
@@ -8,14 +6,21 @@ type FileCardSkeletonProps = {
 
 function SkeletonCard() {
   return (
-    <SkeletonGroup isLoading style={skStyles.card}>
-      <SkeletonGroup.Item style={skStyles.iconBlock} />
-      <View style={skStyles.body}>
-        <SkeletonGroup.Item style={skStyles.titleBlock} />
-        <SkeletonGroup.Item style={skStyles.metaBlock} />
-        <SkeletonGroup.Item style={skStyles.summaryBlock} />
-      </View>
-      <SkeletonGroup.Item style={skStyles.pillBlock} />
+    <SkeletonGroup className="gap-3" isLoading>
+      <Card className="gap-3 border border-border bg-surface p-3">
+        <Card.Header className="flex-row items-center gap-3">
+          <SkeletonGroup.Item className="h-4 flex-1 rounded" />
+          <SkeletonGroup.Item className="h-5 w-14 rounded-full" />
+        </Card.Header>
+        <Card.Body className="gap-2">
+          <SkeletonGroup.Item className="h-3 w-3/5 rounded" />
+          <SkeletonGroup.Item className="h-3 w-4/5 rounded" />
+        </Card.Body>
+        <Card.Footer className="min-h-11 flex-row items-center justify-between">
+          <SkeletonGroup.Item className="h-3 w-1/4 rounded" />
+          <SkeletonGroup.Item className="h-8 w-8 rounded" />
+        </Card.Footer>
+      </Card>
     </SkeletonGroup>
   );
 }
@@ -29,41 +34,3 @@ export function FileCardSkeleton({ count = 5 }: FileCardSkeletonProps) {
     </>
   );
 }
-
-const skStyles = StyleSheet.create({
-  card: {
-    alignItems: 'flex-start',
-    borderRadius: radius.md,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 72,
-    padding: spacing.md,
-  },
-  iconBlock: {
-    borderRadius: radius.sm,
-    height: 32,
-    width: 32,
-  },
-  body: {
-    flex: 1,
-    gap: 6,
-  },
-  titleBlock: {
-    height: 14,
-    width: '60%',
-  },
-  metaBlock: {
-    height: 10,
-    width: '40%',
-  },
-  summaryBlock: {
-    height: 10,
-    width: '80%',
-  },
-  pillBlock: {
-    borderRadius: radius.pill,
-    height: 22,
-    marginTop: 5,
-    width: 56,
-  },
-});
