@@ -1,0 +1,80 @@
+graph TD
+    Launch([アプリ起動]) --> AuthCheck{認証済み?}
+    AuthCheck -->|未| Onboarding[オンボーディング<br/>full screen modal]
+    Onboarding --> SignIn[サインイン<br/>Google / Apple]
+    SignIn --> Permission[マイク権限の設定]
+    Permission --> Home
+    AuthCheck -->|済| Home
+
+    subgraph Tabs[Bottom Tabs]
+        Home[ホーム<br/>今の状況]
+        Library[ライブラリ<br/>会議一覧・検索]
+        Tasks[タスク<br/>横断タスク]
+        Settings[設定]
+    end
+
+    RecordCTA(( ●録音<br/>中央アクション ))
+
+    Home -.-> RecordCTA
+    Library -.-> RecordCTA
+    Tasks -.-> RecordCTA
+    Settings -.-> RecordCTA
+
+    RecordCTA --> RecSetup[録音セットアップ<br/>full screen modal]
+    RecSetup -->|開始| RecActive[録音中]
+    RecSetup -->|キャンセル| Tabs
+
+    RecActive -->|一時停止| RecPaused[一時停止]
+    RecPaused -->|再開| RecActive
+    RecActive -->|停止| Processing[処理中]
+    RecPaused -->|停止| Processing
+    RecActive -->|破棄| DiscardConfirm{破棄の確認<br/>Dialog}
+    DiscardConfirm -->|破棄する| Tabs
+    DiscardConfirm -->|録音を続ける| RecActive
+
+    RecActive -.タブ移動可.-> Tabs
+    Tabs -.グローバル録音バー.-> RecActive
+
+    Processing --> MeetingDetail[会議詳細]
+    Processing -.失敗.-> ProcessError[処理の失敗<br/>再試行導線]
+    ProcessError -->|再試行| Processing
+    ProcessError -->|後で| MeetingDetail
+
+    Home -->|会議をタップ| MeetingDetail
+    Library -->|会議をタップ| MeetingDetail
+    Tasks -->|出典会議| MeetingDetail
+
+    subgraph Detail[会議詳細 Stack]
+        MeetingDetail --> Summary[要約]
+        MeetingDetail --> Transcript[文字起こし]
+        MeetingDetail --> DetailTasks[この会議のタスク]
+    end
+
+    MeetingDetail -.->|Ask| AskSheet[AI に質問<br/>Bottom Sheet]
+    MeetingDetail -.->|その他| MoreSheet[その他の操作<br/>Bottom Sheet]
+    MoreSheet --> Export[書き出し<br/>Bottom Sheet]
+    MoreSheet --> Rename[タイトル変更<br/>Dialog]
+    MoreSheet --> MoveProject[プロジェクト移動<br/>Bottom Sheet]
+    MoreSheet --> DeleteConfirm{削除の確認<br/>Dialog}
+    DeleteConfirm -->|削除| Library
+    DeleteConfirm -->|キャンセル| MeetingDetail
+
+    Library -->|検索| Search[検索<br/>modal]
+    Home -->|検索| Search
+    Search --> MeetingDetail
+
+    Library -->|プロジェクト絞り込み| ProjectFilter[プロジェクト選択<br/>Bottom Sheet]
+    ProjectFilter --> Library
+    Library -->|プロジェクトを開く| ProjectDetail[プロジェクト詳細]
+    ProjectDetail --> MeetingDetail
+
+    Tasks -->|タスクをタップ| TaskDetail[タスク詳細]
+    TaskDetail --> MeetingDetail
+
+    Settings --> Account[アカウント]
+    Settings --> Subscription[プラン<br/>modal]
+    Settings --> AISettings[AI 処理の設定]
+    Settings --> StorageSettings[保存とデータ]
+
+    Offline{{オフライン}} -.状態バナー.-> Tabs
+    PermDenied{{マイク権限なし}} -.-> RecSetup
