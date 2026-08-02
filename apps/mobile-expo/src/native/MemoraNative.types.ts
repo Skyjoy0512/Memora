@@ -117,7 +117,9 @@ export type BridgeInfoDTO = {
   knowledgeQuerySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   summarySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   retryQueueSource: 'native-file' | 'mock' | 'unknown';
-  persistenceScope: 'app-sandbox' | 'app-group' | 'shared-swiftdata' | 'mock' | 'unknown';
+  persistenceScope: 'app-sandbox' | 'app-group' | 'shared-swiftdata' | 'sandbox-swiftdata' | 'mock' | 'unknown';
+  storeMode?: 'app-group' | 'app-sandbox';
+  sharedStoreError?: string;
   isRealDataConnected: boolean;
 };
 

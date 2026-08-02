@@ -1,6 +1,11 @@
 import Foundation
 import ExpoModulesCore
 
+public enum MemoraNativeBridgeDiagnostics {
+  public static var sharedStoreError: String?
+  public static var storeMode: String?
+}
+
 public class MemoraNativeModule: Module {
 
   public func definition() -> ModuleDefinition {
@@ -29,7 +34,7 @@ public class MemoraNativeModule: Module {
     }
 
     AsyncFunction("getBridgeInfo") { () -> [String: Any] in
-      [
+      var info: [String: Any] = [
         "platform": "ios",
         "moduleName": "MemoraNative",
         "moduleVersion": "1.0.0",
@@ -43,6 +48,13 @@ public class MemoraNativeModule: Module {
         "persistenceScope": self.persistenceScope,
         "isRealDataConnected": self.isRealDataConnected
       ]
+      if let sharedStoreError = MemoraNativeBridgeDiagnostics.sharedStoreError {
+        info["sharedStoreError"] = sharedStoreError
+      }
+      if let storeMode = MemoraNativeBridgeDiagnostics.storeMode {
+        info["storeMode"] = storeMode
+      }
+      return info
     }
 
     AsyncFunction("loadSettings") { () -> [String: Any] in
@@ -240,6 +252,10 @@ public class MemoraNativeModule: Module {
   }
 
   private var persistenceScope: String {
+    if isSharedSwiftDataConnected && MemoraNativeBridgeDiagnostics.storeMode == "app-sandbox" {
+      return "sandbox-swiftdata"
+    }
+
     if isSharedSwiftDataConnected {
       return "shared-swiftdata"
     }
