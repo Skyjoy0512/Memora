@@ -54,16 +54,11 @@ enum MemoraNativeBridgeBootstrap {
         for: .applicationSupportDirectory,
         in: .userDomainMask
       ).first!
-      let sandboxContainer = applicationSupport.appendingPathComponent(
-        "MemoraShared",
-        isDirectory: true
-      )
-      try FileManager.default.createDirectory(
-        at: sandboxContainer,
-        withIntermediateDirectories: true
-      )
-      try configureSwiftDataStore(in: sandboxContainer, storeMode: "app-sandbox")
+      try configureSwiftDataStore(in: applicationSupport, storeMode: "app-sandbox")
     } catch {
+      lastSharedStoreError = [lastSharedStoreError, String(describing: error)]
+        .compactMap { $0 }
+        .joined(separator: " | ")
       configureDefaults()
     }
   }
@@ -73,6 +68,14 @@ enum MemoraNativeBridgeBootstrap {
     storeMode: String
   ) throws {
     let storeURL = MemoraSharedStoreLocation.storeURL(in: containerURL)
+    let storeDirectory = storeURL.deletingLastPathComponent()
+    if !FileManager.default.fileExists(atPath: storeDirectory.path) {
+      try FileManager.default.createDirectory(
+        at: storeDirectory,
+        withIntermediateDirectories: true,
+        attributes: nil
+      )
+    }
     let audioDirectory = MemoraSharedStoreLocation.audioFilesDirectory(in: containerURL)
     let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
     configureDefaults()
