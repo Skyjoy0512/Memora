@@ -34,31 +34,32 @@ enum MemoraNativeBridgeBootstrap {
   }
 
   static func configureSharedAudioStoreOrDefaults() {
-    do {
-      guard let appGroupContainer = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
-      ) else {
-        throw MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
-          MemoraSharedStoreLocation.primaryAppGroupIdentifier
-        )
+    guard let appGroupContainer = FileManager.default.containerURL(
+      forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
+    ) else {
+      let unavailableError = String(describing: MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
+        MemoraSharedStoreLocation.primaryAppGroupIdentifier
+      ))
+      do {
+        let applicationSupport = FileManager.default.urls(
+          for: .applicationSupportDirectory,
+          in: .userDomainMask
+        ).first!
+        try configureSwiftDataStore(in: applicationSupport, storeMode: "app-sandbox")
+        lastSharedStoreError = unavailableError
+        return
+      } catch {
+        lastSharedStoreError = [unavailableError, String(describing: error)].joined(separator: " | ")
+        configureDefaults()
+        return
       }
-      try configureSwiftDataStore(in: appGroupContainer, storeMode: "app-group")
-      lastSharedStoreError = nil
-      return
-    } catch {
-      lastSharedStoreError = String(describing: error)
     }
 
     do {
-      let applicationSupport = FileManager.default.urls(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask
-      ).first!
-      try configureSwiftDataStore(in: applicationSupport, storeMode: "app-sandbox")
+      try configureSwiftDataStore(in: appGroupContainer, storeMode: "app-group")
+      lastSharedStoreError = nil
     } catch {
-      lastSharedStoreError = [lastSharedStoreError, String(describing: error)]
-        .compactMap { $0 }
-        .joined(separator: " | ")
+      lastSharedStoreError = String(describing: error)
       configureDefaults()
     }
   }

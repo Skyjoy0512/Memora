@@ -340,8 +340,7 @@ export function SettingsScreen() {
               label="Persistence scope"
               value={bridgeInfo?.persistenceScope ?? 'checking'}
               state={
-                bridgeInfo?.persistenceScope === 'shared-swiftdata' ||
-                bridgeInfo?.persistenceScope === 'sandbox-swiftdata'
+                bridgeInfo?.persistenceScope === 'shared-swiftdata' && !bridgeInfo?.sharedStoreError
                   ? 'ok'
                   : 'warning'
               }
