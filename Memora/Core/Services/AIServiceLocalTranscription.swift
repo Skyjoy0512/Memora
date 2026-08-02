@@ -3,190 +3,7 @@ import Speech
 
 // Core transcription/API boundary. Keep backend selection changes intentional and isolated.
 
-// MARK: - Local Transcription Protocol
-
-protocol LocalTranscriptionService {
-    var isTranscribing: Bool { get }
-    var progress: Double { get }
-
-    func transcribe(audioURL: URL) async throws -> String
-}
-
 // MARK: - Local Transcription Services
-
-// iOS 26.0+ SpeechAnalyzer API 実装
-@available(iOS 26.0, *)
-final class SpeechAnalyzerService26: LocalTranscriptionService, ObservableObject {
-    @Published var isTranscribing = false
-    @Published var progress = 0.0
-
-    private var analyzer: SpeechAnalyzer?
-    private var transcriber: SpeechTranscriber?
-    private let locale: Locale
-
-    init(locale: Locale = Locale(identifier: "ja_JP")) {
-        self.locale = locale
-    }
-
-    private func setup() async throws {
-        let installedLocales = await SpeechTranscriber.installedLocales
-        STTConsoleLog("インストール済みロケール: \(installedLocales)")
-
-        guard let supportedLocale = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
-            STTConsoleLog("ロケール \(locale.identifier) が利用可能ではありません")
-            throw LocalTranscriptionError.localeNotSupported
-        }
-
-        // offlineTranscription: ファイル一括処理用（公式推奨）
-        let createdTranscriber = SpeechTranscriber(
-            locale: supportedLocale,
-            preset: .transcription
-        )
-        try await ensureAssetsInstalled(for: createdTranscriber, locale: supportedLocale)
-        transcriber = createdTranscriber
-        STTConsoleLog("使用ロケール: \(supportedLocale)")
-
-        let options = SpeechAnalyzer.Options(
-            priority: .userInitiated,
-            modelRetention: .whileInUse
-        )
-        analyzer = SpeechAnalyzer(modules: [createdTranscriber], options: options)
-
-        // 事前準備: 互換フォーマットを取得し prepareToAnalyze を呼ぶ
-        let bestFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [createdTranscriber])
-        if let bestFormat {
-            STTConsoleLog("[MemoraSTT] bestAvailableAudioFormat: \(bestFormat)")
-            try await analyzer?.prepareToAnalyze(in: bestFormat)
-        } else {
-            STTConsoleLog("[MemoraSTT] bestAvailableAudioFormat returned nil")
-        }
-    }
-
-    private func ensureAssetsInstalled(
-        for transcriber: SpeechTranscriber,
-        locale: Locale
-    ) async throws {
-        let initialStatus = await AssetInventory.status(forModules: [transcriber])
-        STTConsoleLog("SpeechAnalyzer asset status[\(locale.identifier)]: \(String(describing: initialStatus))")
-
-        if initialStatus == .installed {
-            return
-        }
-
-        guard let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) else {
-            let latestStatus = await AssetInventory.status(forModules: [transcriber])
-            if latestStatus == .installed {
-                return
-            }
-            throw LocalTranscriptionError.assetInstallationFailed(
-                "SpeechAnalyzer 用モデルの取得要求を作成できませんでした"
-            )
-        }
-
-        STTConsoleLog("SpeechAnalyzer 用モデルを自動ダウンロードします: \(locale.identifier)")
-        progress = 0.05
-
-        do {
-            try await request.downloadAndInstall()
-        } catch {
-            throw LocalTranscriptionError.assetInstallationFailed(error.localizedDescription)
-        }
-
-        let finalStatus = await AssetInventory.status(forModules: [transcriber])
-        STTConsoleLog("SpeechAnalyzer asset status after install[\(locale.identifier)]: \(String(describing: finalStatus))")
-
-        guard finalStatus == .installed else {
-            throw LocalTranscriptionError.assetInstallationFailed(
-                "SpeechAnalyzer 用モデルのインストール完了を確認できませんでした"
-            )
-        }
-
-        progress = 0.15
-    }
-
-    func transcribe(audioURL: URL) async throws -> String {
-        isTranscribing = true
-        progress = 0.0
-
-        do {
-            try await setup()
-            guard let analyzer, let transcriber else {
-                throw LocalTranscriptionError.notSupported
-            }
-
-            // 音声ファイルをロード
-            let audioFile = try AVAudioFile(forReading: audioURL)
-            STTConsoleLog("[MemoraSTT] Audio file loaded: \(audioFile.length) frames, format: \(audioFile.processingFormat)")
-
-            guard audioFile.length > 0 else {
-                throw LocalTranscriptionError.transcriptionFailed(
-                    NSError(domain: "MemoraSTT", code: -3, userInfo: [
-                        NSLocalizedDescriptionKey: "Audio file has no audio data"
-                    ])
-                )
-            }
-
-            progress = 0.2
-            STTConsoleLog("[MemoraSTT] SpeechAnalyzer: analyzeSequence(from:) 開始 (offlineTranscription)")
-
-            // ★ 結果を並行で消費（これがないと結果が失われる）
-            let resultsTask = Task<[String], Error> {
-                var parts: [String] = []
-                for try await result in transcriber.results {
-                    // result.text は AttributedString 型。
-                    // .description は属性辞書のデバッグ表現 "{}" を付けるため、
-                    // .characters からプレーンテキストを抽出する。
-                    let text = String(result.text.characters)
-                    if !text.isEmpty {
-                        parts.append(text)
-                    }
-                }
-                return parts
-            }
-
-            // 音声投入（高レベルAPI: MP3 を直接渡す）
-            do {
-                if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
-                    STTConsoleLog("[MemoraSTT] analyzeSequence 完了 — finalizing through lastSample")
-                    try await analyzer.finalizeAndFinish(through: lastSample)
-                } else {
-                    STTConsoleLog("[MemoraSTT] analyzeSequence returned nil — canceling")
-                    await analyzer.cancelAndFinishNow()
-                }
-            } catch {
-                STTConsoleLog("[MemoraSTT] analyzeSequence error: \(error)")
-                resultsTask.cancel()
-                throw LocalTranscriptionError.transcriptionFailed(error)
-            }
-
-            // 結果取得
-            let transcriptParts = try await resultsTask.value
-            let transcript = transcriptParts.joined(separator: "\n")
-
-            await MainActor.run {
-                progress = 1.0
-                isTranscribing = false
-            }
-
-            if transcript.isEmpty {
-                STTConsoleLog("[MemoraSTT] SpeechAnalyzer: 結果が空 — フォールバックへ")
-                throw LocalTranscriptionError.transcriptionFailed(
-                    NSError(domain: "MemoraSTT", code: -2, userInfo: [
-                        NSLocalizedDescriptionKey: "SpeechAnalyzer produced no transcript"
-                    ])
-                )
-            }
-
-            STTConsoleLog("[MemoraSTT] SpeechAnalyzer: 文字起こし成功 (\(transcript.count)文字)")
-            return transcript
-        } catch {
-            await MainActor.run {
-                isTranscribing = false
-            }
-            throw LocalTranscriptionError.transcriptionFailed(error)
-        }
-    }
-}
 
 // iOS 26.0+: AudioFile から AnalyzerInput の AsyncSequence を作成するヘルパー
 // 圧縮フォーマット（MP3, AAC/M4A）で AVAudioFile.read の2回目が nilError になる
@@ -489,31 +306,6 @@ extension TranscriptionMode {
     }
 }
 
-// MARK: - Error Types
-
-enum LocalTranscriptionError: LocalizedError {
-    case notSupported
-    case transcriptionFailed(Error)
-    case localeNotSupported
-    case permissionDenied
-    case assetInstallationFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .notSupported:
-            return "ローカル文字起こしはサポートされていません"
-        case .transcriptionFailed(let error):
-            return "文字起こしに失敗しました: \(error.localizedDescription)"
-        case .localeNotSupported:
-            return "この言語はサポートされていません"
-        case .permissionDenied:
-            return "音声認識の権限が許可されていません"
-        case .assetInstallationFailed(let message):
-            return "SpeechAnalyzer 用モデルの準備に失敗しました: \(message)"
-        }
-    }
-}
-
 /// AIService から物理分離した、STTのホスト側選択アダプタ。
 /// 既存の SpeechAnalyzer → SFSpeech → API の選択責務はここに留める。
 final class AIServiceTranscriptionService {
@@ -541,7 +333,9 @@ final class AIServiceTranscriptionService {
 
         if transcriptionMode == .local {
             if #available(iOS 26.0, *), dependencies.settings.isSpeechAnalyzerEnabled {
-                localTranscriptionService = SpeechAnalyzerService26()
+                localTranscriptionService = SpeechAnalyzerService26(
+                    consoleLogger: dependencies.consoleLogger
+                )
             } else if #available(iOS 10.0, *) {
                 localTranscriptionService = SpeechAnalyzerService()
             }

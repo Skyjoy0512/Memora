@@ -3,9 +3,6 @@ import Speech
 
 // 現行の具体サービス生成を保持するホスト側 `.live` 実装。
 // 共有コアはこれらの型を直接参照しない。
-@available(iOS 26.0, *)
-extension SpeechAnalyzerService26: SpeechAnalyzerTranscribing {}
-
 struct AIServiceRemoteTranscriber: RemoteTranscribing {
     let dependencies: STTReadOnlyHostDependencies
 
@@ -30,9 +27,14 @@ struct AIServiceRemoteTranscriber: RemoteTranscribing {
 }
 
 struct LiveLocalSTTBackendFactory: LocalSTTBackendFactory {
+    let consoleLogger: any STTConsoleLogging
+
     @available(iOS 26.0, *)
     func makeSpeechAnalyzerTranscriber(locale: Locale) -> any SpeechAnalyzerTranscribing {
-        SpeechAnalyzerService26(locale: locale)
+        SpeechAnalyzerService26(
+            locale: locale,
+            consoleLogger: consoleLogger
+        )
     }
 
     func makeSpeechRecognizer(locale: Locale) -> SFSpeechRecognizer? {
@@ -68,7 +70,9 @@ extension STTServiceExecutionDependencies {
                 remoteTranscriber: AIServiceRemoteTranscriber(
                     dependencies: dependencies
                 ),
-                localBackendFactory: LiveLocalSTTBackendFactory(),
+                localBackendFactory: LiveLocalSTTBackendFactory(
+                    consoleLogger: dependencies.consoleLogger
+                ),
                 speechAnalyzerPreflight: LiveSpeechAnalyzerPreflight()
             ),
             diarizationService: {
