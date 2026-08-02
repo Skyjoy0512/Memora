@@ -100,6 +100,8 @@ typealias LocalSTTBackendFactory = MemoraSharedCore.LocalSTTBackendFactory
 typealias RemoteTranscribing = MemoraSharedCore.RemoteTranscribing
 typealias RemoteTranscriptionRequest = MemoraSharedCore.RemoteTranscriptionRequest
 typealias SpeechAnalyzerTranscribing = MemoraSharedCore.SpeechAnalyzerTranscribing
+@available(iOS 26.0, *)
+typealias SpeechAnalyzerService26 = MemoraSharedCore.SpeechAnalyzerService26
 typealias SpeechAnalyzerPreflighting = MemoraSharedCore.SpeechAnalyzerPreflighting
 typealias SpeechAnalyzerPreflightResult = MemoraSharedCore.SpeechAnalyzerPreflightResult
 typealias SpeechAnalyzerUnavailableReason = MemoraSharedCore.SpeechAnalyzerUnavailableReason
@@ -120,6 +122,8 @@ typealias STTMemoryWarningObserving = MemoraSharedCore.STTMemoryWarningObserving
 typealias STTProgressPresenting = MemoraSharedCore.STTProgressPresenting
 typealias STTExecutionHostCapabilities = MemoraSharedCore.STTExecutionHostCapabilities
 typealias STTCheckpointHooksProviding = MemoraSharedCore.STTCheckpointHooksProviding
+typealias LocalTranscriptionService = MemoraSharedCore.LocalTranscriptionService
+typealias LocalTranscriptionError = MemoraSharedCore.LocalTranscriptionError
 typealias AudioSilenceProbe = MemoraSharedCore.AudioSilenceProbe
 typealias CheckpointChunkResult = MemoraSharedCore.CheckpointChunkResult
 typealias DurationFormatter = MemoraSharedCore.DurationFormatter
