@@ -286,15 +286,30 @@ private struct MemoraRNLocalBackendFactory: LocalSTTBackendFactory {
 private struct MemoraRNSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {
   func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
     guard #available(iOS 26.0, *) else {
-      preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+      let diagnostics = unavailableDiagnostics(locale: locale)
+      return .unavailable(reason: .notAvailable, diagnostics: diagnostics)
     }
     return await SpeechAnalyzerPreflight(featureEnabled: true).run(locale: locale)
   }
 
   func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
     guard #available(iOS 26.0, *) else {
-      preconditionFailure("SpeechAnalyzer preflight must only run on iOS 26 or later")
+      return unavailableDiagnostics(locale: locale)
     }
     return await SpeechAnalyzerPreflight(featureEnabled: true).diagnostics(for: locale)
+  }
+
+  private func unavailableDiagnostics(locale: Locale) -> SpeechAnalyzerDiagnostics {
+    SpeechAnalyzerDiagnostics(
+      isTranscriberAvailable: false,
+      featureFlagEnabled: true,
+      requestedLocale: locale.identifier,
+      supportedLocale: nil,
+      assetStatus: "unsupported-os",
+      compatibleFormatsDescription: "not checked",
+      unavailableReason: .notAvailable,
+      checkedAt: Date(),
+      checkDurationMs: 0
+    )
   }
 }
