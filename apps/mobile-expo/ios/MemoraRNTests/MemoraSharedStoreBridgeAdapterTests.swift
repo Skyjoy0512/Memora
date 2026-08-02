@@ -105,15 +105,15 @@ struct MemoraSharedStoreBridgeAdapterTests {
   }
 
   private func writeSilentAudio(to url: URL) throws {
-    let format = AVAudioFormat(
-      commonFormat: .pcmFormatInt16,
-      sampleRate: 8_000,
-      channels: 1,
-      interleaved: true
-    )!
+    let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
+    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4410)!
+    buffer.frameLength = 4410
+    if let channelData = buffer.floatChannelData {
+      for i in 0..<Int(buffer.frameLength) {
+        channelData[0][i] = 0.0
+      }
+    }
     let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
-    let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 800)!
-    buffer.frameLength = 800
     try audioFile.write(from: buffer)
   }
 

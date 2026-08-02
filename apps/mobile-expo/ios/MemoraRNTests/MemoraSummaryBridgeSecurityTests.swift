@@ -132,6 +132,7 @@ struct MemoraSummaryBridgeSecurityTests {
     let audioFile = AudioFile(title: "Save test", audioURL: "/tmp/save.m4a")
     let transcript = Transcript(audioFileID: audioFile.id, text: "保存対象の文字起こし")
     transcript.audioFile = audioFile
+    let audioFileID = audioFile.id
     context.insert(audioFile)
     context.insert(transcript)
     try context.save()
@@ -142,14 +143,19 @@ struct MemoraSummaryBridgeSecurityTests {
       providerFactory: { _, _ in SummaryProviderStub() }
     )
     let result = try await generator.generateSummary(MemoraSummaryRequestDTO(dictionary: [
-      "audioFileId": audioFile.id.uuidString,
+      "audioFileId": audioFileID.uuidString,
       "options": ["provider": "Gemini"]
     ]))
 
     #expect(result.text == "共有要約コアの結果")
-    #expect(audioFile.summary == "共有要約コアの結果")
-    #expect(audioFile.keyPoints == "要点")
-    #expect(audioFile.actionItems == "対応")
-    #expect(audioFile.isSummarized)
+
+    let freshContext = ModelContext(container)
+    let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == audioFileID })
+    let fetched = try freshContext.fetch(descriptor)
+    let persisted = try #require(fetched.first)
+    #expect(persisted.summary == "共有要約コアの結果")
+    #expect(persisted.keyPoints == "要点")
+    #expect(persisted.actionItems == "対応")
+    #expect(persisted.isSummarized)
   }
 }
