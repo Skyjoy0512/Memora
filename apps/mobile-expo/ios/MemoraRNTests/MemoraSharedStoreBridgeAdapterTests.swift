@@ -3,9 +3,71 @@ import Foundation
 import SwiftData
 import Testing
 @testable import MemoraRN
+import MemoraSharedCore
 import MemoraSharedData
 import MemoraSharedSchema
 internal import MemoraNative
+
+@Suite("RN SpeechAnalyzer bridge")
+struct MemoraRNSpeechAnalyzerBridgeTests {
+  @Test("unsupported runtime returns a safe unavailable result")
+  func unsupportedRuntimeFallsBackWithoutTrap() async {
+    let locale = Locale(identifier: "ja_JP")
+    let preflight = MemoraRNSpeechAnalyzerPreflight(
+      featureEnabled: true,
+      isSpeechAnalyzerRuntimeAvailable: { false }
+    )
+
+    let result = await preflight.run(locale: locale)
+    guard case let .unavailable(reason, diagnostics) = result else {
+      Issue.record("Unsupported runtime unexpectedly returned ready")
+      return
+    }
+    guard case .notAvailable = reason else {
+      Issue.record("Unsupported runtime returned an unexpected reason: \(reason)")
+      return
+    }
+
+    #expect(diagnostics.isTranscriberAvailable == false)
+    #expect(diagnostics.featureFlagEnabled == true)
+    #expect(diagnostics.requestedLocale == locale.identifier)
+    #expect(diagnostics.assetStatus == "unavailable")
+    #expect(diagnostics.unavailableReason?.description == reason.description)
+
+    let diagnosticsOnly = await preflight.diagnostics(for: locale)
+    #expect(diagnosticsOnly.unavailableReason?.description == reason.description)
+  }
+
+  @Test("diagnostic public payload excludes sensitive fields")
+  func diagnosticPublicPayloadExcludesSensitiveFields() {
+    let privateTaskID = "private-task-id"
+    let privateLocale = "private-locale"
+    let privateModelState = "private-model-state"
+    let privateAudioFormat = "private-audio-format"
+    let privateFallbackReason = "asset installation failed with a private raw error"
+    let privateProcessingTime = 123.456
+    let entry = STTBackendDiagnosticEntry(
+      taskId: privateTaskID,
+      backend: .speechAnalyzer,
+      locale: privateLocale,
+      assetState: privateModelState,
+      audioFormat: privateAudioFormat,
+      fallbackReason: privateFallbackReason,
+      processingTimeMs: privateProcessingTime,
+      recordedAt: Date(timeIntervalSince1970: 0)
+    )
+
+    let payload = MemoraRNSTTDiagnosticPayload(entry: entry)
+
+    #expect(payload.publicSummary == "backend=SpeechAnalyzer fallback=assetNotInstalled")
+    #expect(payload.publicSummary.contains(privateTaskID) == false)
+    #expect(payload.publicSummary.contains(privateLocale) == false)
+    #expect(payload.publicSummary.contains(privateModelState) == false)
+    #expect(payload.publicSummary.contains(privateAudioFormat) == false)
+    #expect(payload.publicSummary.contains(privateFallbackReason) == false)
+    #expect(payload.publicSummary.contains(String(privateProcessingTime)) == false)
+  }
+}
 
 @Suite("RN shared store bridge adapter")
 struct MemoraSharedStoreBridgeAdapterTests {

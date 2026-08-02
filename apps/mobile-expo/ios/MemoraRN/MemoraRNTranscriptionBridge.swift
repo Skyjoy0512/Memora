@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Speech
 import SwiftData
 import AVFoundation
@@ -193,17 +194,20 @@ private enum MemoraRNTranscriptionBridgeError: LocalizedError {
 
 enum MemoraRNSTTServiceFactory {
   static func makeLocalService() -> STTService {
+    let logger = MemoraRNSTTLogger()
+    let consoleLogger = MemoraRNSTTConsoleLogger()
+    let diagnostics = MemoraRNSTTDiagnosticsRecorder()
     let dependencies = STTReadOnlyHostDependencies(
-      logger: MemoraRNNoopLogger(),
-      consoleLogger: MemoraRNNoopConsoleLogger(),
+      logger: logger,
+      consoleLogger: consoleLogger,
       settings: MemoraRNLocalSTTSettings(),
-      diagnostics: MemoraRNNoopDiagnostics()
+      diagnostics: diagnostics
     )
     let executionDependencies = STTServiceExecutionDependencies(
       backend: STTBackendExecutionDependencies(
         remoteTranscriber: MemoraRNUnavailableRemoteTranscriber(),
-        localBackendFactory: MemoraRNLocalBackendFactory(),
-        speechAnalyzerPreflight: MemoraRNSpeechAnalyzerDisabledPreflight()
+        localBackendFactory: MemoraRNLocalBackendFactory(consoleLogger: consoleLogger),
+        speechAnalyzerPreflight: MemoraRNSpeechAnalyzerPreflight(featureEnabled: true)
       ),
       diarizationService: MemoraRNNoopDiarizationService()
     )
@@ -222,20 +226,138 @@ enum MemoraRNSTTServiceFactory {
   }
 }
 
-private struct MemoraRNNoopLogger: STTLogging { func log(_ category: String, _ message: String, level: STTLogLevel) {} }
-private struct MemoraRNNoopConsoleLogger: STTConsoleLogging { func logDetailed(_ message: @autoclosure () -> String) {} }
-private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = false; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
-private struct MemoraRNNoopDiagnostics: STTDiagnosticsRecording { func record(_ entry: STTBackendDiagnosticEntry) {} }
+private enum MemoraRNSTTLog {
+  static let events = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.memora.MemoraRN",
+    category: "STT"
+  )
+  static let diagnostics = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.memora.MemoraRN",
+    category: "STTDiagnostics"
+  )
+}
+
+private struct MemoraRNSTTLogger: STTLogging {
+  func log(_ category: String, _ message: String, level: STTLogLevel) {
+    switch level {
+    case .debug:
+      MemoraRNSTTLog.events.debug("[\(category, privacy: .public)] \(message, privacy: .private(mask: .hash))")
+    case .info:
+      MemoraRNSTTLog.events.info("[\(category, privacy: .public)] \(message, privacy: .private(mask: .hash))")
+    case .warning:
+      MemoraRNSTTLog.events.warning("[\(category, privacy: .public)] \(message, privacy: .private(mask: .hash))")
+    case .error:
+      MemoraRNSTTLog.events.error("[\(category, privacy: .public)] \(message, privacy: .private(mask: .hash))")
+    }
+  }
+}
+
+private struct MemoraRNSTTConsoleLogger: STTConsoleLogging {
+  func logDetailed(_ message: @autoclosure () -> String) {
+    let detail = message()
+    MemoraRNSTTLog.events.debug("detail=\(detail, privacy: .private(mask: .hash))")
+  }
+}
+
+struct MemoraRNSTTDiagnosticPayload: Equatable {
+  let backendCode: String
+  let fallbackCode: String
+  let modelState: String
+  let locale: String
+  let taskID: String
+  let processingTime: String
+
+  init(entry: STTBackendDiagnosticEntry) {
+    backendCode = entry.backend.rawValue
+    fallbackCode = entry.fallbackReason == nil
+      ? "none"
+      : STTFailureCategory.classify(from: entry).rawValue
+    modelState = entry.assetState ?? "unknown"
+    locale = entry.locale
+    taskID = entry.taskId
+    processingTime = entry.processingTimeMs.map { String($0) } ?? "unknown"
+  }
+
+  var publicSummary: String {
+    "backend=\(backendCode) fallback=\(fallbackCode)"
+  }
+}
+
+private struct MemoraRNSTTDiagnosticsRecorder: STTDiagnosticsRecording {
+  func record(_ entry: STTBackendDiagnosticEntry) {
+    let payload = MemoraRNSTTDiagnosticPayload(entry: entry)
+
+    MemoraRNSTTLog.diagnostics.info(
+      "\(payload.publicSummary, privacy: .public) model=\(payload.modelState, privacy: .private(mask: .hash)) locale=\(payload.locale, privacy: .private(mask: .hash)) task=\(payload.taskID, privacy: .private(mask: .hash)) timeMs=\(payload.processingTime, privacy: .private(mask: .hash))"
+    )
+  }
+}
+
+private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = true; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
 private struct MemoraRNNoopBackgroundTasks: STTBackgroundTaskManaging { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken? { nil }; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) {} }
 private struct MemoraRNNoopIdleTimer: STTIdleTimerManaging { @MainActor func setIdleTimerDisabled(_ isDisabled: Bool) {} }
 private struct MemoraRNNoopMemoryWarnings: STTMemoryWarningObserving { func observeMemoryWarnings(_ handler: @escaping @Sendable () -> Void) {} }
 private struct MemoraRNNoopProgressPresenter: STTProgressPresenting { @MainActor func start(fileName: String, totalChunks: Int) {}; @MainActor func update(progress: Double, currentChunk: Int, totalChunks: Int) {}; @MainActor func finish(success: Bool, characterCount: Int) {} }
 private struct MemoraRNNoopDiarizationService: SpeakerDiarizationProtocol { func detectSpeakers(audioURL: URL, segments: [TranscriptionSegment], numSpeakers: Int?) async -> [TranscriptionSegment] { segments } }
 private struct MemoraRNUnavailableRemoteTranscriber: RemoteTranscribing { func transcribe(_ request: RemoteTranscriptionRequest) async throws -> String { throw CoreError.transcriptionError(.transcriptionFailed("API transcription is not configured for MemoraRN.")) } }
-private struct MemoraRNUnavailableSpeechAnalyzer: SpeechAnalyzerTranscribing { func transcribe(audioURL: URL) async throws -> String { throw CoreError.transcriptionError(.transcriptionFailed("SpeechAnalyzer is disabled for MemoraRN local transcription.")) } }
-private struct MemoraRNLocalBackendFactory: LocalSTTBackendFactory { @available(iOS 26.0, *) func makeSpeechAnalyzerTranscriber(locale: Locale) -> any SpeechAnalyzerTranscribing { MemoraRNUnavailableSpeechAnalyzer() }; func makeSpeechRecognizer(locale: Locale) -> SFSpeechRecognizer? { SFSpeechRecognizer(locale: locale) } }
-private struct MemoraRNSpeechAnalyzerDisabledPreflight: SpeechAnalyzerPreflighting {
-  func run(locale: Locale) async -> SpeechAnalyzerPreflightResult { .unavailable(reason: .featureFlagOff, diagnostics: diagnosticsValue(locale: locale)) }
-  func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics { diagnosticsValue(locale: locale) }
-  private func diagnosticsValue(locale: Locale) -> SpeechAnalyzerDiagnostics { SpeechAnalyzerDiagnostics(isTranscriberAvailable: false, featureFlagEnabled: false, requestedLocale: locale.identifier, supportedLocale: nil, assetStatus: "disabled", compatibleFormatsDescription: "", unavailableReason: .featureFlagOff, checkedAt: Date(), checkDurationMs: 0) }
+private struct MemoraRNLocalBackendFactory: LocalSTTBackendFactory {
+  let consoleLogger: any STTConsoleLogging
+
+  @available(iOS 26.0, *)
+  func makeSpeechAnalyzerTranscriber(locale: Locale) -> any SpeechAnalyzerTranscribing {
+    SpeechAnalyzerService26(locale: locale, consoleLogger: consoleLogger)
+  }
+
+  func makeSpeechRecognizer(locale: Locale) -> SFSpeechRecognizer? {
+    SFSpeechRecognizer(locale: locale)
+  }
+}
+
+struct MemoraRNSpeechAnalyzerPreflight: SpeechAnalyzerPreflighting {
+  private let featureEnabled: Bool
+  private let isSpeechAnalyzerRuntimeAvailable: @Sendable () -> Bool
+
+  init(
+    featureEnabled: Bool,
+    isSpeechAnalyzerRuntimeAvailable: @escaping @Sendable () -> Bool = {
+      if #available(iOS 26.0, *) { return true }
+      return false
+    }
+  ) {
+    self.featureEnabled = featureEnabled
+    self.isSpeechAnalyzerRuntimeAvailable = isSpeechAnalyzerRuntimeAvailable
+  }
+
+  func run(locale: Locale) async -> SpeechAnalyzerPreflightResult {
+    guard isSpeechAnalyzerRuntimeAvailable() else {
+      return unavailableResult(locale: locale)
+    }
+    guard #available(iOS 26.0, *) else {
+      return unavailableResult(locale: locale)
+    }
+    return await SpeechAnalyzerPreflight(featureEnabled: featureEnabled).run(locale: locale)
+  }
+
+  func diagnostics(for locale: Locale) async -> SpeechAnalyzerDiagnostics {
+    switch await run(locale: locale) {
+    case .ready(let diagnostics), .unavailable(_, let diagnostics):
+      return diagnostics
+    }
+  }
+
+  private func unavailableResult(locale: Locale) -> SpeechAnalyzerPreflightResult {
+    let reason = SpeechAnalyzerUnavailableReason.notAvailable
+    let diagnostics = SpeechAnalyzerDiagnostics(
+      isTranscriberAvailable: false,
+      featureFlagEnabled: featureEnabled,
+      requestedLocale: locale.identifier,
+      supportedLocale: nil,
+      assetStatus: "unavailable",
+      compatibleFormatsDescription: "",
+      unavailableReason: reason,
+      checkedAt: Date(),
+      checkDurationMs: 0
+    )
+    return .unavailable(reason: reason, diagnostics: diagnostics)
+  }
 }
