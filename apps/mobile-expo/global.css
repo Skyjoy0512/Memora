@@ -1,0 +1,106 @@
+@import 'tailwindcss';
+@import 'uniwind';
+@import 'heroui-native/styles';
+
+@source './node_modules/heroui-native/lib';
+
+/* Keep these roles aligned with src/theme/tokens.ts. */
+@layer theme {
+  :root {
+    @variant light {
+      --background: #F7F7F6;
+      --foreground: #16171A;
+      --muted: #5E6063;
+
+      --surface: #FFFFFF;
+      --surface-foreground: #16171A;
+      --surface-secondary: #F1F1F0;
+      --surface-secondary-foreground: #16171A;
+      --surface-tertiary: #EDEDEC;
+      --surface-tertiary-foreground: #16171A;
+
+      --overlay: #FFFFFF;
+      --overlay-foreground: #16171A;
+      --backdrop: rgba(0, 0, 0, 0.4);
+
+      --default: #ECECEA;
+      --default-foreground: #16171A;
+
+      --accent: #16171A;
+      --accent-foreground: #FFFFFF;
+
+      --field-background: #FFFFFF;
+      --field-foreground: #16171A;
+      --field-placeholder: #5E6063;
+      --field-border: #E3E3E1;
+      --field-border-width: 1px;
+
+      --success: #4F7A55;
+      --success-foreground: #FFFFFF;
+      --warning: #8A6A3C;
+      --warning-foreground: #FFFFFF;
+      --danger: #A34B45;
+      --danger-foreground: #FFFFFF;
+
+      --segment: #FFFFFF;
+      --segment-foreground: #16171A;
+
+      --border: #E3E3E1;
+      --separator: #EDEDEC;
+      --focus: #16171A;
+      --link: #16171A;
+
+      --surface-shadow: none;
+      --overlay-shadow: none;
+      --field-shadow: none;
+    }
+
+    @variant dark {
+      --background: #101112;
+      --foreground: #E9E9E8;
+      --muted: #9C9D9F;
+
+      --surface: #17181A;
+      --surface-foreground: #E9E9E8;
+      --surface-secondary: #202123;
+      --surface-secondary-foreground: #E9E9E8;
+      --surface-tertiary: #26272A;
+      --surface-tertiary-foreground: #E9E9E8;
+
+      --overlay: #26272A;
+      --overlay-foreground: #E9E9E8;
+      --backdrop: rgba(0, 0, 0, 0.6);
+
+      --default: #232527;
+      --default-foreground: #E9E9E8;
+
+      --accent: #E9E9E8;
+      --accent-foreground: #101112;
+
+      --field-background: #17181A;
+      --field-foreground: #E9E9E8;
+      --field-placeholder: #9C9D9F;
+      --field-border: #2E2F31;
+      --field-border-width: 1px;
+
+      --success: #7FA187;
+      --success-foreground: #101112;
+      --warning: #B99A6C;
+      --warning-foreground: #101112;
+      --danger: #C98884;
+      --danger-foreground: #101112;
+
+      --segment: #26272A;
+      --segment-foreground: #E9E9E8;
+
+      --border: #2E2F31;
+      --separator: #26272A;
+      --focus: #E9E9E8;
+      --link: #E9E9E8;
+
+      --surface-shadow: none;
+      --overlay-shadow: none;
+      --field-shadow: none;
+    }
+  }
+}
