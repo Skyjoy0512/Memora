@@ -1,286 +1,291 @@
 // ============================================================
-// Memora Design Tokens — DESIGN.md §2-8
-// 更新: 2026-07-14 / クリエイティブディレクション完了後
-// 旧トークン: tokens.v6.ts
+// Memora Design Tokens — 互換アダプタ
+// 更新: 2026-08-02
+//
+// このモジュールは既存画面（`../design/tokens` import）を壊さずに
+// `src/theme/tokens.ts`（意味論トークン正本）へ委譲する互換レイヤー。
+// 生HEXはここに書かず、全て theme の意味論ロールを参照する。
+// System フォント方針のため fontFamily は指定しない。
+//
+// 移行経路: docs/design/MEMORA_DESIGN.md §13
 // ============================================================
 
 import type { LayoutAnimationConfig } from 'react-native';
+import {
+  colors as themeColors,
+  typography as themeTypography,
+  space,
+  screenMargin,
+  radius as themeRadius,
+  shadow as themeShadow,
+  icon,
+  motion as themeMotion,
+} from '../theme/tokens';
 
-// ── Fonts ──────────────────────────────────────────────────
-// Figma: IBM Plex Sans JP（本文=ExtraLight / 強調=Light）。
-// fontFamily がウェイトを内包するため fontWeight は Android フォールバック用。
+// ── Fonts（System フォント。fontFamily を指定しない）──────────
+// 装飾的な極細・極太は避け、regular/medium/semibold 系へ正規化する。
+const systemWeight = themeTypography.weight;
+
 export const fonts = {
   sans: {
-    extralight: { fontFamily: 'IBMPlexSansJP_200ExtraLight', fontWeight: '200' as const },
-    light:      { fontFamily: 'IBMPlexSansJP_300Light',      fontWeight: '300' as const },
-    regular:    { fontFamily: 'IBMPlexSansJP_400Regular',    fontWeight: '400' as const },
-    medium:     { fontFamily: 'IBMPlexSansJP_500Medium',     fontWeight: '500' as const },
-    semibold:   { fontFamily: 'IBMPlexSansJP_600SemiBold',   fontWeight: '600' as const },
+    extralight: { fontWeight: systemWeight.regular },
+    light:      { fontWeight: systemWeight.medium },
+    regular:    { fontWeight: systemWeight.regular },
+    medium:     { fontWeight: systemWeight.medium },
+    semibold:   { fontWeight: systemWeight.semibold },
   },
-  // display も IBM Plex に統一（旧 M PLUS 1p は廃止）
   display: {
-    extralight: { fontFamily: 'IBMPlexSansJP_200ExtraLight', fontWeight: '200' as const },
-    light:      { fontFamily: 'IBMPlexSansJP_300Light',      fontWeight: '300' as const },
+    extralight: { fontWeight: systemWeight.regular },
+    light:      { fontWeight: systemWeight.medium },
   },
   mono: {
-    regular:  { fontFamily: 'Menlo', fontWeight: '400' as const },
-    bold:     { fontFamily: 'Menlo', fontWeight: '700' as const },
+    regular:  { fontWeight: systemWeight.regular, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
+    bold:     { fontWeight: systemWeight.bold, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
   },
-};
+} as const;
 
 // ── Colors (Light) ─────────────────────────────────────────
+const L = themeColors.light;
+
 export const colors = {
-  canvas:         '#F7F7F6',
-  surface:        '#FFFFFF',
-  surfaceAlt:     '#F1F1F0',
-  surfaceElevated:'#FFFFFF',
+  canvas:         L.canvas,
+  surface:        L.surface,
+  surfaceAlt:     L.surfaceAlt,
+  surfaceElevated: L.surfaceElevated,
 
-  text:           '#16171A',
-  textSecondary:  '#6B6D70',
-  textTertiary:   '#A0A2A5',
-  textInverse:    '#FFFFFF',
+  text:           L.foregroundPrimary,
+  textSecondary:  L.foregroundSecondary,
+  textTertiary:   L.foregroundTertiary,
+  textInverse:    L.foregroundInverse,
 
-  border:         '#E4E4E3',
-  borderLight:    '#EDEDEC',
-  separator:      '#EFEFEE',
+  border:         L.border,
+  borderLight:    L.hairline,
+  separator:      L.hairline,
 
-  accent:         '#5B6B7A',
-  accentSoft:     '#EEF0F2',
-  accentMuted:    '#C4CAD1',
+  accent:         L.accent,
+  accentSoft:     L.accentSoft,
+  accentMuted:    L.foregroundQuaternary,
 
-  success:        '#4F7A55',
-  successSoft:    '#EDF2ED',
-  warning:        '#8A6A3C',
-  warningSoft:    '#F5EFE7',
-  danger:         '#A34B45',
-  dangerSoft:     '#F6ECEB',
-  info:           '#46647D',
-  infoSoft:       '#ECF0F3',
+  success:        L.success,
+  successSoft:    L.successSoft,
+  warning:        L.warning,
+  warningSoft:    L.warningSoft,
+  danger:         L.danger,
+  dangerSoft:     L.dangerSoft,
+  info:           L.info,
+  infoSoft:       L.infoSoft,
 
-  recording:      '#A34B45',
-  recordingSoft:  '#F6ECEB',
+  recording:      L.recording,
+  recordingSoft:  L.recordingSoft,
 
-  skeleton:       '#E8E8E6',
-  skeletonShimmer:'#F0F0EE',
+  skeleton:       L.processingSoft,
+  skeletonShimmer: L.surfaceAlt,
 
-  overlay:        'rgba(0,0,0,0.40)',
-  overlayLight:   'rgba(0,0,0,0.20)',
+  overlay:        L.scrim,
+  overlayLight:   L.scrimLight,
 
-  // Category（アプリアイコン由来・タグ/アバター用）
-  categorySlate:  '#5B6B7A',
-  categoryTeal:   '#4E7D78',
-  categoryOlive:  '#6B7052',
-  categoryMauve:  '#766A80',
-
+  // Category（互換表示用。各スロットが両テーマで重複しないロールを参照）
+  categorySlate:  L.foregroundSecondary,
+  categoryTeal:   L.info,
+  categoryOlive:  L.success,
+  categoryMauve:  L.warning,
 } as const;
 
 // ── Colors (Dark) ──────────────────────────────────────────
+const D = themeColors.dark;
+
 export const darkColors = {
-  canvas:         '#101112',
-  surface:        '#17181A',
-  surfaceAlt:     '#202123',
-  surfaceElevated:'#26272A',
+  canvas:         D.canvas,
+  surface:        D.surface,
+  surfaceAlt:     D.surfaceAlt,
+  surfaceElevated: D.surfaceElevated,
 
-  text:           '#E9E9E8',
-  textSecondary:  '#9C9D9F',
-  textTertiary:   '#616264',
-  textInverse:    '#16171A',
+  text:           D.foregroundPrimary,
+  textSecondary:  D.foregroundSecondary,
+  textTertiary:   D.foregroundTertiary,
+  textInverse:    D.foregroundInverse,
 
-  border:         '#313234',
-  borderLight:    '#2A2B2D',
-  separator:      '#26272A',
+  border:         D.border,
+  borderLight:    D.hairline,
+  separator:      D.hairline,
 
-  accent:         '#9AA7B3',
-  accentSoft:     '#23272B',
-  accentMuted:    '#3D444B',
+  accent:         D.accent,
+  accentSoft:     D.accentSoft,
+  accentMuted:    D.foregroundQuaternary,
 
-  success:        '#7FA187',
-  successSoft:    '#1E2A20',
-  warning:        '#B99A6C',
-  warningSoft:    '#2B2620',
-  danger:         '#C98884',
-  dangerSoft:     '#2E2120',
-  info:           '#7C9AB0',
-  infoSoft:       '#1E262C',
+  success:        D.success,
+  successSoft:    D.successSoft,
+  warning:        D.warning,
+  warningSoft:    D.warningSoft,
+  danger:         D.danger,
+  dangerSoft:     D.dangerSoft,
+  info:           D.info,
+  infoSoft:       D.infoSoft,
 
-  recording:      '#C98884',
-  recordingSoft:  '#2E2120',
+  recording:      D.recording,
+  recordingSoft:  D.recordingSoft,
 
-  skeleton:       '#23262A',
-  skeletonShimmer:'#2A2D32',
+  skeleton:       D.processingSoft,
+  skeletonShimmer: D.surfaceAlt,
 
-  overlay:        'rgba(0,0,0,0.60)',
-  overlayLight:   'rgba(0,0,0,0.35)',
+  overlay:        D.scrim,
+  overlayLight:   D.scrimLight,
 
-  // Category（アプリアイコン由来・タグ/アバター用）
-  categorySlate:  '#8A97A3',
-  categoryTeal:   '#7FA69F',
-  categoryOlive:  '#9AA07E',
-  categoryMauve:  '#A99DB2',
+  // Category（互換表示用。各スロットが両テーマで重複しないロールを参照）
+  categorySlate:  D.foregroundSecondary,
+  categoryTeal:   D.info,
+  categoryOlive:  D.success,
+  categoryMauve:  D.warning,
 } as const;
 
-// ── Spacing (golden ratio) ─────────────────────────────────
+// ── Spacing（4pt 基底）──────────────────────────────────────
 export const spacing = {
-  xxs:  3,
-  xs:   5,
-  sm:   8,
-  md:   13,
-  lg:   21,
-  xl:   34,
-  xxl:  55,
+  xxs:  space.xxs,
+  xs:   space.xs,
+  sm:   space.sm,
+  md:   space.md,
+  lg:   space.lg,
+  xl:   space.xl,
+  xxl:  space.xxl,
 } as const;
 
 export const screenPadding = {
-  horizontal: spacing.lg,
+  horizontal: screenMargin.regular,
 } as const;
 
 // ── Radius ─────────────────────────────────────────────────
 export const radius = {
-  xs:    4,
-  sm:    8,
-  md:   13,
-  lg:   21,
-  pill:  999,
+  xs:    themeRadius.xs,
+  sm:    themeRadius.sm,
+  md:    themeRadius.md,
+  lg:    themeRadius.lg,
+  pill:  themeRadius.pill,
 } as const;
 
 // ── Typography ─────────────────────────────────────────────
+const T = themeTypography;
+
 export const typography = {
   size: {
-    caption:   11,
-    footnote:  13,
-    body:      15,
-    callout:   17,
-    title3:    20,
-    title2:    24,
-    title1:    30,
-    headline:  36,
+    caption:   T.size.caption2,
+    footnote:  T.size.footnote,
+    body:      T.size.body,
+    callout:   T.size.callout,
+    title3:    T.size.title3,
+    title2:    T.size.title2,
+    title1:    T.size.title1,
+    // Legacy consumers treated `headline` as a display-scale size.
+    headline:  T.size.largeTitle,
   },
-  lineHeight: (fontSize: number, ratio: number = 1.6) =>
+  // Preserve the legacy optional ratio while defaulting to the theme rhythm.
+  lineHeight: (fontSize: number, ratio: number = 1.5) =>
     Math.round(fontSize * ratio),
   letterSpacing: {
-    tight:  -0.4,
-    normal:  0,
-    wide:    0.3,
+    tight:  T.letterSpacing.tightLargeTitle,
+    normal: T.letterSpacing.normal,
+    wide:   T.letterSpacing.wide,
   },
 } as const;
 
 // ── Text style presets ─────────────────────────────────────
-// Figma「02 Components → Text styles」と 1:1 対応（サイズ/行間は Figma 実値）。
 export const textStyles = {
   display: {
-    fontSize: 36,
-    lineHeight: 41,
-    letterSpacing: typography.letterSpacing.tight,
-    ...fonts.display.extralight,
+    fontSize: T.size.largeTitle,
+    lineHeight: T.lineHeight(T.size.largeTitle),
+    letterSpacing: T.letterSpacing.tightLargeTitle,
+    ...fonts.sans.extralight,
   },
   screenTitle: {
-    fontSize: 30,
-    lineHeight: 39,
-    letterSpacing: typography.letterSpacing.tight,
+    fontSize: T.size.title1,
+    lineHeight: T.lineHeight(T.size.title1),
+    letterSpacing: T.letterSpacing.tightTitle,
     ...fonts.sans.extralight,
   },
   title2: {
-    fontSize: 24,
-    lineHeight: 34,
+    fontSize: T.size.title2,
+    lineHeight: T.lineHeight(T.size.title2),
     ...fonts.sans.extralight,
   },
   sectionTitle: {
-    fontSize: 20,
-    lineHeight: 28,
+    fontSize: T.size.title3,
+    lineHeight: T.lineHeight(T.size.title3),
     ...fonts.sans.extralight,
   },
   callout: {
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: T.size.callout,
+    lineHeight: T.lineHeight(T.size.callout),
     ...fonts.sans.extralight,
   },
   body: {
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: T.size.body,
+    lineHeight: T.lineHeight(T.size.body),
     ...fonts.sans.extralight,
   },
   bodyBold: {
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: T.size.body,
+    lineHeight: T.lineHeight(T.size.body),
     ...fonts.sans.light,
   },
   footnote: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: T.size.footnote,
+    lineHeight: T.lineHeight(T.size.footnote),
     ...fonts.sans.extralight,
   },
   footnoteBold: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: T.size.footnote,
+    lineHeight: T.lineHeight(T.size.footnote),
     ...fonts.sans.light,
   },
   caption: {
-    fontSize: 11,
-    lineHeight: 15,
-    letterSpacing: typography.letterSpacing.wide,
+    fontSize: T.size.caption2,
+    lineHeight: T.lineHeight(T.size.caption2),
+    letterSpacing: T.letterSpacing.wide,
     ...fonts.sans.light,
   },
   captionBold: {
-    fontSize: 11,
-    lineHeight: 15,
-    letterSpacing: typography.letterSpacing.wide,
+    fontSize: T.size.caption2,
+    lineHeight: T.lineHeight(T.size.caption2),
+    letterSpacing: T.letterSpacing.wide,
     ...fonts.sans.light,
   },
   monoBody: {
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: T.size.footnote,
+    lineHeight: T.lineHeight(T.size.footnote),
     ...fonts.mono.regular,
   },
-};
+} as const;
 
-// ── Shadows ────────────────────────────────────────────────
+// ── Shadows（カード・エレベーテッドは影なしへマップ）────────────
 export const shadow = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  elevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  floating: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 8,
-  },
+  card:     themeShadow.none,
+  elevated: themeShadow.none,
+  floating: themeShadow.floatingNav,
 } as const;
 
 // ── Icons ──────────────────────────────────────────────────
 export const iconSize = {
-  sm: 16,
-  md: 20,
-  lg: 24,
-  xl: 28,
+  sm:  icon.sm,
+  md:  icon.md,
+  lg:  icon.lg,
+  xl:  icon.xl,
 } as const;
 
 // ── Motion presets ─────────────────────────────────────────
 export const motion = {
   duration: {
-    fast:   150,
-    normal: 200,
-    slow:   350,
+    fast:   themeMotion.duration.fast,
+    normal: themeMotion.duration.normal,
+    slow:   themeMotion.duration.slow,
   },
   spring: {
-    tap: {
-      damping: 15,
-      stiffness: 300,
-      mass: 0.5,
-    },
+    tap: themeMotion.spring.control,
   },
   layout: {
-    easeInEaseOut: { duration: 300, create: { type: 'easeInEaseOut', property: 'opacity' }, update: { type: 'easeInEaseOut' }, delete: { type: 'easeInEaseOut', property: 'opacity' } } as LayoutAnimationConfig,
+    easeInEaseOut: {
+      duration: themeMotion.duration.deliberate,
+      create: { type: 'easeInEaseOut', property: 'opacity' },
+      update: { type: 'easeInEaseOut' },
+      delete: { type: 'easeInEaseOut', property: 'opacity' },
+    } as LayoutAnimationConfig,
   },
 } as const;
