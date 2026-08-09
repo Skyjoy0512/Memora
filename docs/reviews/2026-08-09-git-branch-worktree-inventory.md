@@ -588,3 +588,92 @@ remote の `refs/remotes/wip/*`（wip/clean, wip/v5, wip/vocab）も WIP 保存�
 - 各 B ブランチの GitHub 上での PR 状態（#175 以外は open PR なし）。
 - `/Users/hashimotokenichi/...` worktree が旧 MacBook 由来であることの確定（オーナー確認が必須）。
 - stash 22 件それぞれの内容（`git stash show` 未実施）。
+
+## 13. Git 整理実行（2026-08-09、ユーザー承認済み）
+
+> ユーザー承認済みの対象のみを §12 で確定した証拠に基づき 1 件ずつ実行。本 worktree（`chore/git-cleanup-20260809`、origin/main = `ddaf7753` 基準）から git コマンドのみで実施し、外部ディレクトリへの操作は行っていない。
+
+### 13.1 削除した対象
+
+**統合済み local branch（`git branch -d`、計 6 件）**
+
+| branch | 削除時 tip | 証拠 |
+|---|---|---|
+| feat/transcript-postprocessor | `b6f5a61d` | `git branch --merged origin/main` に含まれる / ahead 0 / 全 worktree 未 checkout。upstream が remote のみに残っていたため `-d` が拒否したが、remote branch 削除後に再実行し成功 |
+| worktree-agent-a03dd35a02891445e | `9aeb4188` | 同上。worktree prune 後（未 checkout 化）に `-d` 成功 |
+| worktree-agent-a04da2776ea13f0c4 | `8c889a38` | 同上 |
+| worktree-agent-a530371d958f56ddd | `71659ff3` | 同上 |
+| worktree-agent-a835b66e37ff02978 | `69317852` | 同上 |
+| worktree-agent-ab7cf112c70df46d5 | `7a6ec6b2` | 同上 |
+
+**missing/locked worktree の登録解除（7 件）**
+
+事前に `ls -d` で全パス未存在、`locked` ファイル（`initializing` 1 件 / `claude agent ... (pid 29953)` 6 件）、`ps -p 29953` 未実行を確認。`git worktree unlock` → `git worktree prune -v` で登録解除。
+
+| path | branch | lock 理由 |
+|---|---|---|
+| /private/tmp/memora-api-key-docs | fix/api-key-settings-docs | initializing |
+| /Users/hashimotokenichi/Desktop/Memora/.claude/worktrees/agent-a03dd35a02891445e | worktree-agent-a03dd35a02891445e | pid 29953 |
+| .../agent-a04da2776ea13f0c4 | worktree-agent-a04da2776ea13f0c4 | pid 29953 |
+| .../agent-a530371d958f56ddd | worktree-agent-a530371d958f56ddd | pid 29953 |
+| .../agent-a835b66e37ff02978 | worktree-agent-a835b66e37ff02978 | pid 29953 |
+| .../agent-a83fb6df8cc4cf2e5 | **codex/ui-reproduction-integration** | pid 29953 |
+| .../agent-ab7cf112c70df46d5 | worktree-agent-ab7cf112c70df46d5 | pid 29953 |
+
+**stale PR ref（`git update-ref -d`、計 5 件）**
+
+`refs/remotes/pr/140`, `pr/141`, `pr/143`, `pr/144`, `pr/146`（対応 PR はすべて MERGED 済み。§12.6③）。
+
+**統合済み remote branch（`git push origin --delete`、計 14 件）**
+
+13 件（§12.6④）は事前に `git rev-list --count origin/main..origin/<branch>` = 0（ahead 0）を全件確認。OPEN PR の head は対象に含まれないことを `gh pr list --state open` で確認。
+
+```
+codex/feat-posthoc-diarization
+codex/feat-summarization-provider-select
+codex/feat-transcript-autoscroll
+codex/feat-transcript-timed-segments
+codex/feat-transcript-ui-timed-scroll
+codex/phaseb-b4-tail-silence
+codex/phaseb-b8-checkpoint-resume
+codex/phasec-z1-gemini-fix
+codex/test-stt-core
+feat/perf-optimization
+feat/rn-summary-bridge          （PR #116 MERGED）
+refactor/summary-core-move      （PR #114 MERGED）
+refactor/summary-host-deps-split（PR #113 MERGED）
+feat/transcript-postprocessor   （追加承認分。PR #140 MERGED、auto-PR 成果物）
+```
+
+### 13.2 保持した対象
+
+| 対象 | 件数 | 状態 |
+|---|---|---|
+| stash | 22 | 内容未レビューのため drop/pop せず保持 |
+| refs/remotes/wip/*（clean, v5, vocab） | 3 | WIP 保存として保持 |
+| archive/*（macbook-worktree-20260802, pr-152-pre-rebase-20260802） | 2 | checkpoint/archive として保持 |
+| wip/rn-full-cutover-checkpoint-20260809 | 1 | RN cutover checkpoint（メイン worktree HEAD）保持 |
+| codex/ui-reproduction-integration | 1 | unique local work が残るため branch 削除せず（worktree metadata のみ整理） |
+| fix/api-key-settings-docs | 1 | 統合済みだが削除対象外（worktree-agent-* ではないため保持） |
+| worktree-agent-a115d2e704a97ed17 / worktree-agent-aa9c68b2 | 2 | 実在 worktree に checkout 中のため保持 |
+| その他 B 分類（unique commits あり）の local branch | 多数 | 削除しない |
+| 実在 worktree ディレクトリ（DevSSD 配下 47 件） | 47 | 削除しない |
+
+### 13.3 検証
+
+| コマンド | 結果 |
+|---|---|
+| `git branch -d` 各 1 件 | 計 6 件成功、`not fully merged` 0 件（transcript-postprocessor は upstream ref 残存で一度拒否→remote 削除後に成功） |
+| `git worktree unlock` + `git worktree prune -v` | 7 件が `Removing worktrees/...` で登録解除 |
+| `git update-ref -d` pr ref 5 件 | 成功、`refs/remotes/pr/*` 0 件 |
+| `git push origin --delete` 14 件 | 全件 `- [deleted]` を確認 |
+| 削除後残存確認 | 削除対象の local/remote branch・pr ref が 0 件（`git branch --merged origin/main` / `git for-each-ref` で確認） |
+| 保持対象確認 | stash 22 / wip 3 / archive 2 / checkpoint 1 / ui-reproduction-integration 残存 |
+| `git diff --check` | pass |
+| 変更ファイル | `docs/**` のみ |
+
+### 13.4 未実施 / 保留
+
+- stash 22 件の内容レビュー（別タスク）。
+- B 分類の未統合 local branch の整理判断（PR 状態個別確認が必要）。
+- 実在 worktree の整理・worktree-agent-a115d2e704a97ed17 / aa9c68b2 の branch 削除（checkout 中のため対象外）。
