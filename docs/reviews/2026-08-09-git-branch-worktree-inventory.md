@@ -425,8 +425,8 @@ git push origin --delete <branch>             # PR クローズ確認後にの�
 
 | 項目 | 値 |
 |---|---|
-| origin/main tip | `cd6a3583 fix(rn-release-gate): mock認証/ペイウォール経路を本番で到達不能化（gate c） (#174)` |
-| 作業中ブランチ | `chore/git-inventory-20260809b`（本 worktree。origin/main と同一 commit、ahead 0） |
+| origin/main tip | `042f59bd feat(rn-infra): Node 22/npm 10のローカルピン（.node-version + engines）を復元 (#175)`（本調査の時点では `cd6a3583`=#174。調査後に #175 がマージされた） |
+| 作業中ブランチ | `chore/git-inventory-20260809b`（本 worktree。origin/main へ rebase 済み） |
 | 実行環境 | 本 worktree 内のみ。docs 以外の変更なし |
 
 ### 12.2 件数サマリ（#167 時点 → 本版）
@@ -454,7 +454,7 @@ git push origin --delete <branch>             # PR クローズ確認後にの�
 | #172 | **MERGED** | `feat/rn-adr004-identity` | RN 本番 bundle ID / Keychain 統一 |
 | #173 | **MERGED** | `feat/rn-adr004-store-migration` | 共有 SwiftData ストア解決を集約 |
 | #174 | **MERGED** | `fix/rn-release-gate-2` | gate c 仕上げ（origin/main 先端） |
-| #175 | **OPEN** | `feat/rn-checkpoint-next-slice` | Node 22 / npm 10 のローカルピン。mergeStateStatus=BLOCKED（後続作業のため即 merge しない方針と推定） |
+| #175 | **MERGED**（調査時点は OPEN） | `feat/rn-checkpoint-next-slice` | Node 22 / npm 10 のローカルピン。調査後にマージされ origin/main 先端となった（`042f59bd`） |
 
 - #167 時点で OPEN だった #164/#165/#166 はすべて **MERGED** 済み。
 
