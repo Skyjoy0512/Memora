@@ -5,6 +5,7 @@
 - 現在見えている refs だけで全 worktree と主要 local/remote branches を棚卸しし、安全に整理可能な対象を洗い出す。
 - 初版（§2〜§10）は **read-only** 調査として作成。後に実行フェーズで `git fetch --prune origin`、`chore/git-inventory-20260809` の origin/main への rebase、**local branch 7 件の安全削除** を実施し、§11 に実行結果として記録した。
 - stash・実在 worktree・locked/missing worktree・remote branch は**削除していない**（§11 参照）。
+- **第二版（§12）**: 同日 #168〜#174 が origin/main にマージされた後の最新状態を記録（#167 実施後の変化 + 現時点の削除候補）。本版以降の棚卸し結果の正本は §12。
 
 ## 2. 前提情報
 
@@ -395,6 +396,8 @@ git push origin --delete <branch>             # PR クローズ確認後にの�
 | #165 | OPEN | `test/rn-js-regression-foundation` | worktree に checkout 中、未削除 |
 | #166 | OPEN | `test/rn-shared-store-cutover` | worktree に checkout 中、未削除 |
 
+> **追記（第二版）**: #164/#165/#166 はいずれも同日中に **MERGED** に移行（#164 は #167 時点で閉じられていた open PR の続き含む）。最終状態は §12.3 参照。
+
 ### 11.5 checkpoint 212329b8 の保全状態
 
 - `212329b8 chore: checkpoint RN cutover work before lane split` は**commit として実在**。
@@ -413,3 +416,175 @@ git push origin --delete <branch>             # PR クローズ確認後にの�
 - remote branch の push --delete は実施しない（§8 Stage 3 は保留。PR #164/#165/#166 は OPEN のため対象外）。
 - locked/missing worktree 7 件の unlock・prune はオーナー確認後（別タスク）。
 - stash 22 件の内容レビューは別タスク。
+
+## 12. 第二版（2026-08-09 夜 / #168〜#174 マージ後、origin/main = cd6a3583）
+
+> 本節は #167（§1〜§11）実施後に #168〜#174 が origin/main へマージされた後の再棚卸し。`chore/git-inventory-20260809b`（本 worktree）上で read-only 調査のみ実施（削除・push --delete は一切しない）。
+
+### 12.1 前提情報（本版時点）
+
+| 項目 | 値 |
+|---|---|
+| origin/main tip | `042f59bd feat(rn-infra): Node 22/npm 10のローカルピン（.node-version + engines）を復元 (#175)`（本調査の時点では `cd6a3583`=#174。調査後に #175 がマージされた） |
+| 作業中ブランチ | `chore/git-inventory-20260809b`（本 worktree。origin/main へ rebase 済み） |
+| 実行環境 | 本 worktree 内のみ。docs 以外の変更なし |
+
+### 12.2 件数サマリ（#167 時点 → 本版）
+
+| 対象 | #167 後 | 本版 | 変化 |
+|---|---|---|---|
+| local branches | 99 | 108 | **+9**（#168〜#174 の head 8 + chore/git-inventory-20260809b） |
+| remote origin/* branches（origin/HEAD 除き） | 85 | 95 | +10（うち新規確認 8 本:#168〜#174 の head 7 + feat/rn-checkpoint-next-slice。残り 2 は計数方法の差の可能性あり） |
+| PR refs（`refs/remotes/pr/*`） | 5 | 5 | pr/140, 141, 143, 144, 146 不変 |
+| WIP refs（`refs/remotes/wip/*`） | 3 | 3 | wip/clean, wip/v5, wip/vocab 不変 |
+| 登録 worktree | 38 | 47 | **+9** |
+| worktree lock | 7 | 7 | 不変 |
+| path 不明（missing）の worktree | 7 | 7 | 不変（= lock 7 件と同一セット） |
+| stash | 22 | 22 | 不変（drop/pop 禁止） |
+| tags | - | 0 | なし |
+
+### 12.3 GitHub PR 状態（#167〜#174 の進行）
+
+| PR | state | head branch | 備考 |
+|---|---|---|---|
+| #168 | **MERGED** | `feat/rn-ui-checkpoint-parity` | checkpoint parity slice 抽出 |
+| #169 | **MERGED** | `chore/remove-root-build-artifacts` | ルート直下の残存ビルド成果物削除 |
+| #170 | **MERGED** | `fix/rn-release-route-gates` | リリースゲート導入 |
+| #171 | **MERGED** | `docs/rn-identity-store-policy` | ADR-004 方針確定 |
+| #172 | **MERGED** | `feat/rn-adr004-identity` | RN 本番 bundle ID / Keychain 統一 |
+| #173 | **MERGED** | `feat/rn-adr004-store-migration` | 共有 SwiftData ストア解決を集約 |
+| #174 | **MERGED** | `fix/rn-release-gate-2` | gate c 仕上げ（origin/main 先端） |
+| #175 | **MERGED**（調査時点は OPEN） | `feat/rn-checkpoint-next-slice` | Node 22 / npm 10 のローカルピン。調査後にマージされ origin/main 先端となった（`042f59bd`） |
+
+- #167 時点で OPEN だった #164/#165/#166 はすべて **MERGED** 済み。
+
+### 12.4 新規 worktree（+9 件、すべて /Volumes/DevSSD 配下・lock なし）
+
+| path | branch | HEAD | ahead | 由来 PR |
+|---|---|---|---|---|
+| `.../Memora-git-inventory2` | chore/git-inventory-20260809b | `cd6a3583` | 0 | 本棚卸し第二版 |
+| `.../Memora-git-root-hygiene` | chore/remove-root-build-artifacts | `7287e745` | 1 | #169 |
+| `.../Memora-rn-checkpoint-next` | feat/rn-checkpoint-next-slice | `a476e7b8` | 1 | #175 |
+| `.../Memora-rn-identity` | feat/rn-adr004-identity | `e5287371` | 1 | #172 |
+| `.../Memora-rn-identity-store` | docs/rn-identity-store-policy | `9398e440` | 1 | #171 |
+| `.../Memora-rn-release-gate` | fix/rn-release-route-gates | `700769a5` | 1 | #170 |
+| `.../Memora-rn-release-gate2` | fix/rn-release-gate-2 | `8014c0af` | 1 | #174 |
+| `.../Memora-rn-store-migration` | feat/rn-adr004-store-migration | `0153b501` | 1 | #173 |
+| `.../Memora-rn-ui-checkpoint-parity` | feat/rn-ui-checkpoint-parity | `421d9e31` | 1 | #168 |
+
+> 全 9 件が実在ディレクトリ・実在 worktree。branch は削除対象外（checkout 中 = C 保護）。
+
+### 12.5 分類結果（本版）
+
+**A. origin/main へ内容統合済み（unique commits 0）— 16 local branches（main 除く）**
+
+`git rev-list --count origin/main..<branch>` = 0。前回の 17 件から `feat/rn-checkpoint-next-slice` が #175 の commit（`a476e7b8`）追加で **B に移行**したため 16 件。
+
+| branch | 状態 |
+|---|---|
+| chore/git-inventory-20260809b | C（本 worktree） |
+| claude/focused-nash-7db2cf | C |
+| codex/p0-reference-privacy | C |
+| codex/rn-recovery | C |
+| feat/transcript-postprocessor | **未 checkout**（唯一の A 非保護） |
+| fix/api-key-settings-docs | C+D（path missing, locked） |
+| fix/appstore-blocker-auth-paywall | C |
+| fix/mem-b5-001-settings-placeholders | C |
+| fix/rn-ui-polish-abc | C（2 worktree） |
+| worktree-agent-a03dd35a02891445e | C+D（path missing, locked） |
+| worktree-agent-a04da2776ea13f0c4 | C+D |
+| worktree-agent-a115d2e704a97ed17 | C |
+| worktree-agent-a530371d958f56ddd | C+D |
+| worktree-agent-a835b66e37ff02978 | C+D |
+| worktree-agent-aa9c68b2 | C |
+| worktree-agent-ab7cf112c70df46d5 | C+D |
+
+**B. unique commits あり（要レビュー）— 91 local branches（main 除く）**
+
+non-main local branches 計 107 件のうち A 16 件を除く 91 件（`git rev-list --count origin/main..<branch>` ≥ 1 で実測）。#168〜#174 の head 7 件、`feat/rn-checkpoint-next-slice`（ahead 1, #175）、その他既存 B が該当。詳細は ahead 一覧参照（§12.7 に主要行のみ掲載）。**削除候補にしない**。
+
+**C. locked / active — 7 worktree（全件 path missing）**
+
+§12.6 参照。lock 理由は `initializing` 1 件 + `claude agent ... (pid 29953)` 6 件。`pid 29953` は現マシンで未実行、`/Users/hashimotokenichi` も未存在（§5 と同じ判定）。
+
+**D. path missing / prune 候補 — 7 worktree（全件 lock 付き）**
+
+§5 の #2〜#8 と同じ 7 件。`git worktree prune -n -v` は**空出力**（lock のため prune 対象外）。前回からの変化なし。
+
+**E. checkpoint / archive として保持**
+
+| branch | ahead | 理由 |
+|---|---|---|
+| archive/macbook-worktree-20260802 | 2 | 旧環境スナップショット |
+| archive/pr-152-pre-rebase-20260802 | 6 | PR #152 rebase 前退避 |
+| wip/rn-full-cutover-checkpoint-20260809 | 2 | RN 完全移行 checkpoint（メイン worktree HEAD） |
+
+remote の `refs/remotes/wip/*`（wip/clean, wip/v5, wip/vocab）も WIP 保存として保持。
+
+### 12.6 削除候補（証拠付き・実行しない）
+
+**① A だが未 checkout の local branch — 1 件**
+
+| branch | 証拠 | 対応 |
+|---|---|---|
+| `feat/transcript-postprocessor` | `git branch --merged origin/main` に含まれる / ahead 0 / 全 worktree で未 checkout。ただし upstream `origin/feat/transcript-postprocessor` は [ahead 1, behind 4] で乖離あり | **保持継続**（#167 と同じ。upstream の乖離はオーナー判断が必要） |
+
+**② stale / locked な agent worktree — 7 件（branch は削除しない）**
+
+| path | branch | lock 理由 | 証拠 |
+|---|---|---|---|
+| `/private/tmp/memora-api-key-docs` | fix/api-key-settings-docs | `initializing` | `/private/tmp/memora-api-key-docs` は**未存在** |
+| `/Users/hashimotokenichi/Desktop/Memora/.claude/worktrees/agent-a03dd35a02891445e` | worktree-agent-a03dd35a02891445e | `pid 29953` | `/Users/hashimotokenichi` は**未存在**。現ユーザーは `ken` |
+| `.../agent-a04da2776ea13f0c4` | worktree-agent-a04da2776ea13f0c4 | 同上 | 同上 |
+| `.../agent-a530371d958f56ddd` | worktree-agent-a530371d958f56ddd | 同上 | 同上 |
+| `.../agent-a835b66e37ff02978` | worktree-agent-a835b66e37ff02978 | 同上 | 同上 |
+| `.../agent-a83fb6df8cc4cf2e5` | **codex/ui-reproduction-integration** | 同上 | 同上。unique work が local のみ（remote 未push）のため **branch は絶対に削除しない** |
+| `.../agent-ab7cf112c70df46d5` | worktree-agent-ab7cf112c70df46d5 | 同上 | 同上 |
+
+**③ 未使用 remote ref（`refs/remotes/pr/*`）— 5 件**
+
+| ref | 対応 PR | PR 状態 |
+|---|---|---|
+| pr/140 | #140 | MERGED |
+| pr/141 | #141 | MERGED |
+| pr/143 | #143 | MERGED |
+| pr/144 | #144 | MERGED |
+| pr/146 | #146 | MERGED |
+
+- 対応 PR がすべて merged/closed 済みのため使用されていない ref だが、GitHub 管理領域のため**削除しない**。
+
+**④ origin/* 統合済み remote branch — 13 件（前回不変）**
+
+§8 Stage 3 の 13 件（codex/feat-posthoc-diarization 等）は変わらず `--merged origin/main` のまま。**削除しない**（§8 のゲートに従う）。
+
+### 12.7 ahead 一覧（B 分類の主要行のみ）
+
+```
+42 feat/nothing-glass-redesign
+33 feat/rn-ui-improvements / feat/home-glass-poc
+15 codex/pr-b9-audiochunker-streaming
+10 feat/rn-speechanalyzer
+ 6 feat/apply-transcript-cleaning / archive/pr-152-pre-rebase-20260802
+ 5 feat/rn-askai-bridge / feat/figma-sync-updates / codex/integration-base-002-ui-002
+ 4 refactor/stt-service-final-decoupling / fix/rn-ondevice-transcription ほか
+ ...
+ 1 feat/rn-checkpoint-next-slice（#175 OPEN）/ #168〜#174 の head 各 1 件 ほか
+ 0 （A 分類 16 件）
+```
+
+### 12.8 検証
+
+| コマンド | 結果 |
+|---|---|
+| `git fetch origin --prune` | 正常終了（stale tracking ref の削除は発生） |
+| `git worktree prune -n -v` | 空出力（prune 対象なし、7 lock は保護） |
+| `git branch --merged origin/main` | 16 件（main 除く） |
+| `git diff --check` | pass |
+| 変更ファイル | `docs/**` のみ |
+
+### 12.9 未確認事項
+
+- remote origin/* の +10 のうち明示的に特定できた新規は 8 本。残り 2 本の差分は計数方法の差の可能性（次回以降で `git for-each-ref` ベースの一覧で突合する）。
+- 各 B ブランチの GitHub 上での PR 状態（#175 以外は open PR なし）。
+- `/Users/hashimotokenichi/...` worktree が旧 MacBook 由来であることの確定（オーナー確認が必須）。
+- stash 22 件それぞれの内容（`git stash show` 未実施）。
