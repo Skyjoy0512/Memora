@@ -27,7 +27,7 @@
 | `MemoraWidget/` | 残存（ソース維持・RN ビルド対象外） |
 | `bot-server/` | 残存 |
 | `docs/` | 残存 |
-| `MemoraTests/` | **孤立残存（34 ファイル）**。旧 SwiftUI のテスト群（`CreateProjectViewModelTests` 等）で、RN の `MemoraRN.xcodeproj` には参照されない。xcodeproj 内の `MemoraTests` 文字列は RN テスト target（`MemoraRNTests`）の bundle ID `com.memora.MemoraTests` のみ。削除可否はオーナー判断待ち |
+| `MemoraTests/` | **削除済み（2026-08-10）**。旧 SwiftUI のテスト群（34 ファイル、`CreateProjectViewModelTests` 等）で RN の `MemoraRN.xcodeproj` には参照されない孤立残存だったため `git rm -r` で削除。xcodeproj 内の `MemoraTests` 文字列は RN テスト target（`MemoraRNTests`）の bundle ID `com.memora.MemoraTests` のみで、ディレクトリ参照ではない |
 
 ### 2.2 CI（`.github/workflows/ci.yml`）
 
@@ -137,7 +137,7 @@
 | 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能 | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
 | Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption` **なし**。`UIBackgroundModes` **なし**（SwiftUI 側では「最小化録音」主張を除去し追加しない方針で確定）。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 機能主張と申告の一致（特にバックグラウンド録音・暗号化） |
 | 共有 SwiftData store | **実装済み** | ADR-004 実装（#172/#173）。`MemoraSharedStoreResolver` + `group.com.memora.shared` entitlements + `configureSharedAudioStoreOrDefaults` | 必須 | 実データ移行・rollback の実機検証（gate b）は未実施 |
-| `MemoraTests/`（旧 SwiftUI テスト） | **削除により孤立** | RN ビルドに未参照の死にコード | 削除判断 | オーナー判断 |
+| `MemoraTests/`（旧 SwiftUI テスト） | **削除済み（2026-08-10）** | RN ビルドに未参照の孤立残存だったため `git rm -r` で削除 | 対応済み | なし |
 
 ## 5. 1.0 スコープの推奨
 
@@ -161,7 +161,7 @@
 - **Notion / ChatGPT 連携の 1.0 対象可否**（export 契約）。
 - **Widget / Broadcast Extension の RN 同梱**を 1.0 で行うか（Live Activity は SwiftUI 依存で消滅したため、動的アイランド方針の再決定を含む）。
 - **検索（Ask AI）の 1.0 必須 / 推奨**の判定。
-- **root `MemoraTests/`（孤立）の削除可否**。
+- **root `MemoraTests/`（孤立）は 2026-08-10 に削除済み**。
 
 ## 6. 実機 QA・rollback 手順の現状と未実施事項
 
