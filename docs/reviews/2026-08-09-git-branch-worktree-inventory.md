@@ -677,3 +677,66 @@ feat/transcript-postprocessor   （追加承認分。PR #140 MERGED、auto-PR �
 - stash 22 件の内容レビュー（別タスク）。
 - B 分類の未統合 local branch の整理判断（PR 状態個別確認が必要）。
 - 実在 worktree の整理・worktree-agent-a115d2e704a97ed17 / aa9c68b2 の branch 削除（checkout 中のため対象外）。
+
+## 14. Git 整理第2弾（2026-08-10、ユーザー承認済み）
+
+> ユーザー承認済みの対象のみを 1 件ずつ事前検証して実行。本 worktree（`chore/git-cleanup-20260810`、origin/main = `657a73de` 基準）から git/gh コマンドのみで実施し、外部ディレクトリ・`rm -rf`・ワイルドカード一括削除は使用していない。
+
+### 14.1 削除した対象
+
+**統合済み remote branch（`git push origin --delete`、計 11 件）**
+
+全 11 件について、対応 PR が `state=MERGED` であること、PR の `mergeCommit` が `origin/main` の祖先であること（`git merge-base --is-ancestor <mergeCommit> origin/main`）、branch tip の tree が squash mergeCommit の tree と完全一致すること（`git rev-parse <branch>^{tree}` == `<mergeCommit>^{tree}`）を確認済み。
+
+> 注: 本リポジトリは squash merge 標準のため、`git merge-base --is-ancestor origin/<branch> origin/main`（branch tip 祖先チェック）は全件 false になる（branch tip は main に直接含まれない）。そのため PR 状態 + mergeCommit 祖先 + tree 完全一致の 3 点で統合済みを判定した。
+
+| branch | 対応 PR | mergeCommit | 検証 |
+|---|---|---|---|
+| chore/remove-root-build-artifacts | #169 MERGED | `b53f3ada` | PR状態 / mergeCommit祖先 / tree一致 |
+| feat/rn-ui-checkpoint-parity | #168 MERGED | `5f7cacac` | 同上 |
+| fix/rn-release-route-gates | #170 MERGED | `5b59ba0f` | 同上 |
+| docs/rn-identity-store-policy | #171 MERGED | `58b5a161` | 同上 |
+| feat/rn-adr004-identity | #172 MERGED | `80238bd1` | 同上 |
+| feat/rn-adr004-store-migration | #173 MERGED | `f6882511` | 同上 |
+| fix/rn-release-gate-2 | #174 MERGED | `cd6a3583` | 同上 |
+| chore/git-inventory-20260809b | #177 MERGED | `d6f1bc0b` | 同上（stale auto-PR #176 を先に CLOSE） |
+| docs/checkpoint-docs-residual | #178 MERGED | `ddaf7753` | 同上 |
+| chore/git-cleanup-20260809 | #179 MERGED | `ee61c1ef` | 同上 |
+| feat/rn-tasks-real-data | #180 MERGED | `1aafdbcc` | 同上 |
+
+**stale auto-PR #176 を CLOSE（`gh pr close 176 --comment`）**
+
+同一 branch `chore/git-inventory-20260809b` の内容は #177 で squash merge 済みの重複 draft/auto-PR（`[Auto PR] chore/git-inventory-20260809b`）。CLOSE 後に branch 削除を実施。
+
+### 14.2 保持した対象
+
+| 対象 | 状態 |
+|---|---|
+| refs/remotes/wip/*（clean, v5, vocab） | 保持 |
+| archive/*（macbook-worktree-20260802, pr-152-pre-rebase-20260802） | local ref 保持 |
+| wip/rn-full-cutover-checkpoint-20260809 | 保持（メイン worktree HEAD） |
+| codex/ui-reproduction-integration | local ref 保持 |
+| fix/api-key-settings-docs | local ref 保持 |
+| stash 22 件 | 保持 |
+| 実在 DevSSD worktree に checkout 中の local branch | 保持（remote branch 削除は local branch に影響なし） |
+
+### 14.3 検証
+
+| コマンド | 結果 |
+|---|---|
+| `gh pr view 169/168/170/171/172/173/174/177/178/179/180` | 全件 `state=MERGED` |
+| `git merge-base --is-ancestor <mergeCommit> origin/main` ×11 | 全件 true |
+| `git rev-parse <branch>^{tree}` == `<mergeCommit>^{tree}` ×11 | 全件一致（内容欠損なし） |
+| `gh pr list --state open` | 対象 11 branch のうち head を持つ OPEN PR は #176 のみ → CLOSE 後 0 件 |
+| `gh pr close 176 --comment` | 成功 |
+| `git push origin --delete` ×11 | 全件 `- [deleted]` を確認 |
+| `git ls-remote origin`（削除対象 11 ref） | 0 件（残存なし） |
+| 保持対象確認 | wip 3 / stash 22 / archive 2 / checkpoint 1 / ui-reproduction-integration / fix/api-key-settings-docs 残存 |
+| `git diff --check` | pass |
+| 変更ファイル | `docs/reviews/2026-08-09-git-branch-worktree-inventory.md` のみ |
+
+### 14.4 未実施 / 保留
+
+- stash 22 件の内容レビュー（別タスク）。
+- B 分類の未統合 local branch の整理判断（PR 状態個別確認が必要）。
+- 実在 worktree に checkout 中の branch の remote 側削除（#168〜#174 系など一部 worktree に checkout 中。local branch は残存しているため、対象 worktree の用途終了後に個別判断）。
