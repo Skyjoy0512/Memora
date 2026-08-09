@@ -120,6 +120,104 @@ struct MemoraSharedDataTests {
     #expect(FileManager.default.fileExists(atPath: source.path))
   }
 
+  @Test("atomic migration re-run never overwrites a migrated destination or the source")
+  func atomicMigrationReRunKeepsSourceAndDestination() throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-store-atomic-rerun-\(UUID().uuidString)", isDirectory: true)
+    let source = root.appendingPathComponent("legacy/Memora.store")
+    let destination = root.appendingPathComponent("group/Memora/Memora.store")
+    try FileManager.default.createDirectory(
+      at: source.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("store".utf8).write(to: source)
+    try Data("shared".utf8).write(to: URL(fileURLWithPath: source.path + "-shm"))
+    try Data("wal".utf8).write(to: URL(fileURLWithPath: source.path + "-wal"))
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    _ = try MemoraStoreMigration.migrateStoreAtomically(
+      from: source,
+      to: destination,
+      stagingDirectoryName: ".migration-rerun"
+    )
+
+    #expect(throws: MemoraStoreMigration.Error.destinationDirectoryAlreadyExists(destination.deletingLastPathComponent())) {
+      try MemoraStoreMigration.migrateStoreAtomically(
+        from: source,
+        to: destination,
+        stagingDirectoryName: ".migration-rerun"
+      )
+    }
+
+    #expect(try Data(contentsOf: destination) == Data("store".utf8))
+    #expect(try Data(contentsOf: URL(fileURLWithPath: destination.path + "-shm")) == Data("shared".utf8))
+    #expect(try Data(contentsOf: URL(fileURLWithPath: destination.path + "-wal")) == Data("wal".utf8))
+    #expect(try Data(contentsOf: source) == Data("store".utf8))
+  }
+
+  @Test("atomic migration copies only the sidecars that exist and fabricates none")
+  func atomicMigrationCopiesOnlyExistingSidecars() throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-store-atomic-partial-\(UUID().uuidString)", isDirectory: true)
+    let source = root.appendingPathComponent("legacy/Memora.store")
+    let destination = root.appendingPathComponent("group/Memora/Memora.store")
+    try FileManager.default.createDirectory(
+      at: source.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("store".utf8).write(to: source)
+    try Data("wal".utf8).write(to: URL(fileURLWithPath: source.path + "-wal"))
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let migrated = try MemoraStoreMigration.migrateStoreAtomically(
+      from: source,
+      to: destination,
+      stagingDirectoryName: ".migration-partial"
+    )
+
+    #expect(migrated.map(\.path).sorted() == [destination.path, destination.path + "-wal"].sorted())
+    #expect(FileManager.default.fileExists(atPath: destination.path))
+    #expect(FileManager.default.fileExists(atPath: destination.path + "-wal"))
+    #expect(!FileManager.default.fileExists(atPath: destination.path + "-shm"))
+    #expect(FileManager.default.fileExists(atPath: source.path))
+    #expect(FileManager.default.fileExists(atPath: source.path + "-wal"))
+    #expect(!FileManager.default.fileExists(atPath: source.path + "-shm"))
+  }
+
+  @Test("atomic migration removes staging and keeps the source when verification fails")
+  func atomicMigrationCleansUpAfterVerificationFailure() throws {
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-store-atomic-fail-\(UUID().uuidString)", isDirectory: true)
+    let source = root.appendingPathComponent("legacy/Memora.store")
+    let destination = root.appendingPathComponent("group/Memora/Memora.store")
+    let fileManager = VerificationFailingFileManager()
+    try fileManager.createDirectory(
+      at: source.deletingLastPathComponent(),
+      withIntermediateDirectories: true
+    )
+    try Data("store".utf8).write(to: source)
+    try Data("shared".utf8).write(to: URL(fileURLWithPath: source.path + "-shm"))
+    try Data("wal".utf8).write(to: URL(fileURLWithPath: source.path + "-wal"))
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    #expect(throws: MemoraStoreMigration.Error.verificationFailed(
+      root.appendingPathComponent("group/.migration-verification-test/Memora.store")
+    )) {
+      try MemoraStoreMigration.migrateStoreAtomically(
+        from: source,
+        to: destination,
+        fileManager: fileManager,
+        stagingDirectoryName: ".migration-verification-test"
+      )
+    }
+
+    #expect(!FileManager.default.fileExists(atPath: destination.deletingLastPathComponent().path))
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("group/.migration-verification-test").path))
+    #expect(try Data(contentsOf: source) == Data("store".utf8))
+    #expect(try Data(contentsOf: URL(fileURLWithPath: source.path + "-shm")) == Data("shared".utf8))
+    #expect(try Data(contentsOf: URL(fileURLWithPath: source.path + "-wal")) == Data("wal".utf8))
+  }
+
   @Test("shared store URL is stable inside a container")
   func sharedStoreURL() {
     let containerURL = URL(fileURLWithPath: "/tmp/memora-shared-container")
@@ -315,5 +413,11 @@ struct MemoraSharedCoreAudioChunkerTests {
 
     #expect(!FileManager.default.fileExists(atPath: temporaryURL.path))
     #expect(FileManager.default.fileExists(atPath: sourceURL.path))
+  }
+}
+
+private final class VerificationFailingFileManager: FileManager {
+  override func contentsEqual(atPath path1: String, andPath path2: String) -> Bool {
+    false
   }
 }
