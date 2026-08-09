@@ -3,9 +3,8 @@
 ## 1. 目的とスコープ
 
 - 現在見えている refs だけで全 worktree と主要 local/remote branches を棚卸しし、安全に整理可能な対象を洗い出す。
-- **この調査は完全に read-only**。ソース、既存 docs、branch、worktree、stash、remote は一切変更・削除しない。
-- `git fetch -p` は remote-tracking を変更するため**使用禁止**。`git fetch` 自体も実行していない（既存の refs のみを使用）。
-- 本ドキュメント（`docs/reviews/2026-08-09-git-branch-worktree-inventory.md`）の作成以外の変更は行わない。
+- 初版（§2〜§10）は **read-only** 調査として作成。後に実行フェーズで `git fetch --prune origin`、`chore/git-inventory-20260809` の origin/main への rebase、**local branch 7 件の安全削除** を実施し、§11 に実行結果として記録した。
+- stash・実在 worktree・locked/missing worktree・remote branch は**削除していない**（§11 参照）。
 
 ## 2. 前提情報
 
@@ -14,21 +13,21 @@
 | git version | 2.50.1 (Apple Git-155) |
 | remote | `origin https://github.com/Skyjoy0512/Memora.git` |
 | origin/HEAD | `refs/remotes/origin/main` |
-| origin/main tip | `3c12f140 feat(rn-ui): add HeroUI provider foundation (#162)` |
-| 作業中ブランチ | `chore/git-inventory-20260809`（origin/main と同一 commit、working tree clean） |
+| origin/main tip | `bd9a2717 feat(rn-ui): migrate status pill to HeroUI (#163)`（fetch --prune / rebase 後） |
+| 作業中ブランチ | `chore/git-inventory-20260809`（origin/main に対して ahead 1、working tree clean） |
 
-### 件数サマリ
+### 件数サマリ（before → after）
 
-| 対象 | 件数 |
-|---|---|
-| local branches | 104 |
-| remote origin/* branches（origin/HEAD 含む） | 84 |
-| PR refs（`refs/remotes/pr/*`） | 5（pr/140, 141, 143, 144, 146） |
-| WIP refs（`refs/remotes/wip/*`） | 3（wip/clean, wip/v5, wip/vocab） |
-| 登録 worktree | 36 |
-| worktree lock | 7 |
-| path 不明（missing）の worktree | 7（= lock 7 と同一セット） |
-| stash | 22 |
+| 対象 | before | after | 変化 |
+|---|---|---|---|
+| local branches | 104 | 99 | **-7 削除** / +2 新規（test/rn-js-regression-foundation, test/rn-shared-store-cutover） |
+| remote origin/* branches（origin/HEAD 除き） | 84 | 85 | -1 prune（feat/mem-rn-found-001-theme-tokens）/+2 新規（上記 test 2 本）。**手動削除なし** |
+| PR refs（`refs/remotes/pr/*`） | 5 | 5 | pr/140, 141, 143, 144, 146 変更なし |
+| WIP refs（`refs/remotes/wip/*`） | 3 | 3 | wip/clean, wip/v5, wip/vocab 変更なし |
+| 登録 worktree | 36 | 38 | +2 新規（Memora-rn-js-regression, Memora-rn-data-cutover-tests） |
+| worktree lock | 7 | 7 | 変更なし |
+| path 不明（missing）の worktree | 7 | 7 | = lock 7 と同一セット。**削除せず** |
+| stash | 22 | 22 | **変更なし（drop/pop 禁止）** |
 
 ## 3. 分類基準
 
@@ -43,6 +42,8 @@
 > 補足: A/B は「content の統合度」、C/D は「worktree の運用状態」なので、1 ブランチが複数分類に該当しうる（例: A+C）。安全削除候補は「A かつ未 checkout（C に非該当）かつ E に非該当」のみ。
 
 ## 4. 分類結果
+
+> **注**: §4〜§10 は初版（read-only 調査時点、origin/main tip = `3c12f140`）の記録。実行後（rebase / 削除後）の最新状態は §11 参照。
 
 ### A. origin/main へ内容統合済み — 25 local branches
 
@@ -257,6 +258,7 @@ refactor/summary-host-deps-split
 
 - 判定根拠: `git branch --merged origin/main` に含まれる / `git rev-list --count origin/main..<branch>` = 0 / worktree に checkout されていない。
 - これは「削除しても失うものが無い」ことの保証であり、「削除すべき」の推奨ではない。削除実行は §8 の Stage 1 で、オペレータの確認ゲートを経て行う。
+- **実行結果**: このうち **7 件を削除**（§11 参照）。**`feat/transcript-postprocessor` は upstream に対して ahead 1, behind 4 の乖離があり削除条件「upstream ahead = 0」を満たさないため保持**（曖昧さは保持方針に従う）。
 
 **remote branch は削除候補にしない**（要 PR 確認、§8 Stage 3 参照）。
 
@@ -349,3 +351,65 @@ git push origin --delete <branch>             # PR クローズ確認後にの�
 - 各 B ブランチの GitHub 上での PR 状態（merged/open/closed）。
 - `/Users/hashimotokenichi/...` の worktree が「旧 MacBook 由来」であることの確定（オーナー確認が必要）。
 - stash 22 件それぞれの内容（`git stash show` 未実施）。
+
+## 11. クリーンアップ実行結果（2026-08-09）
+
+### 11.1 実施した操作
+
+1. `git fetch --prune origin` → `origin/feat/mem-rn-found-001-theme-tokens` の stale tracking ref を削除（remote branch 自体は変更なし）。
+2. `chore/git-inventory-20260809` を最新 origin/main（`bd9a2717`, PR #163 マージ済み）へ **rebase 成功**。
+3. 再監査（§2 の before → after）。origin/main 移動後も統合済み未 checkout の候補は §7 の 8 件のみであることを確認。
+
+### 11.2 削除した local branch（7 件）
+
+`git branch -d <明示名>` で 1 件ずつ削除。全件 `Deleted branch` を返し、`not fully merged` エラーは 0 件。
+
+| branch | 削除時 tip | 根拠 |
+|---|---|---|
+| claude/wizardly-shannon-435530 | `ae33500d` | unique 0 / 未 checkout（wizardly-shannon worktree は detached HEAD）/ upstream なし |
+| codex/p0-reference-privacy-main | `6310fbfa` | unique 0 / 未 checkout / upstream [gone] |
+| feat/move-stt-service-shared | `89c5d108` | unique 0 / 未 checkout / upstream なし |
+| feat/rn-summary-bridge | `b39a1aaa` | unique 0 / 未 checkout / upstream equal |
+| fix/xcodeproj-duplicate-test-reference | `22b70eb5` | unique 0 / 未 checkout / upstream [gone] |
+| refactor/summary-core-move | `ad3103b0` | unique 0 / 未 checkout / upstream equal |
+| refactor/summary-host-deps-split | `fdc47d7e` | unique 0 / 未 checkout / upstream equal |
+
+### 11.3 保持した対象と理由
+
+| 対象 | 件数 | 理由 |
+|---|---|---|
+| feat/transcript-postprocessor | 1 | unique 0 だが upstream に対して ahead 1, behind 4。削除条件「upstream ahead = 0」を満たさない（曖昧さがあるため保持） |
+| 統合済み local branch（C 保護） | 17 | worktree に checkout 中（worktree-agent-* 7 件含む） |
+| B 分類（unique commits あり） | 76 | 内容の統合可否は PR 状態を個別確認が必要 |
+| E 分類（archive / checkpoint） | 3 | `archive/macbook-worktree-20260802`, `archive/pr-152-pre-rebase-20260802`, `wip/rn-full-cutover-checkpoint-20260809` |
+| stash | 22 | drop/pop 禁止（唯一のコピーの可能性） |
+| locked / missing worktree | 7 | 削除せず。`git worktree prune -n -v` は**空出力**（lock により prune 対象外） |
+| 実在 worktree ディレクトリ | 38 | 削除しない |
+| remote branch（origin/*, pr/*, wip/*） | - | 削除しない |
+
+### 11.4 GitHub 上の PR 状態確認
+
+| PR | state | head branch | 備考 |
+|---|---|---|---|
+| #164 | OPEN | `docs/rn-full-cutover-plan` | worktree に checkout 中、未削除 |
+| #165 | OPEN | `test/rn-js-regression-foundation` | worktree に checkout 中、未削除 |
+| #166 | OPEN | `test/rn-shared-store-cutover` | worktree に checkout 中、未削除 |
+
+### 11.5 checkpoint 212329b8 の保全状態
+
+- `212329b8 chore: checkpoint RN cutover work before lane split` は**commit として実在**。
+- `wip/rn-full-cutover-checkpoint-20260809`（E+C）が保持し、メイン worktree `/Volumes/DevSSD/Development/Projects/Memora` の HEAD。削除対象外。
+
+### 11.6 検証
+
+| コマンド | 結果 |
+|---|---|
+| `git worktree prune -n -v` | 空出力（prune 対象なし、7 lock は保護） |
+| `git diff --check` | pass |
+| 削除時 `git branch -d` 各 1 件 | 全 7 件成功、`not fully merged` 0 件 |
+
+### 11.7 未実施 / 保留
+
+- remote branch の push --delete は実施しない（§8 Stage 3 は保留。PR #164/#165/#166 は OPEN のため対象外）。
+- locked/missing worktree 7 件の unlock・prune はオーナー確認後（別タスク）。
+- stash 22 件の内容レビューは別タスク。
