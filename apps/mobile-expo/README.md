@@ -35,7 +35,10 @@ Read the root migration handoff first:
 
 ## Commands
 
+Use Node.js 22 and npm 10, matching `.github/workflows/ci.yml`. The required versions are declared in `package.json` and `.node-version`.
+
 ```bash
+npm ci
 npm run typecheck
 npm run web -- --port 8088
 npm run ios
