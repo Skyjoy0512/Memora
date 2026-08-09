@@ -186,12 +186,12 @@ function createFallbackKnowledgeResponse(
     {
       file: {
         answer:
-          'このファイルでは、Expo mock UI を先に固めてから native bridge を薄く足す方針が一番安全です。録音、取り込み、STT は既存Swift側を維持し、RNはDTOと状態表示から接続します。',
+          'このファイルでは、まず画面表示を固め、その後ネイティブブリッジで実データへ接続する方針です。録音、取り込み、文字起こしはネイティブ側で実行し、アプリは表示と操作を担当します。',
         sources: ['Growth 定例', 'File Detail memo'],
       },
       project: {
         answer:
-          'プロジェクト全体では、Home、File Detail、Settings、Ask AI の確認ループが先行しています。次はSwiftDataの共有方式を決め、reader/mutatorをbootstrapから差し替える段階です。',
+          'プロジェクト全体では、Home、File Detail、Settings、Ask AI の確認ループが先行しています。次は共有データの方式を決め、読み書き経路をアプリ起動時に差し替える段階です。',
         sources: ['React Native / Expo Migration Plan', 'Bridge Contract'],
       },
       global: {
