@@ -42,7 +42,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
   },
   "scripts": {
     "start": "expo start",
@@ -53,6 +54,7 @@
     "run:ios": "expo run:ios",
     "qa:ios:build": "./scripts/ios-qa.sh build-for-testing",
     "qa:ios:test": "./scripts/ios-qa.sh test-without-building",
+    "test": "TZ=Asia/Tokyo vitest run",
     "typecheck": "node --stack_size=8192 ./node_modules/typescript/bin/tsc --noEmit"
   },
   "private": true

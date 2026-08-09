@@ -2,29 +2,23 @@ import { Chip, type ChipColor } from 'heroui-native/chip';
 import { StyleSheet } from 'react-native';
 import { radius, spacing, textStyles } from '../design/tokens';
 import type { AudioStatus } from '../types/memora';
+import { formatStatus } from '../utils/formatStatus';
 
-const statusCopy: Record<AudioStatus, string> = {
-  queued: '文字起こし待ち',
-  ready: '文字起こし済み',
-  summarized: '要約済み',
-  transcribing: '文字起こし中',
-  failed: '確認が必要',
-};
-
-const statusColors: Record<AudioStatus, ChipColor> = {
+const statusColors: Record<string, ChipColor> = {
   queued: 'default',
   ready: 'default',
   summarized: 'success',
   transcribing: 'warning',
+  processing: 'warning',
+  completed: 'success',
   failed: 'danger',
 };
 
-const fallbackCopy = '処理待ち';
 const fallbackColor: ChipColor = 'default';
 
 export function StatusPill({ status }: { status: AudioStatus | string }) {
-  const color = statusColors[status as AudioStatus] ?? fallbackColor;
-  const copy = statusCopy[status as AudioStatus] ?? fallbackCopy;
+  const color = statusColors[status.toLowerCase()] ?? fallbackColor;
+  const copy = formatStatus(status);
 
   return (
     <Chip
