@@ -1,8 +1,9 @@
 # Memora 開発運用ガイド（2026-07 改訂 / worktree並列開発版）
 
 ## 0. 目的
-- `apps/mobile-expo`（React Native/Expo）を本命として完全移行する。parity + release gate通過後（`docs/decisions/ADR-003-rn-full-cutover.md`）にSwiftUI UIと旧Memora targetを削除する。
-- それまでの間、SwiftUI本番アプリは削除gateまで延命・凍結維持しつつ、RN移行を進める。
+- `apps/mobile-expo`（React Native/Expo）を唯一のアプリとして運用する。SwiftUI UIと旧Memora targetは
+  **2026-08-09に削除済み**（`docs/decisions/ADR-003-rn-full-cutover.md` 追記）。STT・録音・共有パッケージ
+  （`Packages/MemoraSharedData`）・Keychain の native core はRNホスト実装へ移行済み。
 - **worktree × 複数セッション**（Claude Code / Codex）を並列開発の標準とする。
 - 1セッションの儀式コストを下げ、PRの回転速度を上げる。
 
@@ -13,18 +14,12 @@
 - 証拠なしの「動作したはず」報告は禁止。実行したコマンドと結果を書く。目視できなかったものは「未確認」と明記する。
 
 ## 2. 技術前提とディレクトリ責務
-- iOS target 17.0 / Xcode 26.x / SwiftUI + SwiftData + MVVM。
+- iOS target 17.0 / Xcode 26.x / Swift + SwiftData + MVVM（RNホスト・共有パッケージ）。
 - RN側: Expo SDK 57 / React Native 0.86 / TypeScript。
 
 | パス | 責務 |
 |---|---|
-| `Memora/App` | 起動・ライフサイクル・ModelContainer |
-| `Memora/Core/Services` | 録音・再生・STT・要約などドメインサービス |
-| `Memora/Core/Models` | SwiftDataモデル |
-| `Memora/Core/ViewModels` | 画面状態管理 |
-| `Memora/Core/Adapters` | 共有ストア⇔リポジトリのアダプタ |
-| `Memora/Views` | SwiftUI UI |
-| `Packages/MemoraSharedData` | SwiftUI/RN共有のストア契約・移行ロジック |
+| `Packages/MemoraSharedData` | 共有のストア契約・移行ロジック・STT実行系・要約・AskAI |
 | `apps/mobile-expo/src` `app` | RN画面・コンポーネント・デザイントークン |
 | `apps/mobile-expo/modules/memora-native` | Expoネイティブモジュール（ブリッジ） |
 | `apps/mobile-expo/ios` | RN iOSホスト（**Git管理下。`expo prebuild --clean` 禁止**） |
@@ -44,16 +39,16 @@ git worktree add ../Memora-<slug> -b <type>/<slug> origin/main
 ### 3.2 レーン定義
 | Lane | 対象 | 備考 |
 |---|---|---|
-| A: SwiftUI UI | `Memora/Views/**` | |
-| B: 音声/STT | `Memora/Core/Services/Audio*`, `STT*`, `TranscriptionEngine.swift` | §8の保護ルール適用 |
-| C: モデル/状態 | `Memora/Core/Models/**`, `ViewModels/**`, `Contracts/**`, `Adapters/**` | |
-| D: 基盤/統合 | `Memora/App/**`, `project.yml`, `*.xcodeproj`, `.github/**`, entitlements, Info.plist | **pbxproj/CIはLane Dのみ** |
+| B: 音声/STT | `Packages/MemoraSharedData/Sources/MemoraSharedCore/**`（STT実行系・契約・AudioChunker） | §8の保護ルール適用 |
+| C: モデル/状態 | `Packages/MemoraSharedData/Sources/MemoraSharedSummary/**`, `MemoraSharedAskAI/**` | |
+| D: 基盤/統合 | `.github/**`（CI/ワークフロー） | CIはLane Dのみ |
 | E: QA/運用 | テスト、CI結果確認、リリースノート | |
 | F: RN UI | `apps/mobile-expo/src/**`, `app/**` | |
 | G: RNネイティブ | `apps/mobile-expo/modules/**`, `apps/mobile-expo/ios/**` | ビルドは分離DerivedData（`qa:ios:build`） |
 | H: 共有データ | `Packages/MemoraSharedData/Sources/MemoraSharedSchema/**`（**スキーマ/ストア契約のみ**） | C/Gと跨ぐ場合は基盤PR→機能PRに分割。**スキーマ変更は同時に1本だけ** |
 | I: Botサーバー | `bot-server/**` | |
 
+- 旧SwiftUIアプリ（Lane A、`Memora/**`）は2026-08-09の削除で廃止。
 - 複数レーンが必要な作業は「基盤PR → 機能PR」の順に分割する。
 - 同じレーンを2セッションに同時に割り当てない。
 
@@ -74,9 +69,10 @@ git worktree add ../Memora-<slug> -b <type>/<slug> origin/main
 |---|---|
 | F（RN UI） | `npm run typecheck` + `npx expo export --platform web` |
 | G（RNネイティブ） | 上記 + `npm run qa:ios:build` |
+| B（STT） | `swift test --package-path Packages/MemoraSharedData` + §8の報告義務 |
+| C（モデル/状態） | `swift test --package-path Packages/MemoraSharedData` + 影響側のビルド |
+| D（基盤/CI） | `git diff --check`（CIが最終ゲート） |
 | H（共有データ） | `swift test --package-path Packages/MemoraSharedData` + 影響側のビルド |
-| A/C/D（SwiftUI/Core） | `xcodebuild -project Memora.xcodeproj -scheme Memora -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build` |
-| B（STT） | 上記 + §8の報告義務 |
 | I（bot-server） | `npm run build` |
 | docsのみ | `git diff --check` のみ |
 - 全レーン共通: `git diff --check`。**触っていない範囲の検証は省略してよい**（CIが最終ゲート）。
@@ -126,11 +122,8 @@ git worktree prune
 - `Packages/MemoraSharedData/Sources/MemoraSharedCore/CoreDTOs.swift`
 - `Packages/MemoraSharedData/Sources/MemoraSharedSummary/AIService.swift`
 
-**アプリ側**（元の場所のまま）:
-- `Memora/Core/Services/STTSupportTypes.swift`
-- `Memora/Core/Services/SpeakerDiarizationService.swift`
-- `Memora/Core/Services/SpeakerProfileStore.swift`
-- `Memora/Core/Services/TranscriptionEngine.swift`
+**アプリ側**: 2026-08-09 の SwiftUI 削除で `Memora/**`（旧アプリ側 STT ファイル）は削除済み。
+STT 実行系は共有パッケージ（`MemoraSharedCore`）と RN ホスト（`apps/mobile-expo/ios`）が引き継ぐ。
 
 STTコアを変更する場合は必ず報告する: バックエンド選択順の変更点 / SpeechAnalyzer・SFSpeechRecognizer・APIのどこに影響するか / 話者分離と保存フォーマットへの影響 / build・test・logの確認結果。
 

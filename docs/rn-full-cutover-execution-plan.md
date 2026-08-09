@@ -48,8 +48,9 @@ RN ホストが依存する **native core として保持**し、別判断なし
 
 ### 2.2 SwiftUI 側
 
-- 旧 `Memora` app target は現在の App Store 提出対象（ADR-002 方針）。本 ADR（ADR-003）でこの方針は
-  supersede され、SwiftUI UI は削除 gate（f）まで「延命・凍結」となる。
+- **削除実行済み（2026-08-09）**: オーナー決定により、旧 `Memora` app target・SwiftUI UI（`Memora/**`）・
+  `Memora.xcodeproj`・`project.yml`・CI の `ios-build` ジョブを削除した（ADR-003 追記参照）。
+  削除 gate（f）の全条件（実機 QA・残 parity 等）は RN 側で後日対応。
 - `docs/app-store-review-readiness.md` は SwiftUI 1.0 提出試行の historical checklist（本計画では RN の
   release readiness が正本）。
 
@@ -111,7 +112,7 @@ M2 ADR-004 実装（T3）                 ← bundle ID 統一 / Keychain 継承
 M3 parity 残差解消（T4）              ← STT transcript / export / tasks / search・summary adapter
 M4 release gate 充足（T5）            ← gate c / d / e
 M5 release 判定（T6）                 ← gate a〜e の evidence 記録
-M6 SwiftUI 削除（T7）                 ← 削除 gate f
+M6 SwiftUI 削除（T7）                 ← 削除 gate f（2026-08-09 実行済み・ADR-003 追記参照）
 M7 安定化と rollback 確認（T8）
 ```
 
@@ -126,10 +127,10 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 
 | Lane | 対象 | cutover での責務 |
 |---|---|---|
-| A: SwiftUI UI | `Memora/Views/**` | 凍結維持・削除 gate 前の必要最小修正のみ |
+| A: SwiftUI UI | （旧）`Memora/Views/**` | **削除済み（2026-08-09）** |
 | B: 音声 / STT | STT コア（§8 保護） | RN への STT 配線・parity 維持（§8 報告義務） |
-| C: モデル / 状態 | `Memora/Core/Models|ViewModels|Contracts|Adapters/**`, 共有アダプタ | summary / knowledge / tasks 契約 |
-| D: 基盤 / 統合 | `Memora/App/**`, `project.yml`, `*.xcodeproj`, `.github/**`, entitlements, Info.plist | target 構成・CI・削除 gate の基盤 |
+| C: モデル / 状態 | 共有アダプタ（`MemoraSharedSummary` / `MemoraSharedAskAI`） | summary / knowledge / tasks 契約 |
+| D: 基盤 / 統合 | `.github/**`（CI/ワークフロー）、RN ホスト構成 | CI・削除 gate の基盤 |
 | E: QA / 運用 | テスト・CI 結果・リリースノート | gate 判定の evidence 収集 |
 | F: RN UI | `apps/mobile-expo/src/**`, `app/**` | RN UI の parity 完成 |
 | G: RN ネイティブ | `apps/mobile-expo/modules/**`, `apps/mobile-expo/ios/**` | bridge・ホスト adapter・Keychain・extension/widget 同梱 |
@@ -181,9 +182,14 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 
 ### T7: SwiftUI 削除（gate f）
 - 内容: SwiftUI UI（`Memora/Views/**`）と旧 `Memora` app target の削除。Broadcast Extension / Widget / native core は保持。
-- 受け入れ: 削除後も `xcodegen generate` → ビルド・テスト・CI が green（f3）。
-- 検証: `xcodebuild -project apps/mobile-expo/ios/MemoraRN.xcodeproj -scheme MemoraRN ...`（RN 単独構成）+ 残存 target の CI。
-- 備考: `project.yml` からの target 除去は Lane D。2 段階（参照除去 + target 除去）を 1 PR で行う。
+- 状態: **実行済み（2026-08-09）**。オーナー決定により gate f の全条件の完了を待たずに削除した
+  （ADR-003 追記参照）。
+- 実績: `git rm` で `Memora/**`・`Memora.xcodeproj`・`project.yml` を削除し、CI の `ios-build` ジョブ
+  （`-scheme Memora` + xcodegen install/generate）を除去。RN 単独構成で `qa:ios:build`・`swift test`・
+  RN typecheck/export が green であることを確認。
+- 受け入れ（当時）: 削除後も `xcodegen generate` → ビルド・テスト・CI が green（f3）。→ 削除後の現状は
+  `xcodegen` 不要の RN 単独構成。
+- 備考: 2 段階（参照除去 + target 除去）を 1 PR で行う。
 
 ### T8: 安定化と rollback 確認
 - 内容: RN 単独構成でのリリース後、rollback 手順（§11）を一度は実施・記録。
@@ -202,15 +208,12 @@ npx expo export --platform web
 npm run qa:ios:build        # 分離 DerivedData での RN iOS ビルド
 npm run qa:ios:test         # RN ホストテスト
 
-# 共有データ（Lane H / C）
+# 共有データ / STT（Lane H / C / B）
 swift test --package-path Packages/MemoraSharedData
-
-# SwiftUI / Core（Lane A/C/D、凍結維持の確認）
-xcodebuild -project Memora.xcodeproj -scheme Memora -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
 # STT（Lane B）: 上記 + §8 の報告義務
 
-# docs のみ: git diff --check
+# docs / CI のみ: git diff --check（CI が最終ゲート）
 ```
 
 ## 9. Git checkpoint 212329b8 の分割統合手順
@@ -273,12 +276,18 @@ S8 / S9 は S1〜S7 と並列に進めてよい（CI が green なら merge queu
 
 ## 10. SwiftUI 削除 gate（f）の手順
 
-1. gate f1〜f5（ADR-003）の確認: T6（release 判定）の evidence が揃っている。
-2. 削除スコープを確定:
-   - 削除: `Memora/Views/**`（SwiftUI UI）、旧 `Memora` app target と SwiftUI 依存のテスト。
+> **更新（2026-08-09）**: 削除実行済み。オーナー決定により gate 条件の完了を待たずに削除した
+> （ADR-003 追記参照）。以下は実行時の記録。
+
+1. gate f1〜f5（ADR-003）の確認: T6（release 判定）の evidence は未揃いのため、オーナー決定で代替。
+2. 削除スコープ:
+   - 削除: `Memora/App/**`・`Memora/Views/**`・`Memora/Core/**`・`Memora/DesignSystem/**`・
+     `Memora/Resources/**`・`Memora/Memora.entitlements`、`Memora.xcodeproj`、`project.yml`、
+     CI の `ios-build` ジョブ。
    - 保持: native core（STT / 録音 / SwiftData 共有パッケージ / Keychain）、
      `MemoraBroadcastExtension/**`、`MemoraWidget/**`、`bot-server/**`。
-3. 削除 PR（Lane D）で `project.yml` の target 除去 → `xcodegen generate` → ビルド・テスト・CI が green を確認。
+3. 削除 PR（Lane D）で `git rm` を実施し、残存 CI（shared-data / expo-check / rn-ios-build /
+   bot-server-build）が green であることを確認。
 4. 削除後の最初のリリースを安定させる。
 5. rollback 手順（§11）を一度実施・記録してから、RN 単独構成の運用を宣言する。
 

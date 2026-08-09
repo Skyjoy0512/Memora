@@ -14,40 +14,6 @@ permissions:
   contents: read
 
 jobs:
-  ios-build:
-    runs-on: macos-26
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Install xcodegen
-        run: brew install xcodegen
-
-      - name: Generate Xcode project
-        run: xcodegen generate
-
-      - name: Build (iOS Simulator)
-        run: |
-          xcodebuild \
-            -project Memora.xcodeproj \
-            -scheme Memora \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Compile iOS tests
-        run: |
-          xcodebuild \
-            -project Memora.xcodeproj \
-            -scheme Memora \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            build-for-testing
-
   shared-data:
     runs-on: macos-26
     timeout-minutes: 10

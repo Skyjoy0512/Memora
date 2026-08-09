@@ -1,35 +1,46 @@
 # Memora - iPhone 議事録・文字起こし・要約アプリ
 
 ![iOS](https://img.shields.io/badge/iOS-17+-blue.svg)
-![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)
-![SwiftUI](https://img.shields.io/badge/SwiftUI-red.svg)
+![React Native](https://img.shields.io/badge/React_Native-blue.svg)
+![Expo](https://img.shields.io/badge/Expo-000000.svg)
 
 ## 現在の実装
 
-- `apps/mobile-expo`（React Native / Expo）を UI の正本として完全移行を進めています（[ADR-003](docs/decisions/ADR-003-rn-full-cutover.md)）。RN ホストは Swift の STT・録音・SwiftData 共有パッケージ・Keychain をネイティブブリッジで利用します。
-- 既存の SwiftUI アプリ（`Memora/**`）は parity と release gate 通過まで削除対象として凍結維持します（[実行計画](docs/rn-full-cutover-execution-plan.md)）。
-- Xcode プロジェクトの正本は `project.yml` です。構成を変更したら `xcodegen generate` を実行してください。
+- `apps/mobile-expo`（React Native / Expo）を UI の正本とし、RN iOS ホスト `MemoraRN` が Swift の
+  STT・録音・SwiftData 共有パッケージ（`Packages/MemoraSharedData`）・Keychain をネイティブブリッジで利用します。
+- SwiftUI アプリ（旧 `Memora` target）は 2026-08-09 に削除済みです（[ADR-003](docs/decisions/ADR-003-rn-full-cutover.md) 追記）。
+  旧 `MemoraBroadcastExtension` / `MemoraWidget` のソースは維持します（現時点ではビルド対象外）。
 
 ## リポジトリ構成
 
 ```
-Memora/                 # iOS アプリ
-MemoraTests/            # iOS テスト
-apps/mobile-expo/       # React Native / Expo アプリ
-Packages/MemoraSharedData/
+apps/mobile-expo/       # React Native / Expo アプリ（UI の正本）
+apps/mobile-expo/ios/   # RN iOS ホスト（MemoraRN）
+Packages/MemoraSharedData/  # 共有 Swift Package（STT・スキーマ・ストア契約）
+MemoraBroadcastExtension/   # Broadcast Extension ソース（ビルド対象外）
+MemoraWidget/           # Widget ソース（ビルド対象外）
 docs/                   # 設計・移行資料
-project.yml             # XcodeGen の正本
 ```
 
 ## セットアップ
 
-前提条件: macOS、Xcode（iOS 17 以上の Simulator runtime を含む）、XcodeGen。
+前提条件: macOS、Xcode（iOS 17 以上の Simulator runtime を含む）、Node.js 22。
 
 ```bash
 git clone https://github.com/Skyjoy0512/Memora.git
 cd Memora
-xcodegen generate
-open Memora.xcodeproj
+cd apps/mobile-expo
+npm ci
+npx expo start
+```
+
+RN iOS ホスト（`MemoraRN`）のビルドは分離 DerivedData で実行します:
+
+```bash
+cd apps/mobile-expo/ios
+pod install
+cd ..
+npm run qa:ios:build
 ```
 
 ## ドキュメント
