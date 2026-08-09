@@ -1,5 +1,5 @@
 import { Children, Fragment, useEffect, useState, type ReactNode } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
@@ -8,6 +8,12 @@ import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { MemoraNative } from '../native/MemoraNative';
 import type { BridgeInfoDTO, CustomVocabularyDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { SettingsGroup } from '../types/memora';
+import { Switch } from 'heroui-native/switch';
+import { Input } from 'heroui-native/input';
+import { Button } from 'heroui-native/button';
+import { RadioGroup } from 'heroui-native/radio-group';
+import { Separator } from 'heroui-native/separator';
+import { Chip } from 'heroui-native/chip';
 
 const NOT_CONNECTED_MESSAGE =
   'ネイティブブリッジがこのアクションにまだ接続されていません。SwiftUI版の実データ接続後に有効化します。';
@@ -76,7 +82,13 @@ export function SettingsScreen() {
     <Screen title="設定">
       <SettingsGroupCard title="アカウント">
         <SettingsRow onPress={notConnected} title="未設定" />
-        <SettingsBadgeRow badgeColor={colors.text} badgeText="Free" onPress={() => router.push('/auth?stage=paywall')} title="プラン" />
+        <Pressable accessibilityLabel="プラン" accessibilityRole="button" onPress={() => router.push('/auth?stage=paywall')} style={styles.v6Row}>
+          <Text style={styles.v6RowTitle}>プラン</Text>
+          <Chip background={null} color="default" size="sm" variant="primary">
+            <Chip.Label>Free</Chip.Label>
+          </Chip>
+          <Ionicons color={colors.border} name="chevron-forward" size={12} />
+        </Pressable>
       </SettingsGroupCard>
 
       <SettingsGroupCard title="デバイス">
@@ -95,10 +107,11 @@ export function SettingsScreen() {
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>プッシュ通知</Text>
           <Switch
-            onValueChange={setNotifEnabled}
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.border, true: colors.text }}
-            value={notifEnabled}
+            accessibilityLabel="プッシュ通知のオン・オフ"
+            background={null}
+            hitSlop={6}
+            isSelected={notifEnabled}
+            onSelectedChange={setNotifEnabled}
           />
         </View>
       </SettingsGroupCard>
@@ -130,10 +143,11 @@ export function SettingsScreen() {
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>音声解析（話者識別）</Text>
           <Switch
-            onValueChange={(speechAnalyzerEnabled) => saveSettings({ ...settings, speechAnalyzerEnabled })}
-            thumbColor={colors.surface}
-            trackColor={{ false: colors.border, true: colors.text }}
-            value={settings.speechAnalyzerEnabled}
+            accessibilityLabel="音声解析（話者識別）のオン・オフ"
+            background={null}
+            hitSlop={6}
+            isSelected={settings.speechAnalyzerEnabled}
+            onSelectedChange={(selected) => saveSettings({ ...settings, speechAnalyzerEnabled: selected })}
           />
         </View>
       </SettingsGroupCard>
@@ -154,10 +168,10 @@ export function SettingsScreen() {
             </Pressable>
             <Switch
               accessibilityLabel={`${vocabulary.pattern} を${vocabulary.enabled ? '無効' : '有効'}にする`}
-              onValueChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
-              thumbColor={colors.surface}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              value={vocabulary.enabled}
+              background={null}
+              hitSlop={6}
+              isSelected={vocabulary.enabled}
+              onSelectedChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
             />
           </View>
         ))}
@@ -215,32 +229,31 @@ export function SettingsScreen() {
         <View style={styles.groupCard}>
           <View style={styles.controlBlock}>
             <Text style={styles.label}>Transcription mode</Text>
-            <View style={styles.segmentRow}>
-              <SegmentButton
-                isSelected={settings.transcriptionMode === 'local'}
-                label="Local"
-                onPress={() => saveSettings({ ...settings, transcriptionMode: 'local' })}
-              />
-              <SegmentButton
-                isSelected={settings.transcriptionMode === 'api'}
-                label="API"
-                onPress={() => saveSettings({ ...settings, transcriptionMode: 'api' })}
-              />
-            </View>
+            <RadioGroup
+              onValueChange={(value) =>
+                saveSettings({ ...settings, transcriptionMode: value as SettingsDTO['transcriptionMode'] })
+              }
+              value={settings.transcriptionMode}
+            >
+              <RadioGroup.Item variant="primary" value="local">Local</RadioGroup.Item>
+              <RadioGroup.Item variant="primary" value="api">API</RadioGroup.Item>
+            </RadioGroup>
           </View>
 
           <View style={styles.controlBlock}>
             <Text style={styles.label}>Summary provider</Text>
-            <View style={styles.providerGrid}>
+            <RadioGroup
+              onValueChange={(value) =>
+                saveSettings({ ...settings, summaryProvider: value as SettingsDTO['summaryProvider'] })
+              }
+              value={settings.summaryProvider}
+            >
               {providerOptions.map((provider) => (
-                <SegmentButton
-                  key={provider}
-                  isSelected={settings.summaryProvider === provider}
-                  label={provider}
-                  onPress={() => saveSettings({ ...settings, summaryProvider: provider })}
-                />
+                <RadioGroup.Item key={provider} variant="primary" value={provider}>
+                  {provider}
+                </RadioGroup.Item>
               ))}
-            </View>
+            </RadioGroup>
           </View>
 
           <View style={styles.switchRow}>
@@ -251,12 +264,13 @@ export function SettingsScreen() {
               </Text>
             </View>
             <Switch
-              onValueChange={(speechAnalyzerEnabled) =>
-                saveSettings({ ...settings, speechAnalyzerEnabled })
+              accessibilityLabel="SpeechAnalyzer のオン・オフ"
+              background={null}
+              hitSlop={6}
+              isSelected={settings.speechAnalyzerEnabled}
+              onSelectedChange={(selected) =>
+                saveSettings({ ...settings, speechAnalyzerEnabled: selected })
               }
-              thumbColor={colors.surface}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              value={settings.speechAnalyzerEnabled}
             />
           </View>
         </View>
@@ -339,16 +353,7 @@ export function SettingsScreen() {
             <InfoRow
               label="Persistence scope"
               value={bridgeInfo?.persistenceScope ?? 'checking'}
-              state={
-                bridgeInfo?.persistenceScope === 'shared-swiftdata' && !bridgeInfo?.sharedStoreError
-                  ? 'ok'
-                  : 'warning'
-              }
-            />
-            <InfoRow
-              label="Shared store error"
-              value={bridgeInfo?.sharedStoreError ?? '—'}
-              state={bridgeInfo?.sharedStoreError ? 'warning' : 'ok'}
+              state={bridgeInfo?.persistenceScope === 'shared-swiftdata' ? 'ok' : 'warning'}
             />
           </View>
         </View>
@@ -467,46 +472,65 @@ function VocabularyEditor({
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>{draft.id.startsWith('vocabulary-') ? '辞書を追加' : '辞書を編集'}</Text>
-          <TextInput
+          <Input
             accessibilityLabel="置換前の語"
             autoCapitalize="none"
             onChangeText={(pattern) => setDraft({ ...draft, pattern })}
             placeholder="置換前の語"
             placeholderTextColor={colors.textTertiary}
-            style={styles.modalInput}
+            variant="secondary"
             value={draft.pattern}
           />
-          <TextInput
+          <Input
             accessibilityLabel="置換後の語"
             autoCapitalize="none"
             onChangeText={(replacement) => setDraft({ ...draft, replacement })}
             placeholder="置換後の語（空欄で削除）"
             placeholderTextColor={colors.textTertiary}
-            style={styles.modalInput}
+            variant="secondary"
             value={draft.replacement}
           />
-          <TextInput
+          <Input
             accessibilityLabel="読み仮名"
             autoCapitalize="none"
             onChangeText={(reading) => setDraft({ ...draft, reading: reading || null })}
             placeholder="読み仮名（任意）"
             placeholderTextColor={colors.textTertiary}
-            style={styles.modalInput}
+            variant="secondary"
             value={draft.reading ?? ''}
           />
           <View style={styles.modalActions}>
             {!draft.id.startsWith('vocabulary-') ? (
-              <Pressable accessibilityLabel="辞書を削除" onPress={() => onDelete(draft.id)} style={styles.modalDeleteButton}>
-                <Text style={styles.modalDeleteText}>削除</Text>
-              </Pressable>
+              <Button
+                accessibilityLabel="辞書を削除"
+                onPress={() => onDelete(draft.id)}
+                size="sm"
+                style={styles.vocabularyButton}
+                variant="danger"
+              >
+                <Button.Label>削除</Button.Label>
+              </Button>
             ) : <View />}
             <View style={styles.modalPrimaryActions}>
-              <Pressable accessibilityLabel="辞書の編集をキャンセル" onPress={onClose} style={styles.modalButton}>
-                <Text style={styles.modalButtonText}>キャンセル</Text>
-              </Pressable>
-              <Pressable accessibilityLabel="辞書を保存" onPress={() => onSave(draft)} style={[styles.modalButton, styles.modalSaveButton]}>
-                <Text style={styles.modalSaveText}>保存</Text>
-              </Pressable>
+              <Button
+                accessibilityLabel="辞書の編集をキャンセル"
+                onPress={onClose}
+                size="sm"
+                style={styles.vocabularyButton}
+                variant="ghost"
+              >
+                <Button.Label>キャンセル</Button.Label>
+              </Button>
+              <Button
+                accessibilityLabel="辞書を保存"
+                isDisabled={!draft.pattern.trim()}
+                onPress={() => onSave(draft)}
+                size="sm"
+                style={styles.vocabularyButton}
+                variant="primary"
+              >
+                <Button.Label>保存</Button.Label>
+              </Button>
             </View>
           </View>
         </View>
@@ -570,7 +594,7 @@ function SettingsGroupCard({ children, title }: { children: ReactNode; title: st
         {rows.map((row, index) => (
           <Fragment key={index}>
             {row}
-            {index < rows.length - 1 ? <View style={styles.v6Divider} /> : null}
+            {index < rows.length - 1 ? <Separator variant="thin" /> : null}
           </Fragment>
         ))}
       </View>
@@ -604,28 +628,6 @@ function SettingsRow({
   );
 }
 
-function SettingsBadgeRow({
-  badgeColor,
-  badgeText,
-  onPress,
-  title,
-}: {
-  badgeColor: string;
-  badgeText: string;
-  onPress: () => void;
-  title: string;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.v6Row}>
-      <Text style={styles.v6RowTitle}>{title}</Text>
-      <View style={[styles.v6Badge, { backgroundColor: badgeColor }]}>
-        <Text style={styles.v6BadgeText}>{badgeText}</Text>
-      </View>
-      <Ionicons color={colors.border} name="chevron-forward" size={12} />
-    </Pressable>
-  );
-}
-
 function InfoRow({
   label,
   state,
@@ -646,27 +648,6 @@ function InfoRow({
   );
 }
 
-function SegmentButton({
-  isSelected,
-  label,
-  onPress,
-}: {
-  isSelected: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: isSelected }}
-      onPress={onPress}
-      style={[styles.segmentButton, isSelected && styles.segmentButtonSelected]}
-    >
-      <Text style={[styles.segmentText, isSelected && styles.segmentTextSelected]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   v6Group: {
     gap: spacing.sm,
@@ -677,10 +658,6 @@ const styles = StyleSheet.create({
   },
   v6Card: {
     backgroundColor: colors.canvas,
-  },
-  v6Divider: {
-    backgroundColor: colors.borderLight,
-    height: 1,
   },
   developerToggle: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   developerTogglePressed: { opacity: 0.65, transform: [{ scale: 0.96 }] },
@@ -706,15 +683,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
     ...textStyles.footnote,
-  },
-  v6Badge: {
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  v6BadgeText: {
-    color: colors.surface,
-    ...textStyles.captionBold,
   },
   toggleRow: {
     alignItems: 'center',
@@ -769,14 +737,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...textStyles.sectionTitle,
   },
-  modalInput: {
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    color: colors.text,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
   modalActions: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -786,79 +746,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  modalButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  modalButtonText: {
-    color: colors.textSecondary,
-    ...textStyles.body,
-  },
-  modalSaveButton: {
-    backgroundColor: colors.accent,
+  vocabularyButton: {
     borderRadius: radius.sm,
-  },
-  modalSaveText: {
-    color: colors.textInverse,
-    ...textStyles.bodyBold,
-  },
-  modalDeleteButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
     minHeight: 44,
-    paddingHorizontal: spacing.sm,
-  },
-  modalDeleteText: {
-    color: colors.danger,
-    ...textStyles.body,
   },
   groupCard: {
     backgroundColor: colors.surface,
     gap: spacing.md,
     paddingBottom: spacing.sm,
   },
-  description: {
-    color: colors.textSecondary,
-    ...textStyles.footnote,
-  },
   rows: {
     gap: spacing.md,
   },
   controlBlock: {
     gap: spacing.sm,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  providerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  segmentButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    minHeight: 40,
-    minWidth: 88,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  segmentButtonSelected: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
-  },
-  segmentText: {
-    color: colors.textSecondary,
-    ...textStyles.footnoteBold,
-  },
-  segmentTextSelected: {
-    color: colors.surface,
   },
   switchRow: {
     alignItems: 'center',

@@ -1,6 +1,5 @@
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { AppIcon } from './AppIcon';
-import { colors, radius, spacing, textStyles } from '../design/tokens';
+import { SearchField } from 'heroui-native/search-field';
+import { colors } from '../design/tokens';
 
 type SearchBarProps = {
   value: string;
@@ -18,64 +17,18 @@ export function SearchBar({
   onBlur,
 }: SearchBarProps) {
   return (
-    <View style={searchBarStyles.container}>
-      <AppIcon color={colors.textTertiary} name="search-outline" size={16} />
-      <TextInput
-        accessibilityLabel="記録を検索"
-        clearButtonMode="while-editing"
-        onChangeText={onChangeText}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        returnKeyType="search"
-        style={searchBarStyles.input}
-        value={value}
-      />
-      {value.length > 0 ? (
-        <Pressable
-          accessibilityLabel="検索をクリア"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={() => onChangeText('')}
-          style={({ pressed }) => [
-            searchBarStyles.clearButton,
-            pressed && searchBarStyles.pressed,
-          ]}
-        >
-          <AppIcon color={colors.textTertiary} name="close" size={16} />
-        </Pressable>
-      ) : null}
-    </View>
+    <SearchField onChange={onChangeText} value={value}>
+      <SearchField.Group>
+        <SearchField.SearchIcon iconProps={{ color: colors.textTertiary, size: 16 }} />
+        <SearchField.Input
+          accessibilityLabel="記録を検索"
+          onBlur={onBlur}
+          onFocus={onFocus}
+          placeholder={placeholder}
+          returnKeyType="search"
+        />
+        <SearchField.ClearButton accessibilityLabel="検索をクリア" />
+      </SearchField.Group>
+    </SearchField>
   );
 }
-
-const searchBarStyles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  input: {
-    color: colors.text,
-    flex: 1,
-    minHeight: 44,
-    paddingVertical: spacing.xs,
-    ...textStyles.body,
-  },
-  clearButton: {
-    alignItems: 'center',
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
-  },
-  pressed: {
-    opacity: 0.6,
-  },
-});

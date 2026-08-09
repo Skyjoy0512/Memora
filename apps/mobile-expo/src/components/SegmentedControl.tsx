@@ -1,5 +1,5 @@
-import { LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, shadow, textStyles } from '../design/tokens';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 type SegmentedControlProps<T extends string> = {
   segments: Array<{ key: T; label: string }>;
@@ -22,11 +22,12 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
             key={seg.key}
-            onPress={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              onSelect(seg.key);
-            }}
-            style={[segStyles.segment, isActive && segStyles.segmentActive]}
+            onPress={() => onSelect(seg.key)}
+            style={({ pressed }) => [
+              segStyles.segment,
+              isActive && segStyles.segmentActive,
+              pressed && segStyles.segmentPressed,
+            ]}
           >
             <Text style={[segStyles.label, isActive && segStyles.labelActive]}>
               {seg.label}
@@ -41,7 +42,9 @@ export function SegmentedControl<T extends string>({
 const segStyles = StyleSheet.create({
   container: {
     backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
     borderRadius: radius.sm,
+    borderWidth: 1,
     flexDirection: 'row',
     padding: 3,
   },
@@ -55,8 +58,10 @@ const segStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   segmentActive: {
-    backgroundColor: colors.surface,
-    ...shadow.card,
+    backgroundColor: colors.accentSoft,
+  },
+  segmentPressed: {
+    opacity: 0.72,
   },
   label: {
     color: colors.textSecondary,

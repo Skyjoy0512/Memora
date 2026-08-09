@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { StyleSheet } from 'react-native';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { colors, radius } from '../design/tokens';
 
 type FloatingBottomSheetProps = {
   children: ReactNode;
@@ -35,7 +36,7 @@ export function FloatingBottomSheet({ children, isOpen, onClose }: FloatingBotto
       accessible={false}
       ref={sheetRef}
       backdropComponent={(props) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />}
-      backgroundStyle={styles.transparent}
+      backgroundStyle={styles.base}
       enableDynamicSizing
       enablePanDownToClose
       handleIndicatorStyle={styles.handleIndicator}
@@ -49,8 +50,8 @@ export function FloatingBottomSheet({ children, isOpen, onClose }: FloatingBotto
 }
 
 const styles = StyleSheet.create({
-  content: { backgroundColor: 'transparent' },
+  base: { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
+  content: { backgroundColor: colors.surface },
   handle: { paddingBottom: 8, paddingTop: 12 },
-  handleIndicator: { backgroundColor: '#D1D1D6', height: 4, width: 36 },
-  transparent: { backgroundColor: 'transparent' },
+  handleIndicator: { backgroundColor: colors.textTertiary, height: 4, width: 36 },
 });

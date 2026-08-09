@@ -1,102 +1,61 @@
-import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
-import { colors, radius, spacing } from '../design/tokens';
+import { StyleSheet, View } from 'react-native';
+import { SkeletonGroup } from 'heroui-native/skeleton-group';
+import { Separator } from 'heroui-native/separator';
+import { spacing } from '../design/tokens';
 
 type FileCardSkeletonProps = {
   count?: number;
 };
 
-function SkeletonCard() {
-  const shimmer = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shimmer, {
-          toValue: 0,
-          duration: 1200,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [shimmer]);
-
-  const opacity = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
-
+function SkeletonRow() {
   return (
-    <Animated.View style={[skStyles.card, { opacity }]}>
-      <View style={[skStyles.block, skStyles.iconBlock]} />
+    <View style={skStyles.card} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <SkeletonGroup.Item className="h-8 w-8 rounded" />
       <View style={skStyles.body}>
-        <View style={[skStyles.block, skStyles.titleBlock]} />
-        <View style={[skStyles.block, skStyles.metaBlock]} />
-        <View style={[skStyles.block, skStyles.summaryBlock]} />
+        <SkeletonGroup.Item className="h-4 w-3/5 rounded" />
+        <SkeletonGroup.Item className="h-3 w-2/5 rounded" />
+        <SkeletonGroup.Item className="h-3 w-4/5 rounded" />
       </View>
-      <View style={[skStyles.block, skStyles.pillBlock]} />
-    </Animated.View>
+      <SkeletonGroup.Item className="h-6 w-14 rounded-full" />
+    </View>
   );
 }
 
 export function FileCardSkeleton({ count = 5 }: FileCardSkeletonProps) {
   return (
-    <>
-      {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard key={i} />
-      ))}
-    </>
+    <View
+      accessibilityLabel="記録を読み込み中"
+      accessibilityRole="progressbar"
+      accessibilityState={{ busy: true }}
+      style={skStyles.container}
+    >
+      <SkeletonGroup>
+        {Array.from({ length: count }, (_, i) => (
+          <View key={i}>
+            <SkeletonRow />
+            {i < count - 1 ? <Separator orientation="horizontal" variant="thin" /> : null}
+          </View>
+        ))}
+      </SkeletonGroup>
+    </View>
   );
 }
 
 const skStyles = StyleSheet.create({
+  container: {
+    paddingVertical: spacing.xs,
+  },
   card: {
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.md,
     minHeight: 72,
-    padding: spacing.md,
-  },
-  block: {
-    backgroundColor: colors.skeleton,
-    borderRadius: 4,
-  },
-  iconBlock: {
-    borderRadius: radius.sm,
-    height: 32,
-    width: 32,
+    paddingVertical: spacing.md,
   },
   body: {
     flex: 1,
-    gap: 6,
-  },
-  titleBlock: {
-    height: 14,
-    width: '60%',
-  },
-  metaBlock: {
-    height: 10,
-    width: '40%',
-  },
-  summaryBlock: {
-    height: 10,
-    width: '80%',
-  },
-  pillBlock: {
-    borderRadius: radius.pill,
-    height: 22,
-    marginTop: 5,
-    width: 56,
+    gap: spacing.xs,
+    minWidth: 0,
+    paddingTop: 2,
   },
 });

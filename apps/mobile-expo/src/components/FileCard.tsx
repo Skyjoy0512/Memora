@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableFeedback } from 'heroui-native/pressable-feedback';
+import { Separator } from 'heroui-native/separator';
 import { AppIcon } from './AppIcon';
 import { StatusPill } from './StatusPill';
-import { colors, radius, spacing, shadow, textStyles } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 
@@ -19,78 +21,93 @@ export function FileCard({
   showSummary = true,
 }: FileCardProps) {
   return (
-    <Pressable
-      accessibilityLabel={`${file.title}を開く`}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [
-        fcStyles.card,
-        pressed && fcStyles.pressed,
-      ]}
-    >
-      <View style={fcStyles.icon}>
-        <AppIcon
-          color={colors.textSecondary}
-          name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
-          size={16}
-        />
-      </View>
+    <View>
+      <View style={fcStyles.content}>
+        <PressableFeedback
+          accessibilityLabel={`${file.title}を開く`}
+          accessibilityRole="button"
+          animation={false}
+          onPress={onPress}
+          style={fcStyles.mainTarget}
+        >
+          <PressableFeedback.Highlight
+            animation={{
+              opacity: { value: [0, 0.08] },
+            }}
+          />
+          <View style={fcStyles.mainInner}>
+            <View style={fcStyles.icon}>
+              <AppIcon
+                color={colors.textSecondary}
+                name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
+                size={16}
+              />
+            </View>
 
-      <View style={fcStyles.body}>
-        <Text numberOfLines={1} style={fcStyles.title}>
-          {file.title}
-        </Text>
-        <Text numberOfLines={1} style={fcStyles.meta}>
-          {formatRecordedAt(file.recordedAt)} · {file.duration}
-        </Text>
-        {showSummary && file.summary ? (
-          <Text numberOfLines={1} style={fcStyles.summary}>
-            {file.summary}
-          </Text>
+            <View style={fcStyles.body}>
+              <Text numberOfLines={1} style={fcStyles.title}>
+                {file.title}
+              </Text>
+              <Text numberOfLines={1} style={fcStyles.meta}>
+                {formatRecordedAt(file.recordedAt)} · {file.duration}
+              </Text>
+              {showSummary && file.summary ? (
+                <Text numberOfLines={1} style={fcStyles.summary}>
+                  {file.summary}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={fcStyles.status}>
+              <StatusPill status={file.status} />
+            </View>
+          </View>
+        </PressableFeedback>
+
+        {onMore ? (
+          <PressableFeedback
+            accessibilityLabel="その他の操作"
+            accessibilityRole="button"
+            animation={false}
+            onPress={onMore}
+            style={fcStyles.more}
+          >
+            <PressableFeedback.Highlight
+              animation={{
+                opacity: { value: [0, 0.12] },
+              }}
+            />
+            <Text style={fcStyles.moreText}>⋯</Text>
+          </PressableFeedback>
         ) : null}
       </View>
-
-      <StatusPill status={file.status} />
-
-      {onMore ? (
-        <Pressable
-          accessibilityLabel="その他の操作"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={onMore}
-          style={({ pressed }) => [
-            fcStyles.more,
-            pressed && fcStyles.morePressed,
-          ]}
-        >
-          <Text style={fcStyles.moreText}>⋯</Text>
-        </Pressable>
-      ) : null}
-    </Pressable>
+      <Separator orientation="horizontal" variant="thin" />
+    </View>
   );
 }
 
 const fcStyles = StyleSheet.create({
-  card: {
-    alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
+  content: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 72,
+  },
+  mainTarget: {
+    alignSelf: 'stretch',
+    flex: 1,
+  },
+  mainInner: {
+    alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
     gap: spacing.md,
     minHeight: 72,
-    padding: spacing.md,
-    ...shadow.card,
-  },
-  pressed: {
-    opacity: 0.76,
-    transform: [{ scale: 0.97 }],
+    paddingVertical: spacing.md,
   },
   icon: {
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
+    borderRadius: radius.xs,
     flexShrink: 0,
     height: 32,
     justifyContent: 'center',
@@ -111,19 +128,20 @@ const fcStyles = StyleSheet.create({
   },
   summary: {
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: spacing.xxs,
     ...textStyles.footnote,
+  },
+  status: {
+    flexShrink: 0,
   },
   more: {
     alignItems: 'center',
     flexShrink: 0,
     height: 44,
     justifyContent: 'center',
-    margin: -6,
+    marginVertical: -6,
+    marginLeft: -6,
     width: 44,
-  },
-  morePressed: {
-    opacity: 0.5,
   },
   moreText: {
     color: colors.textTertiary,
