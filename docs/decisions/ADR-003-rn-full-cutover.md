@@ -72,13 +72,32 @@ RN 版を提出対象とするには、以下を全て満たし、その証拠�
 
 ## SwiftUI 削除 gate（f）
 
-本 ADR の帰結として SwiftUI UI と旧 `Memora` app target を削除できるのは、以下の**全て**を満たした時:
+> **更新（2026-08-09）**: 下記の削除条件は当初の削除 gate。オーナー決定により条件の完了を待たずに
+> 削除を実行した（§追記参照）。削除実行後、旧 `Memora` target を参照する `xcodegen` / `-scheme Memora`
+> のビルド・テスト・CI は存在しない。現状のゲートは、残存する required checks（rn-ios-build /
+> expo-check / shared-data / bot-server-build）が green であること。
+
+当初の定義として、本 ADR の帰結として SwiftUI UI と旧 `Memora` app target を削除できるのは、以下の**全て**を満たした時:
 
 - f1. 上記 gate a〜e を全て満たし、その証拠が実行計画のリリース判定に記録済み。
 - f2. RN 単独の release 候補ビルド（`xcodebuild archive -scheme MemoraRN`）と実機 QA が成立。
 - f3. 旧 target 削除後も `xcodegen generate` からの再ビルド・テスト・CI が green。
 - f4. ロールバック手順が決定済み（削除 PR の revert / 旧ブランチ復元 / データの共有ストア一元化の確認）。
 - f5. 削除スコープが明示されている（削除対象・保持対象の一覧。Broadcast Extension / Widget / native core は保持）。
+
+## 追記（2026-08-09）: SwiftUI UI と旧 Memora app target の削除
+
+オーナー決定（2026-08-09）により、上記「SwiftUI 削除 gate（f）」の全条件の完了を待たずに、
+SwiftUI UI と旧 `Memora` app target を削除した。実機 QA・残 parity（STT transcript 表示等）は
+RN 側で後日対応する。
+
+- **削除したもの**: `Memora/App/**`・`Memora/Views/**`・`Memora/Core/**`・`Memora/DesignSystem/**`・
+  `Memora/Resources/**`・`Memora/Memora.entitlements`、`Memora.xcodeproj/`、`project.yml`、CI の
+  `ios-build` ジョブ（`-scheme Memora` + xcodegen install/generate）。
+- **保持するもの**（ソース維持・ビルド対象外）: native core（STT / 録音 / `Packages/MemoraSharedData` /
+  Keychain）、`MemoraBroadcastExtension/**`、`MemoraWidget/**`。
+- STT・録音・SwiftData・Keychain は RN ホスト実装（`apps/mobile-expo/ios/MemoraRN`・共有パッケージ）へ
+  移行済みであり、旧 app target を参照する必要はない。
 
 ## 帰結
 

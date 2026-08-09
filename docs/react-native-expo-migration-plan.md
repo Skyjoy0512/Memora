@@ -365,6 +365,19 @@ Every LLM or agent working on this migration must:
 
 ## Handoff Log
 
+### 2026-08-09 SwiftUI UI と旧 Memora app target の削除（オーナー決定）
+
+- オーナー決定（2026-08-09）により、SwiftUI UI と旧 `Memora` app target を削除（ADR-003 の削除 gate f の
+  全条件の完了を待たずに実行。実機 QA・残 parity は RN 側で後日対応）。
+- `git rm` で `Memora/**`（App / Views / Core / DesignSystem / Resources / `Memora.entitlements`）、
+  `Memora.xcodeproj`、`project.yml` を削除。CI の `ios-build` ジョブ（`-scheme Memora` + xcodegen
+  install/generate）を除去。root README / CLAUDE.md を RN 単独構成へ更新（検証マトリクスは
+  `qa:ios:build` 等へ）。
+- 保持: native core（STT / 録音 / `Packages/MemoraSharedData` / Keychain。RN ホスト実装へ移行済み）、
+  `MemoraBroadcastExtension/**`・`MemoraWidget/**`（ソース維持・ビルド対象外）。
+- Verification: `git diff --check`、`npm run typecheck`、`npm test`、`CI=1 npx expo export --platform web`、
+  `npm run qa:ios:build`、`swift test --package-path Packages/MemoraSharedData` が green。
+
 ### 2026-08-09 ADR-004（RN 本番識別子・Keychain・共有ストア移行方針）を docs PR として確定
 
 - Added `docs/decisions/ADR-004-rn-identity-and-data-migration.md`: RN 本番 bundle ID を `com.memora.Memora` に統一（App Store 更新経路 / 同一データコンテナ / Keychain 連続性 / APNs）、RN Keychain service を `com.memora.app` に統一して既存資格情報を継承、共有 SwiftData ストアは legacy store → app group 共有ストアへの単方向・原子・冪等な移行（RN 先起動でも空共有ストアを生成せず、移行後も legacy store 保持）とし、解決関数を `MemoraSharedData` に集約する方針を決定。実装は別 PR。
