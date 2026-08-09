@@ -170,5 +170,9 @@ skills-lock.json
 # Binary files
 *.apk
 
+# Root-scoped stray compiled scratch binary (speech API check artifact)
+# NOTE: ルート直下の `main` 実行ファイルのみ対象。広いパターン・Swiftソースはignoreしない
+/main
+
 # Reference materials (not source)
 References/
