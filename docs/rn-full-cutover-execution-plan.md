@@ -21,7 +21,7 @@ RN ホストが依存する **native core として保持**し、別判断なし
 
 - `apps/mobile-expo`: Expo SDK 57 / React Native 0.86 / TypeScript / Expo Router。Git 管理下（main に track 済み）。
 - UI は Home / File Detail / Ask AI / Settings / Tasks が揃い、V6 デザインとの忠実度調整が進む
-  （semantic theme tokens #161、HeroUI provider 基盤 #162 が main に入っている）。
+  （semantic theme tokens #161、HeroUI provider 基盤 #162、ステータスピル移行 #163 が main に入っている）。
 - RN iOS ホスト `apps/mobile-expo/ios/MemoraRN.xcodeproj`（Git 管理下。`expo prebuild --clean` 禁止）に以下が存在:
   - SpeechAnalyzer の RN ホスト実行（`MemoraRNTranscriptionBridge.swift`、#152）と診断強化（#160）
   - `MemoraNativeBridgeBootstrap` による registry 注入（reader / mutator / recording / settings / summary / knowledge / transcription）
@@ -31,8 +31,20 @@ RN ホストが依存する **native core として保持**し、別判断なし
   プロジェクト移動 / retry queue / summary / knowledge / settings の registry 契約が実装済み。
 - 共有パッケージ `Packages/MemoraSharedData`: `MemoraSharedSchema` / `MemoraSharedCore` /
   `MemoraSharedSummary` / `MemoraSharedAskAI`。ストア契約・store path 契約・`MemoraStoreMigration` と
-  テスト群（`swift test` 6 tests）あり。ただし**共有 SwiftData ストアは未有効化**（`persistenceScope` は
-  `app-sandbox` のまま。App Group / store 移行の決定待ち）。
+  テスト群（`swift test` 6 tests + cutover 安全テスト #166）あり。ただし**共有 SwiftData ストアは未有効化**
+  （`persistenceScope` は `app-sandbox` のまま。App Group / store 移行は `docs/decisions/ADR-004-rn-identity-and-data-migration.md` で方針確定、実装待ち）。
+
+#### 2026-08-09 に main へ入った進行（#164〜#170）
+
+| PR | 内容 |
+|---|---|
+| #164 | RN full cutover 実行計画（本計画・docs のみ PR）を確立 |
+| #165 | RN 表示の regression テスト（formatStatus / formatRecordedAt + vitest）を追加 |
+| #166 | 共有ストア cutover 安全テストを強化（`MemoraSharedDataTests`） |
+| #167 | Git branch / worktree 棚卸しを docs に記録（安全な local branch 7 件削除） |
+| #168 | checkpoint から parity slice を抽出（Home / File Detail / Ask AI / Settings / Tasks の V6 parity 強化） |
+| #169 | root スコープの stray build artifacts を除去 |
+| #170 | **リリースゲート導入**: preview / dev-fonts ルートと設定の開発者セクションを `__DEV__` 時のみ露出（gate c への前進。本番の auth / (tabs) / file/[id] は変更なし） |
 
 ### 2.2 SwiftUI 側
 
@@ -45,7 +57,8 @@ RN ホストが依存する **native core として保持**し、別判断なし
 
 - Git checkpoint `212329b8`（`wip/rn-full-cutover-checkpoint-20260809`）が単一 squash commit として
   未統合。RN UI / RN ネイティブ / SwiftUI 1.0 側 / STT 共有 / CI / docs の変更が混在（§9 で分割統合）。
-- 共有 SwiftData ストアの有効化、retry queue の host worker 接続、RN UI への実 STT transcript 表示、
+  一部は #168（RN UI parity slice）・#169 / #170（artifacts 除去 / リリースゲート）として main へ統合済み。
+- 共有 SwiftData ストアの有効化（ADR-004 実装）、retry queue の host worker 接続、RN UI への実 STT transcript 表示、
   export 先（Notion / ChatGPT）契約などが未着手。
 
 ## 3. 完了定義（Definition of Done）
@@ -71,22 +84,22 @@ RN への完全移行が「完了」と言えるのは、以下の全てが観�
 | 要約 summary | 実装 | `generateSummary` bridge + security tests（sample generator） | host adapter 接続 | C / G | 実ファイルの要約が RN File Detail に出る |
 | 検索 search | 実装 | Ask AI UI + `queryKnowledge` bridge（sample） | 実 retrieval adapter | C / G | Ask で実検索結果が返る |
 | 書き出し export | 実装 | Markdown / TXT / SRT を Share sheet で書き出し | Notion / ChatGPT 契約（未定） | G / F | 実ファイルの書き出しが成立 |
-| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain 実装 | RN 側の秘密情報が RN state に出ないことの確認 | C / G | 設定永続化、API キーは native 側のみ |
+| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain 実装（service は `com.anonymous.memora-rn.ai-credentials`） | service を `com.memora.app` に統一して既存資格情報を継承（ADR-004） | C / G | 設定永続化、API キーは native 側のみ、既存資格情報が RN で読める |
 | プロジェクト move | 実装 | `moveAudioFile` bridge foundation | UI wiring | G / F | プロジェクト移動が永続化 |
 | タスク tasks | 実装 | RN Tasks UI（mock） | データ契約の決定 | C / F | タスクの実データ契約 |
-| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route | release 到達不能化（gate c） | F / D | release ビルドで到達不能 |
-| 共有 SwiftData store | — | 契約・adapter・migration util・test 済み | App Group / store 移行の決定と有効化 | H / C / G | 実データ移行・rollback 検証（gate b） |
-| Broadcast Extension | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持 | D / G | RN ビルドに extension が同梱 |
+| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route。リリースゲート #170 で dev ルート/設定の開発者セクションを `__DEV__` 時のみ露出 | release ビルドでの全 mock/fake 到達不能性の最終確認（gate c） | F / D | release ビルドで到達不能 |
+| 共有 SwiftData store | — | 契約・adapter・migration util・test 済み（#166 で安全テスト強化）。**方針は ADR-004 で確定済み** | ADR-004 の実装（bundle ID `com.memora.Memora` 統一 / Keychain service 統一 / legacy→共有ストア移行の RN 配線） | H / C / G | 実データ移行・rollback 検証（gate b） |
+| Broadcast Extension | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持（`group.com.memora.broadcast` は ADR-004 で保持決定） | D / G | RN ビルドに extension が同梱 |
 | Widget | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持 | D / G | RN ビルドに widget が同梱 |
 | Dynamic Island / 通知 | V6 UI 実装 | RN にピル表示実装（物理 Dynamic Island は Live Activity のため out of scope） | 通知 | F | RN 録音フローの表示 |
 
 ## 5. 依存順とマイルストーン
 
 ```
-M0 方針確立（ADR-003 + 本計画）        ← 本 PR
+M0 方針確立（ADR-003 + ADR-004 + 本計画）   ← ADR-003 PR 完了済み、ADR-004 は docs PR（本 PR）で確定
 M1 checkpoint 分割統合（§9 S1→S9）    ← docs → code の順、依存順に merge
-M2 共有 SwiftData 有効化（T3）        ← App Group / store 移行 / rollback の実機検証
-M3 parity 残差解消（T4）              ← STT transcript / Keychain / export / tasks / search・summary adapter
+M2 ADR-004 実装（T3）                 ← bundle ID 統一 / Keychain 継承 / legacy→共有ストア移行 / rollback の実機検証
+M3 parity 残差解消（T4）              ← STT transcript / export / tasks / search・summary adapter
 M4 release gate 充足（T5）            ← gate c / d / e
 M5 release 判定（T6）                 ← gate a〜e の evidence 記録
 M6 SwiftUI 削除（T7）                 ← 削除 gate f
@@ -122,6 +135,7 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 ### T1: 方針確立（本 PR）
 - 内容: ADR-003 と本実行計画の作成、既存 docs / CLAUDE.md / README の最小更新。
 - 受け入れ: ADR-003 が ADR-002 方針を supersede し、削除 gate と native core 保持が明記されている。
+- 注: ADR-004（RN 識別子 / Keychain / 共有ストア移行）は 2026-08-09 の docs PR で追加確立。
 - 検証: `git diff --check`。
 
 ### T2: checkpoint 212329b8 の分割統合（§9）
@@ -129,14 +143,19 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 - 受け入れ: 各 PR が lane 別検証に pass。統合後 `git diff origin/main 212329b8` が空（意図的に破棄した分を除く）。
 - 検証: 各 PR の lane 別コマンド（§3.3）+ 最終 diff 確認。
 
-### T3: 共有 SwiftData ストアの有効化（gate b）
-- 内容: App Group / `ModelContainer` 共有の所有権決定 → store 移行と rollback の実装・実機検証 → RN ホストへ注入。
+### T3: ADR-004 実装（bundle ID / Keychain / 共有ストア移行）(gate b)
+- 内容: `docs/decisions/ADR-004-rn-identity-and-data-migration.md` の決定を実装する。
+  1. RN 本番 bundle ID を `com.memora.Memora` に統一（`app.json` / `ios` / entitlements / 関連 Swift）。
+  2. RN Keychain service を `com.memora.app` に統一し、既存資格情報を引き継ぐ（account/provider マッピング維持）。
+  3. legacy store（アプリサンドボックス）→ app group 共有ストア（`group.com.memora.shared`）の単方向・原子・冪等な移行を
+     `Packages/MemoraSharedData` に集約し、SwiftUI / RN の両ホストが同一ロジックで解決する。
+     RN が先に起動しても空の共有ストアを生成せず、legacy store が存在する限り移行ロジックを実行。移行後も legacy store は保持（rollback 用）。
 - 受け入れ: 実データ・実機で移行とロールバックを検証。既存ユーザーのデータが壊れない。
 - 検証: `swift test --package-path Packages/MemoraSharedData` + `npm run qa:ios:build` + 実機 QA。
 
 ### T4: parity 残差の解消（gate a）
-- 内容: RN UI への実 STT transcript 表示、export 契約、tasks データ契約、search / summary の host adapter 接続、
-  Keychain 経路の確認。
+- 内容: RN UI への実 STT transcript 表示、export 契約、tasks データ契約、search / summary の host adapter 接続。
+  （Keychain の既存資格情報継承は T3 で実施。）
 - 受け入れ: parity matrix の「残ギャップ」が全て解消。
 - 検証: lane 別検証（F: typecheck + web export、G: + qa:ios:build、C/H: + swift test）+ 実機 QA。
 
@@ -154,7 +173,7 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 ### T7: SwiftUI 削除（gate f）
 - 内容: SwiftUI UI（`Memora/Views/**`）と旧 `Memora` app target の削除。Broadcast Extension / Widget / native core は保持。
 - 受け入れ: 削除後も `xcodegen generate` → ビルド・テスト・CI が green（f3）。
-- 検証: `xcodebuild -project Memora.xcodeproj -scheme MemoraRN ...`（RN 単独構成）+ 残存 target の CI。
+- 検証: `xcodebuild -project apps/mobile-expo/ios/MemoraRN.xcodeproj -scheme MemoraRN ...`（RN 単独構成）+ 残存 target の CI。
 - 備考: `project.yml` からの target 除去は Lane D。2 段階（参照除去 + target 除去）を 1 PR で行う。
 
 ### T8: 安定化と rollback 確認
@@ -259,7 +278,7 @@ S8 / S9 は S1〜S7 と並列に進めてよい（CI が green なら merge queu
 | 段階 | ロールバック手段 | 備考 |
 |---|---|---|
 | M1（checkpoint 統合中） | 各分割 PR を個別に revert。wip ブランチは統合完了まで保持 | 既存 RN/SwiftUI は main に残るため安全 |
-| M2〜M5（共有ストア有効化・parity 中） | 機能 PR を revert。共有ストア有効化 PR は 未移行のまま残る App Group 設定を戻す | store 移行前に必ずバックアップ（`MemoraStoreMigration` 前提） |
+| M2〜M5（ADR-004 実装・parity 中） | 機能 PR を revert。ストア移行 PR は未移行のまま残る App Group 設定へ戻す | store 移行前に必ずバックアップ（`MemoraStoreMigration` 前提）。legacy store は移行後も保持（rollback 用） |
 | M6（SwiftUI 削除） | 削除 PR を revert で旧 target 復元 | データは共有 SwiftData ストアに一元化済みなので UI 差し戻しのみ |
 | M7（RN 単独運用中） | 前リリースタグへ revert / ブランチ復元 | データ移行済みユーザーには前バージョンの移行コードで読めることを確認 |
 
@@ -269,6 +288,7 @@ S8 / S9 は S1〜S7 と並列に進めてよい（CI が green なら merge queu
 ## 12. 関連文書
 
 - `docs/decisions/ADR-003-rn-full-cutover.md` — 方針（本計画の上位）
+- `docs/decisions/ADR-004-rn-identity-and-data-migration.md` — RN 本番識別子・Keychain・共有ストア移行の方針（gate b / T3 の実装対象）
 - `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md` — supersede した 1.0 方針（checkpoint 導入予定）
 - `docs/react-native-expo-migration-plan.md` — RN 移行の作業ログ
 - `docs/app-store-review-readiness.md` — SwiftUI 1.0 向け審査準備の historical checklist
