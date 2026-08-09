@@ -371,6 +371,13 @@ Every LLM or agent working on this migration must:
 - Updated `docs/rn-full-cutover-execution-plan.md`: #164〜#170 の完了を現在地 / parity matrix に反映、T3 を ADR-004 実装タスクへ更新、project/scheme 不一致の typo 修正、関連文書に ADR-004 を追記。
 - Verification: docs 変更のみ。`git diff --check` passed（コードビルド不要）。
 
+### 2026-08-09 checkpoint docs残差の取捨整理（ADR-001/002 統合・残り保留/破棄）
+
+- Integrated `docs/decisions/ADR-001-navigation-architecture.md`（NativeTabs / FAB）と `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md`（SwiftUI 1.0 + cutover gate、ADR-003 が supersede）を checkpoint `212329b8` から main へ導入。
+- Updated `docs/rn-full-cutover-execution-plan.md`: §2.3 に checkpoint docs残差の取捨判断（統合 / 判断保留 / 破棄確定）を追記、§9.2 S1 を「統合済み」に更新、§12 関連文書に ADR-001 を追記。
+- 判断保留（オーナー判断待ち）: `docs/design-archive-2026-08-02/**`、`docs/design/*`、`docs/agent-operating-model.md`（+ CLAUDE.md / agent_prompts.md / .github ラベルの運用方針）、`docs/reviews/*`。破棄確定: checkpoint 側の後退版（release gate 除去・bundle ID `com.anonymous.memora-rn`・vitest 除去・StatusPill 後退・root stray main / SpeechAnalyzerCheck.swift）。
+- Verification: docs 変更のみ（docs/** のみ）。`git diff --check` passed。ADR-003 / ADR-004 の本文は未変更。
+
 ### 2026-07-13 Reicon icon migration
 
 - Added `reicon-react-native@1.0.0` and a typed `AppIcon` adapter in `apps/mobile-expo/src/components/AppIcon.tsx`.

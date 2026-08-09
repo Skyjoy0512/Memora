@@ -61,6 +61,15 @@ RN ホストが依存する **native core として保持**し、別判断なし
 - 共有 SwiftData ストアの有効化（ADR-004 実装）、retry queue の host worker 接続、RN UI への実 STT transcript 表示、
   export 先（Notion / ChatGPT）契約などが未着手。
 
+#### checkpoint docs残差の取捨判断（2026-08-09）
+
+- **統合（本 PR）**: ADR-001（NativeTabs / FAB）、ADR-002（SwiftUI 1.0 + cutover gate。ADR-003 が supersede）を main へ導入。
+- **判断保留（オーナー判断待ち）**: `docs/design-archive-2026-08-02/**`（大規模デザイン資産）、`docs/design/*`（MEMORA_DESIGN 等）、
+  `docs/agent-operating-model.md`（+ CLAUDE.md / `agent_prompts.md` / `.github` ラベルの Sol / Luna / OpenCode / Claude 運用方針）、
+  `docs/reviews/*`（2026-08-03-status-review、current-ui-ux-audit、final-design-review、implementation-questions 等）。
+- **破棄確定**: checkpoint 側の後退版（release gate 除去・bundle ID `com.anonymous.memora-rn`・vitest 除去・StatusPill 後退・
+  root stray `main` / `SpeechAnalyzerCheck.swift`）— main の #163〜#174 / #169 で置換・削除済み。
+
 ## 3. 完了定義（Definition of Done）
 
 RN への完全移行が「完了」と言えるのは、以下の全てが観測された時:
@@ -217,7 +226,7 @@ xcodebuild -project Memora.xcodeproj -scheme Memora -destination 'generic/platfo
 
 | # | 単位 | 対象ファイル（checkpoint 差分） | lane | 備考 |
 |---|---|---|---|---|
-| S1 | ADR / 決定記録 | `docs/decisions/ADR-001-navigation-architecture.md`, `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md` | docs | ADR-002 は ADR-003 に supersede される旨を PR 説明に明記 |
+| S1 | ADR / 決定記録 | `docs/decisions/ADR-001-navigation-architecture.md`, `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md` | docs | **統合済み**: ADR-001/ADR-002 は本 PR で main 導入済み（残りの checkpoint docs 残差の取捨は §2.3 参照） |
 | S2 | 設計資料アーカイブ | `docs/design-archive-2026-08-02/**`, `docs/design/**`（再構成・新規） | docs | rename 検出に注意（`git diff -M`） |
 | S3 | 運用・レビュー docs | `docs/agent-operating-model.md`, `docs/reviews/**`, `docs/app-store-review-readiness.md`（checkpoint 差分） | docs | ADR-003 の historical 化と整合させる |
 | S4 | 運用ガイド | `CLAUDE.md`, `agent_prompts.md` | docs / D | hunk 分割が必要なら `git checkout -p` |
@@ -289,6 +298,7 @@ S8 / S9 は S1〜S7 と並列に進めてよい（CI が green なら merge queu
 
 - `docs/decisions/ADR-003-rn-full-cutover.md` — 方針（本計画の上位）
 - `docs/decisions/ADR-004-rn-identity-and-data-migration.md` — RN 本番識別子・Keychain・共有ストア移行の方針（gate b / T3 の実装対象）
+- `docs/decisions/ADR-001-navigation-architecture.md` — RN 側ナビゲーション（NativeTabs / FAB）の設計方針（checkpoint 統合）
 - `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md` — supersede した 1.0 方針（checkpoint 導入予定）
 - `docs/react-native-expo-migration-plan.md` — RN 移行の作業ログ
 - `docs/app-store-review-readiness.md` — SwiftUI 1.0 向け審査準備の historical checklist
