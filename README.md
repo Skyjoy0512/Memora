@@ -6,8 +6,8 @@
 
 ## 現在の実装
 
-- iOS 17 以上向けの SwiftUI アプリです。SwiftData、録音・音声インポート、文字起こし、要約、話者分離、検索・エクスポートの実装を含みます。
-- `apps/mobile-expo` に React Native / Expo の段階移行用アプリがあります。ネイティブブリッジは、アプリ sandbox の音声・JSONメタデータと非機密の UserDefaults 設定を扱います。既存 SwiftData、STT、Keychain、AI プロバイダーは未接続です。
+- `apps/mobile-expo`（React Native / Expo）を UI の正本として完全移行を進めています（[ADR-003](docs/decisions/ADR-003-rn-full-cutover.md)）。RN ホストは Swift の STT・録音・SwiftData 共有パッケージ・Keychain をネイティブブリッジで利用します。
+- 既存の SwiftUI アプリ（`Memora/**`）は parity と release gate 通過まで削除対象として凍結維持します（[実行計画](docs/rn-full-cutover-execution-plan.md)）。
 - Xcode プロジェクトの正本は `project.yml` です。構成を変更したら `xcodegen generate` を実行してください。
 
 ## リポジトリ構成
@@ -34,8 +34,10 @@ open Memora.xcodeproj
 
 ## ドキュメント
 
+- [RN完全移行の決定（ADR-003）](docs/decisions/ADR-003-rn-full-cutover.md) - SwiftUI 1.0方針をsupersedeしたRN完全移行の決定
+- [RN full cutover 実行計画](docs/rn-full-cutover-execution-plan.md) - parity matrix・並列lane・checkpoint分割・削除gate・rollback
 - [文字起こしコア境界](docs/transcription-core-boundary.md) - STT コアの保護ルールと拡張方針
-- [React Native / Expo 移行計画](docs/react-native-expo-migration-plan.md) - RN/Expo の移行範囲・現在地・引き継ぎ
+- [React Native / Expo 移行計画](docs/react-native-expo-migration-plan.md) - RN/Expo の移行範囲・作業ログ・引き継ぎ
 - [React Native SwiftData 共有方針](docs/react-native-swiftdata-target-sharing-decision.md) - SwiftData を安全に参照するための判断記録
 - [共有 Swift Package skeleton](Packages/MemoraSharedData/Package.swift) - 共有 DTO/store 契約
 

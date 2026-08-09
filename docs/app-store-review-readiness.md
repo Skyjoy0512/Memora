@@ -1,5 +1,10 @@
 # App Store 審査通過のための実装計画
 
+> ⚠️ **本ドキュメントは SwiftUI 1.0 提出試行向けの historical checklist です。**
+> ADR-003（RN完全移行）により提出対象は RN 版へ切り替わりました。審査・release readiness の正本は
+> `docs/decisions/ADR-003-rn-full-cutover.md` と `docs/rn-full-cutover-execution-plan.md`（release gate）です。
+> コード修正を伴う作業を始める前に、必ず ADR-003 と実行計画を参照してください。
+
 Last updated: 2026-07-13
 対象: SwiftUI 本番アプリ（`Memora/**`）。React Native/Expo版(`apps/mobile-expo`)は審査提出対象外。
 発行元: Claude Code レビューセッション（現行コードを確認済み、コード未変更）
