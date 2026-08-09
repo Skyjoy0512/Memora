@@ -58,6 +58,23 @@ export type ProcessingRetryDTO = ProcessingRetryRequestDTO & {
   updatedAt: string;
 };
 
+export type TaskDTO = {
+  id: string;
+  title: string;
+  notes?: string | null;
+  assignee?: string | null;
+  speaker?: string | null;
+  priority: string;
+  dueDate?: string | null;
+  relativeDueDate?: string | null;
+  projectId?: string | null;
+  parentId?: string | null;
+  sourceAudioFileId?: string | null;
+  isCompleted: boolean;
+  createdAt: string;
+  completedAt?: string | null;
+};
+
 export type SettingsDTO = {
   transcriptionMode: 'local' | 'api';
   summaryProvider: SummaryOptionsDTO['provider'];
@@ -117,6 +134,8 @@ export type BridgeInfoDTO = {
   knowledgeQuerySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   summarySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   retryQueueSource: 'native-file' | 'mock' | 'unknown';
+  tasksSource: 'memory' | 'swiftdata' | 'mock' | 'unknown';
+  taskMutationSource: 'memory' | 'swiftdata' | 'mock' | 'unknown';
   persistenceScope: 'app-sandbox' | 'app-group' | 'shared-swiftdata' | 'sandbox-swiftdata' | 'mock' | 'unknown';
   storeMode?: 'app-group' | 'app-sandbox';
   sharedStoreError?: string;
@@ -129,6 +148,11 @@ export type MemoraNativeModule = {
   renameAudioFile: (id: string, title: string) => Promise<AudioFile | undefined>;
   moveAudioFile: (id: string, projectId: string | null) => Promise<AudioFile | undefined>;
   deleteAudioFile: (id: string) => Promise<boolean>;
+  listTasks: () => Promise<TaskDTO[]>;
+  createTask: (task: TaskDTO) => Promise<TaskDTO>;
+  updateTask: (task: TaskDTO) => Promise<TaskDTO | undefined>;
+  toggleTask: (id: string, completed: boolean) => Promise<TaskDTO | undefined>;
+  deleteTask: (id: string) => Promise<boolean>;
   enqueueProcessingRetry: (request: ProcessingRetryRequestDTO) => Promise<ProcessingRetryDTO>;
   listProcessingRetries: () => Promise<ProcessingRetryDTO[]>;
   recordProcessingRetryFailure: (

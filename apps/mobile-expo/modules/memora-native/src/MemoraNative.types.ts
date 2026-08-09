@@ -49,6 +49,8 @@ export type BridgeInfoDTO = {
   knowledgeQuerySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   summarySource: 'sample' | 'native' | 'swiftdata' | 'mock' | 'unknown';
   retryQueueSource: 'native-file' | 'mock' | 'unknown';
+  tasksSource: 'memory' | 'swiftdata' | 'mock' | 'unknown';
+  taskMutationSource: 'memory' | 'swiftdata' | 'mock' | 'unknown';
   persistenceScope: 'app-sandbox' | 'app-group' | 'shared-swiftdata' | 'sandbox-swiftdata' | 'mock' | 'unknown';
   storeMode?: 'app-group' | 'app-sandbox';
   sharedStoreError?: string;
@@ -120,6 +122,23 @@ export type ProcessingRetryDTO = ProcessingRetryRequestDTO & {
   lastError: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type TaskDTO = {
+  id: string;
+  title: string;
+  notes?: string | null;
+  assignee?: string | null;
+  speaker?: string | null;
+  priority: string;
+  dueDate?: string | null;
+  relativeDueDate?: string | null;
+  projectId?: string | null;
+  parentId?: string | null;
+  sourceAudioFileId?: string | null;
+  isCompleted: boolean;
+  createdAt: string;
+  completedAt?: string | null;
 };
 
 export type MemoraNativeModuleEvents = {

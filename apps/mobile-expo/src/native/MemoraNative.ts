@@ -17,6 +17,7 @@ import type {
   SummaryDTO,
   SummaryOptionsDTO,
   SummaryRequestDTO,
+  TaskDTO,
   TranscriptionEventDTO,
   TranscriptionTaskDTO,
 } from './MemoraNative.types';
@@ -27,6 +28,11 @@ type NativeExpoModule = {
   renameAudioFile?: (id: string, title: string) => Promise<AudioFile | null>;
   moveAudioFile?: (id: string, projectId: string | null) => Promise<AudioFile | null>;
   deleteAudioFile?: (id: string) => Promise<boolean>;
+  listTasks?: () => Promise<TaskDTO[]>;
+  createTask?: (task: TaskDTO) => Promise<TaskDTO>;
+  updateTask?: (task: TaskDTO) => Promise<TaskDTO | null>;
+  toggleTask?: (id: string, completed: boolean) => Promise<TaskDTO | null>;
+  deleteTask?: (id: string) => Promise<boolean>;
   getBridgeInfo?: () => Promise<BridgeInfoDTO>;
   loadSettings?: () => Promise<SettingsDTO>;
   saveSettings?: (settings: SettingsDTO) => Promise<void>;
@@ -76,6 +82,7 @@ const timers = new Map<string, ReturnType<typeof setInterval>>();
 let fallbackGeneratedFiles: AudioFile[] = [];
 let fallbackProcessingRetries: ProcessingRetryDTO[] = [];
 let fallbackCustomVocabulary: CustomVocabularyDTO[] = [];
+let fallbackTasks: TaskDTO[] = [];
 
 const fallbackMemoNotes = new Map<string, { text: string; photos: PhotoAttachmentDTO[] }>();
 let fallbackPlayback: PlaybackStatusDTO | undefined;
@@ -354,6 +361,84 @@ export const MemoraNative: MemoraNativeModule = {
     const previousLength = fallbackGeneratedFiles.length;
     fallbackGeneratedFiles = fallbackGeneratedFiles.filter((file) => file.id !== id);
     return fallbackGeneratedFiles.length !== previousLength;
+  },
+  async listTasks() {
+    const nativeTasks = await withNative<TaskDTO[]>((nativeModule) =>
+      nativeModule.listTasks?.(),
+    );
+
+    // An empty array is a valid response from a connected SwiftData store.
+    // Only use the in-memory fallback when the native module is unavailable.
+    if (nativeTasks) {
+      return nativeTasks;
+    }
+
+    return [...fallbackTasks];
+  },
+  async createTask(task: TaskDTO) {
+    const nativeTask = await withNative<TaskDTO>((nativeModule) =>
+      nativeModule.createTask?.(task),
+    );
+
+    if (nativeTask) {
+      return nativeTask;
+    }
+
+    fallbackTasks = [task, ...fallbackTasks.filter((item) => item.id !== task.id)];
+    return task;
+  },
+  async updateTask(task: TaskDTO) {
+    const nativeTask = await withNative<TaskDTO>((nativeModule) =>
+      nativeModule.updateTask?.(task),
+    );
+
+    if (nativeTask) {
+      return nativeTask;
+    }
+
+    const current = fallbackTasks.find((item) => item.id === task.id);
+    if (!current) {
+      return undefined;
+    }
+
+    const updated = { ...current, ...task };
+    fallbackTasks = fallbackTasks.map((item) => (item.id === task.id ? updated : item));
+    return updated;
+  },
+  async toggleTask(id: string, completed: boolean) {
+    const nativeTask = await withNative<TaskDTO>((nativeModule) =>
+      nativeModule.toggleTask?.(id, completed),
+    );
+
+    if (nativeTask) {
+      return nativeTask;
+    }
+
+    const current = fallbackTasks.find((item) => item.id === id);
+    if (!current) {
+      return undefined;
+    }
+
+    const updated: TaskDTO = {
+      ...current,
+      isCompleted: completed,
+      completedAt: completed ? new Date().toISOString() : null,
+    };
+    fallbackTasks = fallbackTasks.map((item) => (item.id === id ? updated : item));
+    return updated;
+  },
+  async deleteTask(id: string) {
+    const nativeDeleted = await withNative<boolean>((nativeModule) =>
+      nativeModule.deleteTask?.(id),
+    );
+
+    if (nativeDeleted) {
+      return true;
+    }
+
+    const previousLength = fallbackTasks.length;
+    fallbackTasks = fallbackTasks.filter((item) => item.id !== id);
+    return fallbackTasks.length !== previousLength;
   },
   async enqueueProcessingRetry(request: ProcessingRetryRequestDTO) {
     const nativeItem = await withNative<ProcessingRetryDTO>((nativeModule) =>
@@ -685,6 +770,8 @@ export const MemoraNative: MemoraNativeModule = {
         retryQueueSource: 'mock',
         settingsSource: 'mock',
         summarySource: 'mock',
+        tasksSource: 'memory',
+        taskMutationSource: 'memory',
       }
     );
   },

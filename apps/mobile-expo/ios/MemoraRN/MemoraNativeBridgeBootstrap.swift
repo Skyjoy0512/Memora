@@ -121,6 +121,9 @@ enum MemoraNativeBridgeBootstrap {
     MemoraNativeTranscriptionRegistry.handler = transcriptionHandler
     MemoraNativeSummaryRegistry.summaryGenerator = MemoraSharedStoreSummaryGenerator(container: container)
     MemoraNativeKnowledgeQueryRegistry.knowledgeQuery = MemoraSharedStoreKnowledgeQuery(container: container)
+    let taskAdapter = MemoraSharedStoreTaskBridgeAdapter(container: container)
+    MemoraNativeTaskReaderRegistry.taskReader = taskAdapter
+    MemoraNativeTaskMutationRegistry.taskMutator = taskAdapter
     if let recordingImportHandler {
       MemoraNativeRecordingImportRegistry.handler = recordingImportHandler
     }

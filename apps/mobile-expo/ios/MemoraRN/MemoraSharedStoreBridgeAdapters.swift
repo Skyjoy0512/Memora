@@ -185,3 +185,100 @@ enum MemoraSharedStoreBridgeError: LocalizedError {
     }
   }
 }
+
+/// Adapts the host-owned SwiftData TodoItem repository to the Expo module's task
+/// JSON DTO boundary. Falls back to the module's in-memory store until a SwiftData
+/// container is configured during bootstrap.
+final class MemoraSharedStoreTaskBridgeAdapter: MemoraTaskReading, MemoraTaskMutating {
+  private let repository: TodoItemRepository
+  private let isoFormatter: ISO8601DateFormatter
+
+  var sourceDescription: String {
+    "swiftdata"
+  }
+
+  init(container: ModelContainer) {
+    self.repository = TodoItemRepository(modelContext: ModelContext(container))
+    self.isoFormatter = ISO8601DateFormatter()
+  }
+
+  func listTasks() throws -> [MemoraTaskDTO] {
+    try repository.fetchAll().map(makeDTO)
+  }
+
+  func createTask(_ dto: MemoraTaskDTO) throws -> MemoraTaskDTO {
+    let item = TodoItem(title: dto.title)
+    item.id = UUID(uuidString: dto.id) ?? UUID()
+    apply(dto, to: item)
+    try repository.save(item)
+    return makeDTO(from: item)
+  }
+
+  func updateTask(_ dto: MemoraTaskDTO) throws -> MemoraTaskDTO? {
+    guard let id = UUID(uuidString: dto.id), let item = try repository.fetch(id: id) else {
+      return nil
+    }
+    apply(dto, to: item)
+    try repository.save(item)
+    return makeDTO(from: item)
+  }
+
+  func toggleTask(id: String, completed: Bool) throws -> MemoraTaskDTO? {
+    guard let uuid = UUID(uuidString: id) else { return nil }
+    let item = try repository.setCompleted(id: uuid, isCompleted: completed)
+    return try item.map(makeDTO)
+  }
+
+  func deleteTask(id: String) throws -> Bool {
+    guard let uuid = UUID(uuidString: id), try repository.fetch(id: uuid) != nil else {
+      return false
+    }
+    try repository.delete(id: uuid)
+    return true
+  }
+
+  private func apply(_ dto: MemoraTaskDTO, to item: TodoItem) {
+    item.title = dto.title
+    item.notes = dto.notes
+    item.assignee = dto.assignee
+    item.speaker = dto.speaker
+    item.priority = dto.priority
+    item.dueDate = parseDate(dto.dueDate)
+    item.relativeDueDate = dto.relativeDueDate
+    item.projectID = dto.projectID.flatMap(UUID.init(uuidString:))
+    item.parentID = dto.parentID.flatMap(UUID.init(uuidString:))
+    item.sourceAudioFileID = dto.sourceAudioFileID.flatMap(UUID.init(uuidString:))
+    item.isCompleted = dto.isCompleted
+    item.completedAt = parseDate(dto.completedAt)
+  }
+
+  private func makeDTO(from item: TodoItem) -> MemoraTaskDTO {
+    MemoraTaskDTO(
+      id: item.id.uuidString,
+      title: item.title,
+      notes: item.notes,
+      assignee: item.assignee,
+      speaker: item.speaker,
+      priority: item.priority,
+      dueDate: item.dueDate.map(isoFormatter.string),
+      relativeDueDate: item.relativeDueDate,
+      projectID: item.projectID?.uuidString,
+      parentID: item.parentID?.uuidString,
+      sourceAudioFileID: item.sourceAudioFileID?.uuidString,
+      isCompleted: item.isCompleted,
+      createdAt: isoFormatter.string(from: item.createdAt),
+      completedAt: item.completedAt.map(isoFormatter.string)
+    )
+  }
+
+  private func parseDate(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    return Self.fractionalSecondsFormatter.date(from: value) ?? isoFormatter.date(from: value)
+  }
+
+  private static let fractionalSecondsFormatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+}

@@ -374,3 +374,80 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.transcript[1]["cleanedText"] as? String == "Memoraを確認します")
   }
 }
+
+@Suite("RN shared store task bridge adapter")
+struct MemoraSharedStoreTaskBridgeAdapterTests {
+  private func makeAdapter() throws -> MemoraSharedStoreTaskBridgeAdapter {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    return MemoraSharedStoreTaskBridgeAdapter(container: container)
+  }
+
+  private func makeDTO(
+    id: String = UUID().uuidString,
+    title: String = "会議メモを整理する",
+    dueDate: String? = nil,
+    sourceAudioFileID: String? = nil
+  ) -> MemoraTaskDTO {
+    MemoraTaskDTO(
+      id: id,
+      title: title,
+      priority: "medium",
+      dueDate: dueDate,
+      sourceAudioFileID: sourceAudioFileID,
+      isCompleted: false,
+      createdAt: "2026-08-09T00:00:00Z"
+    )
+  }
+
+  @Test("create, list, toggle, update, and delete persist through the repository")
+  func taskAdapterCRUD() throws {
+    let adapter = try makeAdapter()
+    let created = try adapter.createTask(makeDTO())
+    #expect(created.id != "")
+    #expect(try adapter.listTasks().map(\.id) == [created.id])
+
+    let toggled = try #require(try adapter.toggleTask(id: created.id, completed: true))
+    #expect(toggled.isCompleted)
+    #expect(toggled.completedAt != nil)
+
+    let updatedValue = try adapter.updateTask(MemoraTaskDTO(dictionary: [
+      "id": created.id,
+      "title": "更新済みタイトル",
+      "priority": "high",
+      "isCompleted": true,
+      "createdAt": toggled.createdAt
+    ]))
+    let updated = try #require(updatedValue)
+    #expect(updated.title == "更新済みタイトル")
+    #expect(updated.priority == "high")
+
+    #expect(try adapter.deleteTask(id: created.id))
+    #expect(try adapter.listTasks().isEmpty)
+  }
+
+  @Test("due dates and source links survive the DTO round trip")
+  func taskAdapterRoundTripsDatesAndSource() throws {
+    let adapter = try makeAdapter()
+    _ = try adapter.createTask(makeDTO(
+      title: "期限付きタスク",
+      dueDate: "2026-08-10T05:00:00.000Z",
+      sourceAudioFileID: UUID().uuidString
+    ))
+
+    let listed = try #require(try adapter.listTasks().first)
+    #expect(listed.dueDate?.hasPrefix("2026-08-10") == true)
+    #expect(listed.sourceAudioFileID != nil)
+    #expect(listed.isCompleted == false)
+  }
+
+  @Test("unknown IDs fail safely")
+  func taskAdapterRejectsUnknownIDs() throws {
+    let adapter = try makeAdapter()
+    #expect(try adapter.updateTask(makeDTO(id: UUID().uuidString)) == nil)
+    #expect(try adapter.toggleTask(id: UUID().uuidString, completed: true) == nil)
+    #expect(try adapter.deleteTask(id: UUID().uuidString) == false)
+  }
+}
