@@ -4,11 +4,14 @@ import { Checkbox } from 'heroui-native/checkbox';
 import { Input } from 'heroui-native/input';
 import { RadioGroup } from 'heroui-native/radio-group';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { EmptyState } from '../components/StateViews';
+import { MemoraNative } from '../native/MemoraNative';
+import type { TaskDTO } from '../native/MemoraNative.types';
+import { classifyTaskDue, taskDueDateForChoice, type TaskDue } from '../utils/taskDue';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 
 type DueChoice = '今日' | '明日' | '日付を選択';
@@ -17,27 +20,52 @@ const dueChoices: DueChoice[] = ['今日', '明日', '日付を選択'];
 
 type Task = {
   completed: boolean;
-  due: '期限切れ' | '今日' | '今後';
+  due: TaskDue;
   id: string;
   sourceFileId?: string;
   sourceTitle: string;
   title: string;
 };
 
-const initialTasks: Task[] = [
-  { completed: false, due: '期限切れ', id: 'task-1', sourceFileId: 'meet-sales-sync', sourceTitle: 'プロダクト定例', title: '見積もりの修正版を送る' },
-  { completed: false, due: '今日', id: 'task-2', sourceFileId: 'weekly-growth-0709', sourceTitle: '顧客ミーティング', title: '来週のデモ日程を共有する' },
-  { completed: false, due: '今後', id: 'task-3', sourceFileId: 'plaud-import-test', sourceTitle: '採用面談', title: '次回面談の質問事項をまとめる' },
-  { completed: true, due: '今日', id: 'task-4', sourceTitle: '週次レビュー', title: '会議資料をチームに共有する' },
-];
+function toScreenTask(item: TaskDTO, audioTitles: Map<string, string>): Task {
+  const sourceFileId = item.sourceAudioFileId ?? undefined;
+  return {
+    completed: item.isCompleted,
+    due: classifyTaskDue(item.dueDate),
+    id: item.id,
+    sourceFileId,
+    sourceTitle: sourceFileId ? (audioTitles.get(sourceFileId) ?? '録音から抽出') : '個人タスク',
+    title: item.title,
+  };
+}
 
 export function TasksScreen() {
   const router = useRouter();
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDoneExpanded, setIsDoneExpanded] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDue, setNewDue] = useState<DueChoice>('今日');
+  const audioTitlesRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([MemoraNative.listTasks(), MemoraNative.listAudioFiles()])
+      .then(([taskItems, audioFiles]) => {
+        if (!isMounted) return;
+        const titles = new Map(audioFiles.map((file) => [file.id, file.title] as const));
+        audioTitlesRef.current = titles;
+        setTasks(taskItems.map((item) => toScreenTask(item, titles)));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const grouped = useMemo(() => ({
     done: tasks.filter((task) => task.completed),
@@ -47,15 +75,46 @@ export function TasksScreen() {
   }), [tasks]);
 
   function toggleTask(id: string) {
-    setTasks((current) => current.map((task) => task.id === id ? { ...task, completed: !task.completed } : task));
+    const task = tasks.find((item) => item.id === id);
+    if (!task) return;
+    const completed = !task.completed;
+    setTasks((current) => current.map((item) => item.id === id ? { ...item, completed } : item));
+    MemoraNative.toggleTask(id, completed)
+      .then((updated) => {
+        if (updated) {
+          setTasks((current) => current.map((item) =>
+            item.id === id ? toScreenTask(updated, audioTitlesRef.current) : item
+          ));
+        }
+      })
+      .catch(() => {
+        setTasks((current) => current.map((item) =>
+          item.id === id ? { ...item, completed: !completed } : item
+        ));
+      });
   }
 
-  function addTask() {
+  async function addTask() {
     const title = newTitle.trim();
     if (!title) return;
-    const due: Task['due'] = newDue === '今日' ? '今日' : '今後';
-    setTasks((current) => [...current, { completed: false, due, id: `task-${Date.now()}`, sourceTitle: '個人タスク', title }]);
-    closeAddSheet();
+    const task: TaskDTO = {
+      id: `task-${Date.now()}`,
+      title,
+      priority: 'medium',
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+      dueDate: taskDueDateForChoice(newDue),
+    };
+    try {
+      const created = await MemoraNative.createTask(task);
+      if (created) {
+        setTasks((current) => [...current, toScreenTask(created, audioTitlesRef.current)]);
+      }
+    } catch {
+      // 永続化に失敗してもシートを閉じて入力を破棄する。
+    } finally {
+      closeAddSheet();
+    }
   }
 
   function closeAddSheet() {
@@ -82,7 +141,7 @@ export function TasksScreen() {
       title="タスク"
     >
       <View style={styles.content}>
-        {tasks.length === 0 ? (
+        {isLoading ? null : tasks.length === 0 ? (
           <EmptyState
             actionLabel="タスクを追加"
             body="記録から抽出されたアクションがここに表示されます。「+」から手動で追加することもできます。"

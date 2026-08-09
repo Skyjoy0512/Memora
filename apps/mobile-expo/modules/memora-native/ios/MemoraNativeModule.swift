@@ -33,6 +33,26 @@ public class MemoraNativeModule: Module {
       try self.audioFileMutator.deleteAudioFile(id: id)
     }
 
+    AsyncFunction("listTasks") { () -> [[String: Any]] in
+      try self.taskReader.listTasks().map { $0.asDictionary() }
+    }
+
+    AsyncFunction("createTask") { (task: [String: Any]) -> [String: Any] in
+      try self.taskMutator.createTask(MemoraTaskDTO(dictionary: task)).asDictionary()
+    }
+
+    AsyncFunction("updateTask") { (task: [String: Any]) -> [String: Any]? in
+      try self.taskMutator.updateTask(MemoraTaskDTO(dictionary: task))?.asDictionary()
+    }
+
+    AsyncFunction("toggleTask") { (id: String, completed: Bool) -> [String: Any]? in
+      try self.taskMutator.toggleTask(id: id, completed: completed)?.asDictionary()
+    }
+
+    AsyncFunction("deleteTask") { (id: String) -> Bool in
+      try self.taskMutator.deleteTask(id: id)
+    }
+
     AsyncFunction("getBridgeInfo") { () -> [String: Any] in
       var info: [String: Any] = [
         "platform": "ios",
@@ -45,6 +65,8 @@ public class MemoraNativeModule: Module {
         "knowledgeQuerySource": self.knowledgeQuery.sourceDescription,
         "summarySource": self.summaryGenerator.sourceDescription,
         "retryQueueSource": self.retryQueue.sourceDescription,
+        "tasksSource": self.taskReader.sourceDescription,
+        "taskMutationSource": self.taskMutator.sourceDescription,
         "persistenceScope": self.persistenceScope,
         "isRealDataConnected": self.isRealDataConnected
       ]
@@ -213,6 +235,14 @@ public class MemoraNativeModule: Module {
 
   private var audioFileMutator: MemoraAudioFileMutating {
     MemoraNativeAudioFileMutationRegistry.audioFileMutator
+  }
+
+  private var taskReader: MemoraTaskReading {
+    MemoraNativeTaskReaderRegistry.taskReader
+  }
+
+  private var taskMutator: MemoraTaskMutating {
+    MemoraNativeTaskMutationRegistry.taskMutator
   }
 
   private var settingsStore: MemoraSettingsReadingWriting {

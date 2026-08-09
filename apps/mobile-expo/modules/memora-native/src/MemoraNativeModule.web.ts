@@ -13,12 +13,49 @@ import {
   SettingsDTO,
   SummaryDTO,
   SummaryRequestDTO,
+  TaskDTO,
   TranscriptionTaskDTO,
 } from './MemoraNative.types';
 
 class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
   private retries: ProcessingRetryDTO[] = [];
   private customVocabulary: CustomVocabularyDTO[] = [];
+  private tasks: TaskDTO[] = [];
+
+  async listTasks(): Promise<TaskDTO[]> {
+    return [...this.tasks];
+  }
+
+  async createTask(task: TaskDTO): Promise<TaskDTO> {
+    this.tasks = [task, ...this.tasks.filter((item) => item.id !== task.id)];
+    return task;
+  }
+
+  async updateTask(task: TaskDTO): Promise<TaskDTO | null> {
+    const index = this.tasks.findIndex((item) => item.id === task.id);
+    if (index < 0) return null;
+    this.tasks[index] = task;
+    return task;
+  }
+
+  async toggleTask(id: string, completed: boolean): Promise<TaskDTO | null> {
+    const index = this.tasks.findIndex((item) => item.id === id);
+    if (index < 0) return null;
+    const current = this.tasks[index];
+    const updated: TaskDTO = {
+      ...current,
+      isCompleted: completed,
+      completedAt: completed ? new Date().toISOString() : null,
+    };
+    this.tasks[index] = updated;
+    return updated;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const previousLength = this.tasks.length;
+    this.tasks = this.tasks.filter((item) => item.id !== id);
+    return this.tasks.length !== previousLength;
+  }
 
   async listCustomVocabulary(): Promise<CustomVocabularyDTO[]> {
     return [...this.customVocabulary];
@@ -126,6 +163,8 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
       retryQueueSource: 'mock',
       settingsSource: 'mock',
       summarySource: 'mock',
+      tasksSource: 'memory',
+      taskMutationSource: 'memory',
     };
   }
 
