@@ -15,7 +15,11 @@ RN ホストが依存する **native core として保持**し、別判断なし
 この文書は docs 変更のみの PR として確立し、以降は本計画の維持（進捗・gate 判定の更新）を正本とする。
 コード・`project.yml`・`.xcodeproj`・`apps/mobile-expo` 実装は本 PR では変更しない。
 
-## 2. 現在地（2026-08-09 時点）
+## 2. 現在地（2026-08-09 / 2026-08-10 監査反映）
+
+> **更新（2026-08-10）**: SwiftUI 削除（#181）・Tasks 実データ化（#180）後のリリース準備監査
+> （`docs/rn-release-readiness-2026-08-10.md`）を実施。parity matrix の「実装済みになった残ギャップ」を
+> 反映し、詳細なコード根拠と 1.0 推奨は監査文書に譲る。残タスクの正体は §2.3 と parity matrix の「残ギャップ」列。
 
 ### 2.1 RN / Expo 側
 
@@ -31,8 +35,10 @@ RN ホストが依存する **native core として保持**し、別判断なし
   プロジェクト移動 / retry queue / summary / knowledge / settings の registry 契約が実装済み。
 - 共有パッケージ `Packages/MemoraSharedData`: `MemoraSharedSchema` / `MemoraSharedCore` /
   `MemoraSharedSummary` / `MemoraSharedAskAI`。ストア契約・store path 契約・`MemoraStoreMigration` と
-  テスト群（`swift test` 6 tests + cutover 安全テスト #166）あり。ただし**共有 SwiftData ストアは未有効化**
-  （`persistenceScope` は `app-sandbox` のまま。App Group / store 移行は `docs/decisions/ADR-004-rn-identity-and-data-migration.md` で方針確定、実装待ち）。
+  テスト群（`swift test` 6 tests + cutover 安全テスト #166）あり。
+  **共有 SwiftData ストアは有効化済み（2026-08-10 監査）**: `AppDelegate` → `configureSharedAudioStoreOrDefaults()` →
+  `MemoraSharedStoreResolver`（legacy → app group `group.com.memora.shared` の単方向・原子・冪等移行）。
+  実データ移行・rollback の実機検証（gate b）は未実施（詳細は `docs/rn-release-readiness-2026-08-10.md` §4）。
 
 #### 2026-08-09 に main へ入った進行（#164〜#170）
 
@@ -59,8 +65,9 @@ RN ホストが依存する **native core として保持**し、別判断なし
 - Git checkpoint `212329b8`（`wip/rn-full-cutover-checkpoint-20260809`）が単一 squash commit として
   未統合。RN UI / RN ネイティブ / SwiftUI 1.0 側 / STT 共有 / CI / docs の変更が混在（§9 で分割統合）。
   一部は #168（RN UI parity slice）・#169 / #170（artifacts 除去 / リリースゲート）として main へ統合済み。
-- 共有 SwiftData ストアの有効化（ADR-004 実装）、retry queue の host worker 接続、RN UI への実 STT transcript 表示、
-  export 先（Notion / ChatGPT）契約などが未着手。
+- 共有 SwiftData ストアの有効化（ADR-004 実装 #172/#173、**実装済み**）、RN UI への実 STT transcript 表示
+  （**実装済み**）、retry queue の host worker 接続、export 先（Notion / ChatGPT）契約などは未着手の残り。
+  2026-08-10 時点の残差の正体と状態は `docs/rn-release-readiness-2026-08-10.md` §4 を参照。
 
 #### checkpoint docs残差の取捨判断（2026-08-09）
 
@@ -87,21 +94,21 @@ RN への完全移行が「完了」と言えるのは、以下の全てが観�
 
 | 機能 | SwiftUI 1.0 | RN 現状 | 残ギャップ | 担当 lane | 受入条件（簡潔） |
 |---|---|---|---|---|---|
-| 録音 record | 実装 | native-file 録音（AVAudioRecorder handler）+ 録音→保存フロー実装 | SwiftData 永続化 adapter 未接続 | G → H | 実録音 → 一覧反映 → 再起動後も残る |
-| インポート import | 実装 | `expo-document-picker` + `importAudio` | 同上 | G → H | 実ファイル取込 → 一覧反映 → 永続化 |
+| 録音 record | 実装 | native-file 録音（AVAudioRecorder handler）+ 録音→保存フロー実装。共有 SwiftData 永続化へ配線済み（2026-08-10 監査） | 実機 QA（マイク権限・バックグラウンド継続の主張有無） | G → H | 実録音 → 一覧反映 → 再起動後も残る |
+| インポート import | 実装 | `expo-document-picker` + `importAudio`。共有 SwiftData 永続化へ配線済み | 実機 QA | G → H | 実ファイル取込 → 一覧反映 → 永続化 |
 | 再生 playback | 実装 | AVAudioPlayer bridge + PlayerBar（実録音で検証済み） | なし | G | 実録音の再生・seek・rate |
-| STT | 実装 | SpeechAnalyzer on RN host（#152 / #160） | RN UI への実 transcript 表示 | B / G → F | 実録音の文字起こしが RN transcript タブに表示 |
-| 要約 summary | 実装 | `generateSummary` bridge + security tests（sample generator） | host adapter 接続 | C / G | 実ファイルの要約が RN File Detail に出る |
-| 検索 search | 実装 | Ask AI UI + `queryKnowledge` bridge（sample） | 実 retrieval adapter | C / G | Ask で実検索結果が返る |
-| 書き出し export | 実装 | Markdown / TXT / SRT を Share sheet で書き出し | Notion / ChatGPT 契約（未定） | G / F | 実ファイルの書き出しが成立 |
-| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain 実装（service は `com.anonymous.memora-rn.ai-credentials`） | service を `com.memora.app` に統一して既存資格情報を継承（ADR-004） | C / G | 設定永続化、API キーは native 側のみ、既存資格情報が RN で読める |
-| プロジェクト move | 実装 | `moveAudioFile` bridge foundation | UI wiring | G / F | プロジェクト移動が永続化 |
-| タスク tasks | 実装 | RN Tasks UI（mock） | データ契約の決定 | C / F | タスクの実データ契約 |
-| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route。リリースゲート #170 で dev ルート/設定の開発者セクションを `__DEV__` 時のみ露出 | release ビルドでの全 mock/fake 到達不能性の最終確認（gate c） | F / D | release ビルドで到達不能 |
-| 共有 SwiftData store | — | 契約・adapter・migration util・test 済み（#166 で安全テスト強化）。**方針は ADR-004 で確定済み** | ADR-004 の実装（bundle ID `com.memora.Memora` 統一 / Keychain service 統一 / legacy→共有ストア移行の RN 配線） | H / C / G | 実データ移行・rollback 検証（gate b） |
+| STT | 実装 | SpeechAnalyzer on RN host（#152 / #160）+ 共有 SwiftData `Transcript` へ persist + `onTranscriptionEvent`。RN transcript タブは実データ表示（2026-08-10 監査） | 実機 QA（音声認識権限・精度） | B / G → F | 実録音の文字起こしが RN transcript タブに表示 |
+| 要約 summary | 実装 | `generateSummary` bridge + `MemoraSharedStoreSummaryGenerator` を host 接続済み（2026-08-10 監査）。API キーは Keychain | 実機 QA（API キー実接続） | C / G | 実ファイルの要約が RN File Detail に出る |
+| 検索 search | 実装 | Ask AI UI + `queryKnowledge` bridge + `MemoraSharedStoreKnowledgeQuery`（host 接続済み、2026-08-10 監査） | retrieval 品質・モデル選択。1.0 必須/推奨の判定 | C / G | Ask で実検索結果が返る |
+| 書き出し export | 実装 | Share sheet で title+summary+transcript を書き出し（実装済み） | Notion / ChatGPT 契約（未定・要ユーザー決定） | G / F | 実ファイルの書き出しが成立 |
+| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain（service `com.memora.app`、ADR-004 実装済み）。連携行（Notion / ChatGPT / PLAUD / Omi 等）は未接続 Alert | 連携行のスコープ判断 | C / G | 設定永続化、API キーは native 側のみ |
+| プロジェクト move | 実装 | `moveAudioFile` bridge + Home のプロジェクト表示（`file.project`） | UI wiring（FileDetail / Tasks シートは未接続 Alert） | G / F | プロジェクト移動が永続化 |
+| タスク tasks | 実装 | **#180 で実データ化済み**: `TodoItem` SwiftData + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD | 日付選択・タスク化導線（FileDetail / AskAI）の配線 | C / F | タスクの実データ契約 |
+| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route。リリースゲート #170 で dev ルート/設定の開発者セクションを `__DEV__` 時のみ露出 | 認証バックエンド・IAP 契約の決定（UI のみ実装） | F / D | release ビルドで到達不能 |
+| 共有 SwiftData store | — | 契約・adapter・migration util・test 済み（#166）。**実装済み（#172/#173、2026-08-10 監査）**: bundle ID `com.memora.Memora` / Keychain service `com.memora.app` / legacy→共有ストア移行の RN 配線 | 実データ移行・rollback の実機検証（gate b） | H / C / G | 実データ移行・rollback 検証（gate b） |
 | Broadcast Extension | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持（`group.com.memora.broadcast` は ADR-004 で保持決定） | D / G | RN ビルドに extension が同梱 |
 | Widget | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持 | D / G | RN ビルドに widget が同梱 |
-| Dynamic Island / 通知 | V6 UI 実装 | RN にピル表示実装（物理 Dynamic Island は Live Activity のため out of scope） | 通知 | F | RN 録音フローの表示 |
+| Dynamic Island / 通知 | V6 UI 実装 | RN にピル表示実装（物理 Dynamic Island は Live Activity のため out of scope） | 通知（RN 設定画面は Switch のみ・未接続） | F | RN 録音フローの表示 |
 
 ## 5. 依存順とマイルストーン
 
@@ -309,6 +316,7 @@ S8 / S9 は S1〜S7 と並列に進めてよい（CI が green なら merge queu
 - `docs/decisions/ADR-004-rn-identity-and-data-migration.md` — RN 本番識別子・Keychain・共有ストア移行の方針（gate b / T3 の実装対象）
 - `docs/decisions/ADR-001-navigation-architecture.md` — RN 側ナビゲーション（NativeTabs / FAB）の設計方針（checkpoint 統合）
 - `docs/decisions/ADR-002-release-bundle-and-rn-cutover.md` — supersede した 1.0 方針（checkpoint 導入予定）
+- `docs/rn-release-readiness-2026-08-10.md` — SwiftUI 削除後のリリース準備監査（2026-08-10。コード根拠付き parity 残差・1.0 推奨）
 - `docs/react-native-expo-migration-plan.md` — RN 移行の作業ログ
 - `docs/app-store-review-readiness.md` — SwiftUI 1.0 向け審査準備の historical checklist
 - `CLAUDE.md` — 運用ルール（lane・検証マトリクス・STT 保護）

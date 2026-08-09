@@ -365,6 +365,21 @@ Every LLM or agent working on this migration must:
 
 ## Handoff Log
 
+### 2026-08-10 リリース準備監査（SwiftUI 削除後 / docs PR）
+
+- 対象 main `657a73de`（#181 SwiftUI 削除、origin/main 先端）で **read-only 監査**を実施し、
+  `docs/rn-release-readiness-2026-08-10.md` を新規作成。コード・設定・CI は変更しない。
+- 監査結果の要点: 録音 / インポート / 再生 / STT / 要約 / 検索 / Tasks は host adapter 配線済み（実機 QA 待ち）。
+  共有 SwiftData ストアは ADR-004 実装済み（bundle ID `com.memora.Memora`、Keychain service `com.memora.app`、
+  legacy → `group.com.memora.shared` 移行）。残差は Notion / ChatGPT 契約、PLAUD / Omi 連携、プロジェクト move の
+  UI wiring、通知 / Widget / Broadcast Extension の RN 同梱、認証・IAP、`ITSAppUsesNonExemptEncryption` /
+  `UIBackgroundModes` の申告。root `MemoraTests/`（旧 SwiftUI テスト 34 ファイル）は RN ビルドに未参照の孤立残存。
+- 1.0 推奨（要ユーザー決定）: バックグラウンド録音の主張有無、認証・IAP 方式、Notion / ChatGPT の対象可否、
+  Widget / Broadcast Extension 同梱、Ask AI の必須/推奨、`MemoraTests/` 削除可否。
+- Updated `docs/rn-full-cutover-execution-plan.md`: §2 現在地・§2.3・parity matrix の「実装済みになった残ギャップ」を反映、
+  関連文書に監査文書を追記。
+- Verification: docs 変更のみ（docs/**）。`git diff --check` passed。
+
 ### 2026-08-09 SwiftUI UI と旧 Memora app target の削除（オーナー決定）
 
 - オーナー決定（2026-08-09）により、SwiftUI UI と旧 `Memora` app target を削除（ADR-003 の削除 gate f の
