@@ -365,6 +365,12 @@ Every LLM or agent working on this migration must:
 
 ## Handoff Log
 
+### 2026-08-09 ADR-004（RN 本番識別子・Keychain・共有ストア移行方針）を docs PR として確定
+
+- Added `docs/decisions/ADR-004-rn-identity-and-data-migration.md`: RN 本番 bundle ID を `com.memora.Memora` に統一（App Store 更新経路 / 同一データコンテナ / Keychain 連続性 / APNs）、RN Keychain service を `com.memora.app` に統一して既存資格情報を継承、共有 SwiftData ストアは legacy store → app group 共有ストアへの単方向・原子・冪等な移行（RN 先起動でも空共有ストアを生成せず、移行後も legacy store 保持）とし、解決関数を `MemoraSharedData` に集約する方針を決定。実装は別 PR。
+- Updated `docs/rn-full-cutover-execution-plan.md`: #164〜#170 の完了を現在地 / parity matrix に反映、T3 を ADR-004 実装タスクへ更新、project/scheme 不一致の typo 修正、関連文書に ADR-004 を追記。
+- Verification: docs 変更のみ。`git diff --check` passed（コードビルド不要）。
+
 ### 2026-07-13 Reicon icon migration
 
 - Added `reicon-react-native@1.0.0` and a typed `AppIcon` adapter in `apps/mobile-expo/src/components/AppIcon.tsx`.
