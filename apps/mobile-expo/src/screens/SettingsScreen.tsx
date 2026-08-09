@@ -555,7 +555,7 @@ function buildSettingsGroups(
   return [
     {
       title: '文字起こしと AI',
-      description: '既存 Swift core を維持し、RN からは設定と状態だけを扱う。',
+      description: 'ネイティブの文字起こしエンジンと連携し、アプリからは設定と状態だけを扱う。',
       items: [
         { label: 'Transcription mode', value: transcriptionMode, state: 'ok' },
         { label: 'Summary provider', value: settings.summaryProvider, state: 'ok' },

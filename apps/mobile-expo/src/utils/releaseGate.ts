@@ -1,4 +1,4 @@
-const DEV_ONLY_ROUTES = ['preview', 'dev-fonts'] as const;
+const DEV_ONLY_ROUTES = ['auth', 'preview', 'dev-fonts'] as const;
 
 export function isDevOnlyRoute(routeName: string): boolean {
   return (DEV_ONLY_ROUTES as readonly string[]).includes(routeName);

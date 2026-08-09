@@ -35,7 +35,7 @@ export function TranscriptionProgressCard({
         <View style={styles.titleBlock}>
           <Text style={styles.title}>Native bridge event preview</Text>
           <Text style={styles.subtitle}>
-            {event?.message ?? 'Swift STT event stream に差し替える前の mock 進捗です。'}
+            {event?.message ?? 'ネイティブ STT 接続前の mock 進捗です。'}
           </Text>
         </View>
       </View>
