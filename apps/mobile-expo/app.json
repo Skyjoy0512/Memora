@@ -20,7 +20,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.memora-rn",
+      "bundleIdentifier": "com.memora.Memora",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Memora uses the microphone to record meetings and create reviewable transcripts.",
         "NSPhotoLibraryUsageDescription": "Memora lets you attach photos to your memo notes for a recording."

@@ -4,7 +4,7 @@ internal import MemoraNative
 
 /// RN専用Keychainの秘密情報。値はRNホスト内でのみ取り扱う。
 struct MemoraRNKeychainSecureCredentials: MemoraRNSummaryKeyReading, MemoraSecureCredentialWriting {
-  static let service = "com.anonymous.memora-rn.ai-credentials"
+  static let service = "com.memora.app"
 
   func apiKey(for provider: MemoraRNSummaryProvider) throws -> String? {
     guard let credentialProvider = MemoraSecureCredentialProvider(bridgeValue: provider.rawValue) else { return nil }
@@ -51,9 +51,9 @@ struct MemoraRNKeychainSecureCredentials: MemoraRNSummaryKeyReading, MemoraSecur
 
   private func account(for provider: MemoraSecureCredentialProvider) -> String {
     switch provider {
-    case .openAI: return "openai-api-key"
-    case .gemini: return "gemini-api-key"
-    case .deepSeek: return "deepseek-api-key"
+    case .openAI: return "apiKey_openai"
+    case .gemini: return "apiKey_gemini"
+    case .deepSeek: return "apiKey_deepseek"
     }
   }
 }

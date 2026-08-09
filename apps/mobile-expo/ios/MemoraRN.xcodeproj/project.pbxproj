@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		00E356F01AD99517003FC87E /* MemoraSharedStoreBridgeAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F11AD99517003FC87E /* MemoraSharedStoreBridgeAdapterTests.swift */; };
-		C8D4E2F37A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D4E2F47A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		2B2EC8D499009CD39F3300E6 /* libPods-MemoraRN.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 14F3A3506960F3EA596E3818 /* libPods-MemoraRN.a */; };
 		314DE1AD346D8BFF2B052369 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD038D99E6A0B350A23A8C13 /* ExpoModulesProvider.swift */; };
@@ -17,11 +16,12 @@
 		8944B523367379A8E9FD41F3 /* libPods-MemoraRNTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FF178E45E1B4C487E0376968 /* libPods-MemoraRNTests.a */; };
 		8F12A8F72C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */; };
 		8F12A8F82C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */; };
-		C8D4E2F17A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */; };
-		D8E4F2A17B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */; };
 		A84D5E6F708192A3B4C5D6E7 /* MemoraRNTranscriptionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C8D4E2F17A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */; };
+		C8D4E2F37A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D4E2F47A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift */; };
 		CDC318F7BDAF4DB86A44F76C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF3E027A4D5411EE0F187CAF /* ExpoModulesProvider.swift */; };
+		D8E4F2A17B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */; };
 		D9E5F3A17B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */; };
 		E16C0A110000000000000001 /* MemoraSharedStoreCustomVocabularyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16C0A110000000000000002 /* MemoraSharedStoreCustomVocabularyManager.swift */; };
 		E16C0A110000000000000003 /* MemoraCustomVocabularyApplier.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16C0A110000000000000004 /* MemoraCustomVocabularyApplier.swift */; };
@@ -30,7 +30,6 @@
 
 /* Begin PBXFileReference section */
 		00E356F11AD99517003FC87E /* MemoraSharedStoreBridgeAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreBridgeAdapterTests.swift; path = MemoraSharedStoreBridgeAdapterTests.swift; sourceTree = "<group>"; };
-		C8D4E2F47A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSummaryBridgeSecurityTests.swift; path = MemoraSummaryBridgeSecurityTests.swift; sourceTree = "<group>"; };
 		00E356F21AD99517003FC87E /* MemoraRNTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MemoraRNTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* MemoraRN.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MemoraRN.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = MemoraRN/Images.xcassets; sourceTree = "<group>"; };
@@ -43,13 +42,14 @@
 		85591F494C3FF612DADCB427 /* Pods-MemoraRN.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MemoraRN.release.xcconfig"; path = "Target Support Files/Pods-MemoraRN/Pods-MemoraRN.release.xcconfig"; sourceTree = "<group>"; };
 		8F12A8F62C7B4A24A6E3A901 /* MemoraNativeBridgeBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraNativeBridgeBootstrap.swift; path = MemoraRN/MemoraNativeBridgeBootstrap.swift; sourceTree = "<group>"; };
 		8F12A8F92C7B4A24A6E3A901 /* MemoraSharedStoreBridgeAdapters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreBridgeAdapters.swift; path = MemoraRN/MemoraSharedStoreBridgeAdapters.swift; sourceTree = "<group>"; };
-		C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreSummaryGenerator.swift; path = MemoraRN/MemoraSharedStoreSummaryGenerator.swift; sourceTree = "<group>"; };
-		D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreKnowledgeQuery.swift; path = MemoraRN/MemoraSharedStoreKnowledgeQuery.swift; sourceTree = "<group>"; };
 		A84D5E6F708192A3B4C5D6E6 /* MemoraRNTranscriptionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraRNTranscriptionBridge.swift; path = MemoraRN/MemoraRNTranscriptionBridge.swift; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MemoraRN/SplashScreen.storyboard; sourceTree = "<group>"; };
 		AD038D99E6A0B350A23A8C13 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MemoraRN/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		C8D4E2F07A2B4C6D8E0F1234 /* MemoraSharedStoreSummaryGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreSummaryGenerator.swift; path = MemoraRN/MemoraSharedStoreSummaryGenerator.swift; sourceTree = "<group>"; };
+		C8D4E2F47A2B4C6D8E0F1234 /* MemoraSummaryBridgeSecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSummaryBridgeSecurityTests.swift; path = MemoraSummaryBridgeSecurityTests.swift; sourceTree = "<group>"; };
 		CF3E027A4D5411EE0F187CAF /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MemoraRNTests/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		D8E4F2A07B3C5D6E9F011235 /* MemoraSharedStoreKnowledgeQuery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreKnowledgeQuery.swift; path = MemoraRN/MemoraSharedStoreKnowledgeQuery.swift; sourceTree = "<group>"; };
 		D9E5F3A07B3C4D5E6F708192 /* MemoraRNKeychainSecureCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraRNKeychainSecureCredentials.swift; path = MemoraRN/MemoraRNKeychainSecureCredentials.swift; sourceTree = "<group>"; };
 		E16C0A110000000000000002 /* MemoraSharedStoreCustomVocabularyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraSharedStoreCustomVocabularyManager.swift; path = MemoraRN/MemoraSharedStoreCustomVocabularyManager.swift; sourceTree = "<group>"; };
 		E16C0A110000000000000004 /* MemoraCustomVocabularyApplier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoraCustomVocabularyApplier.swift; path = MemoraRN/MemoraCustomVocabularyApplier.swift; sourceTree = "<group>"; };
@@ -559,7 +559,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.memora-rn.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.MemoraTests;
 				PRODUCT_NAME = MemoraRNTests;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MemoraRN.app/MemoraRN";
@@ -575,7 +575,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.memora-rn.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.MemoraTests;
 				PRODUCT_NAME = MemoraRNTests;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MemoraRN.app/MemoraRN";
@@ -612,7 +612,7 @@
 					"\"$(PODS_CONFIGURATION_BUILD_DIR)/LiquidGlass/libLiquidGlass.a\"",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.memora-rn";
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = MemoraRN;
 				SWIFT_OBJC_BRIDGING_HEADER = "MemoraRN/MemoraRN-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -647,7 +647,7 @@
 					"\"$(PODS_CONFIGURATION_BUILD_DIR)/LiquidGlass/libLiquidGlass.a\"",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.anonymous.memora-rn";
+				PRODUCT_BUNDLE_IDENTIFIER = com.memora.Memora;
 				PRODUCT_NAME = MemoraRN;
 				SWIFT_OBJC_BRIDGING_HEADER = "MemoraRN/MemoraRN-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -837,6 +837,11 @@
 			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
 			productName = MemoraSharedCore;
 		};
+		B1C2D3E4F5061728394A5B6C /* MemoraSharedData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
+			productName = MemoraSharedData;
+		};
 		C8D4E2F27A2B4C6D8E0F1234 /* MemoraSharedSummary */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
@@ -846,11 +851,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
 			productName = MemoraSharedAskAI;
-		};
-		B1C2D3E4F5061728394A5B6C /* MemoraSharedData */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A1B2C3D4E5F60718293A4B5C /* XCLocalSwiftPackageReference "MemoraSharedData" */;
-			productName = MemoraSharedData;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

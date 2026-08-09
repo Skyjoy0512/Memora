@@ -28,7 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>memora-rn</string>
-				<string>com.anonymous.memora-rn</string>
+				<string>com.memora.Memora</string>
 			</array>
 		</dict>
 		<dict>
