@@ -1,15 +1,18 @@
-import { AppIcon as Ionicons } from '../components/AppIcon';
+import { AppIcon } from '../components/AppIcon';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
-import { SheetCard } from '../components/SheetCard';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../components/Screen';
-import { EmptyState, LoadingState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { askMessages } from '../mocks/memoraData';
 import { MemoraNative } from '../native/MemoraNative';
 import type { KnowledgeQueryScope, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { AskMessage } from '../types/memora';
+import { Button } from 'heroui-native/button';
+import { TextArea } from 'heroui-native/text-area';
+import { Tabs } from 'heroui-native/tabs';
+import { RadioGroup } from 'heroui-native/radio-group';
+import { Spinner } from 'heroui-native/spinner';
 
 const scopeOptions: Array<{ label: string; value: KnowledgeQueryScope }> = [
   { label: '全体', value: 'global' },
@@ -58,6 +61,7 @@ export function AskAIScreen() {
     const hide = Keyboard.addListener(hideEvent, () => setIsKeyboardOpen(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
+
   const [messagesByScope, setMessagesByScope] =
     useState<Record<KnowledgeQueryScope, AskMessage[]>>(initialMessagesByScope);
 
@@ -136,65 +140,117 @@ export function AskAIScreen() {
       footerAccessory={
         <View style={[styles.askDock, isKeyboardOpen && styles.askDockKeyboard]}>
           <View style={styles.askBox}>
-            <TextInput
+            <TextArea
               accessibilityLabel="Ask AI question"
-              multiline
               onChangeText={setDraft}
               onSubmitEditing={() => void sendQuestion()}
               placeholder={placeholder}
-              placeholderTextColor="#DCE1DE"
+              placeholderTextColor={colors.textTertiary}
               returnKeyType="send"
               style={styles.askInput}
               value={draft}
+              variant="secondary"
             />
-            <Pressable accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.attachButton}>
-              <Ionicons color={colors.textTertiary} name="attach-outline" size={18} />
-            </Pressable>
-            <Pressable accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsModelSheetOpen(true)} style={styles.modelPill}>
-              <Text style={styles.modelPillText}>{ASK_MODEL_LABELS[askModel]}</Text>
-              <Ionicons color={colors.textSecondary} name="chevron-down" size={12} />
-            </Pressable>
-            <Pressable
-              accessibilityLabel="Ask AI send"
-              accessibilityRole="button"
-              disabled={!canSend}
-              onPress={() => void sendQuestion()}
-              style={[styles.sendButton, !canSend ? styles.sendButtonDisabled : null]}
-            >
-              <Ionicons color={colors.surface} name="arrow-forward" size={17} />
-            </Pressable>
+            <View style={styles.composerActions}>
+              <Button
+                accessibilityLabel="ファイルを添付"
+                feedbackVariant="none"
+                isIconOnly
+                onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
+                size="sm"
+                variant="ghost"
+                style={styles.attachButton}
+              >
+                <AppIcon color={colors.textTertiary} name="attach-outline" size={18} />
+              </Button>
+              <Button
+                accessibilityLabel="AIモデルを選択"
+                onPress={() => setIsModelSheetOpen(true)}
+                size="md"
+                variant="ghost"
+                style={styles.modelButton}
+              >
+                <Text style={styles.modelButtonText}>{ASK_MODEL_LABELS[askModel]}</Text>
+                <AppIcon color={colors.textSecondary} name="chevron-down" size={12} />
+              </Button>
+              <Button
+                accessibilityLabel="Ask AI send"
+                feedbackVariant="none"
+                isDisabled={!canSend}
+                isIconOnly
+                onPress={() => void sendQuestion()}
+                variant="primary"
+                style={styles.sendButton}
+              >
+                {isAnswering ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <AppIcon color={colors.surface} name="arrow-forward" size={17} />
+                )}
+              </Button>
+            </View>
           </View>
         </View>
       }
-      headerAccessory={<Pressable accessibilityLabel="新しい会話" accessibilityRole="button" hitSlop={6} onPress={handleNewChat} style={({ pressed }) => [styles.newChatButton, pressed && styles.iconPressed]}><Ionicons color={colors.text} name="create-outline" size={21} /></Pressable>}
+      headerAccessory={
+        <Button
+          accessibilityLabel="新しい会話"
+          feedbackVariant="none"
+          isIconOnly
+          onPress={handleNewChat}
+          size="md"
+          variant="ghost"
+          style={styles.newChatButton}
+        >
+          <AppIcon color={colors.text} name="create-outline" size={21} />
+        </Button>
+      }
       title="聞く"
     >
-      <View style={styles.scopeBar}>
-        {scopeOptions.map((scope) => {
-          const isActive = activeScope === scope.value;
-          return (
-            <Pressable
-              key={scope.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isActive }}
-              onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setActiveScope(scope.value); }}
-              style={[styles.scopeButton, isActive ? styles.scopeActive : null]}
-            >
-              <Text style={[styles.scopeText, isActive ? styles.scopeTextActive : null]}>
-                {scope.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={styles.scopeCaption}>{activeScope === 'global' ? 'すべての記録から回答します' : activeScope === 'project' ? 'プロジェクト内から回答します' : 'このファイルの内容から回答します'}</Text>
+      <Tabs
+        onValueChange={(value) => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setActiveScope(value as KnowledgeQueryScope);
+        }}
+        value={activeScope}
+        variant="secondary"
+      >
+        <Tabs.List>
+          <Tabs.Indicator />
+          {scopeOptions.map((scope) => (
+            <Tabs.Trigger key={scope.value} value={scope.value}>
+              <Tabs.Label>{scope.label}</Tabs.Label>
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
+      </Tabs>
+      <Text style={styles.scopeCaption}>
+        {activeScope === 'global'
+          ? 'すべての記録から回答します'
+          : activeScope === 'project'
+            ? 'プロジェクト内から回答します'
+            : 'このファイルの内容から回答します'}
+      </Text>
 
       <View style={styles.thread}>
         {messages.length === 0 ? (
           <View style={styles.emptyAsk}>
             <Text style={styles.emptyTitle}>調べたいことを質問してください</Text>
             <Text style={styles.emptySubtitle}>最近の記録から</Text>
-            <View style={styles.suggestions}>{suggestedQuestions.map((question) => <Pressable accessibilityLabel={`${question}を質問する`} accessibilityRole="button" key={question} onPress={() => void sendQuestion(question)} style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}><Text style={styles.suggestionText}>{question}</Text><Ionicons color={colors.border} name="arrow-forward" size={15} /></Pressable>)}</View>
+            <View style={styles.suggestions}>
+              {suggestedQuestions.map((question) => (
+                <Pressable
+                  accessibilityLabel={`${question}を質問する`}
+                  accessibilityRole="button"
+                  key={question}
+                  onPress={() => void sendQuestion(question)}
+                  style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}
+                >
+                  <Text style={styles.suggestionText}>{question}</Text>
+                  <AppIcon color={colors.border} name="arrow-forward" size={15} />
+                </Pressable>
+              ))}
+            </View>
           </View>
         ) : (
           messages.map((message) =>
@@ -211,7 +267,7 @@ export function AskAIScreen() {
                   <View style={styles.sources}>
                     {message.sources.map((source) => (
                       <View key={source} style={styles.sourcePill}>
-                        <Ionicons color={colors.textTertiary} name="document-outline" size={10} />
+                        <AppIcon color={colors.textTertiary} name="document-outline" size={10} />
                         <Text numberOfLines={1} style={styles.sourceText}>
                           {source}
                         </Text>
@@ -219,65 +275,67 @@ export function AskAIScreen() {
                     ))}
                   </View>
                 ) : null}
-                <View style={styles.messageActions}><Pressable accessibilityLabel="回答をコピー" accessibilityRole="button" onPress={() => Alert.alert('コピー', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>コピー</Text></Pressable><Pressable accessibilityLabel="回答からタスクを作成" accessibilityRole="button" onPress={() => Alert.alert('タスク化', 'この操作は現在利用できません。')}><Text style={styles.messageActionText}>タスク化</Text></Pressable><Text style={styles.messageTime}>たった今</Text></View>
+                <View style={styles.messageActions}>
+                  <Button
+                    accessibilityLabel="回答をコピー"
+                    onPress={() => Alert.alert('コピー', 'この操作は現在利用できません。')}
+                    size="sm"
+                    variant="ghost"
+                    style={styles.actionButton}
+                  >
+                    コピー
+                  </Button>
+                  <Button
+                    accessibilityLabel="回答からタスクを作成"
+                    onPress={() => Alert.alert('タスク化', 'この操作は現在利用できません。')}
+                    size="sm"
+                    variant="ghost"
+                    style={styles.actionButton}
+                  >
+                    タスク化
+                  </Button>
+                  <Text style={styles.messageTime}>たった今</Text>
+                </View>
               </View>
             ),
           )
         )}
-        {isAnswering ? <View style={styles.typingDots}><View style={styles.typingDot} /><View style={styles.typingDot} /><View style={styles.typingDot} /></View> : null}
+        {isAnswering ? (
+          <View style={styles.answeringStatus}>
+            <Spinner size="sm" />
+            <Text style={styles.answeringLabel}>回答を生成中</Text>
+          </View>
+        ) : null}
       </View>
 
       <FloatingBottomSheet isOpen={isModelSheetOpen} onClose={() => setIsModelSheetOpen(false)}>
-        <SheetCard style={styles.modelSheet}>
-          {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
-            <Pressable
-              accessibilityRole="button"
-              key={model}
-              onPress={() => {
-                setAskModel(model);
-                setIsModelSheetOpen(false);
-              }}
-              style={styles.modelSheetRow}
-            >
-              <Text style={styles.modelSheetRowText}>{ASK_MODEL_LABELS[model]}</Text>
-              {askModel === model ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-            </Pressable>
-          ))}
-        </SheetCard>
+        <View style={styles.modelSheetContainer}>
+          <Text style={styles.modelSheetHeading}>AIモデル</Text>
+          <RadioGroup
+            onValueChange={(value) => {
+              setAskModel(value as AskModel);
+              setIsModelSheetOpen(false);
+            }}
+            value={askModel}
+          >
+            {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
+              <RadioGroup.Item key={model} value={model}>
+                {ASK_MODEL_LABELS[model]}
+              </RadioGroup.Item>
+            ))}
+          </RadioGroup>
+        </View>
       </FloatingBottomSheet>
     </Screen>
   );
 }
 
+/** Dock bottom clearance when keyboard is closed, tuned to clear the center FAB and NativeTabs on iPhone. */
+const DOCK_BOTTOM_CLEARANCE = 176;
+
 const styles = StyleSheet.create({
-  scopeBar: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  scopeButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  scopeActive: {
-    borderBottomColor: colors.text,
-    borderBottomWidth: 2,
-  },
-  scopeText: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-    ...textStyles.footnoteBold,
-  },
-  scopeTextActive: {
-    borderRadius: radius.pill,
-    color: colors.text,
-  },
-  scopeCaption: { color: colors.textTertiary, marginTop: -8, ...textStyles.caption },
-  newChatButton: { alignItems: 'center', height: 44, justifyContent: 'center', marginRight: -spacing.sm, width: 44 },
-  iconPressed: { opacity: 0.45 },
+  scopeCaption: { color: colors.textTertiary, marginTop: spacing.xs, ...textStyles.caption },
+  newChatButton: { height: 44, marginRight: -spacing.sm, width: 44 },
   thread: {
     gap: spacing.md,
   },
@@ -286,7 +344,7 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     backgroundColor: colors.accentSoft,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     maxWidth: '84%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -301,18 +359,42 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  messageActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginTop: 2 },
-  messageActionText: { color: colors.textTertiary, ...textStyles.caption },
+  messageActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  actionButton: { minHeight: 44, minWidth: 44 },
+  modelSheetContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    marginBottom: spacing.md,
+    marginHorizontal: spacing.md,
+    padding: spacing.md,
+  },
+  modelSheetHeading: {
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    ...textStyles.captionBold,
+  },
   messageTime: { color: colors.border, marginLeft: 'auto', ...textStyles.caption },
   emptyAsk: { gap: spacing.xs, paddingTop: spacing.xl },
   emptyTitle: { color: colors.text, ...textStyles.callout },
   emptySubtitle: { color: colors.textTertiary, paddingBottom: spacing.sm, ...textStyles.captionBold },
   suggestions: { borderTopColor: colors.borderLight, borderTopWidth: 1 },
-  suggestion: { alignItems: 'center', borderBottomColor: colors.borderLight, borderBottomWidth: 1, flexDirection: 'row', minHeight: 52, paddingHorizontal: 2 },
+  suggestion: {
+    alignItems: 'center',
+    borderBottomColor: colors.borderLight,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    minHeight: 52,
+    paddingHorizontal: 2,
+  },
   suggestionPressed: { opacity: 0.46 },
   suggestionText: { color: colors.text, flex: 1, ...textStyles.body },
-  typingDots: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.sm },
-  typingDot: { backgroundColor: colors.border, borderRadius: 3, height: 6, width: 6 },
+  answeringStatus: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  answeringLabel: { color: colors.textTertiary, ...textStyles.caption },
   assistantText: {
     color: colors.text,
     ...textStyles.body,
@@ -333,48 +415,29 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
   },
   askBox: {
-    alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  attachButton: { alignItems: 'center', height: 32, justifyContent: 'center', width: 28 },
-  modelPill: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  modelPillText: {
+  attachButton: { height: 44, justifyContent: 'center', width: 44 },
+  modelButton: { minHeight: 44 },
+  modelButtonText: {
     color: colors.textSecondary,
     ...textStyles.caption,
   },
-  modelSheet: {
-    paddingVertical: spacing.xs,
-  },
-  modelSheetRow: {
+  composerActions: {
     alignItems: 'center',
+    borderTopColor: colors.borderLight,
+    borderTopWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
   },
-  modelSheetRowText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
+  sendButton: { height: 44, marginLeft: 'auto', width: 44 },
   askDock: {
     backgroundColor: colors.surface,
-    paddingBottom: 94,
+    paddingBottom: DOCK_BOTTOM_CLEARANCE,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -383,21 +446,8 @@ const styles = StyleSheet.create({
   },
   askInput: {
     color: colors.text,
-    flex: 1,
-    maxHeight: 96,
-    minHeight: 24,
+    height: 72,
+    width: '100%',
     ...textStyles.body,
-  },
-  sendButton: {
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    borderRadius: radius.pill,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.textTertiary,
-    opacity: 0.55,
   },
 });

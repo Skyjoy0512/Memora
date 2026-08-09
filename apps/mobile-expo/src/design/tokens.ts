@@ -84,11 +84,11 @@ export const colors = {
   overlay:        L.scrim,
   overlayLight:   L.scrimLight,
 
-  // Category（互換表示用。各スロットが両テーマで重複しないロールを参照）
+  // Category（モノクロの意味論バリエーションへ正規化）
   categorySlate:  L.foregroundSecondary,
-  categoryTeal:   L.info,
-  categoryOlive:  L.success,
-  categoryMauve:  L.warning,
+  categoryTeal:   L.processing,
+  categoryOlive:  L.foregroundTertiary,
+  categoryMauve:  L.borderStrong,
 } as const;
 
 // ── Colors (Dark) ──────────────────────────────────────────
@@ -131,11 +131,11 @@ export const darkColors = {
   overlay:        D.scrim,
   overlayLight:   D.scrimLight,
 
-  // Category（互換表示用。各スロットが両テーマで重複しないロールを参照）
+  // Category（モノクロの意味論バリエーションへ正規化）
   categorySlate:  D.foregroundSecondary,
-  categoryTeal:   D.info,
-  categoryOlive:  D.success,
-  categoryMauve:  D.warning,
+  categoryTeal:   D.processing,
+  categoryOlive:  D.foregroundTertiary,
+  categoryMauve:  D.borderStrong,
 } as const;
 
 // ── Spacing（4pt 基底）──────────────────────────────────────
@@ -174,12 +174,9 @@ export const typography = {
     title3:    T.size.title3,
     title2:    T.size.title2,
     title1:    T.size.title1,
-    // Legacy consumers treated `headline` as a display-scale size.
-    headline:  T.size.largeTitle,
+    headline:  T.size.headline,
   },
-  // Preserve the legacy optional ratio while defaulting to the theme rhythm.
-  lineHeight: (fontSize: number, ratio: number = 1.5) =>
-    Math.round(fontSize * ratio),
+  lineHeight: T.lineHeight,
   letterSpacing: {
     tight:  T.letterSpacing.tightLargeTitle,
     normal: T.letterSpacing.normal,

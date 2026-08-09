@@ -1,21 +1,29 @@
 import { AppIcon as Ionicons } from '../components/AppIcon';
-import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Dialog } from 'heroui-native/dialog';
+import { Input } from 'heroui-native/input';
+import { Label } from 'heroui-native/label';
+import { Description } from 'heroui-native/description';
+import { Radio } from 'heroui-native/radio';
+import { Separator } from 'heroui-native/separator';
+import { TextArea } from 'heroui-native/text-area';
+import { Tabs } from 'heroui-native/tabs';
+import { RadioGroup } from 'heroui-native/radio-group';
 import { PlayerBar } from '../components/PlayerBar';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
-import { SheetCard } from '../components/SheetCard';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { StatusPill } from '../components/StatusPill';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 import { TranscriptionProgressCard } from '../components/TranscriptionProgressCard';
 import { FileDetailGeneratingSkeleton } from '../components/FileDetailGeneratingSkeleton';
-import { colors, radius, shadow, spacing, textStyles } from '../design/tokens';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { useAudioFile } from '../features/files/useAudioFiles';
 import { useMemoNotes } from '../features/memo/useMemoNotes';
 import { usePlayback } from '../features/playback/usePlayback';
@@ -351,7 +359,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
 
   return (
     <Screen
-      topRow={<View style={styles.detailTopRow}><Pressable accessibilityLabel="ファイル一覧に戻る" accessibilityRole="button" onPress={() => router.back()} style={styles.headerIcon}><Ionicons color={colors.text} name="chevron-back" size={19} /></Pressable><View style={styles.headerActions}><Pressable accessibilityLabel="ファイルを共有" accessibilityRole="button" onPress={() => setIsExportOpen(true)} style={styles.headerIcon}><Ionicons color={colors.text} name="share-outline" size={18} /></Pressable><Pressable accessibilityLabel="その他の操作" accessibilityRole="button" onPress={handleMore} style={styles.headerIcon}><Ionicons color={colors.text} name="ellipsis-horizontal" size={19} /></Pressable></View></View>}
+      topRow={<View style={styles.detailTopRow}><Button variant="ghost" isIconOnly background={null} onPress={() => router.back()} accessibilityLabel="ファイル一覧に戻る"><Ionicons color={colors.text} name="chevron-back" size={19} /></Button><View style={styles.headerActions}><Button variant="ghost" isIconOnly background={null} onPress={() => setIsExportOpen(true)} accessibilityLabel="ファイルを共有"><Ionicons color={colors.text} name="share-outline" size={18} /></Button><Button variant="ghost" isIconOnly background={null} onPress={handleMore} accessibilityLabel="その他の操作"><Ionicons color={colors.text} name="ellipsis-horizontal" size={19} /></Button></View></View>}
       footerAccessory={
         <>
           {playback.status ? (
@@ -371,40 +379,34 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
               accessibilityLabel="プロジェクトを選択"
               accessibilityRole="button"
               onPress={() => Alert.alert('プロジェクトを選択', 'この操作は現在利用できません。')}
-              style={styles.fileAskProjectChip}
+              style={styles.fileAskProjectRow}
             >
               <Ionicons color={colors.textTertiary} name="folder" size={14} />
-              <Text style={styles.fileAskProjectChipText}>プロジェクトを選択</Text>
+              <Text style={styles.fileAskProjectRowText}>プロジェクトを選択</Text>
             </Pressable>
             <View style={styles.fileAskBox}>
-              <TextInput
-                accessibilityLabel="この記録について質問する"
-                multiline
+              <TextArea
+                variant="secondary"
+                placeholder="この記録について質問する"
+                value={fileAskDraft}
                 onChangeText={setFileAskDraft}
                 onSubmitEditing={handleFileAskSubmit}
-                placeholder="Ask anything..."
-                placeholderTextColor={colors.textTertiary}
-                style={styles.fileAskInput}
-                value={fileAskDraft}
+                accessibilityLabel="この記録について質問する"
+                style={{ height: 72 }}
+                containerClassName="w-full"
               />
               <View style={styles.fileAskBoxRow}>
-                <Pressable accessibilityLabel="ファイルを添付" accessibilityRole="button" onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} style={styles.fileAskAttachButton}>
+                <Button variant="ghost" isIconOnly background={null} onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')} accessibilityLabel="ファイルを添付">
                   <Ionicons color={colors.textTertiary} name="attach-outline" size={18} />
-                </Pressable>
-                <Pressable accessibilityLabel="AIモデルを選択" accessibilityRole="button" onPress={() => setIsFileAskModelSheetOpen(true)} style={styles.modelPill}>
-                  <Text style={styles.modelPillText}>{ASK_MODEL_LABELS[fileAskModel]}</Text>
+                </Button>
+                <Button variant="ghost" size="md" background={null} onPress={() => setIsFileAskModelSheetOpen(true)} accessibilityLabel="AIモデルを選択">
+                  <Button.Label>{ASK_MODEL_LABELS[fileAskModel]}</Button.Label>
                   <Ionicons color={colors.textSecondary} name="chevron-down" size={12} />
-                </Pressable>
+                </Button>
                 <View style={styles.fileAskSpacer} />
-                <Pressable
-                  accessibilityLabel="この記録について聞く"
-                  accessibilityRole="button"
-                  disabled={!fileAskDraft.trim()}
-                  onPress={handleFileAskSubmit}
-                  style={[styles.fileAskSendButton, !fileAskDraft.trim() ? styles.fileAskSendButtonDisabled : null]}
-                >
-                  <Ionicons color={colors.surface} name="mic-outline" size={16} />
-                </Pressable>
+                <Button variant="primary" isIconOnly isDisabled={!fileAskDraft.trim()} onPress={handleFileAskSubmit} accessibilityLabel="この記録について聞く">
+                  <Ionicons color={colors.surface} name="arrow-forward" size={16} />
+                </Button>
               </View>
             </View>
           </View>
@@ -420,21 +422,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         </View>
       }
     >
-      <View style={styles.tabs}>
-        {(['summary', 'transcript', 'memo'] as const).map((item) => (
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === item }}
-            key={item}
-            onPress={() => setTab(item)}
-            style={[styles.tab, tab === item && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === item && styles.tabTextActive]}>
-              {TAB_LABEL[item]}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Tabs variant="secondary" value={tab} onValueChange={(value) => setTab(value as Tab)}>
+        <Tabs.List>
+          <Tabs.Indicator />
+          <Tabs.Trigger value="summary"><Tabs.Label>{TAB_LABEL.summary}</Tabs.Label></Tabs.Trigger>
+          <Tabs.Trigger value="transcript"><Tabs.Label>{TAB_LABEL.transcript}</Tabs.Label></Tabs.Trigger>
+          <Tabs.Trigger value="memo"><Tabs.Label>{TAB_LABEL.memo}</Tabs.Label></Tabs.Trigger>
+        </Tabs.List>
 
       <Animated.View style={{ opacity: tabOpacity }}>
       {tab === 'summary' ? (
@@ -447,7 +441,25 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           {!isGeneratingSummary && file.status !== 'queued' ? (
             <>
               <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>決定事項</Text><Text style={styles.decisionText}>・{file.summary}</Text></View>
-              <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>次のアクション</Text><View style={styles.actionList}>{file.memo.map((item) => <View key={item} style={styles.actionItem}><Text style={styles.actionItemText}>{item}</Text><Pressable accessibilityRole="button" onPress={() => Alert.alert('タスクに追加', 'この操作は現在利用できません。')} style={styles.taskifyButton}><Ionicons color={colors.textTertiary} name="add" size={14} /><Text style={styles.taskifyText}>タスク</Text></Pressable></View>)}</View></View>
+              <View style={styles.summarySection}>
+                <Text style={styles.summarySectionTitle}>次のアクション</Text>
+                <View style={styles.actionList}>
+                  {file.memo.map((item) => (
+                    <View key={item} style={styles.actionItem}>
+                      <Text style={styles.actionItemText}>{item}</Text>
+                      <Button
+                        variant="ghost"
+                        background={null}
+                        onPress={() => Alert.alert('タスクに追加', 'この操作は現在利用できません。')}
+                        style={styles.taskAction}
+                      >
+                        <Ionicons color={colors.textTertiary} name="add" size={14} />
+                        <Button.Label>タスク</Button.Label>
+                      </Button>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </>
           ) : null}
           <View style={styles.summarySection}>
@@ -478,24 +490,19 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           {isGeneratingSummary ? null : file.status === 'queued' ? (
             <View style={styles.generateCta}>
               <View style={styles.generateIconRow}>
-                <View style={styles.generateIconCircle}>
-                  <Ionicons color={colors.text} name="mic-outline" size={32} weight="Filled" />
-                </View>
+                <Ionicons color={colors.text} name="mic-outline" size={24} weight="Filled" />
                 <Ionicons color={colors.textTertiary} name="arrow-forward" size={22} style={styles.generateArrow} />
-                <View style={styles.generateIconCircle}>
-                  <Ionicons color={colors.text} name="play" size={30} weight="Filled" />
-                </View>
+                <Ionicons color={colors.text} name="play" size={24} weight="Filled" />
               </View>
               <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
               <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
-              <Pressable
-                accessibilityLabel="AI生成"
-                accessibilityRole="button"
+              <Button
+                variant="primary"
                 onPress={() => setGenerateSheetView('main')}
-                style={styles.generateButton}
+                accessibilityLabel="AI生成"
               >
-                <Text style={styles.generateButtonText}>AI生成</Text>
-              </Pressable>
+                <Button.Label>AI生成</Button.Label>
+              </Button>
             </View>
           ) : (
             <View style={styles.summarySection}>
@@ -507,15 +514,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 </Text>
               ) : null}
               {summaryError ? <Text style={styles.summaryError}>{summaryError}</Text> : null}
-              <Pressable
-                accessibilityLabel="要約を再生成"
-                accessibilityRole="button"
+              <Button
+                variant="outline"
                 onPress={() => void handleGenerateSummary()}
-                style={styles.summaryButton}
+                accessibilityLabel="要約を再生成"
               >
                 <Ionicons color={colors.accent} name="refresh" size={17} />
-                <Text style={styles.summaryButtonText}>要約を再生成</Text>
-              </Pressable>
+                <Button.Label>要約を再生成</Button.Label>
+              </Button>
             </View>
           )}
         </View>
@@ -540,24 +546,19 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             {transcriptCount === 0 ? (
               <View style={styles.generateCta}>
                 <View style={styles.generateIconRow}>
-                  <View style={styles.generateIconCircle}>
-                    <Ionicons color={colors.text} name="pulse-outline" size={32} weight="Filled" />
-                  </View>
+                  <Ionicons color={colors.text} name="pulse-outline" size={24} weight="Filled" />
                   <Ionicons color={colors.textTertiary} name="arrow-forward" size={22} style={styles.generateArrow} />
-                  <View style={styles.generateIconCircle}>
-                    <Ionicons color={colors.text} name="document-outline" size={30} weight="Filled" />
-                  </View>
+                  <Ionicons color={colors.text} name="document-outline" size={24} weight="Filled" />
                 </View>
                 <Text style={styles.generateTitle}>文字起こし・要約を生成する</Text>
                 <Text style={styles.generateBody}>音声の内容を把握し重要ポイント・決定事項・タスクを自動抽出します。</Text>
-                <Pressable
-                  accessibilityLabel="AI生成"
-                  accessibilityRole="button"
+                <Button
+                  variant="primary"
                   onPress={transcription.start}
-                  style={styles.generateButton}
+                  accessibilityLabel="AI生成"
                 >
-                  <Text style={styles.generateButtonText}>AI生成</Text>
-                </Pressable>
+                  <Button.Label>AI生成</Button.Label>
+                </Button>
               </View>
             ) : (
               <ScrollView
@@ -614,16 +615,15 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   style={styles.memoInput}
                   value={memoDraftText}
                 />
-                <Pressable
-                  accessibilityRole="button"
+                <Button
+                  variant="primary"
                   onPress={() => {
                     void memoNotes.saveDraft(memoDraftText);
                     setIsEditingMemo(false);
                   }}
-                  style={styles.memoSaveButton}
                 >
-                  <Text style={styles.memoSaveText}>保存</Text>
-                </Pressable>
+                  <Button.Label>保存</Button.Label>
+                </Button>
               </View>
             ) : (
               <Pressable onPress={() => setIsEditingMemo(true)} style={({ pressed }) => [styles.memoDisplayBlock, pressed && styles.scalePress]}>
@@ -669,84 +669,118 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
       ) : null}
 
       </Animated.View>
+      </Tabs>
 
       <FloatingBottomSheet isOpen={isMoreOpen} onClose={handleMoreDismiss}>
-        <SheetCard style={styles.sheet}>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('rename')} style={styles.sheetRow}><Ionicons color={colors.text} name="create-outline" size={18} /><Text style={styles.sheetRowText}>タイトルを変更</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('move')} style={styles.sheetRow}><Ionicons color={colors.text} name="file-tray-outline" size={18} /><Text style={styles.sheetRowText}>プロジェクトに移動</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeMoreThen('delete')} style={styles.sheetRow}><Ionicons color={colors.danger} name="trash-outline" size={18} /><Text style={styles.deleteText}>削除</Text></Pressable>
-        </SheetCard>
+        <View style={styles.sheetSurface}>
+          <Button variant="ghost" background={null} onPress={() => closeMoreThen('rename')} style={styles.sheetAction}>
+            <Ionicons color={colors.text} name="create-outline" size={18} />
+            <Button.Label>タイトルを変更</Button.Label>
+          </Button>
+          <Separator />
+          <Button variant="ghost" background={null} onPress={() => closeMoreThen('move')} style={styles.sheetAction}>
+            <Ionicons color={colors.text} name="file-tray-outline" size={18} />
+            <Button.Label>プロジェクトに移動</Button.Label>
+          </Button>
+          <Separator />
+          <Button variant="danger-soft" background={null} onPress={() => closeMoreThen('delete')} style={styles.sheetAction}>
+            <Ionicons color={colors.danger} name="trash-outline" size={18} />
+            <Button.Label>削除</Button.Label>
+          </Button>
+        </View>
       </FloatingBottomSheet>
-      <Modal animationType="fade" onRequestClose={() => setIsDeleteOpen(false)} presentationStyle="overFullScreen" statusBarTranslucent transparent visible={isDeleteOpen}>
-        <View style={styles.renameBackdrop}><LiquidGlassView colorScheme="light" effect="regular" tintColor="rgba(255,255,255,0.82)" style={[styles.renameSheet, !isLiquidGlassSupported && styles.sheetFallback]}><Text style={styles.renameSheetTitle}>このファイルを削除しますか？</Text><Text style={styles.deleteDescription}>録音・文字起こし・メモはすべて削除されます。</Text><View style={styles.renameSheetActions}><Pressable onPress={() => setIsDeleteOpen(false)} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></Pressable><Pressable onPress={() => void handleDelete()} style={styles.deleteConfirm}><Text style={styles.renameSaveText}>削除</Text></Pressable></View></LiquidGlassView></View>
-      </Modal>
+      <Dialog isOpen={isDeleteOpen} onOpenChange={(open) => { if (!open) setIsDeleteOpen(false); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay variant="default" />
+          <Dialog.Content style={styles.dialogContent}>
+            <Dialog.Title>このファイルを削除しますか？</Dialog.Title>
+            <Dialog.Description>録音・文字起こし・メモはすべて削除されます。</Dialog.Description>
+            <View style={styles.renameSheetActions}>
+              <Button variant="ghost" background={null} onPress={() => setIsDeleteOpen(false)}>
+                <Button.Label>キャンセル</Button.Label>
+              </Button>
+              <Button variant="danger" onPress={() => void handleDelete()}>
+                <Button.Label>削除</Button.Label>
+              </Button>
+            </View>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
       <FloatingBottomSheet isOpen={isExportOpen} onClose={handleExportDismiss}>
-        <SheetCard style={styles.sheet}>
+        <View style={styles.sheetSurface}>
           <Text style={styles.exportTitle}>書き出す</Text>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('notion')} style={styles.exportRow}>
-            <View style={[styles.exportIcon, { backgroundColor: '#000000' }]}><Ionicons color="#FFFFFF" name="document-outline" size={14} /></View>
-            <Text style={styles.exportRowLabel}>Notion に転記</Text>
+          <Button variant="ghost" background={null} onPress={() => closeExportThen('notion')} style={styles.sheetAction}>
+            <Ionicons color={colors.text} name="document-outline" size={18} />
+            <View style={styles.sheetActionCopy}><Button.Label>Notion に転記</Button.Label></View>
             <Text style={styles.exportRowStatus}>未接続</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('chatgpt')} style={styles.exportRow}>
-            <View style={[styles.exportIcon, { backgroundColor: '#10A37F' }]}><Ionicons color="#FFFFFF" name="chatbubble-outline" size={14} /></View>
-            <Text style={styles.exportRowLabel}>ChatGPT に共有</Text>
+          </Button>
+          <Separator />
+          <Button variant="ghost" background={null} onPress={() => closeExportThen('chatgpt')} style={styles.sheetAction}>
+            <Ionicons color={colors.text} name="chatbubble-outline" size={18} />
+            <View style={styles.sheetActionCopy}><Button.Label>ChatGPT に共有</Button.Label></View>
             <Text style={styles.exportRowStatus}>未接続</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => closeExportThen('share')} style={styles.exportRow}>
-            <View style={[styles.exportIcon, { backgroundColor: '#8E8EA0' }]}><Ionicons color="#FFFFFF" name="share-outline" size={14} /></View>
-            <Text numberOfLines={1} style={styles.exportRowLabel}>Markdown / TXT / SRT で書き出す</Text>
-          </Pressable>
-        </SheetCard>
+          </Button>
+          <Separator />
+          <Button variant="ghost" background={null} onPress={() => closeExportThen('share')} style={styles.sheetAction}>
+            <Ionicons color={colors.text} name="share-outline" size={18} />
+            <Button.Label>Markdown / TXT / SRT で書き出す</Button.Label>
+          </Button>
+        </View>
       </FloatingBottomSheet>
       <FloatingBottomSheet isOpen={generateSheetView === 'main'} onClose={handleGenerateSheetDismiss}>
-        <SheetCard style={styles.sheet}>
-          <Pressable accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetRow}>
+        <View style={styles.sheetSurface}>
+          <Button variant="ghost" background={null} onPress={handleAutoGenerate} style={styles.generateSheetButton}>
             <Ionicons color={colors.text} name="sparkles" size={20} />
             <View style={styles.generateSheetRowText}>
               <Text style={styles.generateSheetRowTitle}>自動生成</Text>
               <Text style={styles.generateSheetRowDesc}>内容に応じて最適な形に自動要約</Text>
             </View>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setGenerateSheetView('template')} style={styles.generateSheetRow}>
+          </Button>
+          <Separator />
+          <Button variant="ghost" background={null} onPress={() => setGenerateSheetView('template')} style={styles.generateSheetButton}>
             <Ionicons color={colors.text} name="file-tray-outline" size={20} />
             <View style={styles.generateSheetRowText}>
               <Text style={styles.generateSheetRowTitle}>カスタム生成</Text>
               <Text style={styles.generateSheetRowDesc}>テンプレートを選択して要約</Text>
             </View>
             <Ionicons color={colors.border} name="chevron-forward" size={16} />
-          </Pressable>
-          <Pressable accessibilityLabel="生成" accessibilityRole="button" onPress={handleAutoGenerate} style={styles.generateSheetPrimary}>
-            <Text style={styles.generateButtonText}>生成</Text>
-          </Pressable>
-        </SheetCard>
+          </Button>
+          <Button variant="primary" onPress={handleAutoGenerate} accessibilityLabel="生成">
+            <Button.Label>生成</Button.Label>
+          </Button>
+        </View>
       </FloatingBottomSheet>
       <FloatingBottomSheet isOpen={generateSheetView === 'template'} onClose={handleGenerateSheetDismiss}>
-        <SheetCard style={styles.sheet}>
+        <View style={styles.sheetSurface}>
           <Text style={styles.exportTitle}>テンプレートを選択</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.generateTemplateScroll}>
-            {GENERATE_TEMPLATES.map((template) => (
-              <Pressable
-                accessibilityRole="button"
-                key={template.id}
-                onPress={() => setGenerateTemplateId(template.id)}
-                style={[styles.generateTemplateCard, generateTemplateId === template.id && styles.generateTemplateCardActive]}
-              >
-                <Text style={styles.generateTemplateCardTitle}>{template.label}</Text>
-                <Text numberOfLines={3} style={styles.generateTemplateCardDesc}>{template.description}</Text>
-              </Pressable>
+          <RadioGroup
+            value={generateTemplateId}
+            onValueChange={(value) => setGenerateTemplateId(value as (typeof GENERATE_TEMPLATES)[number]['id'])}
+            variant="primary"
+          >
+            {GENERATE_TEMPLATES.map((template, index) => (
+              <Fragment key={template.id}>
+                {index > 0 ? <Separator /> : null}
+                <RadioGroup.Item value={template.id}>
+                  <View>
+                    <Label>{template.label}</Label>
+                    <Description>{template.description}</Description>
+                  </View>
+                  <Radio />
+                </RadioGroup.Item>
+              </Fragment>
             ))}
-          </ScrollView>
-          <Pressable accessibilityRole="button" onPress={() => setGenerateSheetView('model')} style={styles.generateModelPickerRow}>
+          </RadioGroup>
+          <Button variant="ghost" background={null} onPress={() => setGenerateSheetView('model')} style={styles.generateModelButton}>
             <Ionicons color={colors.text} name="sparkles" size={16} />
-            <Text style={styles.generateModelPickerLabel}>AIモデル</Text>
-            <Text style={styles.generateModelPickerValue}>{SUMMARY_PROVIDER_LABELS[summaryProvider]}</Text>
+            <Text style={styles.generateModelButtonLabel}>AIモデル</Text>
+            <Text style={styles.generateModelButtonValue}>{SUMMARY_PROVIDER_LABELS[summaryProvider]}</Text>
             <Ionicons color={colors.border} name="chevron-forward" size={14} />
-          </Pressable>
-          <Pressable accessibilityLabel="生成" accessibilityRole="button" onPress={handleCustomGenerate} style={styles.generateSheetPrimary}>
-            <Text style={styles.generateButtonText}>生成</Text>
-          </Pressable>
-        </SheetCard>
+          </Button>
+          <Button variant="primary" onPress={handleCustomGenerate} accessibilityLabel="生成">
+            <Button.Label>生成</Button.Label>
+          </Button>
+        </View>
       </FloatingBottomSheet>
       <FloatingBottomSheet
         isOpen={generateSheetView === 'model' || isFileAskModelSheetOpen}
@@ -758,56 +792,74 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           }
         }}
       >
-        <SheetCard style={styles.sheet}>
-          {isFileAskModelSheetOpen ? (
-            (Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
-              <Pressable
-                accessibilityRole="button"
-                key={model}
-                onPress={() => {
-                  setFileAskModel(model);
-                  setIsFileAskModelSheetOpen(false);
-                }}
-                style={styles.sheetRow}
-              >
-                <Text style={styles.sheetRowText}>{ASK_MODEL_LABELS[model]}</Text>
-                {fileAskModel === model ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-              </Pressable>
-            ))
-          ) : (
-            <>
-              <Text style={styles.exportTitle}>AIモデルを選択</Text>
-              {(Object.keys(SUMMARY_PROVIDER_LABELS) as SummaryOptionsDTO['provider'][]).map((provider) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={provider}
-                  onPress={() => {
-                    setSummaryProvider(provider);
-                    setGenerateSheetView('template');
-                  }}
-                  style={styles.sheetRow}
-                >
-                  <Text style={styles.sheetRowText}>{SUMMARY_PROVIDER_LABELS[provider]}</Text>
-                  {summaryProvider === provider ? <Ionicons color={colors.text} name="checkmark" size={16} /> : null}
-                </Pressable>
+        {isFileAskModelSheetOpen ? (
+          <View style={styles.sheetSurface}>
+            <Text style={styles.fileAskModelSheetHeading}>AIモデル</Text>
+            <RadioGroup
+              value={fileAskModel}
+              onValueChange={(value) => {
+                setFileAskModel(value as AskModel);
+                setIsFileAskModelSheetOpen(false);
+              }}
+              variant="primary"
+            >
+              {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
+                <RadioGroup.Item key={model} value={model}>
+                  {ASK_MODEL_LABELS[model]}
+                </RadioGroup.Item>
               ))}
-            </>
-          )}
-        </SheetCard>
+            </RadioGroup>
+          </View>
+        ) : (
+          <View style={styles.sheetSurface}>
+            <Text style={styles.exportTitle}>AIモデルを選択</Text>
+            <RadioGroup
+              value={summaryProvider}
+              onValueChange={(value) => {
+                setSummaryProvider(value as SummaryOptionsDTO['provider']);
+                setGenerateSheetView('template');
+              }}
+              variant="primary"
+            >
+              {(Object.keys(SUMMARY_PROVIDER_LABELS) as SummaryOptionsDTO['provider'][]).map((provider, index) => (
+                <Fragment key={provider}>
+                  {index > 0 ? <Separator /> : null}
+                  <RadioGroup.Item value={provider}>
+                    {SUMMARY_PROVIDER_LABELS[provider]}
+                  </RadioGroup.Item>
+                </Fragment>
+              ))}
+            </RadioGroup>
+          </View>
+        )}
       </FloatingBottomSheet>
-      <Modal animationType="fade" onRequestClose={() => setIsEditingTitle(false)} transparent visible={isEditingTitle}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.renameBackdrop}>
-          <LiquidGlassView colorScheme="light" effect="regular" tintColor="rgba(255,255,255,0.82)" style={[styles.renameSheet, !isLiquidGlassSupported && styles.sheetFallback]}>
-            <Text style={styles.renameSheetTitle}>タイトルを変更</Text>
-            <TextInput accessibilityLabel="ファイル名入力" autoFocus onChangeText={setDraftTitle} onSubmitEditing={handleRename} returnKeyType="done" style={styles.renameSheetInput} value={draftTitle} />
-            {renameError ? <Text style={styles.renameError}>{renameError}</Text> : null}
-            <View style={styles.renameSheetActions}>
-              <Pressable onPress={() => { setIsEditingTitle(false); setRenameError(null); }} style={styles.renameCancel}><Text style={styles.renameCancelText}>キャンセル</Text></Pressable>
-              <Pressable disabled={isSavingTitle} onPress={handleRename} style={[styles.renameSave, isSavingTitle && styles.disabledButton]}><Text style={styles.renameSaveText}>{isSavingTitle ? '保存中' : '保存'}</Text></Pressable>
-            </View>
-          </LiquidGlassView>
-        </KeyboardAvoidingView>
-      </Modal>
+      <Dialog isOpen={isEditingTitle} onOpenChange={(open) => { if (!open) { setIsEditingTitle(false); setRenameError(null); } }}>
+        <Dialog.Portal>
+          <Dialog.Overlay variant="default" />
+          <Dialog.Content style={styles.dialogContent}>
+            <Dialog.Title>タイトルを変更</Dialog.Title>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.dialogBody}>
+              <Input
+                accessibilityLabel="ファイル名入力"
+                autoFocus
+                onChangeText={setDraftTitle}
+                onSubmitEditing={handleRename}
+                returnKeyType="done"
+                value={draftTitle}
+              />
+              {renameError ? <Text style={styles.renameError}>{renameError}</Text> : null}
+              <View style={styles.renameSheetActions}>
+                <Button variant="ghost" background={null} onPress={() => { setIsEditingTitle(false); setRenameError(null); }}>
+                  <Button.Label>キャンセル</Button.Label>
+                </Button>
+                <Button variant="primary" isDisabled={isSavingTitle} onPress={handleRename} accessibilityState={{ busy: isSavingTitle, disabled: isSavingTitle }}>
+                  <Button.Label>{isSavingTitle ? '保存中' : '保存'}</Button.Label>
+                </Button>
+              </View>
+            </KeyboardAvoidingView>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog>
     </Screen>
   );
 }
@@ -851,8 +903,6 @@ const styles = StyleSheet.create({
   actionList: { gap: spacing.md },
   actionItem: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   actionItemText: { color: colors.text, flex: 1, ...textStyles.body },
-  taskifyButton: { alignItems: 'center', flexDirection: 'row', gap: 2, minHeight: 36, paddingHorizontal: spacing.xs },
-  taskifyText: { color: colors.textTertiary, ...textStyles.captionBold },
   attachmentHeading: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.sm },
   attachmentCaption: { color: colors.textTertiary, ...textStyles.caption },
   attachmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -867,12 +917,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-  },
-  headerIcon: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
   },
   backButton: {
     alignItems: 'center',
@@ -956,9 +1000,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 40,
   },
-  disabledButton: {
-    opacity: 0.55,
-  },
   renameError: {
     color: colors.danger,
     ...textStyles.footnoteBold,
@@ -994,20 +1035,6 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontWeight: '900',
   },
-  summaryButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.text,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  summaryButtonText: {
-    color: colors.surface,
-    ...textStyles.bodyBold,
-  },
   generateCta: {
     alignItems: 'center',
     gap: spacing.sm,
@@ -1018,17 +1045,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.lg,
     marginBottom: spacing.sm,
-  },
-  generateIconCircle: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 80,
-    justifyContent: 'center',
-    width: 80,
-    ...shadow.card,
   },
   generateArrow: {
     marginTop: spacing.sm,
@@ -1044,20 +1060,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     ...textStyles.footnote,
   },
-  generateButton: {
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    borderRadius: radius.pill,
-    height: 52,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    width: '100%',
-  },
-  generateButtonText: {
-    color: colors.textInverse,
-    ...textStyles.bodyBold,
-  },
-  generateSheetRow: {
+  generateSheetButton: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.md,
@@ -1076,55 +1079,20 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     ...textStyles.caption,
   },
-  generateSheetPrimary: {
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    borderRadius: radius.pill,
-    height: 52,
-    justifyContent: 'center',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-  },
-  generateTemplateScroll: {
-    marginHorizontal: -spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  generateTemplateCard: {
-    backgroundColor: colors.surfaceAlt,
-    borderColor: 'transparent',
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    gap: spacing.xs,
-    marginRight: spacing.sm,
-    padding: spacing.md,
-    width: 148,
-  },
-  generateTemplateCardActive: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.text,
-  },
-  generateTemplateCardTitle: {
-    color: colors.text,
-    ...textStyles.footnoteBold,
-  },
-  generateTemplateCardDesc: {
-    color: colors.textTertiary,
-    ...textStyles.caption,
-  },
-  generateModelPickerRow: {
+  generateModelButton: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 48,
     marginTop: spacing.sm,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
   },
-  generateModelPickerLabel: {
+  generateModelButtonLabel: {
     color: colors.text,
     flex: 1,
     ...textStyles.footnoteBold,
   },
-  generateModelPickerValue: {
+  generateModelButtonValue: {
     color: colors.textTertiary,
     ...textStyles.footnote,
   },
@@ -1145,29 +1113,6 @@ const styles = StyleSheet.create({
   detailTitle: { color: colors.text, letterSpacing: -0.24, ...textStyles.title2 },
   detailMetaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   detailMeta: { color: colors.textTertiary, ...textStyles.caption },
-  tabs: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.lg,
-    justifyContent: 'center',
-  },
-  tab: {
-    alignItems: 'center',
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  tabActive: {
-    borderBottomColor: colors.text,
-    borderBottomWidth: 2,
-  },
-  tabText: {
-    color: colors.textTertiary,
-    ...textStyles.footnoteBold,
-  },
-  tabTextActive: {
-    color: colors.text,
-  },
   panel: {
     backgroundColor: colors.surface,
     borderBottomColor: colors.border,
@@ -1182,7 +1127,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingBottom: spacing.sm,
     paddingHorizontal: spacing.lg,
-    ...shadow.card,
   },
   fileAskDock: {
     backgroundColor: colors.surface,
@@ -1193,92 +1137,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  fileAskProjectChip: {
+  fileAskProjectRow: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
     flexDirection: 'row',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    minHeight: 44,
+    paddingHorizontal: spacing.xs,
   },
-  fileAskProjectChipText: {
-    color: colors.textSecondary,
+  fileAskProjectRowText: {
+    color: colors.textTertiary,
     ...textStyles.caption,
   },
   fileAskBox: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  fileAskInput: {
-    color: colors.text,
-    maxHeight: 72,
-    minHeight: 24,
-    ...textStyles.body,
-  },
   fileAskBoxRow: {
     alignItems: 'center',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-  fileAskAttachButton: {
-    alignItems: 'center',
-    height: 28,
-    justifyContent: 'center',
-    width: 24,
+    paddingTop: spacing.sm,
   },
   fileAskSpacer: {
     flex: 1,
   },
-  fileAskSendButton: {
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    borderRadius: radius.pill,
-    height: 32,
-    justifyContent: 'center',
-    width: 32,
+  fileAskModelSheetHeading: {
+    color: colors.text,
+    ...textStyles.callout,
   },
-  fileAskSendButtonDisabled: {
-    backgroundColor: colors.textTertiary,
-    opacity: 0.55,
-  },
-  modelPill: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  modelPillText: {
-    color: colors.textSecondary,
-    ...textStyles.caption,
-  },
-  sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.32)', flex: 1, justifyContent: 'flex-end' },
-  sheetPress: { width: '100%' },
-  sheet: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  sheetFallback: { backgroundColor: colors.surface },
-  sheetRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 50, paddingHorizontal: spacing.md },
-  sheetRowText: { color: colors.text, ...textStyles.bodyBold },
-  deleteText: { color: colors.danger, ...textStyles.bodyBold },
-  renameBackdrop: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.32)', flex: 1, justifyContent: 'center', padding: spacing.lg },
-  renameSheet: { borderRadius: radius.lg, gap: spacing.md, overflow: 'hidden', padding: spacing.lg, width: '100%' },
-  renameSheetTitle: { color: colors.text, ...textStyles.callout },
-  renameSheetInput: { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, color: colors.text, minHeight: 46, paddingHorizontal: spacing.md, ...textStyles.body },
+  sheetSurface: { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingBottom: spacing.xl, paddingHorizontal: spacing.md, paddingTop: spacing.sm, width: '100%' },
   renameSheetActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
-  renameCancel: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  renameCancelText: { color: colors.textTertiary, ...textStyles.footnoteBold },
-  renameSave: { backgroundColor: colors.text, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  renameSaveText: { color: colors.surface, ...textStyles.footnoteBold },
-  deleteDescription: { color: colors.textSecondary, textAlign: 'center', ...textStyles.footnote }, deleteConfirm: { backgroundColor: colors.danger, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  exportTitle: { color: colors.text, marginBottom: spacing.sm, marginLeft: spacing.xs, ...textStyles.callout }, exportRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md }, exportIcon: { alignItems: 'center', borderRadius: 6, height: 24, justifyContent: 'center', width: 24 }, exportRowLabel: { color: colors.text, flex: 1, ...textStyles.body }, exportRowStatus: { color: colors.textTertiary, ...textStyles.caption },
+  exportTitle: { color: colors.text, marginBottom: spacing.sm, marginLeft: spacing.xs, ...textStyles.callout },
+  exportRowStatus: { color: colors.textTertiary, ...textStyles.caption },
+  sheetAction: { justifyContent: 'flex-start', minHeight: 44, width: '100%' as const },
+  sheetActionCopy: { flex: 1 },
+  dialogContent: { gap: spacing.md },
+  dialogBody: { gap: spacing.md, marginTop: spacing.md },
+  taskAction: { minHeight: 44 },
   bodyText: {
     color: colors.text,
     ...textStyles.body,
@@ -1339,20 +1238,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     ...textStyles.body,
   },
-  memoSaveButton: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.text,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  memoSaveText: {
-    color: colors.surface,
-    ...textStyles.footnoteBold,
-  },
   memoDisplayBlock: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: radius.lg,
     padding: spacing.md,
   },

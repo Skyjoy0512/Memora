@@ -21,7 +21,8 @@ import { DateSeparator } from '../components/DateSeparator';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { Screen } from '../components/Screen';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
-import { SheetCard } from '../components/SheetCard';
+import { Button } from 'heroui-native/button';
+import { Separator } from 'heroui-native/separator';
 import { EmptyState, ErrorState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
@@ -156,7 +157,7 @@ export function HomeScreen() {
           <View style={homeStyles.emptyActions}>
             <EmptyState
               title="最初の記録を残してみましょう"
-              body="タブバーの + から録音、またはファイルを取り込めます"
+              body="中央の + から録音、またはファイルを取り込めます"
               actionLabel="録音を始める"
               onAction={() => capture.openRecording().catch(() => {})}
             />
@@ -199,20 +200,22 @@ export function HomeScreen() {
 
         {/* file list */}
         {!isLoading && !error && segment !== 'projects' && !isEmpty && !isSearchEmpty ? (
-          grouped.map((group) => (
-            <View key={group.label}>
-              <DateSeparator date={group.label} />
-              {group.files.map((file) => (
-                <FileCard
-                  key={file.id}
-                  file={file}
-                  onPress={() => router.push({ pathname: '/file/[id]', params: { id: file.id } })}
-                  onMore={() => setMoreTarget(file)}
-                  showSummary={!searchQuery.trim()}
-                />
-              ))}
-            </View>
-          ))
+          <View>
+            {grouped.map((group) => (
+              <View key={group.label}>
+                <DateSeparator date={group.label} />
+                {group.files.map((file) => (
+                  <FileCard
+                    key={file.id}
+                    file={file}
+                    onPress={() => router.push({ pathname: '/file/[id]', params: { id: file.id } })}
+                    onMore={() => setMoreTarget(file)}
+                    showSummary={!searchQuery.trim()}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
         ) : null}
       </Screen>
 
@@ -291,16 +294,17 @@ function FileMoreSheet({ file, onClose, onDelete }: { file?: AudioFile; onClose:
 
   return (
     <FloatingBottomSheet isOpen={Boolean(file)} onClose={handleDismiss}>
-      <SheetCard style={homeStyles.sheet}>
-        <Pressable accessibilityRole="button" onPress={() => closeThen('rename')} style={({ pressed }) => [homeStyles.sheetRow, pressed && homeStyles.sheetRowPressed]}>
+      <View style={homeStyles.sheetSurface}>
+        <Button variant="ghost" background={null} onPress={() => closeThen('rename')} style={homeStyles.sheetAction} accessibilityLabel="タイトルを変更">
           <Ionicons color={colors.text} name="create-outline" size={18} />
-          <Text style={homeStyles.sheetRowText}>タイトルを変更</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => closeThen('delete')} style={({ pressed }) => [homeStyles.sheetRow, pressed && homeStyles.sheetRowPressed]}>
+          <Button.Label>タイトルを変更</Button.Label>
+        </Button>
+        <Separator orientation="horizontal" variant="thin" />
+        <Button variant="danger-soft" background={null} onPress={() => closeThen('delete')} style={homeStyles.sheetAction} accessibilityLabel="削除">
           <Ionicons color={colors.danger} name="trash-outline" size={18} />
-          <Text style={homeStyles.sheetDeleteText}>削除</Text>
-        </Pressable>
-      </SheetCard>
+          <Button.Label>削除</Button.Label>
+        </Button>
+      </View>
     </FloatingBottomSheet>
   );
 }
@@ -359,7 +363,7 @@ const homeStyles = StyleSheet.create({
   headerBtn: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
   emptyActions: { gap: spacing.sm },
-  importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: -spacing.xs, minHeight: 44, paddingHorizontal: spacing.lg },
+  importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.lg },
   importEmptyActionText: { color: colors.accent, ...textStyles.footnoteBold },
 
   // projects
@@ -376,11 +380,8 @@ const homeStyles = StyleSheet.create({
   backBtn: { alignItems: 'center', height: 44, justifyContent: 'center', marginLeft: -spacing.sm, width: 44 },
 
   // sheets
-  sheet: { gap: spacing.xs, paddingBottom: spacing.md, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  sheetRow: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.86)', borderRadius: radius.md, flexDirection: 'row', gap: spacing.sm, minHeight: 50, paddingHorizontal: spacing.md },
-  sheetRowText: { color: colors.text, flex: 1, ...textStyles.bodyBold },
-  sheetDeleteText: { color: colors.danger, flex: 1, ...textStyles.bodyBold },
-  sheetRowPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
+  sheetSurface: { backgroundColor: colors.surface, paddingBottom: spacing.xl, paddingHorizontal: spacing.md, paddingTop: spacing.sm, width: '100%' },
+  sheetAction: { justifyContent: 'flex-start', minHeight: 44, width: '100%' as const },
 
   // modal
   modalBackdrop: { alignItems: 'center', backgroundColor: colors.overlay, flex: 1, justifyContent: 'center', padding: spacing.lg },
