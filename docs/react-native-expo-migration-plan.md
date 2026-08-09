@@ -1,6 +1,12 @@
 # React Native / Expo Migration Plan
 
-Last updated: 2026-07-14
+Last updated: 2026-08-09
+
+> **方針の正本が移動しました。**
+> RN への完全移行は `docs/decisions/ADR-003-rn-full-cutover.md` が決定し、
+> 実行の詳細（parity matrix・lane・checkpoint 分割・削除 gate・rollback）は
+> `docs/rn-full-cutover-execution-plan.md` が正本です。ADR-002 の「SwiftUI 1.0 提出対象」方針は
+> ADR-003 が supersede しました。本ファイルは移行の作業ログ（Progress / Handoff Log）として継続します。
 
 ## Purpose
 

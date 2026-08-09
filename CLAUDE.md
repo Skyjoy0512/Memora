@@ -1,7 +1,8 @@
 # Memora 開発運用ガイド（2026-07 改訂 / worktree並列開発版）
 
 ## 0. 目的
-- SwiftUI本番アプリを安定させつつ、`apps/mobile-expo` のRN移行を並行して進める。
+- `apps/mobile-expo`（React Native/Expo）を本命として完全移行する。parity + release gate通過後（`docs/decisions/ADR-003-rn-full-cutover.md`）にSwiftUI UIと旧Memora targetを削除する。
+- それまでの間、SwiftUI本番アプリは削除gateまで延命・凍結維持しつつ、RN移行を進める。
 - **worktree × 複数セッション**（Claude Code / Codex）を並列開発の標準とする。
 - 1セッションの儀式コストを下げ、PRの回転速度を上げる。
 
@@ -141,6 +142,8 @@ STTコアを変更する場合は必ず報告する: バックエンド選択順
 ## 10. ドキュメントの正本順序
 矛盾したら上を優先する。
 1. `docs/Memora_Product_North_Star.md` — プロダクト方針
-2. `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md` — SwiftUI側の現在地
-3. `docs/react-native-expo-migration-plan.md` — RN移行の現在地（ログは肥大化させず、判断だけ記録）
-4. 各決定記録（`react-native-swiftdata-target-sharing-decision.md`, `app-store-review-readiness.md`, `online-meeting-capture-plan.md`）
+2. `docs/decisions/ADR-003-rn-full-cutover.md` — RN完全移行の決定（ADR-002のSwiftUI 1.0方針をsupersede）
+3. `docs/rn-full-cutover-execution-plan.md` — RN cutoverの実行計画（parity matrix・削除gate・rollback）
+4. `docs/Memora_vNext_Current_Truth_and_Execution_Plan.md` — SwiftUI側の現在地
+5. `docs/react-native-expo-migration-plan.md` — RN移行の作業ログ（ログは肥大化させず、判断だけ記録）
+6. 各決定記録（`react-native-swiftdata-target-sharing-decision.md`, `app-store-review-readiness.md`, `online-meeting-capture-plan.md`）
