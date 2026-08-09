@@ -30,7 +30,7 @@ MEMORA_QA_FIXTURE=~/Desktop/memora-verify ./smoke.sh
 |---|---|---|
 | `MEMORA_QA_FIXTURE` | （必須） | フィクスチャのディレクトリ |
 | `MEMORA_QA_SIMULATOR` | `booted` | 対象シミュレータの UDID |
-| `MEMORA_QA_BUNDLE_ID` | `com.anonymous.memora-rn` | 対象アプリ |
+| `MEMORA_QA_BUNDLE_ID` | `com.memora.Memora` | 対象アプリ |
 | `MEMORA_QA_OUT` | `.expo/qa-screenshots` | スクリーンショット出力先 |
 | `MEMORA_QA_TITLE` | `【QA】実データフィクスチャ` | 投入するファイル名 |
 | `MEMORA_QA_LAUNCH_WAIT` | `25` | 起動後の待ち秒数（Metro バンドル取得ぶん） |

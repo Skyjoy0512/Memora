@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURE="${MEMORA_QA_FIXTURE:?MEMORA_QA_FIXTURE にフィクスチャのディレクトリを指定してください}"
 UDID="${MEMORA_QA_SIMULATOR:-booted}"
-BUNDLE_ID="${MEMORA_QA_BUNDLE_ID:-com.anonymous.memora-rn}"
+BUNDLE_ID="${MEMORA_QA_BUNDLE_ID:-com.memora.Memora}"
 OUT_DIR="${MEMORA_QA_OUT:-$SCRIPT_DIR/../../.expo/qa-screenshots}"
 TITLE="${MEMORA_QA_TITLE:-【QA】実データフィクスチャ}"
 
