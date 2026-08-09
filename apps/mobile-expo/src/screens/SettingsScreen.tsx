@@ -16,7 +16,7 @@ import { Separator } from 'heroui-native/separator';
 import { Chip } from 'heroui-native/chip';
 
 const NOT_CONNECTED_MESSAGE =
-  'ネイティブブリッジがこのアクションにまだ接続されていません。SwiftUI版の実データ接続後に有効化します。';
+  'ネイティブブリッジがこのアクションにまだ接続されていません。実データ接続後に有効化します。';
 
 const APP_VERSION = '1.0.0';
 
@@ -215,6 +215,7 @@ export function SettingsScreen() {
         />
       </SettingsGroupCard>
 
+      {__DEV__ ? <>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: isDeveloperOpen }} onPress={() => setIsDeveloperOpen((open) => !open)} style={({ pressed }) => [styles.developerToggle, pressed && styles.developerTogglePressed]}>
         <Text style={styles.developerToggleText}>開発者向け</Text><Ionicons color={colors.textTertiary} name={isDeveloperOpen ? 'chevron-up' : 'chevron-down'} size={14} />
       </Pressable>
@@ -358,6 +359,7 @@ export function SettingsScreen() {
           </View>
         </View>
       </Section>
+      </> : null}
       </> : null}
       <VocabularyEditor
         onClose={() => setEditingVocabulary(null)}
