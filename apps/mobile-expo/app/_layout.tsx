@@ -9,6 +9,7 @@ import { HeroUINativeProvider } from 'heroui-native/provider';
 import '../global.css';
 import { colors } from '../src/design/tokens';
 import { CaptureFlowProvider } from '../src/features/capture/CaptureFlowProvider';
+import { shouldExposeRoute } from '../src/utils/releaseGate';
 
 const heroUIConfig: NonNullable<ComponentProps<typeof HeroUINativeProvider>['config']> = {
   textProps: {
@@ -45,8 +46,12 @@ export default function RootLayout() {
                   presentation: 'card',
                 }}
               />
-              <Stack.Screen name="preview" options={{ title: 'Preview Index' }} />
-              <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Protected guard={shouldExposeRoute('preview', __DEV__)}>
+                <Stack.Screen name="preview" options={{ title: 'Preview Index' }} />
+              </Stack.Protected>
+              <Stack.Protected guard={shouldExposeRoute('dev-fonts', __DEV__)}>
+                <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
+              </Stack.Protected>
             </Stack>
           </CaptureFlowProvider>
         </BottomSheetModalProvider>
