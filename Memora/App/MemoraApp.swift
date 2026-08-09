@@ -417,53 +417,14 @@ struct MemoraApp: App {
             create: true
         )
         let legacyStoreURL = MemoraSharedStoreLocation.storeURL(in: appSupportURL)
-
-        guard let sharedStoreURL = try? MemoraSharedStoreLocation.applicationGroupStoreURL(
-            groupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier,
+        let appGroupContainerURL = fileManager.containerURL(
+            forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
+        )
+        return try MemoraSharedStoreResolver.resolveSharedStoreURL(
+            legacyStoreURL: legacyStoreURL,
+            appGroupContainerURL: appGroupContainerURL,
             fileManager: fileManager
-        ) else {
-            return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
-        }
-
-        let sharedDirectory = sharedStoreURL.deletingLastPathComponent()
-        let hasSharedStore = fileManager.fileExists(atPath: sharedStoreURL.path)
-        let hasLegacyStore = fileManager.fileExists(atPath: legacyStoreURL.path)
-
-        if hasSharedStore {
-            return sharedStoreURL
-        }
-
-        if hasLegacyStore && !fileManager.fileExists(atPath: sharedDirectory.path) {
-            do {
-                try MemoraStoreMigration.migrateStoreAtomically(
-                    from: legacyStoreURL,
-                    to: sharedStoreURL,
-                    fileManager: fileManager
-                )
-                return sharedStoreURL
-            } catch {
-                // Keep using the known-good legacy store. The source is never removed by migration.
-                return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
-            }
-        }
-
-        if !hasLegacyStore && !fileManager.fileExists(atPath: sharedDirectory.path) {
-            return try prepareStoreDirectory(for: sharedStoreURL, fileManager: fileManager)
-        }
-
-        // A partial or manually created destination directory must never replace a valid store.
-        return try prepareStoreDirectory(for: legacyStoreURL, fileManager: fileManager)
-    }
-
-    nonisolated private static func prepareStoreDirectory(
-        for storeURL: URL,
-        fileManager: FileManager
-    ) throws -> URL {
-        let directoryURL = storeURL.deletingLastPathComponent()
-        if !fileManager.fileExists(atPath: directoryURL.path) {
-            try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        }
-        return storeURL
+        ).storeURL
     }
 
     private enum ModelContainerLoadOutcome {
