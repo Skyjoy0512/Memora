@@ -65,6 +65,7 @@ RN ホストが依存する **native core として保持**し、別判断なし
 - Git checkpoint `212329b8`（`wip/rn-full-cutover-checkpoint-20260809`）が単一 squash commit として
   未統合。RN UI / RN ネイティブ / SwiftUI 1.0 側 / STT 共有 / CI / docs の変更が混在（§9 で分割統合）。
   一部は #168（RN UI parity slice）・#169 / #170（artifacts 除去 / リリースゲート）として main へ統合済み。
+- root `MemoraTests/`（旧 SwiftUI テスト 34 ファイル）は **2026-08-10 に削除済み**（RN ビルドに未参照の孤立残存のため）。
 - 共有 SwiftData ストアの有効化（ADR-004 実装 #172/#173、**実装済み**）、RN UI への実 STT transcript 表示
   （**実装済み**）、retry queue の host worker 接続、export 先（Notion / ChatGPT）契約などは未着手の残り。
   2026-08-10 時点の残差の正体と状態は `docs/rn-release-readiness-2026-08-10.md` §4 を参照。

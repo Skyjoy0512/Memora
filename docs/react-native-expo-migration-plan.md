@@ -365,6 +365,16 @@ Every LLM or agent working on this migration must:
 
 ## Handoff Log
 
+### 2026-08-10 root `MemoraTests/`（旧 SwiftUI テスト）の削除
+
+- #181（SwiftUI 削除）で残っていた root `MemoraTests/`（34 ファイル）を `git rm -r MemoraTests` で削除。
+  RN の `MemoraRN.xcodeproj` に未参照の孤立残存で、CI / スクリプト / xcodeproj（RN テスト target
+  `MemoraRNTests` の bundle ID `com.memora.MemoraTests` のみ）からの参照がないことを事前確認してから削除した。
+- 保持対象（`Packages/MemoraSharedData`・`apps/mobile-expo`・`MemoraBroadcastExtension`・`MemoraWidget`）は無傷
+  （変更なし）。RN CI 対象（expo-check / shared-data / bot-server-build / rn-ios-build）に影響なし。
+- Updated `docs/rn-release-readiness-2026-08-10.md`: §2.1 / §4 / §5.2 の「孤立残存・削除可否」記述を「削除済み（2026-08-10）」へ更新。
+- Verification: `git diff --check` passed。削除後 `git ls-files MemoraTests` は 0 件、`rg "MemoraTests"`（.git 除外）は docs 記述のみ。
+
 ### 2026-08-10 リリース準備監査（SwiftUI 削除後 / docs PR）
 
 - 対象 main `657a73de`（#181 SwiftUI 削除、origin/main 先端）で **read-only 監査**を実施し、
