@@ -34,30 +34,32 @@ enum MemoraNativeBridgeBootstrap {
   }
 
   static func configureSharedAudioStoreOrDefaults() {
-    guard let appGroupContainer = FileManager.default.containerURL(
+    let fileManager = FileManager.default
+    let applicationSupport = fileManager.urls(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask
+    ).first!
+    let legacyStoreURL = MemoraSharedStoreLocation.storeURL(in: applicationSupport)
+    let appGroupContainer = fileManager.containerURL(
       forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
-    ) else {
-      let unavailableError = String(describing: MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
+    )
+    if appGroupContainer == nil {
+      lastSharedStoreError = String(describing: MemoraSharedStoreLocation.Error.applicationGroupUnavailable(
         MemoraSharedStoreLocation.primaryAppGroupIdentifier
       ))
-      do {
-        let applicationSupport = FileManager.default.urls(
-          for: .applicationSupportDirectory,
-          in: .userDomainMask
-        ).first!
-        try configureSwiftDataStore(in: applicationSupport, storeMode: "app-sandbox")
-        lastSharedStoreError = unavailableError
-        return
-      } catch {
-        lastSharedStoreError = [unavailableError, String(describing: error)].joined(separator: " | ")
-        configureDefaults()
-        return
-      }
     }
 
     do {
-      try configureSwiftDataStore(in: appGroupContainer, storeMode: "app-group")
-      lastSharedStoreError = nil
+      let resolution = try MemoraSharedStoreResolver.resolveSharedStoreURL(
+        legacyStoreURL: legacyStoreURL,
+        appGroupContainerURL: appGroupContainer,
+        fileManager: fileManager
+      )
+      let storeMode = resolution.usesSharedStore ? "app-group" : "app-sandbox"
+      try configureSwiftDataStore(at: resolution.storeURL, storeMode: storeMode)
+      if appGroupContainer != nil {
+        lastSharedStoreError = nil
+      }
     } catch {
       lastSharedStoreError = String(describing: error)
       configureDefaults()
@@ -65,18 +67,12 @@ enum MemoraNativeBridgeBootstrap {
   }
 
   private static func configureSwiftDataStore(
-    in containerURL: URL,
+    at storeURL: URL,
     storeMode: String
   ) throws {
-    let storeURL = MemoraSharedStoreLocation.storeURL(in: containerURL)
-    let storeDirectory = storeURL.deletingLastPathComponent()
-    if !FileManager.default.fileExists(atPath: storeDirectory.path) {
-      try FileManager.default.createDirectory(
-        at: storeDirectory,
-        withIntermediateDirectories: true,
-        attributes: nil
-      )
-    }
+    let containerURL = storeURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
     let audioDirectory = MemoraSharedStoreLocation.audioFilesDirectory(in: containerURL)
     let container = try MemoraSharedStoreFactory.makePersistentContainer(at: storeURL)
     configureDefaults()
