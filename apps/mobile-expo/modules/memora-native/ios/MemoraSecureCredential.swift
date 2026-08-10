@@ -5,6 +5,7 @@ public enum MemoraSecureCredentialProvider: String {
   case openAI = "OpenAI"
   case gemini = "Gemini"
   case deepSeek = "DeepSeek"
+  case notion = "Notion"
 
   public init?(bridgeValue: String) { self.init(rawValue: bridgeValue) }
 }

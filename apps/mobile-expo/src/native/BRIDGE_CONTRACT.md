@@ -514,6 +514,38 @@ When the RN host opens the shared SwiftData store, `MemoraSharedStoreSummaryGene
 
 The DTO, events, logs, and errors must never include an API key. Missing keys and unavailable shared storage return explicit safe errors; they must not fall back to sample output. Do not call provider clients or Keychain from the local Expo module.
 
+## Export Rules
+
+`exportToDestination` accepts a JSON-friendly payload and returns a JSON-friendly result:
+
+```ts
+type ExportPayloadDTO = {
+  title: string;
+  text: string; // summary + transcript を結合した Markdown
+  createdAt?: string;
+  sourceFileId: string;
+  destination: 'notion' | 'chatgpt' | 'file';
+};
+
+type ExportResultDTO = {
+  ok: boolean;
+  destination: ExportDestination;
+  refId?: string;
+  error?: string;
+};
+```
+
+- The Swift boundary is `MemoraExporting`, registered through `MemoraNativeExportRegistry.exporter`.
+- The RN host installs `MemoraRNExportHandler` during bootstrap. Notion uses the Keychain-only Integration
+  token (`MemoraSecureCredentialProvider.notion`, account `apiKey_notion`) and POSTs to
+  `https://api.notion.com/v1/pages` (`Notion-Version: 2022-06-28`). ChatGPT copies Markdown to the clipboard
+  and presents the system share sheet.
+- The parent page setting is non-secret and lives in `SettingsDTO.notionParentPage` (UserDefaults).
+- When the native module is unavailable (web), the facade throws an explicit error instead of faking success.
+- The `text` section markers `## 要約` / `## 文字起こし` are produced by `src/native/exportLogic.ts`
+  (`buildExportMarkdown`) and parsed by `MemoraRNExportHandlers.makeBlocks`.
+- Token values must never cross the JS boundary or appear in logs, PR descriptions, or test fixtures.
+
 ## Verification Log
 
 Latest verified on 2026-07-09:

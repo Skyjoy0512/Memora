@@ -29,6 +29,7 @@ import { useMemoNotes } from '../features/memo/useMemoNotes';
 import { usePlayback } from '../features/playback/usePlayback';
 import { useTranscriptionTask } from '../features/transcription/useTranscriptionTask';
 import { MemoraNative } from '../native/MemoraNative';
+import { buildExportPayload, NOTION_SETUP_LABELS, resolveNotionSetupState, type NotionSetupState } from '../native/exportLogic';
 import type { SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { AudioFile } from '../types/memora';
 
@@ -101,6 +102,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [generateSheetView, setGenerateSheetView] = useState<GenerateSheetView>(null);
+  const [notionSetup, setNotionSetup] = useState<NotionSetupState>('not-configured');
   const [fileAskDraft, setFileAskDraft] = useState('');
   const [fileAskModel, setFileAskModel] = useState<AskModel>('auto');
   const [isFileAskModelSheetOpen, setIsFileAskModelSheetOpen] = useState(false);
@@ -189,6 +191,26 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
       })
       .catch(() => {
         // Keep the safe Gemini default when settings are unavailable.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([MemoraNative.getSecureCredentialStatus('Notion'), MemoraNative.loadSettings()])
+      .then(([isTokenConfigured, nextSettings]) => {
+        if (isMounted) {
+          setNotionSetup(
+            resolveNotionSetupState(isTokenConfigured, Boolean(nextSettings.notionParentPage.trim())),
+          );
+        }
+      })
+      .catch(() => {
+        // Keep the default（未設定）when the bridge is unavailable.
       });
 
     return () => {
@@ -297,11 +319,57 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     pendingExportActionRef.current = null;
 
     if (action === 'notion') {
-      Alert.alert('Notion に転記', '1.0対象（実装準備中）です。実装は別PRで進めます。');
+      void runNotionExport();
     } else if (action === 'chatgpt') {
-      Alert.alert('ChatGPT に共有', '1.0対象（実装準備中）です。実装は別PRで進めます。');
+      void runChatGptExport();
     } else if (action === 'share') {
       void handleShare();
+    }
+  }
+
+  async function runNotionExport() {
+    if (!file) return;
+    if (notionSetup !== 'ready') {
+      Alert.alert('Notion に転記', 'Notionの連携が未設定です。設定画面からトークンと親ページを設定してください。', [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '設定を開く', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
+    try {
+      const result = await MemoraNative.exportToDestination(buildExportPayload(file, 'notion'));
+      if (result.ok) {
+        Alert.alert('転記しました', 'Notion に子ページを作成しました。');
+      } else {
+        Alert.alert('転記できません', result.error ?? 'Notionへの転記に失敗しました。');
+      }
+    } catch (error: unknown) {
+      Alert.alert(
+        '転記できません',
+        error instanceof Error ? error.message : 'Notionへの転記に失敗しました。',
+      );
+    }
+  }
+
+  async function runChatGptExport() {
+    if (!file) return;
+
+    try {
+      const result = await MemoraNative.exportToDestination(buildExportPayload(file, 'chatgpt'));
+      if (result.ok) {
+        Alert.alert(
+          '共有シートを開きました',
+          '要約と文字起こしをクリップボードにコピー済みです。共有シートから ChatGPT などを選択してください。',
+        );
+      } else {
+        Alert.alert('共有できません', result.error ?? '共有に失敗しました。');
+      }
+    } catch (error: unknown) {
+      Alert.alert(
+        '共有できません',
+        error instanceof Error ? error.message : '共有に失敗しました。',
+      );
     }
   }
 
@@ -712,13 +780,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           <Button variant="ghost" background={null} onPress={() => closeExportThen('notion')} style={styles.sheetAction}>
             <Ionicons color={colors.text} name="document-outline" size={18} />
             <View style={styles.sheetActionCopy}><Button.Label>Notion に転記</Button.Label></View>
-            <Text style={styles.exportRowStatus}>1.0対象（準備中）</Text>
+            <Text style={styles.exportRowStatus}>{NOTION_SETUP_LABELS[notionSetup]}</Text>
           </Button>
           <Separator />
           <Button variant="ghost" background={null} onPress={() => closeExportThen('chatgpt')} style={styles.sheetAction}>
             <Ionicons color={colors.text} name="chatbubble-outline" size={18} />
             <View style={styles.sheetActionCopy}><Button.Label>ChatGPT に共有</Button.Label></View>
-            <Text style={styles.exportRowStatus}>1.0対象（準備中）</Text>
+            <Text style={styles.exportRowStatus}>コピー＋共有シート</Text>
           </Button>
           <Separator />
           <Button variant="ghost" background={null} onPress={() => closeExportThen('share')} style={styles.sheetAction}>

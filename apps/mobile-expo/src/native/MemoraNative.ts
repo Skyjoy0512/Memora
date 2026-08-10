@@ -7,6 +7,8 @@ import type {
   BridgeSubscription,
   BridgeInfoDTO,
   CustomVocabularyDTO,
+  ExportPayloadDTO,
+  ExportResultDTO,
   KnowledgeQueryRequestDTO,
   KnowledgeQueryResponseDTO,
   MemoraNativeModule,
@@ -14,9 +16,9 @@ import type {
   PlaybackStatusDTO,
   ProcessingRetryDTO,
   ProcessingRetryRequestDTO,
+  SecureCredentialProvider,
   SettingsDTO,
   SummaryDTO,
-  SummaryOptionsDTO,
   SummaryRequestDTO,
   TaskDTO,
   TranscriptionEventDTO,
@@ -51,9 +53,10 @@ type NativeExpoModule = {
   cancelTranscription?: (taskId: string) => Promise<void>;
   queryKnowledge?: (request: KnowledgeQueryRequestDTO) => Promise<KnowledgeQueryResponseDTO>;
   generateSummary?: (request: SummaryRequestDTO) => Promise<SummaryDTO>;
-  getSecureCredentialStatus?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
-  deleteSecureCredential?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
-  presentSecureCredentialInput?: (provider: SummaryOptionsDTO['provider']) => Promise<boolean>;
+  exportToDestination?: (payload: ExportPayloadDTO) => Promise<ExportResultDTO>;
+  getSecureCredentialStatus?: (provider: SecureCredentialProvider) => Promise<boolean>;
+  deleteSecureCredential?: (provider: SecureCredentialProvider) => Promise<boolean>;
+  presentSecureCredentialInput?: (provider: SecureCredentialProvider) => Promise<boolean>;
   loadPlayback?: (audioFileId: string) => Promise<PlaybackStatusDTO>;
   playPlayback?: () => Promise<PlaybackStatusDTO>;
   pausePlayback?: () => Promise<PlaybackStatusDTO>;
@@ -108,6 +111,7 @@ let settings: SettingsDTO = {
   transcriptionMode: 'local',
   summaryProvider: 'Gemini',
   speechAnalyzerEnabled: false,
+  notionParentPage: '',
 };
 
 const webSettingsKey = 'memora.reactNative.settings';
@@ -128,6 +132,7 @@ function loadFallbackSettings(): SettingsDTO {
       speechAnalyzerEnabled: parsedSettings.speechAnalyzerEnabled ?? false,
       summaryProvider: parsedSettings.summaryProvider ?? 'Gemini',
       transcriptionMode: parsedSettings.transcriptionMode ?? 'local',
+      notionParentPage: parsedSettings.notionParentPage ?? '',
     };
   } catch {
     return settings;
@@ -628,23 +633,31 @@ export const MemoraNative: MemoraNativeModule = {
       text: file?.summary ?? '要約対象のファイルが見つかりません。',
     };
   },
-  async getSecureCredentialStatus(provider: SummaryOptionsDTO['provider']) {
+  async getSecureCredentialStatus(provider: SecureCredentialProvider) {
     if (provider === 'Local') return false;
     return (await withNative<boolean>((nativeModule) =>
       nativeModule.getSecureCredentialStatus?.(provider),
     )) ?? false;
   },
-  async deleteSecureCredential(provider: SummaryOptionsDTO['provider']) {
+  async deleteSecureCredential(provider: SecureCredentialProvider) {
     if (provider === 'Local') return false;
     return (await withNative<boolean>((nativeModule) =>
       nativeModule.deleteSecureCredential?.(provider),
     )) ?? false;
   },
-  async presentSecureCredentialInput(provider: SummaryOptionsDTO['provider']) {
+  async presentSecureCredentialInput(provider: SecureCredentialProvider) {
     if (provider === 'Local') return false;
     return (await withNative<boolean>((nativeModule) =>
       nativeModule.presentSecureCredentialInput?.(provider),
     )) ?? false;
+  },
+  async exportToDestination(payload: ExportPayloadDTO) {
+    const nativeModule = loadNativeModule();
+    if (!nativeModule?.exportToDestination) {
+      // 偽成功でフォールバックしない。native 未接続は明示エラーを返す。
+      throw new Error('この端末では書き出し（export）を利用できません。ネイティブ接続後に有効になります。');
+    }
+    return nativeModule.exportToDestination(payload);
   },
   async queryKnowledge(request: KnowledgeQueryRequestDTO) {
     const nativeModule = loadNativeModule();

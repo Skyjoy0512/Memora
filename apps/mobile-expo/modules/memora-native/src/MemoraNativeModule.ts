@@ -4,12 +4,15 @@ import {
   AudioFileDTO,
   BridgeInfoDTO,
   CustomVocabularyDTO,
+  ExportPayloadDTO,
+  ExportResultDTO,
   KnowledgeQueryRequestDTO,
   KnowledgeQueryResponseDTO,
   MemoraNativeModuleEvents,
   ProcessingRetryDTO,
   ProcessingRetryRequestDTO,
   RecordingSessionDTO,
+  SecureCredentialProvider,
   SettingsDTO,
   SummaryDTO,
   SummaryRequestDTO,
@@ -45,9 +48,10 @@ declare class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> 
   cancelTranscription(taskId: string): Promise<void>;
   queryKnowledge(request: KnowledgeQueryRequestDTO): Promise<KnowledgeQueryResponseDTO>;
   generateSummary(request: SummaryRequestDTO): Promise<SummaryDTO>;
-  getSecureCredentialStatus(provider: SummaryRequestDTO['options']['provider']): Promise<boolean>;
-  deleteSecureCredential(provider: SummaryRequestDTO['options']['provider']): Promise<boolean>;
-  presentSecureCredentialInput(provider: SummaryRequestDTO['options']['provider']): Promise<boolean>;
+  exportToDestination(payload: ExportPayloadDTO): Promise<ExportResultDTO>;
+  getSecureCredentialStatus(provider: SecureCredentialProvider): Promise<boolean>;
+  deleteSecureCredential(provider: SecureCredentialProvider): Promise<boolean>;
+  presentSecureCredentialInput(provider: SecureCredentialProvider): Promise<boolean>;
   enqueueProcessingRetry(request: ProcessingRetryRequestDTO): Promise<ProcessingRetryDTO>;
   listProcessingRetries(): Promise<ProcessingRetryDTO[]>;
   recordProcessingRetryFailure(id: string, lastError: string): Promise<ProcessingRetryDTO | null>;
