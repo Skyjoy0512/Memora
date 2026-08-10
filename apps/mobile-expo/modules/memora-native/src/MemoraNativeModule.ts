@@ -11,6 +11,7 @@ import {
   MemoraNativeModuleEvents,
   ProcessingRetryDTO,
   ProcessingRetryRequestDTO,
+  ProjectDTO,
   RecordingSessionDTO,
   SecureCredentialProvider,
   SettingsDTO,
@@ -31,6 +32,7 @@ declare class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> 
   updateTask(task: TaskDTO): Promise<TaskDTO | null>;
   toggleTask(id: string, completed: boolean): Promise<TaskDTO | null>;
   deleteTask(id: string): Promise<boolean>;
+  listProjects(): Promise<ProjectDTO[]>;
   getBridgeInfo(): Promise<BridgeInfoDTO>;
   loadSettings(): Promise<SettingsDTO>;
   saveSettings(settings: SettingsDTO): Promise<void>;

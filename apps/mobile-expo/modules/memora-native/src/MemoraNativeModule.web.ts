@@ -9,6 +9,7 @@ import {
   MemoraNativeModuleEvents,
   ProcessingRetryDTO,
   ProcessingRetryRequestDTO,
+  ProjectDTO,
   RecordingSessionDTO,
   SettingsDTO,
   SummaryDTO,
@@ -21,6 +22,11 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
   private retries: ProcessingRetryDTO[] = [];
   private customVocabulary: CustomVocabularyDTO[] = [];
   private tasks: TaskDTO[] = [];
+  private projects: ProjectDTO[] = [];
+
+  async listProjects(): Promise<ProjectDTO[]> {
+    return [...this.projects];
+  }
 
   async listTasks(): Promise<TaskDTO[]> {
     return [...this.tasks];

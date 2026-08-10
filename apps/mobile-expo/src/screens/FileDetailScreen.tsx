@@ -30,7 +30,8 @@ import { usePlayback } from '../features/playback/usePlayback';
 import { useTranscriptionTask } from '../features/transcription/useTranscriptionTask';
 import { MemoraNative } from '../native/MemoraNative';
 import { buildExportPayload, NOTION_SETUP_LABELS, resolveNotionSetupState, type NotionSetupState } from '../native/exportLogic';
-import type { SummaryOptionsDTO } from '../native/MemoraNative.types';
+import { buildTaskFromTranscriptSegment } from '../native/taskLogic';
+import type { ProjectDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
 import type { AudioFile } from '../types/memora';
 
 type Tab = 'summary' | 'transcript' | 'memo';
@@ -101,6 +102,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isProjectMoveOpen, setIsProjectMoveOpen] = useState(false);
+  const [isProjectMoveLoading, setIsProjectMoveLoading] = useState(false);
+  const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const [generateSheetView, setGenerateSheetView] = useState<GenerateSheetView>(null);
   const [notionSetup, setNotionSetup] = useState<NotionSetupState>('not-configured');
   const [fileAskDraft, setFileAskDraft] = useState('');
@@ -302,9 +306,64 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         Alert.alert('タイトルを変更', 'このファイルはまだタイトル変更の対象ではありません。');
       }
     } else if (action === 'move') {
-      Alert.alert('プロジェクトに移動', 'プロジェクト機能の接続後に有効になります。');
+      void openProjectMoveSheet();
     } else if (action === 'delete') {
       setIsDeleteOpen(true);
+    }
+  }
+
+  async function openProjectMoveSheet() {
+    setIsProjectMoveOpen(true);
+    setIsProjectMoveLoading(true);
+    try {
+      setProjects(await MemoraNative.listProjects());
+    } catch {
+      setProjects([]);
+    } finally {
+      setIsProjectMoveLoading(false);
+    }
+  }
+
+  async function handleMoveToProject(projectId: string | null) {
+    if (!file) return;
+    setIsProjectMoveOpen(false);
+    try {
+      const updated = await MemoraNative.moveAudioFile(file.id, projectId);
+      if (!updated) {
+        Alert.alert('移動できません', 'このファイルはまだ移動の対象ではありません。');
+        return;
+      }
+      setAudioFile(updated);
+      Alert.alert(
+        '移動しました',
+        projectId ? 'この録音をプロジェクトに移動しました。' : 'この録音をInbox（個人）に移動しました。',
+      );
+    } catch (error: unknown) {
+      Alert.alert(
+        '移動できません',
+        error instanceof Error ? error.message : 'プロジェクトへの移動に失敗しました。',
+      );
+    }
+  }
+
+  async function handleTaskizeSegment(segment: AudioFile['transcript'][number]) {
+    if (!file) return;
+    try {
+      const task = buildTaskFromTranscriptSegment(segment, { audioFileId: file.id });
+      const created = await MemoraNative.createTask(task);
+      if (!created) {
+        Alert.alert('タスクを追加できません', 'タスクの保存に失敗しました。');
+        return;
+      }
+      Alert.alert('タスクに追加しました', undefined, [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'タスク一覧を開く', onPress: () => router.push('/tasks') },
+      ]);
+    } catch (error: unknown) {
+      Alert.alert(
+        'タスクを追加できません',
+        error instanceof Error ? error.message : 'タスクの保存に失敗しました。',
+      );
     }
   }
 
@@ -639,9 +698,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 style={[styles.transcriptScroll, { maxHeight: transcriptMaxHeight }]}
               >
                 {file.transcript.map((segment) => (
-                  <Pressable
-                    accessibilityLabel={`${segment.speaker}、${segment.time}から再生`}
-                    accessibilityRole="button"
+                  <View
                     key={segment.id}
                     onLayout={(event) => {
                       transcriptRowOffsetsRef.current[segment.id] = event.nativeEvent.layout.y;
@@ -649,20 +706,38 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                         requestAnimationFrame(() => scrollTranscriptToSegment(segment.id));
                       }
                     }}
-                    onPress={() => {
-                      void (async () => {
-                        await playback.seek(timeToSeconds(segment.time));
-                        await playback.play();
-                      })();
-                    }}
-                    style={[styles.segment, activeTranscriptSegmentId === segment.id ? styles.segmentActive : null]}
+                    style={[styles.segmentRow, activeTranscriptSegmentId === segment.id ? styles.segmentActive : null]}
                   >
-                    <View style={styles.segmentMeta}>
-                      <Text style={styles.speaker}>{segment.speaker}</Text>
-                      <Text style={styles.time}>{segment.time}</Text>
-                    </View>
-                    <Text style={styles.bodyText}>{showCleanedTranscript ? (segment.cleanedText ?? segment.text) : segment.text}</Text>
-                  </Pressable>
+                    <Pressable
+                      accessibilityLabel={`${segment.speaker}、${segment.time}から再生`}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        void (async () => {
+                          await playback.seek(timeToSeconds(segment.time));
+                          await playback.play();
+                        })();
+                      }}
+                      style={({ pressed }) => [styles.segment, pressed && styles.segmentPressed]}
+                    >
+                      <View style={styles.segmentMeta}>
+                        <Text style={styles.speaker}>{segment.speaker}</Text>
+                        <Text style={styles.time}>{segment.time}</Text>
+                      </View>
+                      <Text style={styles.bodyText}>{showCleanedTranscript ? (segment.cleanedText ?? segment.text) : segment.text}</Text>
+                    </Pressable>
+                    <Button
+                      accessibilityLabel="この発言をタスクに追加"
+                      background={null}
+                      feedbackVariant="none"
+                      isIconOnly
+                      onPress={() => void handleTaskizeSegment(segment)}
+                      size="sm"
+                      variant="ghost"
+                      style={styles.segmentTaskize}
+                    >
+                      <Ionicons color={colors.textTertiary} name="add" size={14} />
+                    </Button>
+                  </View>
                 ))}
               </ScrollView>
             )}
@@ -755,6 +830,33 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             <Ionicons color={colors.danger} name="trash-outline" size={18} />
             <Button.Label>削除</Button.Label>
           </Button>
+        </View>
+      </FloatingBottomSheet>
+      <FloatingBottomSheet isOpen={isProjectMoveOpen} onClose={() => setIsProjectMoveOpen(false)}>
+        <View style={styles.sheetSurface}>
+          <Text style={styles.exportTitle}>プロジェクトに移動</Text>
+          {isProjectMoveLoading ? (
+            <View style={styles.projectMoveLoading}>
+              <ActivityIndicator color={colors.textTertiary} />
+            </View>
+          ) : (
+            <>
+              <Button variant="ghost" background={null} onPress={() => void handleMoveToProject(null)} style={styles.sheetAction}>
+                <Ionicons color={colors.text} name="folder" size={18} />
+                <Button.Label>Inbox（個人）</Button.Label>
+              </Button>
+              {projects.length > 0 ? <Separator /> : null}
+              {projects.map((project, index) => (
+                <Fragment key={project.id}>
+                  <Button variant="ghost" background={null} onPress={() => void handleMoveToProject(project.id)} style={styles.sheetAction}>
+                    <Ionicons color={colors.text} name="folder" size={18} />
+                    <Button.Label>{project.title}</Button.Label>
+                  </Button>
+                  {index < projects.length - 1 ? <Separator /> : null}
+                </Fragment>
+              ))}
+            </>
+          )}
         </View>
       </FloatingBottomSheet>
       <Dialog isOpen={isDeleteOpen} onOpenChange={(open) => { if (!open) setIsDeleteOpen(false); }}>
@@ -1242,6 +1344,7 @@ const styles = StyleSheet.create({
   exportTitle: { color: colors.text, marginBottom: spacing.sm, marginLeft: spacing.xs, ...textStyles.callout },
   exportRowStatus: { color: colors.textTertiary, ...textStyles.caption },
   sheetAction: { justifyContent: 'flex-start', minHeight: 44, width: '100%' as const },
+  projectMoveLoading: { alignItems: 'center', justifyContent: 'center', minHeight: 56 },
   sheetActionCopy: { flex: 1 },
   dialogContent: { gap: spacing.md },
   dialogBody: { gap: spacing.md, marginTop: spacing.md },
@@ -1264,13 +1367,21 @@ const styles = StyleSheet.create({
     ...textStyles.bodyBold,
   },
   segment: {
-    borderRadius: 10,
+    flex: 1,
     gap: 3,
     minHeight: 44,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  segmentPressed: { opacity: 0.6 },
+  segmentRow: {
+    alignItems: 'center',
+    borderRadius: 10,
+    flexDirection: 'row',
+    minHeight: 44,
+  },
   segmentActive: { backgroundColor: colors.accentSoft },
+  segmentTaskize: { height: 44, justifyContent: 'center', width: 44 },
   segmentMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',

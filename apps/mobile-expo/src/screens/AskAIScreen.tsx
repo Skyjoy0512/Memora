@@ -16,6 +16,7 @@ import {
   type AskAiModel,
 } from '../native/askAiLogic';
 import { MemoraNative } from '../native/MemoraNative';
+import { buildTaskFromAssistantAnswer } from '../native/taskLogic';
 import type { BridgeInfoDTO, KnowledgeQueryScope } from '../native/MemoraNative.types';
 import type { AskMessage } from '../types/memora';
 import { Button } from 'heroui-native/button';
@@ -169,6 +170,28 @@ export function AskAIScreen() {
         onPress: () => setMessagesByScope((current) => ({ ...current, [activeScope]: [] })),
       },
     ]);
+  }
+
+  async function handleTaskize(message: AskMessage) {
+    try {
+      const task = buildTaskFromAssistantAnswer(message.text, {
+        sourceAudioFileId: audioFileId,
+      });
+      const created = await MemoraNative.createTask(task);
+      if (!created) {
+        Alert.alert('タスクを追加できません', 'タスクの保存に失敗しました。');
+        return;
+      }
+      Alert.alert('タスクに追加しました', undefined, [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'タスク一覧を開く', onPress: () => router.push('/tasks') },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        'タスクを追加できません',
+        error instanceof Error ? error.message : 'タスクの保存に失敗しました。',
+      );
+    }
   }
 
   return (
@@ -367,7 +390,7 @@ export function AskAIScreen() {
                   </Button>
                   <Button
                     accessibilityLabel="回答からタスクを作成"
-                    onPress={() => Alert.alert('タスク化', 'この操作は現在利用できません。')}
+                    onPress={() => void handleTaskize(message)}
                     size="sm"
                     variant="ghost"
                     style={styles.actionButton}

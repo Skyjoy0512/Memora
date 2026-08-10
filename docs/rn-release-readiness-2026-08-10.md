@@ -112,7 +112,13 @@
   （`MemoraSharedStoreBridgeAdapters.swift`、`TodoItemRepository(modelContext:)` 経由で共有 SwiftData へ永続化）。
 - UI: TasksScreen が `listTasks` / `createTask` / `toggleTask` / `deleteTask` で CRUD。
   `sourceAudioFileId` を持つタスクは Home の録音タイトルと紐づけて表示し、タップで `file/[id]` へ遷移。
-- 未接続: 「日付を選択」（Alert）、FileDetail の「タスクに追加」、AskAI の「タスク化」（いずれも Alert のみ）。
+- **タスク化導線・プロジェクト move は配線済み（2026-08-10）**: FileDetail 文字起こし segment と AskAI 回答の
+  「タスク化」→ `createTask`（`taskLogic.ts` の純関数で title 切詰め・`sourceAudioFileId` 紐付け・priority medium）。
+  FileDetail「プロジェクトに移動」は `listProjects` の結果（title 昇順）＋「Inbox（個人）」から選択して
+  `moveAudioFile` を実行し、ファイルを更新する。Tasks のプロジェクト表示は `task.projectId` → プロジェクト名
+  マッピング（該当なし/未設定は「個人タスク」）。
+- 未接続（2026-08-10 時点で残る Alert のみ）: 「日付を選択」、FileDetail 概要タブの「次のアクション → タスク」、
+  Tasks 追加/編集シートのプロジェクト選択（いずれも今回スコープ外）。
 
 ## 4. パリティ残差マトリクス
 
@@ -128,8 +134,8 @@
 | 要約 summary | **実装済み** | `MemoraSharedStoreSummaryGenerator`（bootstrap で接続）＋ `generateSummary` ＋ API キー（Keychain / Local は不要） | 必須 | API キー設定（実装済み）、provider 選択、実機 QA |
 | 検索 search（Ask AI） | **実装済み** | `MemoraSharedStoreKnowledgeQuery`（bootstrap で接続）＋ `queryKnowledge` ＋ `LocalRetrievalEngine`。AskAIScreen は実 bridge を呼ぶ | 推奨 | retrieval 索引・モデル選択。1.0 必須か要判断 |
 | 書き出し export | **実装済み（2026-08-10）** | `exportToDestination`（`MemoraNative`）+ `MemoraRNExportHandlers`。Notion は Integration token（Keychain `apiKey_notion`）で `POST /v1/pages`（親ページの子ページ作成、100 ブロック上限内に分割）。ChatGPT はクリップボードへコピー＋共有シート。Settings「連携」・FileDetail「書き出す」は実導線。契約: `docs/rn-export-contract-2026-08-10.md` | **必須** | 実機 QA（実 Notion トークン・親ページでの実接続、再認証フロー） |
-| Tasks | **実装済み（#180）** | `TodoItem` + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD。残: 日付選択 / タスク化導線 | 必須 | タスク化導線（FileDetail・AskAI）の配線 |
-| プロジェクト move | **一部** | HomeScreen のプロジェクトセグメント表示（`file.project`）+ `moveAudioFile` bridge。FileDetail「プロジェクトに移動」と Tasks シートのプロジェクトは未接続（Alert / 固定「個人タスク」） | 推奨 | move UI wiring（Lane F / G） |
+| Tasks | **実装済み（#180・2026-08-10 にタスク化導線も配線済み）** | `TodoItem` + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD。FileDetail 文字起こし segment / AskAI 回答の「タスク化」→ `createTask`（`src/native/taskLogic.ts`）。残: 日付選択 / 概要タブ「次のアクション」タスク化 / タスクのプロジェクト選択 | 必須 | 実機 QA |
+| プロジェクト move | **配線済み（2026-08-10）** | `listProjects` bridge（Project を title 昇順）+ `moveAudioFile` bridge。FileDetail「プロジェクトに移動」はプロジェクト選択シート（先頭「Inbox（個人）」）から移動してファイルを更新。Tasks は `task.projectId` → プロジェクト名表示 | 推奨 | 実機 QA |
 | 設定（基盤） | **実装済み** | settings store（UserDefaults: summaryProvider / transcriptionMode / speechAnalyzerEnabled）、customVocabulary（SwiftData）、API キー（Keychain） | 必須 | なし |
 | 設定（連携・未接続行） | **一部（Notion / ChatGPT は実装済み 2026-08-10）** | Notion / ChatGPT 連携は実装済み（Settings「連携」・FileDetail「書き出す」）。PLAUD / Omi デバイス管理、プッシュ通知（Switch はローカル state のみ）、キャッシュ消去 / 全データ書き出し、ログアウト / アカウント削除、表示言語 / 文字起こし言語、要約テンプレート（固定「議事録」）— Notion / ChatGPT 以外は `notConnected` Alert | スコープ判断 | Notion / ChatGPT 以外は各バックエンド / 契約の決定 |
 | 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。`UIBackgroundModes` は `audio` のみ申告（widget / broadcast 用の申告なし）。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
@@ -149,9 +155,12 @@
    permission flow と `ITSAppUsesNonExemptEncryption` / Privacy 申告の最終確認（gate a / d / e）。
 2. **release hardening（Lane D / F / G）**: `xcodebuild archive -scheme MemoraRN` 相当の release ビルド成立、
    auth / preview / dev-fonts の release 到達不能確認、`qa:ios:test` を CI へ組み込むかローカルで実施（gate c）。
-3. **Tasks / export 導線の仕上げ（Lane F）**: FileDetail「タスクに追加」・AskAI「タスク化」の配線（`sourceAudioFileId`）、
-   日付選択、Share sheet 書き出しの文言整理（gate a の一部）。
-4. **プロジェクト move の UI wiring（Lane F / G）**: `moveAudioFile` の UI 接続（推奨枠）。
+3. **Tasks / export 導線の仕上げ（Lane F）**: ~~FileDetail「タスクに追加」・AskAI「タスク化」の配線（`sourceAudioFileId`）~~ →
+   **配線済み（2026-08-10）**: FileDetail 文字起こし segment / AskAI 回答の「タスク化」で `createTask` 実行。
+   残: 日付選択、概要タブ「次のアクション → タスク」、タスクのプロジェクト選択、Share sheet 書き出しの文言整理（gate a の一部）。
+4. **プロジェクト move の UI wiring（Lane F / G）**: ~~`moveAudioFile` の UI 接続（推奨枠）~~ →
+   **配線済み（2026-08-10）**: `listProjects` bridge（title 昇順）＋ FileDetail「プロジェクトに移動」選択シート
+   （先頭「Inbox（個人）」）。Tasks は `task.projectId` → プロジェクト名マッピング表示。
 5. **検索（Ask AI）の 1.0 判定（Lane C）**: retrieval 品質と API モデル選択の成立確認（推奨枠）。
 
 ### 5.2 要ユーザー決定事項
