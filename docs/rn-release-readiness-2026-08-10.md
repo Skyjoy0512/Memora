@@ -121,7 +121,7 @@
 
 | 項目 | 状態 | コード根拠 | 1.0 | 依存 |
 |---|---|---|---|---|
-| 録音 record | **実装済み** | `MemoraNativeRecordingImportHandler`（AVFoundation）＋ `CaptureFlowProvider`（start/pause/resume/stop/discard）＋ shared SwiftData 永続化 | 必須 | 実機 QA（マイク権限・バックグラウンド継続の主張有無） |
+| 録音 record | **実装済み** | `MemoraNativeRecordingImportHandler`（AVFoundation）＋ `CaptureFlowProvider`（start/pause/resume/stop/discard）＋ shared SwiftData 永続化。`UIBackgroundModes: audio` **追加済み（2026-08-10）**、`AVAudioSession.interruptionNotification` で割り込み終了後に録音を再開 | 必須 | 実機 QA（マイク権限・バックグラウンド継続の動作確認） |
 | インポート import | **実装済み** | `expo-document-picker` → `MemoraNative.importAudio`（HomeScreen `handleImport`） | 必須 | 実機 QA |
 | 再生 playback | **実装済み** | `MemoraAVAudioPlaybackController` + `PlayerBar`（FileDetail、seek / rate / transcript 連動） | 必須 | 実機 QA |
 | STT | **実装済み** | `MemoraRNTranscriptionHandler` → `STTService`（`SpeechAnalyzerService26` / `SFSpeechRecognizer`）。shared SwiftData `Transcript` へ persist、`onTranscriptionEvent` を emit | 必須 | §8 保護対象、実機 QA（音声認識権限） |
@@ -132,10 +132,10 @@
 | プロジェクト move | **一部** | HomeScreen のプロジェクトセグメント表示（`file.project`）+ `moveAudioFile` bridge。FileDetail「プロジェクトに移動」と Tasks シートのプロジェクトは未接続（Alert / 固定「個人タスク」） | 推奨 | move UI wiring（Lane F / G） |
 | 設定（基盤） | **実装済み** | settings store（UserDefaults: summaryProvider / transcriptionMode / speechAnalyzerEnabled）、customVocabulary（SwiftData）、API キー（Keychain） | 必須 | なし |
 | 設定（連携・未接続行） | **未接続** | Notion / ChatGPT 連携は「1.0対象（準備中）」（2026-08-10 決定・実装は別 PR）。PLAUD / Omi デバイス管理、プッシュ通知（Switch はローカル state のみ）、キャッシュ消去 / 全データ書き出し、ログアウト / アカウント削除、表示言語 / 文字起こし言語、要約テンプレート（固定「議事録」）— Notion / ChatGPT 以外は `notConnected` Alert | スコープ判断 | Notion / ChatGPT 以外は各バックエンド / 契約の決定 |
-| 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。Info.plist に `UIBackgroundModes` なし。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
+| 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。`UIBackgroundModes` は `audio` のみ申告（widget / broadcast 用の申告なし）。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
 | STT transcript 表示 | **実装済み** | FileDetail の文字起こしタブは `file.transcript`（bridge 実データ）を表示。cleanedText 切替、`TranscriptionProgressCard` + `useTranscriptionTask` で実 STT 開始、segment tap で seek+play | 必須 | 実機 QA |
 | 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能 | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
-| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption=false` **追加済み（2026-08-10）**。`UIBackgroundModes` **なし**（SwiftUI 側では「最小化録音」主張を除去し追加しない方針で確定）。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 機能主張と申告の一致（特にバックグラウンド録音） |
+| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption=false` **追加済み（2026-08-10）**。`UIBackgroundModes: audio` **追加済み（2026-08-10、app.json と RN ホスト Info.plist の両方）**。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 実機でのバックグラウンド録音動作の確認 |
 | 共有 SwiftData store | **実装済み** | ADR-004 実装（#172/#173）。`MemoraSharedStoreResolver` + `group.com.memora.shared` entitlements + `configureSharedAudioStoreOrDefaults` | 必須 | 実データ移行・rollback の実機検証（gate b）は未実施 |
 | `MemoraTests/`（旧 SwiftUI テスト） | **削除済み（2026-08-10）** | RN ビルドに未参照の孤立残存だったため `git rm -r` で削除 | 対応済み | なし |
 
@@ -156,7 +156,7 @@
 
 ### 5.2 要ユーザー決定事項
 
-- **1.0 で「バックグラウンド録音」を主張するか**（`UIBackgroundModes: audio` の要否。SwiftUI 側は主張を除去して追加しない方針だったため、RN で方針を再確認）。
+- **「バックグラウンド録音」** → **2026-08-10 に「できるようにする」と決定**（`UIBackgroundModes: audio` を app.json / RN ホスト Info.plist に追加済み。割り込み終了時の録音再開も実装済み。実機確認は残課題）。
 - **認証方式とペイウォールの有無**: Apple / Google / メール OTP のどれか、IAP（RevenueCat 等）を使うか。
 - ~~Notion / ChatGPT 連携の 1.0 対象可否~~（export 契約）→ **2026-08-10 に 1.0 対象で決定**（契約: `docs/rn-export-contract-2026-08-10.md`、実装は別 PR）。
 - **Widget / Broadcast Extension の RN 同梱**を 1.0 で行うか（Live Activity は SwiftUI 依存で消滅したため、動的アイランド方針の再決定を含む）。
@@ -171,7 +171,7 @@
 - 現状の検証は CI（`rn-ios-build` は `build-for-testing` のみで**テスト実行なし**）+ ローカル `qa:ios:test` +
   `swift test --package-path Packages/MemoraSharedData`。
 - 未実施事項: 実録音のマイク権限フロー、実音声の STT 精度・話者分離、実ファイルの要約（API キー実接続）、
-  共有ストア移行の実機確認、バックグラウンド時の録音継続（主張する場合）。
+  共有ストア移行の実機確認、バックグラウンド時の録音継続の実機確認（`UIBackgroundModes: audio` 追加済み・2026-08-10）。
 
 ### 6.2 rollback 手順
 
