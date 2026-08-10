@@ -135,7 +135,7 @@
 | 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。Info.plist に `UIBackgroundModes` なし。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
 | STT transcript 表示 | **実装済み** | FileDetail の文字起こしタブは `file.transcript`（bridge 実データ）を表示。cleanedText 切替、`TranscriptionProgressCard` + `useTranscriptionTask` で実 STT 開始、segment tap で seek+play | 必須 | 実機 QA |
 | 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能 | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
-| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption` **なし**。`UIBackgroundModes` **なし**（SwiftUI 側では「最小化録音」主張を除去し追加しない方針で確定）。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 機能主張と申告の一致（特にバックグラウンド録音・暗号化） |
+| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption=false` **追加済み（2026-08-10）**。`UIBackgroundModes` **なし**（SwiftUI 側では「最小化録音」主張を除去し追加しない方針で確定）。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 機能主張と申告の一致（特にバックグラウンド録音） |
 | 共有 SwiftData store | **実装済み** | ADR-004 実装（#172/#173）。`MemoraSharedStoreResolver` + `group.com.memora.shared` entitlements + `configureSharedAudioStoreOrDefaults` | 必須 | 実データ移行・rollback の実機検証（gate b）は未実施 |
 | `MemoraTests/`（旧 SwiftUI テスト） | **削除済み（2026-08-10）** | RN ビルドに未参照の孤立残存だったため `git rm -r` で削除 | 対応済み | なし |
 
