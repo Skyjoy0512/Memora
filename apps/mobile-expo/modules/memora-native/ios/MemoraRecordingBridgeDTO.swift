@@ -40,8 +40,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   public let sourceDescription: String
 
   private var activeRecorders: [String: AVAudioRecorder] = [:]
+  private let recorderLock = NSLock()
   private let isoFormatter = ISO8601DateFormatter()
   private let storageDirectory: URL?
+  private var interruptionObserver: NSObjectProtocol?
 
   /// `storageDirectory` is supplied by a host that owns a shared App Group.
   /// Leaving it nil preserves the native-files fallback in the app Documents directory.
@@ -49,6 +51,13 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     self.storageDirectory = storageDirectory
     self.sourceDescription = sourceDescription
     super.init()
+    observeInterruptions()
+  }
+
+  deinit {
+    if let interruptionObserver {
+      NotificationCenter.default.removeObserver(interruptionObserver)
+    }
   }
 
   public func startRecording() throws -> MemoraRecordingSessionDTO {
@@ -66,7 +75,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       throw MemoraRecordingImportError.recordingStartFailed
     }
 
+    recorderLock.lock()
     activeRecorders[sessionId] = recorder
+    recorderLock.unlock()
 
     return MemoraRecordingSessionDTO(
       id: sessionId,
@@ -76,7 +87,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   }
 
   public func stopRecording(sessionId: String) throws -> MemoraAudioFileDTO {
-    guard let recorder = activeRecorders.removeValue(forKey: sessionId) else {
+    recorderLock.lock()
+    let recorder = activeRecorders.removeValue(forKey: sessionId)
+    recorderLock.unlock()
+    guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
 
@@ -91,14 +105,20 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   }
 
   public func pauseRecording(sessionId: String) throws {
-    guard let recorder = activeRecorders[sessionId] else {
+    recorderLock.lock()
+    let recorder = activeRecorders[sessionId]
+    recorderLock.unlock()
+    guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
     recorder.pause()
   }
 
   public func resumeRecording(sessionId: String) throws {
-    guard let recorder = activeRecorders[sessionId] else {
+    recorderLock.lock()
+    let recorder = activeRecorders[sessionId]
+    recorderLock.unlock()
+    guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
     guard recorder.record() else {
@@ -107,7 +127,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   }
 
   public func discardRecording(sessionId: String) throws {
-    guard let recorder = activeRecorders.removeValue(forKey: sessionId) else {
+    recorderLock.lock()
+    let recorder = activeRecorders.removeValue(forKey: sessionId)
+    recorderLock.unlock()
+    guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
     recorder.deleteRecording()
@@ -134,6 +157,60 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     let session = AVAudioSession.sharedInstance()
     try session.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
     try session.setActive(true)
+  }
+
+  private func observeInterruptions() {
+    interruptionObserver = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.interruptionNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] notification in
+      self?.handleInterruption(notification)
+    }
+  }
+
+  private func handleInterruption(_ notification: Notification) {
+    recorderLock.lock()
+    let hasActiveRecorders = !activeRecorders.isEmpty
+    recorderLock.unlock()
+    guard hasActiveRecorders else { return }
+    guard
+      let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+      let type = AVAudioSession.InterruptionType(rawValue: rawType)
+    else {
+      return
+    }
+
+    switch type {
+    case .began:
+      // The system pauses AVAudioRecorder automatically when the interruption begins.
+      break
+    case .ended:
+      let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+      guard AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) else {
+        return
+      }
+      resumeActiveRecorders()
+    @unknown default:
+      break
+    }
+  }
+
+  private func resumeActiveRecorders() {
+    recorderLock.lock()
+    let recorders = Array(activeRecorders.values)
+    recorderLock.unlock()
+
+    let session = AVAudioSession.sharedInstance()
+    do {
+      try session.setActive(true, options: .notifyOthersOnDeactivation)
+    } catch {
+      return
+    }
+
+    for recorder in recorders {
+      _ = recorder.record()
+    }
   }
 
   private func ensureRecordPermission() throws {
