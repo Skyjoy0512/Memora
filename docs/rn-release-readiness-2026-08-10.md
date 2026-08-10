@@ -167,11 +167,18 @@
 
 ### 6.1 実機 QA
 
-- **未実施**（本監査時点。実機 QA は後回しと明記された前提）。
+- **実機 QA 未実施**。ただし **手順書作成・シミュレータ煙試験実施（2026-08-10）** 済み。
+  - 実機 QA 手順書: `docs/rn-device-qa-2026-08-10.md`（対象フロー・シミュレータ/実機区分・受入基準・証跡保存先・既知リスク）。
+  - シミュレータ煙試験（2026-08-10）: `npm ci` / typecheck / `npm test`（42 件）/ web export / `qa:ios:build` が
+    pass。シミュレータ "Memora RN Test"（iOS 26.5）へ install・launch 成功（Dev Client 起動画面確認、
+    証跡 `.expo/qa-evidence-2026-08-10/01-launch-home.png`）。
+  - RN ホスト native テスト（2026-08-10）: `qa:ios:test`（test-without-building）19 tests 全 pass。
 - 現状の検証は CI（`rn-ios-build` は `build-for-testing` のみで**テスト実行なし**）+ ローカル `qa:ios:test` +
   `swift test --package-path Packages/MemoraSharedData`。
-- 未実施事項: 実録音のマイク権限フロー、実音声の STT 精度・話者分離、実ファイルの要約（API キー実接続）、
-  共有ストア移行の実機確認、バックグラウンド時の録音継続の実機確認（`UIBackgroundModes: audio` 追加済み・2026-08-10）。
+- 未実施事項（実機必須 / 推奨の詳細は手順書 §5 の既知リスク表を参照）: 実録音のマイク権限フロー、実音声の
+  STT 精度・話者分離、実ファイルの要約（API キー実接続）、Ask AI（実 API キー必須）、
+  共有ストア移行の実機確認（gate b）、バックグラウンド時の録音継続の実機確認
+  （`UIBackgroundModes: audio` 追加済み・2026-08-10、手順書 F5 実機必須）。
 
 ### 6.2 rollback 手順
 
