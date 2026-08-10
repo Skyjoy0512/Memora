@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import { audioFiles } from '../mocks/memoraData';
 import type { AudioFile } from '../types/memora';
+import { buildFallbackKnowledgeResponse } from './askAiLogic';
 import type {
   BridgeSubscription,
   BridgeInfoDTO,
@@ -183,39 +184,6 @@ function createGeneratedFile(sourceUri: string): AudioFile {
     summary: 'Native bridge 接続後に実ファイルのメタデータを表示します。',
     transcript: [],
     memo: [],
-  };
-}
-
-function createFallbackKnowledgeResponse(
-  request: KnowledgeQueryRequestDTO,
-): KnowledgeQueryResponseDTO {
-  const scopedAnswers: Record<KnowledgeQueryRequestDTO['scope'], { answer: string; sources: string[] }> =
-    {
-      file: {
-        answer:
-          'このファイルでは、まず画面表示を固め、その後ネイティブブリッジで実データへ接続する方針です。録音、取り込み、文字起こしはネイティブ側で実行し、アプリは表示と操作を担当します。',
-        sources: ['Growth 定例', 'File Detail memo'],
-      },
-      project: {
-        answer:
-          'プロジェクト全体では、Home、File Detail、Settings、Ask AI の確認ループが先行しています。次は共有データの方式を決め、読み書き経路をアプリ起動時に差し替える段階です。',
-        sources: ['React Native / Expo Migration Plan', 'Bridge Contract'],
-      },
-      global: {
-        answer:
-          '全体横断では、STT保護境界、既存バックエンド維持、Expo Dev Clientでの実機確認が重要です。CoreSimulatorの書き込み問題が解けると、録音/取り込みのライブ確認に進めます。',
-        sources: ['Migration handoff', 'Settings bridge diagnostics'],
-      },
-    };
-  const scopedAnswer = scopedAnswers[request.scope];
-
-  return {
-    answer: scopedAnswer.answer,
-    answeredAt: new Date().toISOString(),
-    id: `mock-query-${request.scope}-${Date.now()}`,
-    scope: request.scope,
-    sessionId: request.sessionId ?? `fallback-session-${Date.now()}`,
-    sources: scopedAnswer.sources,
   };
 }
 
@@ -679,11 +647,25 @@ export const MemoraNative: MemoraNativeModule = {
     )) ?? false;
   },
   async queryKnowledge(request: KnowledgeQueryRequestDTO) {
-    const nativeResponse = await withNative<KnowledgeQueryResponseDTO>((nativeModule) =>
-      nativeModule.queryKnowledge?.(request),
-    );
+    const nativeModule = loadNativeModule();
+    if (!nativeModule?.queryKnowledge) {
+      return buildFallbackKnowledgeResponse(request);
+    }
 
-    return nativeResponse ?? createFallbackKnowledgeResponse(request);
+    let response: KnowledgeQueryResponseDTO;
+    try {
+      response = await nativeModule.queryKnowledge(request);
+    } catch (error) {
+      // 共有ストアのエラー（APIキー未設定 / 対象未選択 / 生成失敗）はサンプルへ縮退せず、
+      // 画面がユーザー向けメッセージへ変換できるようそのまま伝播させる。
+      throw error;
+    }
+
+    const info = await this.getBridgeInfo();
+    if (info.knowledgeQuerySource === 'sample') {
+      return { ...response, isSample: true };
+    }
+    return response;
   },
   async loadSettings() {
     const nativeSettings = await withNative<SettingsDTO>((nativeModule) =>
