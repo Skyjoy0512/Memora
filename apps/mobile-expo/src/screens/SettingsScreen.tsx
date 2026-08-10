@@ -77,6 +77,7 @@ export function SettingsScreen() {
   }, [settings.summaryProvider]);
 
   const notConnected = () => Alert.alert('準備中', NOT_CONNECTED_MESSAGE);
+  const exportNotReady = (label: string) => Alert.alert(label, '1.0対象（実装準備中）です。実装は別PRで進めます。');
 
   return (
     <Screen title="設定">
@@ -117,8 +118,8 @@ export function SettingsScreen() {
       </SettingsGroupCard>
 
       <SettingsGroupCard title="連携">
-        <SettingsRow onPress={notConnected} title="Notion に書き出す" value="未接続" />
-        <SettingsRow onPress={notConnected} title="ChatGPT に共有" value="未接続" />
+        <SettingsRow onPress={() => exportNotReady('Notion に書き出す')} title="Notion に書き出す" value="1.0対象（準備中）" />
+        <SettingsRow onPress={() => exportNotReady('ChatGPT に共有')} title="ChatGPT に共有" value="1.0対象（準備中）" />
       </SettingsGroupCard>
 
       <SettingsGroupCard title="言語">

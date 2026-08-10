@@ -101,7 +101,7 @@ RN への完全移行が「完了」と言えるのは、以下の全てが観�
 | STT | 実装 | SpeechAnalyzer on RN host（#152 / #160）+ 共有 SwiftData `Transcript` へ persist + `onTranscriptionEvent`。RN transcript タブは実データ表示（2026-08-10 監査） | 実機 QA（音声認識権限・精度） | B / G → F | 実録音の文字起こしが RN transcript タブに表示 |
 | 要約 summary | 実装 | `generateSummary` bridge + `MemoraSharedStoreSummaryGenerator` を host 接続済み（2026-08-10 監査）。API キーは Keychain | 実機 QA（API キー実接続） | C / G | 実ファイルの要約が RN File Detail に出る |
 | 検索 search | 実装 | Ask AI UI + `queryKnowledge` bridge + `MemoraSharedStoreKnowledgeQuery`（host 接続済み、2026-08-10 監査） | retrieval 品質・モデル選択。1.0 必須/推奨の判定 | C / G | Ask で実検索結果が返る |
-| 書き出し export | 実装 | Share sheet で title+summary+transcript を書き出し（実装済み） | Notion / ChatGPT 契約（未定・要ユーザー決定） | G / F | 実ファイルの書き出しが成立 |
+| 書き出し export | 実装 | Share sheet で title+summary+transcript を書き出し（実装済み） | Notion / ChatGPT は **1.0 対象に決定（2026-08-10）**。契約は `docs/rn-export-contract-2026-08-10.md`、実装は別 PR | G / F | 実ファイルの書き出しが成立 |
 | 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain（service `com.memora.app`、ADR-004 実装済み）。連携行（Notion / ChatGPT / PLAUD / Omi 等）は未接続 Alert | 連携行のスコープ判断 | C / G | 設定永続化、API キーは native 側のみ |
 | プロジェクト move | 実装 | `moveAudioFile` bridge + Home のプロジェクト表示（`file.project`） | UI wiring（FileDetail / Tasks シートは未接続 Alert） | G / F | プロジェクト移動が永続化 |
 | タスク tasks | 実装 | **#180 で実データ化済み**: `TodoItem` SwiftData + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD | 日付選択・タスク化導線（FileDetail / AskAI）の配線 | C / F | タスクの実データ契約 |
