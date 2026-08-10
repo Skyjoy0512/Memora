@@ -67,7 +67,9 @@ RN ホストが依存する **native core として保持**し、別判断なし
   一部は #168（RN UI parity slice）・#169 / #170（artifacts 除去 / リリースゲート）として main へ統合済み。
 - root `MemoraTests/`（旧 SwiftUI テスト 34 ファイル）は **2026-08-10 に削除済み**（RN ビルドに未参照の孤立残存のため）。
 - 共有 SwiftData ストアの有効化（ADR-004 実装 #172/#173、**実装済み**）、RN UI への実 STT transcript 表示
-  （**実装済み**）、retry queue の host worker 接続、export 先（Notion / ChatGPT）契約などは未着手の残り。
+  （**実装済み**）、export 契約（#185）と実装（#191）、タスク実データ化（#180）、Ask AI 実データ化（#189）、
+  認証 UI ハリボテ（#187）、バックグラウンド録音（#188）は 2026-08-10 までに main へ統合済み。
+  残る未着手は retry queue の host worker 接続のみ（基盤は `MemoraProcessingRetryQueue` 実装済み）。
   2026-08-10 時点の残差の正体と状態は `docs/rn-release-readiness-2026-08-10.md` §4 を参照。
 
 #### checkpoint docs残差の取捨判断（2026-08-09）
@@ -95,21 +97,35 @@ RN への完全移行が「完了」と言えるのは、以下の全てが観�
 
 | 機能 | SwiftUI 1.0 | RN 現状 | 残ギャップ | 担当 lane | 受入条件（簡潔） |
 |---|---|---|---|---|---|
-| 録音 record | 実装 | native-file 録音（AVAudioRecorder handler）+ 録音→保存フロー実装。共有 SwiftData 永続化へ配線済み（2026-08-10 監査） | 実機 QA（マイク権限・バックグラウンド継続の主張有無） | G → H | 実録音 → 一覧反映 → 再起動後も残る |
+| 録音 record | 実装 | native-file 録音（AVAudioRecorder handler）+ 録音→保存フロー実装。共有 SwiftData 永続化へ配線済み（2026-08-10 監査）。**バックグラウンド録音対応済み（#188）**: `UIBackgroundModes: audio`（app.json / RN ホスト Info.plist）+ 割り込み終了後の録音再開 | 実機 QA（マイク権限・バックグラウンド継続の動作確認） | G → H | 実録音 → 一覧反映 → 再起動後も残る |
 | インポート import | 実装 | `expo-document-picker` + `importAudio`。共有 SwiftData 永続化へ配線済み | 実機 QA | G → H | 実ファイル取込 → 一覧反映 → 永続化 |
 | 再生 playback | 実装 | AVAudioPlayer bridge + PlayerBar（実録音で検証済み） | なし | G | 実録音の再生・seek・rate |
 | STT | 実装 | SpeechAnalyzer on RN host（#152 / #160）+ 共有 SwiftData `Transcript` へ persist + `onTranscriptionEvent`。RN transcript タブは実データ表示（2026-08-10 監査） | 実機 QA（音声認識権限・精度） | B / G → F | 実録音の文字起こしが RN transcript タブに表示 |
 | 要約 summary | 実装 | `generateSummary` bridge + `MemoraSharedStoreSummaryGenerator` を host 接続済み（2026-08-10 監査）。API キーは Keychain | 実機 QA（API キー実接続） | C / G | 実ファイルの要約が RN File Detail に出る |
-| 検索 search | 実装 | Ask AI UI + `queryKnowledge` bridge + `MemoraSharedStoreKnowledgeQuery`（host 接続済み、2026-08-10 監査） | retrieval 品質・モデル選択。1.0 必須/推奨の判定 | C / G | Ask で実検索結果が返る |
-| 書き出し export | 実装 | Share sheet で title+summary+transcript を書き出し（実装済み） | Notion / ChatGPT は **1.0 対象に決定（2026-08-10）**。契約は `docs/rn-export-contract-2026-08-10.md`、実装は別 PR | G / F | 実ファイルの書き出しが成立 |
-| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain（service `com.memora.app`、ADR-004 実装済み）。連携行（Notion / ChatGPT / PLAUD / Omi 等）は未接続 Alert | 連携行のスコープ判断 | C / G | 設定永続化、API キーは native 側のみ |
+| 検索 search | 実装 | **実装済み（#189）**: Ask AI UI + `queryKnowledge` bridge + `MemoraSharedStoreKnowledgeQuery`（host 接続）。global スコープの実データ回答とサンプル標識を実装 | 実機 QA + API キーでの品質確認（retrieval 品質・モデル選択） | C / G | Ask で実検索結果が返る |
+| 書き出し export | 実装 | **実装済み（#191）**: `exportToDestination` bridge + `MemoraRNExportHandlers`。Notion は Integration token（Keychain）で `POST /v1/pages`、ChatGPT はクリップボード＋共有シート。契約は `docs/rn-export-contract-2026-08-10.md` | 実機 QA での実接続確認（実 Notion トークン・親ページ、再認証フロー） | G / F | 実ファイルの書き出しが成立 |
+| 設定 / Keychain | 実装 | UserDefaults settings store + RN 設定 UI、ホスト側 Keychain（service `com.memora.app`、ADR-004 実装済み）。**連携行（Notion / ChatGPT）は実装済み（#191）**。PLAUD / Omi 等は未接続 Alert | PLAUD / Omi 等のスコープ判断 | C / G | 設定永続化、API キーは native 側のみ |
 | プロジェクト move | 実装 | `moveAudioFile` bridge + Home のプロジェクト表示（`file.project`） | UI wiring（FileDetail / Tasks シートは未接続 Alert） | G / F | プロジェクト移動が永続化 |
-| タスク tasks | 実装 | **#180 で実データ化済み**: `TodoItem` SwiftData + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD | 日付選択・タスク化導線（FileDetail / AskAI）の配線 | C / F | タスクの実データ契約 |
-| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route。リリースゲート #170 で dev ルート/設定の開発者セクションを `__DEV__` 時のみ露出 | 認証バックエンド・IAP 契約の決定（UI のみ実装） | F / D | release ビルドで到達不能 |
+| タスク tasks | 実装 | **#180 で実データ化済み**: `TodoItem` SwiftData + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD | 日付選択・タスク化導線（FileDetail / AskAI）の配線（推奨） | C / F | タスクの実データ契約 |
+| 認証 / ペイウォール | 1.0 で除去（B1/B2） | RN `/auth` mock route。**UI のみ・dev-gated（#187）**: onboarding / login / email / code / paywall フローを完走（外部認証・購入は「準備中」Alert）。リリースゲート #170 で dev ルート/設定の開発者セクションを `__DEV__` 時のみ露出 | 認証バックエンド・IAP 契約の決定（UI のみ実装・release 到達不能のまま、gate c） | F / D | release ビルドで到達不能 |
 | 共有 SwiftData store | — | 契約・adapter・migration util・test 済み（#166）。**実装済み（#172/#173、2026-08-10 監査）**: bundle ID `com.memora.Memora` / Keychain service `com.memora.app` / legacy→共有ストア移行の RN 配線 | 実データ移行・rollback の実機検証（gate b） | H / C / G | 実データ移行・rollback 検証（gate b） |
-| Broadcast Extension | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持（`group.com.memora.broadcast` は ADR-004 で保持決定） | D / G | RN ビルドに extension が同梱 |
-| Widget | 実装（旧 target 依存） | — | RN ビルドへの同梱・設定維持 | D / G | RN ビルドに widget が同梱 |
+| Broadcast Extension | 実装（旧 target 依存） | — | **RN 同梱は 1.0 対象外（オーナー推奨で見送り、ソース保持）**。`group.com.memora.broadcast` は ADR-004 で保持決定 | D / G | ソース保持（RN 同梱は 1.0 対象外） |
+| Widget | 実装（旧 target 依存） | — | **RN 同梱は 1.0 対象外（オーナー推奨で見送り、ソース保持）** | D / G | ソース保持（RN 同梱は 1.0 対象外） |
 | Dynamic Island / 通知 | V6 UI 実装 | RN にピル表示実装（物理 Dynamic Island は Live Activity のため out of scope） | 通知（RN 設定画面は Switch のみ・未接続） | F | RN 録音フローの表示 |
+
+### 4.1 Release gate 判定（2026-08-10 時点）
+
+ADR-003 の gate a〜f について、2026-08-10 時点（main = `4a25f6e7`、#185〜#191 マージ後）の判定を記録する。
+証拠の詳細は `docs/rn-release-readiness-2026-08-10.md` と `docs/rn-device-qa-2026-08-10.md` を参照。
+
+| gate | 定義（ADR-003） | 現状（2026-08-10） | 証拠 | 残課題 |
+|---|---|---|---|---|
+| a: core parity | 録音 / インポート / 再生 / STT / 要約 / 検索 / 書き出しが RN で SwiftUI 相当に動作 | **概ね達成**。主要機能は RN 実装済み（検索 #189・書き出し #191・タスク #180・共有ストア #172/#173・バックグラウンド録音 #188） | 上記 parity matrix + `rn-release-readiness-2026-08-10.md` §4 | タスク化導線（FileDetail / AskAI）・project move の UI wiring（いずれも推奨） |
+| b: production data | 共有ストア移行と rollback が実データ・実機で検証済み（既存データを壊さない） | **未実施**。移行ロジック（`MemoraSharedStoreResolver`、legacy→app group）は実装済みだが実機での実データ移行・rollback 検証なし | 実装: #172/#173。検証: 未実施（`rn-device-qa-2026-08-10.md` R6） | 実機での実データ移行 → rollback 検証（実機必須） |
+| c: release 到達不能化 | release ビルドで mock fallback / fake auth / paywall / developer UI が到達不能 | **達成**。dev ルート（auth / preview / dev-fonts）と設定の開発者セクションは `__DEV__` 時のみ露出 | #170（リリースゲート導入）・#174（mock 認証/ペイウォール経路の本番到達不能化）・#187（auth ハリボテ UI 完走、dev-gated） | なし（release ビルドでの再確認は実機 QA 時に実施） |
+| d: privacy / security / readiness | Privacy Manifest / Keychain / バックグラウンド録音申告 / `ITSAppUsesNonExemptEncryption` / App Privacy が RN バンドルに充足 | **概ね達成**。`ITSAppUsesNonExemptEncryption=false`（#186）、`UIBackgroundModes: audio`（#188、app.json / RN ホスト Info.plist の両方）、PrivacyInfo.xcprivacy あり | #186・#188、`rn-release-readiness-2026-08-10.md` §4 Privacy 行 | 実機でのバックグラウンド録音動作確認と審査申告の最終確認（実機必須） |
+| e: QA / CI | typecheck / web export / `qa:ios:build` / `qa:ios:test` / `swift test` / 実機 QA が全て pass | **準備完了**。実機 QA 手順書作成＋シミュレータ煙試験 pass＋native テスト 30 件（#190 実施記録 19 件＋#191 で export handlers 11 件）。CI 4 ジョブ green | #190（手順書・煙試験・native テスト）、`rn-device-qa-2026-08-10.md` §6 | 実機 QA（iPhone 未接続・実機ビルド未実施）。`qa:ios:test` は CI 未組込（ローカル実施のみ） |
+| f: SwiftUI 削除 | gate a〜e 充足＋RN 単独 release 候補ビルド成立後に SwiftUI UI と旧 target を削除（f1〜f5） | **実行済み（オーナー決定）**。gate 条件の完了を待たずに削除 | #181（SwiftUI UI / 旧 target / `project.yml` / `ios-build` ジョブ削除）・#184（`MemoraTests/` 孤立残存削除）、ADR-003 追記 | 削除済みのため完了扱い。残 parity・実機 QA は RN 側で継続対応 |
 
 ## 5. 依存順とマイルストーン
 
@@ -187,6 +203,11 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
 - 内容: Lane E が evidence を集め、gate a〜e の達成を本計画に記録。
 - 受け入れ: 各 gate に検証コマンドと結果が記録されている。
 - 検証: 記録されたコマンド一式を再実行し green を確認。
+
+> **進捗記録（2026-08-10、main = `4a25f6e7`）**: 要ユーザー決定の 5 項目
+> （認証 UI #187 / export #191 / Ask AI #189 / 背景録音 #188 / Privacy #186）が**全て実装済み**。
+> 現時点の gate 判定は §4.1 のとおり。次の判定ブロッカーは **実機 QA（iPhone 接続）** と
+> **gate b の実機検証**（実データ移行 → rollback）の 2 点。
 
 ### T7: SwiftUI 削除（gate f）
 - 内容: SwiftUI UI（`Memora/Views/**`）と旧 `Memora` app target の削除。Broadcast Extension / Widget / native core は保持。
