@@ -54,6 +54,21 @@ struct MemoraRNKeychainSecureCredentials: MemoraRNSummaryKeyReading, MemoraSecur
     case .openAI: return "apiKey_openai"
     case .gemini: return "apiKey_gemini"
     case .deepSeek: return "apiKey_deepseek"
+    case .notion: return "apiKey_notion"
     }
+  }
+}
+
+/// Notion 連携の Integration token（ntn_...）を RN ホスト内でのみ読む。
+protocol MemoraRNNotionTokenReading {
+  func notionToken() throws -> String?
+}
+
+extension MemoraRNKeychainSecureCredentials: MemoraRNNotionTokenReading {
+  func notionToken() throws -> String? {
+    guard let provider = MemoraSecureCredentialProvider(bridgeValue: MemoraSecureCredentialProvider.notion.rawValue) else {
+      return nil
+    }
+    return try readAPIKey(for: provider)
   }
 }

@@ -4,15 +4,18 @@ public struct MemoraSettingsDTO {
   public let transcriptionMode: String
   public let summaryProvider: String
   public let speechAnalyzerEnabled: Bool
+  public let notionParentPage: String
 
   public init(
     transcriptionMode: String,
     summaryProvider: String,
-    speechAnalyzerEnabled: Bool
+    speechAnalyzerEnabled: Bool,
+    notionParentPage: String = ""
   ) {
     self.transcriptionMode = transcriptionMode
     self.summaryProvider = summaryProvider
     self.speechAnalyzerEnabled = speechAnalyzerEnabled
+    self.notionParentPage = notionParentPage
   }
 
   public init(dictionary: [String: Any]) {
@@ -33,13 +36,15 @@ public struct MemoraSettingsDTO {
     }
 
     self.speechAnalyzerEnabled = speechAnalyzerEnabled ?? false
+    self.notionParentPage = dictionary["notionParentPage"] as? String ?? ""
   }
 
   public func asDictionary() -> [String: Any] {
     [
       "transcriptionMode": transcriptionMode,
       "summaryProvider": summaryProvider,
-      "speechAnalyzerEnabled": speechAnalyzerEnabled
+      "speechAnalyzerEnabled": speechAnalyzerEnabled,
+      "notionParentPage": notionParentPage
     ]
   }
 }
@@ -92,7 +97,8 @@ public final class MemoraUserDefaultsSettingsStore: MemoraSettingsReadingWriting
     MemoraSettingsDTO(dictionary: [
       "transcriptionMode": userDefaults.string(forKey: key("transcriptionMode")) ?? "local",
       "summaryProvider": userDefaults.string(forKey: key("summaryProvider")) ?? "Gemini",
-      "speechAnalyzerEnabled": userDefaults.bool(forKey: key("speechAnalyzerEnabled"))
+      "speechAnalyzerEnabled": userDefaults.bool(forKey: key("speechAnalyzerEnabled")),
+      "notionParentPage": userDefaults.string(forKey: key("notionParentPage")) ?? ""
     ])
   }
 
@@ -100,6 +106,7 @@ public final class MemoraUserDefaultsSettingsStore: MemoraSettingsReadingWriting
     userDefaults.set(settings.transcriptionMode, forKey: key("transcriptionMode"))
     userDefaults.set(settings.summaryProvider, forKey: key("summaryProvider"))
     userDefaults.set(settings.speechAnalyzerEnabled, forKey: key("speechAnalyzerEnabled"))
+    userDefaults.set(settings.notionParentPage, forKey: key("notionParentPage"))
   }
 
   private func key(_ name: String) -> String {

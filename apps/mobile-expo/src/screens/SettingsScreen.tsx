@@ -6,7 +6,18 @@ import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { MemoraNative } from '../native/MemoraNative';
-import type { BridgeInfoDTO, CustomVocabularyDTO, SettingsDTO, SummaryOptionsDTO } from '../native/MemoraNative.types';
+import {
+  NOTION_SETUP_LABELS,
+  extractNotionParentPageId,
+  resolveNotionSetupState,
+} from '../native/exportLogic';
+import type {
+  BridgeInfoDTO,
+  CustomVocabularyDTO,
+  SecureCredentialProvider,
+  SettingsDTO,
+  SummaryOptionsDTO,
+} from '../native/MemoraNative.types';
 import type { SettingsGroup } from '../types/memora';
 import { Switch } from 'heroui-native/switch';
 import { Input } from 'heroui-native/input';
@@ -30,6 +41,7 @@ const defaultSettings: SettingsDTO = {
   speechAnalyzerEnabled: false,
   summaryProvider: 'Gemini',
   transcriptionMode: 'local',
+  notionParentPage: '',
 };
 
 const providerOptions: SummaryOptionsDTO['provider'][] = ['Gemini', 'OpenAI', 'DeepSeek', 'Local'];
@@ -38,11 +50,14 @@ export function SettingsScreen() {
   const router = useRouter();
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
   const [isSecureCredentialConfigured, setIsSecureCredentialConfigured] = useState(false);
+  const [isNotionTokenConfigured, setIsNotionTokenConfigured] = useState(false);
   const [settings, setSettings] = useState<SettingsDTO>(defaultSettings);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [customVocabulary, setCustomVocabulary] = useState<CustomVocabularyDTO[]>([]);
   const [editingVocabulary, setEditingVocabulary] = useState<CustomVocabularyDTO | null>(null);
+  const [editingNotionParentPage, setEditingNotionParentPage] = useState(false);
+  const [notionParentDraft, setNotionParentDraft] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -51,11 +66,13 @@ export function SettingsScreen() {
       MemoraNative.getBridgeInfo(),
       MemoraNative.loadSettings(),
       MemoraNative.listCustomVocabulary(),
-    ]).then(([info, nextSettings, vocabulary]) => {
+      MemoraNative.getSecureCredentialStatus('Notion'),
+    ]).then(([info, nextSettings, vocabulary, isNotionConfigured]) => {
       if (isMounted) {
         setBridgeInfo(info);
         setSettings(nextSettings);
         setCustomVocabulary(vocabulary);
+        setIsNotionTokenConfigured(isNotionConfigured);
       }
     });
 
@@ -77,7 +94,6 @@ export function SettingsScreen() {
   }, [settings.summaryProvider]);
 
   const notConnected = () => Alert.alert('準備中', NOT_CONNECTED_MESSAGE);
-  const exportNotReady = (label: string) => Alert.alert(label, '1.0対象（実装準備中）です。実装は別PRで進めます。');
 
   return (
     <Screen title="設定">
@@ -118,8 +134,18 @@ export function SettingsScreen() {
       </SettingsGroupCard>
 
       <SettingsGroupCard title="連携">
-        <SettingsRow onPress={() => exportNotReady('Notion に書き出す')} title="Notion に書き出す" value="1.0対象（準備中）" />
-        <SettingsRow onPress={() => exportNotReady('ChatGPT に共有')} title="ChatGPT に共有" value="1.0対象（準備中）" />
+        <SettingsRow
+          onPress={manageNotionSetup}
+          title="Notion に書き出す"
+          value={NOTION_SETUP_LABELS[
+            resolveNotionSetupState(isNotionTokenConfigured, Boolean(settings.notionParentPage.trim()))
+          ]}
+        />
+        <SettingsRow
+          onPress={chatGptShareDescription}
+          title="ChatGPT に共有"
+          value="コピー＋共有シート"
+        />
       </SettingsGroupCard>
 
       <SettingsGroupCard title="言語">
@@ -368,6 +394,12 @@ export function SettingsScreen() {
         onSave={(value) => void saveCustomVocabulary(value)}
         value={editingVocabulary}
       />
+      <NotionParentPageEditor
+        onClose={() => setEditingNotionParentPage(false)}
+        onChangeText={setNotionParentDraft}
+        onSave={() => void saveNotionParentPage()}
+        value={notionParentDraft}
+      />
     </Screen>
   );
 
@@ -399,18 +431,79 @@ export function SettingsScreen() {
     ]);
   }
 
-  async function presentSecureCredentialInput(provider: SummaryOptionsDTO['provider']) {
+  async function presentSecureCredentialInput(provider: SecureCredentialProvider): Promise<boolean> {
     const saved = await MemoraNative.presentSecureCredentialInput(provider);
     if (saved) {
-      setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+      if (provider === 'Notion') {
+        setIsNotionTokenConfigured(await MemoraNative.getSecureCredentialStatus('Notion'));
+      } else {
+        setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+      }
+    }
+    return saved;
+  }
+
+  async function deleteSecureCredential(provider: SecureCredentialProvider) {
+    const deleted = await MemoraNative.deleteSecureCredential(provider);
+    if (deleted) {
+      if (provider === 'Notion') {
+        setIsNotionTokenConfigured(await MemoraNative.getSecureCredentialStatus('Notion'));
+      } else {
+        setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+      }
     }
   }
 
-  async function deleteSecureCredential(provider: SummaryOptionsDTO['provider']) {
-    const deleted = await MemoraNative.deleteSecureCredential(provider);
-    if (deleted) {
-      setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
+  function chatGptShareDescription() {
+    Alert.alert(
+      'ChatGPT に共有',
+      'ファイル詳細の「書き出す」から、要約と文字起こしをMarkdownでクリップボードにコピーして共有シートを開きます。認証は不要です。',
+    );
+  }
+
+  async function manageNotionSetup() {
+    if (!isNotionTokenConfigured) {
+      const saved = await presentSecureCredentialInput('Notion');
+      if (saved) {
+        setNotionParentDraft(settings.notionParentPage);
+        setEditingNotionParentPage(true);
+      }
+      return;
     }
+
+    Alert.alert('Notion に書き出す', '連携の設定を変更できます。', [
+      {
+        text: '親ページを変更',
+        onPress: () => {
+          setNotionParentDraft(settings.notionParentPage);
+          setEditingNotionParentPage(true);
+        },
+      },
+      { text: 'トークンを更新', onPress: () => void presentSecureCredentialInput('Notion') },
+      {
+        text: 'トークンを解除',
+        style: 'destructive',
+        onPress: () => void deleteSecureCredential('Notion'),
+      },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  }
+
+  async function saveNotionParentPage() {
+    const trimmed = notionParentDraft.trim();
+    if (!trimmed) {
+      Alert.alert('設定できません', '親ページのURLまたはページIDを入力してください。');
+      return;
+    }
+    if (!extractNotionParentPageId(trimmed)) {
+      Alert.alert(
+        '設定できません',
+        'ページIDを識別できませんでした。NotionのページURL（…/タイトル-32桁のID）またはページIDを入力してください。',
+      );
+      return;
+    }
+    saveSettings({ ...settings, notionParentPage: trimmed });
+    setEditingNotionParentPage(false);
   }
 
   async function saveCustomVocabulary(value: CustomVocabularyDTO) {
@@ -528,6 +621,65 @@ function VocabularyEditor({
                 accessibilityLabel="辞書を保存"
                 isDisabled={!draft.pattern.trim()}
                 onPress={() => onSave(draft)}
+                size="sm"
+                style={styles.vocabularyButton}
+                variant="primary"
+              >
+                <Button.Label>保存</Button.Label>
+              </Button>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function NotionParentPageEditor({
+  onClose,
+  onChangeText,
+  onSave,
+  value,
+}: {
+  onClose: () => void;
+  onChangeText: (text: string) => void;
+  onSave: () => void;
+  value: string;
+}) {
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Notion の書き出し先（親ページ）</Text>
+          <Input
+            accessibilityLabel="Notionの親ページURLまたはページID"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={onChangeText}
+            placeholder="https://www.notion.so/… またはページID"
+            placeholderTextColor={colors.textTertiary}
+            variant="secondary"
+            value={value}
+          />
+          <Text style={styles.notionParentHint}>
+            書き出し先にしたいNotionページのURL（…/タイトル-32桁のID）またはページIDを入力してください。
+            転記はこのページの子ページとして作成されます。
+          </Text>
+          <View style={styles.modalActions}>
+            <View style={styles.modalPrimaryActions}>
+              <Button
+                accessibilityLabel="親ページ設定をキャンセル"
+                onPress={onClose}
+                size="sm"
+                style={styles.vocabularyButton}
+                variant="ghost"
+              >
+                <Button.Label>キャンセル</Button.Label>
+              </Button>
+              <Button
+                accessibilityLabel="親ページ設定を保存"
+                isDisabled={!value.trim()}
+                onPress={onSave}
                 size="sm"
                 style={styles.vocabularyButton}
                 variant="primary"
@@ -739,6 +891,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     color: colors.text,
     ...textStyles.sectionTitle,
+  },
+  notionParentHint: {
+    color: colors.textSecondary,
+    ...textStyles.footnote,
   },
   modalActions: {
     alignItems: 'center',

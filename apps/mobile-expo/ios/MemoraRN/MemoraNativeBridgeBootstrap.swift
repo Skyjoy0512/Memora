@@ -31,6 +31,10 @@ enum MemoraNativeBridgeBootstrap {
     MemoraNativePlaybackRegistry.controller = MemoraAVAudioPlaybackController()
     MemoraNativeMemoRegistry.memoHandler = MemoraNativeFileMemoStore()
     MemoraNativeSecureCredentialRegistry.writer = MemoraRNKeychainSecureCredentials()
+    MemoraNativeExportRegistry.exporter = MemoraRNExportHandler(
+      keychain: MemoraRNKeychainSecureCredentials(),
+      settingsStore: MemoraUserDefaultsSettingsStore()
+    )
   }
 
   static func configureSharedAudioStoreOrDefaults() {

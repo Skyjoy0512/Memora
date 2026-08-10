@@ -153,6 +153,10 @@ public class MemoraNativeModule: Module {
         .asDictionary()
     }
 
+    AsyncFunction("exportToDestination") { (payload: [String: Any]) async throws -> [String: Any] in
+      try await self.exporter.export(MemoraExportPayloadDTO(dictionary: payload)).asDictionary()
+    }
+
     AsyncFunction("startTranscription") { (audioFileId: String) async throws -> [String: Any] in
       let task = try await self.transcriptionHandler.startTranscription(audioFileId: audioFileId) { [weak self] event in
         self?.sendEvent("onTranscriptionEvent", event.asDictionary())
@@ -263,6 +267,10 @@ public class MemoraNativeModule: Module {
 
   private var summaryGenerator: MemoraSummaryGenerating {
     MemoraNativeSummaryRegistry.summaryGenerator
+  }
+
+  private var exporter: MemoraExporting {
+    MemoraNativeExportRegistry.exporter
   }
 
   private var playbackController: MemoraPlaybackControlling {

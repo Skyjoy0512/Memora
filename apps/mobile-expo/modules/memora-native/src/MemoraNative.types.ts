@@ -61,6 +61,8 @@ export type SettingsDTO = {
   transcriptionMode: 'local' | 'api';
   summaryProvider: 'OpenAI' | 'Gemini' | 'DeepSeek' | 'Local';
   speechAnalyzerEnabled: boolean;
+  /** Notion 書き出し先の親ページ（URL またはページID）。認証情報ではなく設定として保存する。 */
+  notionParentPage: string;
 };
 
 export type CustomVocabularyDTO = {
@@ -73,6 +75,27 @@ export type CustomVocabularyDTO = {
 };
 
 export type KnowledgeQueryScope = 'file' | 'project' | 'global';
+
+export type ExportDestination = 'notion' | 'chatgpt' | 'file';
+
+export type ExportPayloadDTO = {
+  title: string;
+  /** summary + transcript を結合した Markdown テキスト */
+  text: string;
+  createdAt?: string;
+  sourceFileId: string;
+  destination: ExportDestination;
+};
+
+export type ExportResultDTO = {
+  ok: boolean;
+  destination: ExportDestination;
+  /** Notion page id 等。成功時に設定される */
+  refId?: string;
+  error?: string;
+};
+
+export type SecureCredentialProvider = SummaryOptionsDTO['provider'] | 'Notion';
 
 export type KnowledgeQueryRequestDTO = {
   scope: KnowledgeQueryScope;

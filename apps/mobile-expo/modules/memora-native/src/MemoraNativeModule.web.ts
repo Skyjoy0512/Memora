@@ -173,6 +173,7 @@ class MemoraNativeModule extends NativeModule<MemoraNativeModuleEvents> {
       speechAnalyzerEnabled: false,
       summaryProvider: 'Gemini',
       transcriptionMode: 'local',
+      notionParentPage: '',
     };
   }
 
