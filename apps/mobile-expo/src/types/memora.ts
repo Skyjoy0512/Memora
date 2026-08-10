@@ -37,4 +37,8 @@ export type AskMessage = {
   role: 'user' | 'assistant';
   text: string;
   sources?: string[];
+  /** true when the answer is a labeled sample (web/native-unavailable fallback). */
+  isSample?: boolean;
+  /** Renders a Settings shortcut action under the message when present. */
+  hint?: 'api-key';
 };
