@@ -297,9 +297,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     pendingExportActionRef.current = null;
 
     if (action === 'notion') {
-      Alert.alert('Notion に転記', '連携の接続後に有効になります。');
+      Alert.alert('Notion に転記', '1.0対象（実装準備中）です。実装は別PRで進めます。');
     } else if (action === 'chatgpt') {
-      Alert.alert('ChatGPT に共有', '連携の接続後に有効になります。');
+      Alert.alert('ChatGPT に共有', '1.0対象（実装準備中）です。実装は別PRで進めます。');
     } else if (action === 'share') {
       void handleShare();
     }
@@ -712,13 +712,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           <Button variant="ghost" background={null} onPress={() => closeExportThen('notion')} style={styles.sheetAction}>
             <Ionicons color={colors.text} name="document-outline" size={18} />
             <View style={styles.sheetActionCopy}><Button.Label>Notion に転記</Button.Label></View>
-            <Text style={styles.exportRowStatus}>未接続</Text>
+            <Text style={styles.exportRowStatus}>1.0対象（準備中）</Text>
           </Button>
           <Separator />
           <Button variant="ghost" background={null} onPress={() => closeExportThen('chatgpt')} style={styles.sheetAction}>
             <Ionicons color={colors.text} name="chatbubble-outline" size={18} />
             <View style={styles.sheetActionCopy}><Button.Label>ChatGPT に共有</Button.Label></View>
-            <Text style={styles.exportRowStatus}>未接続</Text>
+            <Text style={styles.exportRowStatus}>1.0対象（準備中）</Text>
           </Button>
           <Separator />
           <Button variant="ghost" background={null} onPress={() => closeExportThen('share')} style={styles.sheetAction}>

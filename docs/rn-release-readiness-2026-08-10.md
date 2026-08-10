@@ -127,11 +127,11 @@
 | STT | **実装済み** | `MemoraRNTranscriptionHandler` → `STTService`（`SpeechAnalyzerService26` / `SFSpeechRecognizer`）。shared SwiftData `Transcript` へ persist、`onTranscriptionEvent` を emit | 必須 | §8 保護対象、実機 QA（音声認識権限） |
 | 要約 summary | **実装済み** | `MemoraSharedStoreSummaryGenerator`（bootstrap で接続）＋ `generateSummary` ＋ API キー（Keychain / Local は不要） | 必須 | API キー設定（実装済み）、provider 選択、実機 QA |
 | 検索 search（Ask AI） | **実装済み** | `MemoraSharedStoreKnowledgeQuery`（bootstrap で接続）＋ `queryKnowledge` ＋ `LocalRetrievalEngine`。AskAIScreen は実 bridge を呼ぶ | 推奨 | retrieval 索引・モデル選択。1.0 必須か要判断 |
-| 書き出し export | **一部** | Share sheet で title+summary+transcript を共有（FileDetail `handleShare`）。Notion / ChatGPT 行は「未接続」Alert | 推奨 | Notion / ChatGPT 契約（未定・要ユーザー決定） |
+| 書き出し export | **一部** | Share sheet で title+summary+transcript を共有（FileDetail `handleShare`）。Notion / ChatGPT 行は「1.0対象（準備中）」表示（2026-08-10 文言更新） | **必須** | 契約は `docs/rn-export-contract-2026-08-10.md`（1.0 対象に決定 2026-08-10）、実装は別 PR |
 | Tasks | **実装済み（#180）** | `TodoItem` + `MemoraSharedStoreTaskBridgeAdapter` + TasksScreen CRUD。残: 日付選択 / タスク化導線 | 必須 | タスク化導線（FileDetail・AskAI）の配線 |
 | プロジェクト move | **一部** | HomeScreen のプロジェクトセグメント表示（`file.project`）+ `moveAudioFile` bridge。FileDetail「プロジェクトに移動」と Tasks シートのプロジェクトは未接続（Alert / 固定「個人タスク」） | 推奨 | move UI wiring（Lane F / G） |
 | 設定（基盤） | **実装済み** | settings store（UserDefaults: summaryProvider / transcriptionMode / speechAnalyzerEnabled）、customVocabulary（SwiftData）、API キー（Keychain） | 必須 | なし |
-| 設定（連携・未接続行） | **未接続** | Notion / ChatGPT 連携、PLAUD / Omi デバイス管理、プッシュ通知（Switch はローカル state のみ）、キャッシュ消去 / 全データ書き出し、ログアウト / アカウント削除、表示言語 / 文字起こし言語、要約テンプレート（固定「議事録」）— すべて `notConnected` Alert | スコープ判断 | 各バックエンド / 契約の決定 |
+| 設定（連携・未接続行） | **未接続** | Notion / ChatGPT 連携は「1.0対象（準備中）」（2026-08-10 決定・実装は別 PR）。PLAUD / Omi デバイス管理、プッシュ通知（Switch はローカル state のみ）、キャッシュ消去 / 全データ書き出し、ログアウト / アカウント削除、表示言語 / 文字起こし言語、要約テンプレート（固定「議事録」）— Notion / ChatGPT 以外は `notConnected` Alert | スコープ判断 | Notion / ChatGPT 以外は各バックエンド / 契約の決定 |
 | 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。Info.plist に `UIBackgroundModes` なし。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
 | STT transcript 表示 | **実装済み** | FileDetail の文字起こしタブは `file.transcript`（bridge 実データ）を表示。cleanedText 切替、`TranscriptionProgressCard` + `useTranscriptionTask` で実 STT 開始、segment tap で seek+play | 必須 | 実機 QA |
 | 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能 | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
@@ -158,7 +158,7 @@
 
 - **1.0 で「バックグラウンド録音」を主張するか**（`UIBackgroundModes: audio` の要否。SwiftUI 側は主張を除去して追加しない方針だったため、RN で方針を再確認）。
 - **認証方式とペイウォールの有無**: Apple / Google / メール OTP のどれか、IAP（RevenueCat 等）を使うか。
-- **Notion / ChatGPT 連携の 1.0 対象可否**（export 契約）。
+- ~~Notion / ChatGPT 連携の 1.0 対象可否~~（export 契約）→ **2026-08-10 に 1.0 対象で決定**（契約: `docs/rn-export-contract-2026-08-10.md`、実装は別 PR）。
 - **Widget / Broadcast Extension の RN 同梱**を 1.0 で行うか（Live Activity は SwiftUI 依存で消滅したため、動的アイランド方針の再決定を含む）。
 - **検索（Ask AI）の 1.0 必須 / 推奨**の判定。
 - **root `MemoraTests/`（孤立）は 2026-08-10 に削除済み**。
