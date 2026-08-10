@@ -107,6 +107,8 @@ export type KnowledgeQueryResponseDTO = {
   sessionId: string;
   scope: KnowledgeQueryScope;
   answeredAt: string;
+  /** true when the answer is a labeled sample (native unavailable or sample registry). */
+  isSample?: boolean;
 };
 
 export type PlaybackStatusDTO = {

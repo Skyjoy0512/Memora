@@ -457,6 +457,7 @@ type KnowledgeQueryResponseDTO = {
   sources: string[];
   scope: 'file' | 'project' | 'global';
   answeredAt: string;
+  isSample?: boolean;
 };
 ```
 
@@ -478,6 +479,21 @@ The current sample implementation returns deterministic answers for file/project
 The first real query pass should define a host-app adapter that owns the real retrieval dependencies, then inject it through `MemoraNativeBridgeBootstrap.configure(...)`.
 Do not make the local Expo module import or call app-target `KnowledgeQueryService`, AI providers, Keychain, or backend clients directly.
 Keep raw provider secrets in Swift/Keychain, not in React Native state.
+
+RN facade behavior (2026-08, real-data pass):
+
+- When the native module is available, `queryKnowledge` calls it directly and propagates native errors
+  (APIキー未設定 / 対象未選択 / 生成失敗) to the screen instead of degrading to a sample answer.
+- When the native module is unavailable (web), the facade returns `buildFallbackKnowledgeResponse`
+  (in `src/native/askAiLogic.ts`), which sets `isSample: true` and labels the sources so the UI can
+  show a "サンプル回答" badge and never present a mock as a real answer.
+- When `getBridgeInfo().knowledgeQuerySource === 'sample'` (simulator without a shared store), the
+  facade marks the native sample response as `isSample: true` as well.
+- Screen scope handling: `global` runs the real flow. `file`/`project` are disabled with an
+  explanation until a target (audioFileId/projectId) is selected; the request DTO accepts the IDs so
+  a future File Detail → Ask AI route can fill them in without native changes.
+- Model selection is limited to `Auto` / `OpenAI`; the request DTO has no provider field and the
+  shared store serves OpenAI only.
 
 ## Summary Generation Rules
 

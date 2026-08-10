@@ -1,12 +1,22 @@
 import { AppIcon } from '../components/AppIcon';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
-import { askMessages } from '../mocks/memoraData';
+import {
+  ASK_AI_MODEL_LABELS,
+  ASK_AI_MODEL_OPTIONS,
+  buildAskAiRequest,
+  describeNoTarget,
+  mapAskAiError,
+  resolveAskAiDataStatus,
+  resolveAskAiScope,
+  type AskAiModel,
+} from '../native/askAiLogic';
 import { MemoraNative } from '../native/MemoraNative';
-import type { KnowledgeQueryScope, SummaryOptionsDTO } from '../native/MemoraNative.types';
+import type { BridgeInfoDTO, KnowledgeQueryScope } from '../native/MemoraNative.types';
 import type { AskMessage } from '../types/memora';
 import { Button } from 'heroui-native/button';
 import { TextArea } from 'heroui-native/text-area';
@@ -20,39 +30,22 @@ const scopeOptions: Array<{ label: string; value: KnowledgeQueryScope }> = [
   { label: 'ファイル', value: 'file' },
 ];
 
-type AskModel = 'auto' | SummaryOptionsDTO['provider'];
-
-const ASK_MODEL_LABELS: Record<AskModel, string> = {
-  auto: 'Auto',
-  OpenAI: 'OpenAI',
-  Gemini: 'Gemini',
-  DeepSeek: 'DeepSeek',
-  Local: 'On-device',
-};
-
-const initialMessagesByScope: Record<KnowledgeQueryScope, AskMessage[]> = {
-  file: askMessages,
-  project: [
-    {
-      id: 'project-welcome',
-      role: 'assistant',
-      text:
-        'Memora Launch の移行メモを横断できます。画面、bridge、検証ログのどこから見たいか聞いてください。',
-      sources: ['React Native / Expo Migration Plan'],
-    },
-  ],
-  global: [],
-};
-
 const suggestedQuestions = ['この会議の決定事項は？', '次に対応すべきことを教えて', '関連する記録を探して'];
 
 export function AskAIScreen() {
+  const router = useRouter();
   const [activeScope, setActiveScope] = useState<KnowledgeQueryScope>('global');
   const [draft, setDraft] = useState('');
   const [isAnswering, setIsAnswering] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [askModel, setAskModel] = useState<AskModel>('auto');
+  const [askModel, setAskModel] = useState<AskAiModel>('auto');
   const [isModelSheetOpen, setIsModelSheetOpen] = useState(false);
+  const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
+  const [hasRecords, setHasRecords] = useState<boolean | null>(null);
+  const [isKeyConfigured, setIsKeyConfigured] = useState<boolean | null>(null);
+  // 対象選択UIが未実装のため常に未選択。File Detail からの遷移時に audioFileId / projectId を渡す経路を確保する。
+  const [audioFileId] = useState<string | undefined>(undefined);
+  const [projectId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -63,19 +56,54 @@ export function AskAIScreen() {
   }, []);
 
   const [messagesByScope, setMessagesByScope] =
-    useState<Record<KnowledgeQueryScope, AskMessage[]>>(initialMessagesByScope);
+    useState<Record<KnowledgeQueryScope, AskMessage[]>>({ file: [], project: [], global: [] });
+
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+
+      void (async () => {
+        const [info, files, keyConfigured] = await Promise.all([
+          MemoraNative.getBridgeInfo(),
+          MemoraNative.listAudioFiles(),
+          MemoraNative.getSecureCredentialStatus('OpenAI'),
+        ]);
+        if (!isMounted) return;
+        setBridgeInfo(info);
+        setHasRecords(files.length > 0);
+        setIsKeyConfigured(keyConfigured);
+      })();
+
+      return () => {
+        isMounted = false;
+      };
+    }, []),
+  );
 
   const messages = messagesByScope[activeScope];
-  const canSend = draft.trim().length > 0 && !isAnswering;
+  const dataStatus = resolveAskAiDataStatus(hasRecords);
+  const scopeResolution = resolveAskAiScope(activeScope, { audioFileId, projectId });
+  const composerBlocked = !scopeResolution.canSend || dataStatus === 'empty';
+  const noTarget = describeNoTarget(activeScope);
+  const canSend = draft.trim().length > 0 && !isAnswering && !composerBlocked;
   const placeholder = useMemo(() => {
     if (activeScope === 'file') return 'この記録について質問する';
     if (activeScope === 'project') return 'このプロジェクトについて質問する';
     return 'すべての記録に質問する';
   }, [activeScope]);
 
+  const blockedDockText = useMemo(() => {
+    if (!scopeResolution.canSend) {
+      return activeScope === 'file'
+        ? 'このスコープで質問するには対象のファイルを選ぶ必要があります。'
+        : 'このスコープで質問するには対象のプロジェクトを選ぶ必要があります。';
+    }
+    return 'まだ記録がないため質問できません。録音・取り込み・文字起こしが完了すると利用できます。';
+  }, [activeScope, scopeResolution.canSend]);
+
   async function sendQuestion(questionOverride?: string) {
     const question = (questionOverride ?? draft).trim();
-    if (!question || isAnswering) return;
+    if (!question || isAnswering || composerBlocked) return;
 
     const requestScope = activeScope;
 
@@ -93,26 +121,34 @@ export function AskAIScreen() {
     }));
 
     try {
-      const response = await MemoraNative.queryKnowledge({
-        question,
-        scope: requestScope,
-      });
+      // 実データ（SwiftData）パスでのみAPIキー前提チェックを行う。
+      // web / sample パスはサンプル回答なのでキー不要。
+      if (bridgeInfo?.knowledgeQuerySource === 'swiftdata' && isKeyConfigured === false) {
+        throw new Error('選択したプロバイダーのAPIキーが設定されていません。');
+      }
+
+      const response = await MemoraNative.queryKnowledge(
+        buildAskAiRequest(requestScope, question, { audioFileId, projectId }),
+      );
       const assistantMessage: AskMessage = {
         id: response.id,
         role: 'assistant',
         text: response.answer,
         sources: response.sources,
+        isSample: response.isSample,
       };
 
       setMessagesByScope((current) => ({
         ...current,
         [requestScope]: [...current[requestScope], assistantMessage],
       }));
-    } catch {
+    } catch (error) {
+      const mapping = mapAskAiError(error);
       const errorMessage: AskMessage = {
         id: `${requestScope}-error-${Date.now()}`,
         role: 'assistant',
-        text: '回答を取得できませんでした。時間をおいて、もう一度お試しください。',
+        text: mapping.message,
+        hint: mapping.hint ?? undefined,
       };
       setMessagesByScope((current) => ({
         ...current,
@@ -139,57 +175,63 @@ export function AskAIScreen() {
     <Screen
       footerAccessory={
         <View style={[styles.askDock, isKeyboardOpen && styles.askDockKeyboard]}>
-          <View style={styles.askBox}>
-            <TextArea
-              accessibilityLabel="Ask AI question"
-              onChangeText={setDraft}
-              onSubmitEditing={() => void sendQuestion()}
-              placeholder={placeholder}
-              placeholderTextColor={colors.textTertiary}
-              returnKeyType="send"
-              style={styles.askInput}
-              value={draft}
-              variant="secondary"
-            />
-            <View style={styles.composerActions}>
-              <Button
-                accessibilityLabel="ファイルを添付"
-                feedbackVariant="none"
-                isIconOnly
-                onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
-                size="sm"
-                variant="ghost"
-                style={styles.attachButton}
-              >
-                <AppIcon color={colors.textTertiary} name="attach-outline" size={18} />
-              </Button>
-              <Button
-                accessibilityLabel="AIモデルを選択"
-                onPress={() => setIsModelSheetOpen(true)}
-                size="md"
-                variant="ghost"
-                style={styles.modelButton}
-              >
-                <Text style={styles.modelButtonText}>{ASK_MODEL_LABELS[askModel]}</Text>
-                <AppIcon color={colors.textSecondary} name="chevron-down" size={12} />
-              </Button>
-              <Button
-                accessibilityLabel="Ask AI send"
-                feedbackVariant="none"
-                isDisabled={!canSend}
-                isIconOnly
-                onPress={() => void sendQuestion()}
-                variant="primary"
-                style={styles.sendButton}
-              >
-                {isAnswering ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <AppIcon color={colors.surface} name="arrow-forward" size={17} />
-                )}
-              </Button>
+          {composerBlocked ? (
+            <View style={styles.composerBlocked}>
+              <Text style={styles.composerBlockedText}>{blockedDockText}</Text>
             </View>
-          </View>
+          ) : (
+            <View style={styles.askBox}>
+              <TextArea
+                accessibilityLabel="Ask AI question"
+                onChangeText={setDraft}
+                onSubmitEditing={() => void sendQuestion()}
+                placeholder={placeholder}
+                placeholderTextColor={colors.textTertiary}
+                returnKeyType="send"
+                style={styles.askInput}
+                value={draft}
+                variant="secondary"
+              />
+              <View style={styles.composerActions}>
+                <Button
+                  accessibilityLabel="ファイルを添付"
+                  feedbackVariant="none"
+                  isIconOnly
+                  onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
+                  size="sm"
+                  variant="ghost"
+                  style={styles.attachButton}
+                >
+                  <AppIcon color={colors.textTertiary} name="attach-outline" size={18} />
+                </Button>
+                <Button
+                  accessibilityLabel="AIモデルを選択"
+                  onPress={() => setIsModelSheetOpen(true)}
+                  size="md"
+                  variant="ghost"
+                  style={styles.modelButton}
+                >
+                  <Text style={styles.modelButtonText}>{ASK_AI_MODEL_LABELS[askModel]}</Text>
+                  <AppIcon color={colors.textSecondary} name="chevron-down" size={12} />
+                </Button>
+                <Button
+                  accessibilityLabel="Ask AI send"
+                  feedbackVariant="none"
+                  isDisabled={!canSend}
+                  isIconOnly
+                  onPress={() => void sendQuestion()}
+                  variant="primary"
+                  style={styles.sendButton}
+                >
+                  {isAnswering ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <AppIcon color={colors.surface} name="arrow-forward" size={17} />
+                  )}
+                </Button>
+              </View>
+            </View>
+          )}
         </View>
       }
       headerAccessory={
@@ -235,22 +277,54 @@ export function AskAIScreen() {
       <View style={styles.thread}>
         {messages.length === 0 ? (
           <View style={styles.emptyAsk}>
-            <Text style={styles.emptyTitle}>調べたいことを質問してください</Text>
-            <Text style={styles.emptySubtitle}>最近の記録から</Text>
-            <View style={styles.suggestions}>
-              {suggestedQuestions.map((question) => (
-                <Pressable
-                  accessibilityLabel={`${question}を質問する`}
-                  accessibilityRole="button"
-                  key={question}
-                  onPress={() => void sendQuestion(question)}
-                  style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}
+            {!scopeResolution.canSend ? (
+              <>
+                <Text style={styles.emptyTitle}>{noTarget.title}</Text>
+                <Text style={styles.emptySubtitle}>{noTarget.body}</Text>
+              </>
+            ) : dataStatus === 'loading' ? null : dataStatus === 'empty' ? (
+              <>
+                <Text style={styles.emptyTitle}>まだ記録がありません</Text>
+                <Text style={styles.emptySubtitle}>
+                  録音・取り込み・文字起こしが完了すると、Ask AI が記録から回答できるようになります。
+                </Text>
+              </>
+            ) : bridgeInfo?.knowledgeQuerySource === 'swiftdata' && isKeyConfigured === false ? (
+              <>
+                <Text style={styles.emptyTitle}>OpenAI の API キーが未設定です</Text>
+                <Text style={styles.emptySubtitle}>
+                  「設定 {'>'} 文字起こし・要約 {'>'} AI providerのAPIキー」から OpenAI の API キーを入力すると、記録から回答できるようになります。
+                </Text>
+                <Button
+                  accessibilityLabel="設定でAPIキーを入力する"
+                  onPress={() => router.push('/settings')}
+                  size="sm"
+                  style={styles.settingsHintButton}
+                  variant="primary"
                 >
-                  <Text style={styles.suggestionText}>{question}</Text>
-                  <AppIcon color={colors.border} name="arrow-forward" size={15} />
-                </Pressable>
-              ))}
-            </View>
+                  設定を開く
+                </Button>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>調べたいことを質問してください</Text>
+                <Text style={styles.emptySubtitle}>最近の記録から</Text>
+                <View style={styles.suggestions}>
+                  {suggestedQuestions.map((question) => (
+                    <Pressable
+                      accessibilityLabel={`${question}を質問する`}
+                      accessibilityRole="button"
+                      key={question}
+                      onPress={() => void sendQuestion(question)}
+                      style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}
+                    >
+                      <Text style={styles.suggestionText}>{question}</Text>
+                      <AppIcon color={colors.border} name="arrow-forward" size={15} />
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
           </View>
         ) : (
           messages.map((message) =>
@@ -262,6 +336,12 @@ export function AskAIScreen() {
               </View>
             ) : (
               <View key={message.id} style={styles.assistantBlock}>
+                {message.isSample ? (
+                  <View style={styles.sampleBadge}>
+                    <AppIcon color={colors.warning} name="warning-outline" size={12} />
+                    <Text style={styles.sampleBadgeText}>サンプル回答（ネイティブ未接続）</Text>
+                  </View>
+                ) : null}
                 <Text style={styles.assistantText}>{message.text}</Text>
                 {message.sources ? (
                   <View style={styles.sources}>
@@ -294,6 +374,17 @@ export function AskAIScreen() {
                   >
                     タスク化
                   </Button>
+                  {message.hint === 'api-key' ? (
+                    <Button
+                      accessibilityLabel="設定でAPIキーを入力する"
+                      onPress={() => router.push('/settings')}
+                      size="sm"
+                      style={styles.actionButton}
+                      variant="primary"
+                    >
+                      設定でAPIキーを入力
+                    </Button>
+                  ) : null}
                   <Text style={styles.messageTime}>たった今</Text>
                 </View>
               </View>
@@ -311,16 +402,17 @@ export function AskAIScreen() {
       <FloatingBottomSheet isOpen={isModelSheetOpen} onClose={() => setIsModelSheetOpen(false)}>
         <View style={styles.modelSheetContainer}>
           <Text style={styles.modelSheetHeading}>AIモデル</Text>
+          <Text style={styles.modelSheetNote}>現在は OpenAI のみ利用できます。他のプロバイダーは対応後に追加します。</Text>
           <RadioGroup
             onValueChange={(value) => {
-              setAskModel(value as AskModel);
+              setAskModel(value as AskAiModel);
               setIsModelSheetOpen(false);
             }}
             value={askModel}
           >
-            {(Object.keys(ASK_MODEL_LABELS) as AskModel[]).map((model) => (
+            {ASK_AI_MODEL_OPTIONS.map((model) => (
               <RadioGroup.Item key={model} value={model}>
-                {ASK_MODEL_LABELS[model]}
+                {ASK_AI_MODEL_LABELS[model]}
               </RadioGroup.Item>
             ))}
           </RadioGroup>
@@ -359,19 +451,38 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingBottom: spacing.sm,
   },
+  sampleBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  sampleBadgeText: {
+    color: colors.warning,
+    ...textStyles.footnoteBold,
+  },
   messageActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   actionButton: { minHeight: 44, minWidth: 44 },
+  settingsHintButton: { alignSelf: 'flex-start', minHeight: 44, marginTop: spacing.sm },
   modelSheetContainer: {
     backgroundColor: colors.surface,
     borderRadius: radius.sm,
+    gap: spacing.sm,
     marginBottom: spacing.md,
     marginHorizontal: spacing.md,
     padding: spacing.md,
   },
   modelSheetHeading: {
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
     ...textStyles.captionBold,
+  },
+  modelSheetNote: {
+    color: colors.textTertiary,
+    ...textStyles.caption,
   },
   messageTime: { color: colors.border, marginLeft: 'auto', ...textStyles.caption },
   emptyAsk: { gap: spacing.xs, paddingTop: spacing.xl },
@@ -420,6 +531,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
+  },
+  composerBlocked: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    minHeight: 92,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  composerBlockedText: {
+    color: colors.textTertiary,
+    textAlign: 'center',
+    ...textStyles.caption,
   },
   attachButton: { height: 44, justifyContent: 'center', width: 44 },
   modelButton: { minHeight: 44 },
