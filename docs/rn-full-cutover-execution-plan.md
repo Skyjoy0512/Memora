@@ -115,16 +115,16 @@ RN への完全移行が「完了」と言えるのは、以下の全てが観�
 
 ### 4.1 Release gate 判定（2026-08-10 時点）
 
-ADR-003 の gate a〜f について、2026-08-10 時点（main = `4a25f6e7`、#185〜#191 マージ後）の判定を記録する。
+ADR-003 の gate a〜f について、2026-08-10 時点（main = `8cf09738`、#185〜#193 マージ後）の判定を記録する。
 証拠の詳細は `docs/rn-release-readiness-2026-08-10.md` と `docs/rn-device-qa-2026-08-10.md` を参照。
 
 | gate | 定義（ADR-003） | 現状（2026-08-10） | 証拠 | 残課題 |
 |---|---|---|---|---|
 | a: core parity | 録音 / インポート / 再生 / STT / 要約 / 検索 / 書き出しが RN で SwiftUI 相当に動作 | **概ね達成**。主要機能は RN 実装済み（検索 #189・書き出し #191・タスク #180・共有ストア #172/#173・バックグラウンド録音 #188）。**タスク化導線と project move の UI wiring も配線済み（2026-08-10）** | 上記 parity matrix + `rn-release-readiness-2026-08-10.md` §4 | 実機 QA・残 UI（日付選択 / タスクのプロジェクト選択） |
 | b: production data | 共有ストア移行と rollback が実データ・実機で検証済み（既存データを壊さない） | **未実施**。移行ロジック（`MemoraSharedStoreResolver`、legacy→app group）は実装済みだが実機での実データ移行・rollback 検証なし | 実装: #172/#173。検証: 未実施（`rn-device-qa-2026-08-10.md` R6） | 実機での実データ移行 → rollback 検証（実機必須） |
-| c: release 到達不能化 | release ビルドで mock fallback / fake auth / paywall / developer UI が到達不能 | **達成**。dev ルート（auth / preview / dev-fonts）と設定の開発者セクションは `__DEV__` 時のみ露出 | #170（リリースゲート導入）・#174（mock 認証/ペイウォール経路の本番到達不能化）・#187（auth ハリボテ UI 完走、dev-gated） | なし（release ビルドでの再確認は実機 QA 時に実施） |
+| c: release 到達不能化 | release ビルドで mock fallback / fake auth / paywall / developer UI が到達不能 | **達成**。dev ルート（auth / preview / dev-fonts）と設定の開発者セクションは `__DEV__` 時のみ露出。**release ビルド成立を確認（2026-08-10）**: `xcodebuild -configuration Release` が BUILD SUCCEEDED、production export バンドルで `shouldExposeRoute('auth'\|'preview'\|'dev-fonts', __DEV__=false)` が全て false | #170（リリースゲート導入）・#174（mock 認証/ペイウォール経路の本番到達不能化）・#187（auth ハリボテ UI 完走、dev-gated）・**2026-08-10 release hardening 検証** | なし（auth バックエンド・IAP 契約の決定のみ） |
 | d: privacy / security / readiness | Privacy Manifest / Keychain / バックグラウンド録音申告 / `ITSAppUsesNonExemptEncryption` / App Privacy が RN バンドルに充足 | **概ね達成**。`ITSAppUsesNonExemptEncryption=false`（#186）、`UIBackgroundModes: audio`（#188、app.json / RN ホスト Info.plist の両方）、PrivacyInfo.xcprivacy あり | #186・#188、`rn-release-readiness-2026-08-10.md` §4 Privacy 行 | 実機でのバックグラウンド録音動作確認と審査申告の最終確認（実機必須） |
-| e: QA / CI | typecheck / web export / `qa:ios:build` / `qa:ios:test` / `swift test` / 実機 QA が全て pass | **準備完了**。実機 QA 手順書作成＋シミュレータ煙試験 pass＋native テスト 30 件（#190 実施記録 19 件＋#191 で export handlers 11 件）。CI 4 ジョブ green | #190（手順書・煙試験・native テスト）、`rn-device-qa-2026-08-10.md` §6 | 実機 QA（iPhone 未接続・実機ビルド未実施）。`qa:ios:test` は CI 未組込（ローカル実施のみ） |
+| e: QA / CI | typecheck / web export / `qa:ios:build` / `qa:ios:test` / `swift test` / 実機 QA が全て pass | **準備完了**。実機 QA 手順書作成＋シミュレータ煙試験 pass＋native テスト 32 件 pass（#190 実施記録 19 件＋#191 で export handlers 11 件＋追加分。**2026-08-10 に `qa:ios:test` を CI（`rn-ios-build`）へ組み込み済み**: macos-26 runner image の iPhone 17 Pro / iOS 26.5 シミュレータで再現確認）。CI 4 ジョブ green | #190（手順書・煙試験・native テスト）、`rn-device-qa-2026-08-10.md` §6、**2026-08-10 release hardening 検証** | 実機 QA（iPhone 未接続・実機ビルド未実施）のみ |
 | f: SwiftUI 削除 | gate a〜e 充足＋RN 単独 release 候補ビルド成立後に SwiftUI UI と旧 target を削除（f1〜f5） | **実行済み（オーナー決定）**。gate 条件の完了を待たずに削除 | #181（SwiftUI UI / 旧 target / `project.yml` / `ios-build` ジョブ削除）・#184（`MemoraTests/` 孤立残存削除）、ADR-003 追記 | 削除済みのため完了扱い。残 parity・実機 QA は RN 側で継続対応 |
 
 ## 5. 依存順とマイルストーン
@@ -198,14 +198,25 @@ CLAUDE.md §3.2 の lane を踏襲し、cutover 固有の管掌を補足する�
   バックグラウンド録音申告・`ITSAppUsesNonExemptEncryption`・App Privacy の RN バンドルへの充足。
 - 受け入れ: release ビルドで gate c / d の各条件を観測。
 - 検証: `xcodebuild archive -project apps/mobile-expo/ios/MemoraRN.xcodeproj -scheme MemoraRN` 相当 + 実機確認。
+- 状態: **gate c / d / e の CI 化と release ビルド成立を確認済み（2026-08-10）**。
+  - gate c: `xcodebuild -configuration Release`（generic iOS Simulator / ARM64）BUILD SUCCEEDED。
+    production export バンドルで `shouldExposeRoute('auth'|'preview'|'dev-fonts', __DEV__=false)` が false
+    （auth / preview / dev-fonts 非露出を確認。`releaseGate.ts` の `DEV_ONLY_ROUTES`）。
+  - gate d: Privacy Manifest・`ITSAppUsesNonExemptEncryption`・`UIBackgroundModes: audio` が Release 成果物に
+    反映された状態でビルド成立。
+  - gate e: `qa:ios:test`（test-without-building）を CI（`rn-ios-build`、macos-26）へ組み込み。
+    destination `platform=iOS Simulator,name=iPhone 17 Pro,OS=latest`（runner image に iPhone 17 Pro / iOS 26.5
+    搭載を確認）。ローカル 32 tests pass。
+  - 残: 実機 QA（iPhone 未接続・実機ビルド未実施）と `xcodebuild archive`（device destination）は実機接続後に実施。
 
 ### T6: release 判定（gate a〜e）
 - 内容: Lane E が evidence を集め、gate a〜e の達成を本計画に記録。
 - 受け入れ: 各 gate に検証コマンドと結果が記録されている。
 - 検証: 記録されたコマンド一式を再実行し green を確認。
 
-> **進捗記録（2026-08-10、main = `4a25f6e7`）**: 要ユーザー決定の 5 項目
+> **進捗記録（2026-08-10、main = `8cf09738`）**: 要ユーザー決定の 5 項目
 > （認証 UI #187 / export #191 / Ask AI #189 / 背景録音 #188 / Privacy #186）が**全て実装済み**。
+> **2026-08-10 に release hardening（gate c / d / e の CI 化）を実施**（§4.1・T5 参照）。
 > 現時点の gate 判定は §4.1 のとおり。次の判定ブロッカーは **実機 QA（iPhone 接続）** と
 > **gate b の実機検証**（実データ移行 → rollback）の 2 点。
 

@@ -52,7 +52,7 @@ jobs:
 
   rn-ios-build:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,6 +75,12 @@ jobs:
       - name: Build React Native iOS host
         working-directory: apps/mobile-expo
         run: npm run qa:ios:build
+
+      - name: Test React Native iOS host
+        working-directory: apps/mobile-expo
+        env:
+          MEMORA_RN_DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest"
+        run: npm run qa:ios:test
 
   bot-server-build:
     runs-on: ubuntu-latest

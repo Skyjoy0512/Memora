@@ -37,11 +37,13 @@
 |---|---|
 | `shared-data` | `swift test --package-path Packages/MemoraSharedData` |
 | `expo-check` | `npm ci` → `npm run typecheck` → `npx expo export --platform web` |
-| `rn-ios-build` | `npm ci` → `pod install` → `npm run qa:ios:build`（`build-for-testing`。**テスト実行は含まない**） |
+| `rn-ios-build` | `npm ci` → `pod install` → `npm run qa:ios:build`（`build-for-testing`）→ `npm run qa:ios:test`（`test-without-building`、iPhone 17 Pro / iOS 26.5 シミュレータ指定。**2026-08-10 にテスト実行を組み込み済み**） |
 | `bot-server-build` | `npm ci` → `npm run build` |
 
-注意: `qa:ios:test`（RN ホストテスト実行）は CI に含まれない。ADR-003 gate e の
-「`qa:ios:test` pass」はローカル実行のみで担保する必要がある。
+> **更新（2026-08-10）**: `qa:ios:test`（RN ホストテスト実行）を CI（`rn-ios-build`）に組み込み済み。
+> `macos-26` runner image（iOS 26.5 / iPhone 17 Pro シミュレータ搭載、`actions/runner-images` の
+> macos-26 README で確認）とローカル検証（iPhone 17 Pro / OS=26.5 で 32 tests pass）が同一 destination のため
+> 確実に再現できると判断し、gate e の CI 担保をローカル→CI に移行した。
 
 ### 2.3 保持対象（native core / ADR-004 実装済みの確認）
 
@@ -140,8 +142,8 @@
 | 設定（連携・未接続行） | **一部（Notion / ChatGPT は実装済み 2026-08-10）** | Notion / ChatGPT 連携は実装済み（Settings「連携」・FileDetail「書き出す」）。PLAUD / Omi デバイス管理、プッシュ通知（Switch はローカル state のみ）、キャッシュ消去 / 全データ書き出し、ログアウト / アカウント削除、表示言語 / 文字起こし言語、要約テンプレート（固定「議事録」）— Notion / ChatGPT 以外は `notConnected` Alert | スコープ判断 | Notion / ChatGPT 以外は各バックエンド / 契約の決定 |
 | 通知 / Widget / Broadcast Extension | **未接続（RN 同梱なし）** | `MemoraWidget/`・`MemoraBroadcastExtension/` はソース保持のみ。RN xcodeproj に target なし。`UIBackgroundModes` は `audio` のみ申告（widget / broadcast 用の申告なし）。Live Activity は SwiftUI 依存のため削除により消滅 | ソース保持は必須 / 同梱はスコープ判断 | 同梱可否・ライブ配信方針の決定 |
 | STT transcript 表示 | **実装済み** | FileDetail の文字起こしタブは `file.transcript`（bridge 実データ）を表示。cleanedText 切替、`TranscriptionProgressCard` + `useTranscriptionTask` で実 STT 開始、segment tap で seek+play | 必須 | 実機 QA |
-| 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能 | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
-| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption=false` **追加済み（2026-08-10）**。`UIBackgroundModes: audio` **追加済み（2026-08-10、app.json と RN ホスト Info.plist の両方）**。マイク / 音声認識 / フォトライブラリの usage description はあり | 必須（審査項目） | 実機でのバックグラウンド録音動作の確認 |
+| 認証 / ペイウォール | **未接続（UI のみ・dev-gated）** | `AuthFlowScreen` は onboarding/login/email/code/paywall フローを実装するが、外部認証・コード送信・購入は「準備中」Alert。`releaseGate.ts` の `DEV_ONLY_ROUTES`（auth / preview / dev-fonts）で release ビルドから到達不能。**release 到達不能を確認済み（2026-08-10）**: `xcodebuild -configuration Release` が成立し、production export バンドルで `shouldExposeRoute('auth'|'preview'|'dev-fonts', __DEV__=false)` が全て false（`Stack.Protected` guard により非露出） | スコープ判断（要決定） | 認証バックエンド・IAP の契約 |
+| Privacy / Info.plist | **一部** | `PrivacyInfo.xcprivacy` あり（UserDefaults CA92.1 / FileTimestamp C617.1 / SystemBootTime 35F9.1。CollectedDataTypes 空、Tracking false）。`ITSAppUsesNonExemptEncryption=false` **追加済み（2026-08-10）**。`UIBackgroundModes: audio` **追加済み（2026-08-10、app.json と RN ホスト Info.plist の両方）**。マイク / 音声認識 / フォトライブラリの usage description はあり。**Release configuration ビルド成立を確認済み（2026-08-10）**: `xcodebuild -configuration Release`（generic iOS Simulator / ARM64）が BUILD SUCCEEDED。Info.plist 設定・PrivacyInfo.xcprivacy が Release 成果物に反映された状態でビルドが通る | 必須（審査項目） | 実機でのバックグラウンド録音動作の確認 |
 | 共有 SwiftData store | **実装済み** | ADR-004 実装（#172/#173）。`MemoraSharedStoreResolver` + `group.com.memora.shared` entitlements + `configureSharedAudioStoreOrDefaults` | 必須 | 実データ移行・rollback の実機検証（gate b）は未実施 |
 | `MemoraTests/`（旧 SwiftUI テスト） | **削除済み（2026-08-10）** | RN ビルドに未参照の孤立残存だったため `git rm -r` で削除 | 対応済み | なし |
 
@@ -154,7 +156,9 @@
 1. **実機 QA 基盤（Lane E / G）**: 録音 → STT → 要約 → 再生の一連フローを実機で確認。マイク・音声認識の
    permission flow と `ITSAppUsesNonExemptEncryption` / Privacy 申告の最終確認（gate a / d / e）。
 2. **release hardening（Lane D / F / G）**: `xcodebuild archive -scheme MemoraRN` 相当の release ビルド成立、
-   auth / preview / dev-fonts の release 到達不能確認、`qa:ios:test` を CI へ組み込むかローカルで実施（gate c）。
+   auth / preview / dev-fonts の release 到達不能確認、`qa:ios:test` を CI へ組み込むかローカルで実施（gate c）
+   → **実施済み（2026-08-10）**: Release configuration ビルド成立・production export で dev ルート非露出を確認・
+   `qa:ios:test` を CI（`rn-ios-build`）へ組み込み（§7.1）。残は実機接続後の `xcodebuild archive`（device destination）。
 3. **Tasks / export 導線の仕上げ（Lane F）**: ~~FileDetail「タスクに追加」・AskAI「タスク化」の配線（`sourceAudioFileId`）~~ →
    **配線済み（2026-08-10）**: FileDetail 文字起こし segment / AskAI 回答の「タスク化」で `createTask` 実行。
    残: 日付選択、概要タブ「次のアクション → タスク」、タスクのプロジェクト選択、Share sheet 書き出しの文言整理（gate a の一部）。
@@ -181,9 +185,10 @@
   - シミュレータ煙試験（2026-08-10）: `npm ci` / typecheck / `npm test`（42 件）/ web export / `qa:ios:build` が
     pass。シミュレータ "Memora RN Test"（iOS 26.5）へ install・launch 成功（Dev Client 起動画面確認、
     証跡 `.expo/qa-evidence-2026-08-10/01-launch-home.png`）。
-  - RN ホスト native テスト（2026-08-10）: `qa:ios:test`（test-without-building）19 tests 全 pass。
-- 現状の検証は CI（`rn-ios-build` は `build-for-testing` のみで**テスト実行なし**）+ ローカル `qa:ios:test` +
-  `swift test --package-path Packages/MemoraSharedData`。
+  - RN ホスト native テスト（2026-08-10）: `qa:ios:test`（test-without-building）32 tests 全 pass
+    （iPhone 17 Pro / iOS 26.5。**2026-08-10 に CI へ組み込み済み**）。
+- 現状の検証は CI（`rn-ios-build` は `build-for-testing` + `test-without-building`、**2026-08-10 からテスト実行を含む**）+
+  ローカル `qa:ios:test` + `swift test --package-path Packages/MemoraSharedData`。
 - 未実施事項（実機必須 / 推奨の詳細は手順書 §5 の既知リスク表を参照）: 実録音のマイク権限フロー、実音声の
   STT 精度・話者分離、実ファイルの要約（API キー実接続）、Ask AI（実 API キー必須）、
   共有ストア移行の実機確認（gate b）、バックグラウンド時の録音継続の実機確認
@@ -202,6 +207,22 @@
 | `git status` | clean（作業前） |
 | `git rev-list --left-right --count origin/main...HEAD` | `0 0`（origin/main と同期） |
 | `git diff --check` | pass |
-| 変更ファイル | `docs/**` のみ |
+| 変更ファイル（当初監査） | `docs/**` のみ |
+| 変更ファイル（本追記: release hardening） | `docs/rn-release-readiness-2026-08-10.md` / `docs/rn-full-cutover-execution-plan.md` / `.github/workflows/ci.yml` |
 
-> 本監査は read-only。コード・設定・CI は変更していない。監査対象のコード根拠は上記の各行に記載したファイル / 行を参照。
+### 7.1 release hardening 検証（2026-08-10 追記）
+
+| コマンド / 確認 | 結果 |
+|---|---|
+| `pod _1.16.2_ install` | pass。Podfile.lock は環境差分（ExpoModulesCore / hermes-engine の checksum）のみ変動したため revert してクリーンに保った |
+| `xcodebuild -workspace ios/MemoraRN.xcworkspace -scheme MemoraRN -configuration Release -destination "generic/platform=iOS Simulator" -derivedDataPath .expo/ios-qa-derived-data-release ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build` | **BUILD SUCCEEDED**（error 0 / warning 204 は全て pod 起因の deprecation 等）。`MemoraRN.app` + `main.jsbundle` 生成 |
+| `npx vitest run src/utils/__tests__/releaseGate.test.ts` | 4 tests pass（`shouldExposeRoute('auth'\|'preview'\|'dev-fonts', false)` が false、`(tabs)`/`file/[id]` が true） |
+| `CI=1 npx expo export --platform web` の production バンドル | `shouldExposeRoute('auth',!1)` / `('preview',!1)` / `('dev-fonts',!1)`（`__DEV__`→`false`）で `Stack.Protected` guard が全て false。**auth / preview / dev-fonts は非露出** |
+| `npm run qa:ios:build`（build-for-testing） | pass |
+| `MEMORA_RN_DESTINATION="platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" npm run qa:ios:test` | **32 tests / 0 failures / Passed**（iPhone 17 Pro / iOS 26.5、xcresult で確認） |
+| `actions/runner-images` macos-26 README（image 20260729.0423.1） | iOS 26.5 ランタイムに **iPhone 17 Pro シミュレータ搭載確認**。Xcode 26.6（default）/ iOS 26.5 SDK。`qa:ios:test` を CI（`rn-ios-build`）へ組み込み可能と判断 |
+| 変更ファイル（本追記） | `docs/rn-release-readiness-2026-08-10.md` / `docs/rn-full-cutover-execution-plan.md` / `.github/workflows/ci.yml` |
+
+> 当初監査（§1〜§7 の本文）は read-only でコード・設定・CI は変更していない。追記（§7.1）は
+> release hardening として `.github/workflows/ci.yml`（`qa:ios:test` 組み込み）のみを変更している。
+> 監査対象のコード根拠は上記の各行に記載したファイル / 行を参照。
