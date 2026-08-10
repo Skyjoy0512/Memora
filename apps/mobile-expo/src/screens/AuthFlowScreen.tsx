@@ -2,7 +2,6 @@ import { AppIcon } from "../components/AppIcon";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { colors, fonts, radius, textStyles } from "../design/tokens";
+import { isCompleteCode, isEmailLike } from "../utils/authFlow";
 
 type Stage = "onboarding" | "login" | "email" | "code" | "paywall";
 const slides = [
@@ -53,12 +53,7 @@ export function AuthFlowScreen() {
         {stage === "login" ? (
           <Login
             onEmail={() => setStage("email")}
-            onProvider={() =>
-              Alert.alert(
-                "準備中",
-                "外部認証の接続は次の認証バックエンド作業で有効になります。",
-              )
-            }
+            onProvider={complete}
           />
         ) : null}
         {stage === "email" ? (
@@ -66,7 +61,7 @@ export function AuthFlowScreen() {
             email={email}
             onBack={() => setStage("login")}
             onChange={setEmail}
-            onNext={() => email.includes("@") && setStage("code")}
+            onNext={() => isEmailLike(email) && setStage("code")}
           />
         ) : null}
         {stage === "code" ? (
@@ -75,7 +70,7 @@ export function AuthFlowScreen() {
             email={email}
             onBack={() => setStage("email")}
             onChange={setCode}
-            onNext={() => code.length === 6 && setStage("paywall")}
+            onNext={() => isCompleteCode(code) && setStage("paywall")}
           />
         ) : null}
         {stage === "paywall" ? (
@@ -83,13 +78,7 @@ export function AuthFlowScreen() {
             annual={annual}
             onSelect={setAnnual}
             onSkip={complete}
-            onTrial={() => {
-              Alert.alert(
-                "準備中",
-                "購入処理はまだ接続されていません。Free プランで続けます。",
-                [{ text: "続ける", onPress: complete }],
-              );
-            }}
+            onTrial={complete}
           />
         ) : null}
       </KeyboardAvoidingView>
@@ -197,6 +186,9 @@ function Login({
       <Text style={styles.terms}>
         続行すると利用規約とプライバシーポリシーに同意したことになります
       </Text>
+      <Text style={styles.devNote}>
+        デモ用の仮フローです（実際のログイン・課金は行いません）
+      </Text>
     </View>
   );
 }
@@ -230,7 +222,7 @@ function EmailStep({
         />
       </View>
       <PrimaryButton
-        disabled={!email.includes("@")}
+        disabled={!isEmailLike(email)}
         label="確認コードを送信"
         onPress={onNext}
       />
@@ -280,7 +272,7 @@ function CodeStep({
         />
       </View>
       <PrimaryButton
-        disabled={code.length !== 6}
+        disabled={!isCompleteCode(code)}
         label="確認"
         onPress={onNext}
       />
@@ -299,33 +291,17 @@ function Paywall({
   onSkip: () => void;
   onTrial: () => void;
 }) {
-  const features = [
-    "文字起こし 月1200分（無料: 300分）",
-    "添付のクラウド保存・全デバイス同期",
-    "ライフログ自動セグメント無制限",
-    "Ask AI 無制限（無料: 1日10回）",
-  ];
   return (
     <View style={styles.page}>
       <View style={styles.skipRow}>
-        <Pressable accessibilityLabel="あとで" onPress={onSkip}>
-          <Text style={styles.skip}>あとで</Text>
+        <Pressable accessibilityLabel="無料で続ける" onPress={onSkip}>
+          <Text style={styles.skip}>無料で続ける</Text>
         </Pressable>
       </View>
       <View style={styles.paywallContent}>
         <View style={styles.paywallHero}>
           <Text style={styles.proTitle}>Memora Pro</Text>
           <Text style={styles.authBody}>すべての記録を、どこからでも</Text>
-        </View>
-        <View style={styles.features}>
-          {features.map((feature) => (
-            <View key={feature} style={styles.feature}>
-              <View style={styles.check}>
-                <AppIcon color={colors.surface} name="checkmark" size={11} />
-              </View>
-              <Text style={styles.featureText}>{feature}</Text>
-            </View>
-          ))}
         </View>
         <View style={styles.plans}>
           <Plan
@@ -348,7 +324,9 @@ function Paywall({
       <View>
         <PrimaryButton label="7日間無料で試す" onPress={onTrial} />
         <Text style={styles.cancelHint}>いつでもキャンセルできます</Text>
-        <Text style={styles.legal}>購入を復元　　利用規約　　プライバシー</Text>
+        <Text style={styles.devNote}>
+          デモ用の仮フローです（実際のログイン・課金は行いません）
+        </Text>
       </View>
     </View>
   );
@@ -555,6 +533,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     ...textStyles.caption,
   },
+  devNote: {
+    color: colors.textTertiary,
+    marginTop: 8,
+    textAlign: "center",
+    ...textStyles.caption,
+  },
   back: {
     alignItems: "center",
     height: 40,
@@ -602,24 +586,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     ...fonts.mono.regular,
   },
-  paywallContent: { flex: 1, paddingHorizontal: 6, paddingTop: 6 },
+  paywallContent: { flex: 1, justifyContent: "center", paddingHorizontal: 6 },
   paywallHero: { alignItems: "center", gap: 4, marginBottom: 22 },
   proTitle: {
     color: colors.text,
     letterSpacing: -0.26,
     ...textStyles.title2,
   },
-  features: { gap: 12, marginBottom: 22 },
-  feature: { alignItems: "center", flexDirection: "row", gap: 10 },
-  check: {
-    alignItems: "center",
-    backgroundColor: colors.text,
-    borderRadius: 9,
-    height: 18,
-    justifyContent: "center",
-    width: 18,
-  },
-  featureText: { color: colors.text, flex: 1, ...textStyles.footnote },
   plans: { flexDirection: "row", gap: 10 },
   plan: {
     borderColor: colors.border,
@@ -655,5 +628,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     ...textStyles.caption,
   },
-  legal: { color: colors.textTertiary, textAlign: "center", ...textStyles.caption },
 });
