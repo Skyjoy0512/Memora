@@ -75,6 +75,11 @@ export type TaskDTO = {
   completedAt?: string | null;
 };
 
+export type ProjectDTO = {
+  id: string;
+  title: string;
+};
+
 export type SettingsDTO = {
   transcriptionMode: 'local' | 'api';
   summaryProvider: SummaryOptionsDTO['provider'];
@@ -178,6 +183,7 @@ export type MemoraNativeModule = {
   updateTask: (task: TaskDTO) => Promise<TaskDTO | undefined>;
   toggleTask: (id: string, completed: boolean) => Promise<TaskDTO | undefined>;
   deleteTask: (id: string) => Promise<boolean>;
+  listProjects: () => Promise<ProjectDTO[]>;
   enqueueProcessingRetry: (request: ProcessingRetryRequestDTO) => Promise<ProcessingRetryDTO>;
   listProcessingRetries: () => Promise<ProcessingRetryDTO[]>;
   recordProcessingRetryFailure: (

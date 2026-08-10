@@ -451,3 +451,34 @@ struct MemoraSharedStoreTaskBridgeAdapterTests {
     #expect(try adapter.deleteTask(id: UUID().uuidString) == false)
   }
 }
+
+@Suite("RN shared store project bridge adapter")
+struct MemoraSharedStoreProjectBridgeAdapterTests {
+  private func makeAdapter() throws -> MemoraSharedStoreProjectBridgeAdapter {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    return MemoraSharedStoreProjectBridgeAdapter(container: container)
+  }
+
+  @Test("lists projects in title ascending order")
+  func projectAdapterListsSortedByTitle() throws {
+    let adapter = try makeAdapter()
+    let context = ModelContext(adapter.container)
+    context.insert(Project(title: "B プロジェクト"))
+    context.insert(Project(title: "C プロジェクト"))
+    context.insert(Project(title: "A プロジェクト"))
+    try context.save()
+
+    let projects = try adapter.listProjects()
+    #expect(projects.map(\.title) == ["A プロジェクト", "B プロジェクト", "C プロジェクト"])
+    #expect(projects.map(\.id).allSatisfy { UUID(uuidString: $0) != nil })
+  }
+
+  @Test("returns an empty array when no projects exist")
+  func projectAdapterReturnsEmptyWhenNoProjects() throws {
+    let adapter = try makeAdapter()
+    #expect(try adapter.listProjects().isEmpty)
+  }
+}

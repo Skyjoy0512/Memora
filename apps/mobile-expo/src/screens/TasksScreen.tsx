@@ -10,7 +10,7 @@ import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { Screen } from '../components/Screen';
 import { EmptyState } from '../components/StateViews';
 import { MemoraNative } from '../native/MemoraNative';
-import type { TaskDTO } from '../native/MemoraNative.types';
+import type { ProjectDTO, TaskDTO } from '../native/MemoraNative.types';
 import { classifyTaskDue, taskDueDateForChoice, type TaskDue } from '../utils/taskDue';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 
@@ -27,14 +27,21 @@ type Task = {
   title: string;
 };
 
-function toScreenTask(item: TaskDTO, audioTitles: Map<string, string>): Task {
+function toScreenTask(
+  item: TaskDTO,
+  audioTitles: Map<string, string>,
+  projectTitles: Map<string, string>,
+): Task {
   const sourceFileId = item.sourceAudioFileId ?? undefined;
+  const projectTitle = item.projectId ? projectTitles.get(item.projectId) : undefined;
   return {
     completed: item.isCompleted,
     due: classifyTaskDue(item.dueDate),
     id: item.id,
     sourceFileId,
-    sourceTitle: sourceFileId ? (audioTitles.get(sourceFileId) ?? '録音から抽出') : '個人タスク',
+    sourceTitle: sourceFileId
+      ? (audioTitles.get(sourceFileId) ?? '録音から抽出')
+      : (projectTitle ?? '個人タスク'),
     title: item.title,
   };
 }
@@ -48,15 +55,20 @@ export function TasksScreen() {
   const [newTitle, setNewTitle] = useState('');
   const [newDue, setNewDue] = useState<DueChoice>('今日');
   const audioTitlesRef = useRef<Map<string, string>>(new Map());
+  const projectTitlesRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     let isMounted = true;
-    Promise.all([MemoraNative.listTasks(), MemoraNative.listAudioFiles()])
-      .then(([taskItems, audioFiles]) => {
+    Promise.all([MemoraNative.listTasks(), MemoraNative.listAudioFiles(), MemoraNative.listProjects()])
+      .then(([taskItems, audioFiles, projects]) => {
         if (!isMounted) return;
         const titles = new Map(audioFiles.map((file) => [file.id, file.title] as const));
+        const projectTitles = new Map(
+          projects.map((project: ProjectDTO) => [project.id, project.title] as const),
+        );
         audioTitlesRef.current = titles;
-        setTasks(taskItems.map((item) => toScreenTask(item, titles)));
+        projectTitlesRef.current = projectTitles;
+        setTasks(taskItems.map((item) => toScreenTask(item, titles, projectTitles)));
       })
       .catch(() => {})
       .finally(() => {
@@ -83,7 +95,7 @@ export function TasksScreen() {
       .then((updated) => {
         if (updated) {
           setTasks((current) => current.map((item) =>
-            item.id === id ? toScreenTask(updated, audioTitlesRef.current) : item
+            item.id === id ? toScreenTask(updated, audioTitlesRef.current, projectTitlesRef.current) : item
           ));
         }
       })
@@ -108,7 +120,7 @@ export function TasksScreen() {
     try {
       const created = await MemoraNative.createTask(task);
       if (created) {
-        setTasks((current) => [...current, toScreenTask(created, audioTitlesRef.current)]);
+        setTasks((current) => [...current, toScreenTask(created, audioTitlesRef.current, projectTitlesRef.current)]);
       }
     } catch {
       // 永続化に失敗してもシートを閉じて入力を破棄する。

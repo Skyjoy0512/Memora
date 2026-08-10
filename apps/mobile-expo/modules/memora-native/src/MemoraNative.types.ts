@@ -164,6 +164,11 @@ export type TaskDTO = {
   completedAt?: string | null;
 };
 
+export type ProjectDTO = {
+  id: string;
+  title: string;
+};
+
 export type MemoraNativeModuleEvents = {
   onTranscriptionEvent: (params: TranscriptionEventDTO) => void;
 };

@@ -282,3 +282,23 @@ final class MemoraSharedStoreTaskBridgeAdapter: MemoraTaskReading, MemoraTaskMut
     return formatter
   }()
 }
+
+/// Adapts the host-owned SwiftData Project entities to the Expo module's project
+/// JSON DTO boundary. Projects are returned in title order.
+final class MemoraSharedStoreProjectBridgeAdapter: MemoraProjectReading {
+  let sourceDescription = "swiftdata"
+
+  let container: ModelContainer
+
+  init(container: ModelContainer) {
+    self.container = container
+  }
+
+  func listProjects() throws -> [MemoraProjectDTO] {
+    let modelContext = ModelContext(container)
+    let descriptor = FetchDescriptor<Project>(sortBy: [SortDescriptor(\.title)])
+    return try modelContext.fetch(descriptor).map { project in
+      MemoraProjectDTO(id: project.id.uuidString, title: project.title)
+    }
+  }
+}

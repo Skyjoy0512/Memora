@@ -53,6 +53,10 @@ public class MemoraNativeModule: Module {
       try self.taskMutator.deleteTask(id: id)
     }
 
+    AsyncFunction("listProjects") { () -> [[String: Any]] in
+      try self.projectReader.listProjects().map { $0.asDictionary() }
+    }
+
     AsyncFunction("getBridgeInfo") { () -> [String: Any] in
       var info: [String: Any] = [
         "platform": "ios",
@@ -247,6 +251,10 @@ public class MemoraNativeModule: Module {
 
   private var taskMutator: MemoraTaskMutating {
     MemoraNativeTaskMutationRegistry.taskMutator
+  }
+
+  private var projectReader: MemoraProjectReading {
+    MemoraNativeProjectReaderRegistry.projectReader
   }
 
   private var settingsStore: MemoraSettingsReadingWriting {

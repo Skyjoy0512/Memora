@@ -16,6 +16,7 @@ import type {
   PlaybackStatusDTO,
   ProcessingRetryDTO,
   ProcessingRetryRequestDTO,
+  ProjectDTO,
   SecureCredentialProvider,
   SettingsDTO,
   SummaryDTO,
@@ -36,6 +37,7 @@ type NativeExpoModule = {
   updateTask?: (task: TaskDTO) => Promise<TaskDTO | null>;
   toggleTask?: (id: string, completed: boolean) => Promise<TaskDTO | null>;
   deleteTask?: (id: string) => Promise<boolean>;
+  listProjects?: () => Promise<ProjectDTO[]>;
   getBridgeInfo?: () => Promise<BridgeInfoDTO>;
   loadSettings?: () => Promise<SettingsDTO>;
   saveSettings?: (settings: SettingsDTO) => Promise<void>;
@@ -412,6 +414,14 @@ export const MemoraNative: MemoraNativeModule = {
     const previousLength = fallbackTasks.length;
     fallbackTasks = fallbackTasks.filter((item) => item.id !== id);
     return fallbackTasks.length !== previousLength;
+  },
+  async listProjects() {
+    const nativeProjects = await withNative<ProjectDTO[]>((nativeModule) =>
+      nativeModule.listProjects?.(),
+    );
+
+    // An empty array is a valid response from a connected SwiftData store.
+    return nativeProjects ?? [];
   },
   async enqueueProcessingRetry(request: ProcessingRetryRequestDTO) {
     const nativeItem = await withNative<ProcessingRetryDTO>((nativeModule) =>
