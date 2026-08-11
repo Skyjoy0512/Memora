@@ -45,7 +45,7 @@ export default function RootLayout() {
                   options={{
                     animation: 'slide_from_bottom',
                     headerShown: false,
-                    presentation: 'modal',
+                    presentation: 'fullScreenModal',
                   }}
                 />
                 <Stack.Protected guard={shouldExposeRoute('auth', __DEV__)}>

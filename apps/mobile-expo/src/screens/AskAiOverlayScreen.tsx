@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'heroui-native/button';
 import { Spinner } from 'heroui-native/spinner';
 import { TextArea } from 'heroui-native/text-area';
@@ -46,8 +46,11 @@ export function AskAiOverlayScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-      <KeyboardAvoidingView
+    // fullScreenModal is presented as its own view controller, where the ambient
+    // safe-area context collapses to zero. A local provider measures this screen.
+    <SafeAreaProvider style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+        <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoiding}
       >
@@ -170,7 +173,8 @@ export function AskAiOverlayScreen() {
                 />
               </Button>
 
-              <AskModelSelect />
+              {/* Fixed-width trigger: the flexible one collapses the label to zero width. */}
+              <AskModelSelect compact />
 
               <Button
                 accessibilityLabel={draft.trim() ? '質問を送信' : '音声入力を開始'}
@@ -200,8 +204,9 @@ export function AskAiOverlayScreen() {
             </View>
           </ComposerGlassFrame>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

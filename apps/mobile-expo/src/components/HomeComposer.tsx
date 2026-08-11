@@ -25,10 +25,10 @@ import { MemoraNative } from '../native/MemoraNative';
 import type { AskMessage } from '../types/memora';
 import { colors as themeColors } from '../theme/tokens';
 
-/** Approximate composer height used by floating siblings on the Home tab. */
-export const HOME_COMPOSER_HEIGHT = 110;
+/** Exact Home frame height: one 44pt row plus padding/border, rounded to the 4pt grid. */
+export const HOME_COMPOSER_HEIGHT = 60;
 export const HOME_PROJECT_SELECTOR_HEIGHT = 52;
-export const HOME_COMPOSER_GAP = spacing.sm;
+export const HOME_COMPOSER_GAP = spacing.xxs;
 
 export type HomeViewMode = 'files' | 'projects';
 
@@ -53,18 +53,25 @@ function useCanUseGlass() {
   return Platform.OS === 'ios' && isGlassEffectAPIAvailable() && !reduceTransparency;
 }
 
-export function ComposerGlassFrame({ children }: { children: ReactNode }) {
+export function ComposerGlassFrame({
+  children,
+  compact = false,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+}) {
   const canUseGlass = useCanUseGlass();
+  const frameStyle = [styles.frame, compact && styles.compactFrame];
 
   if (canUseGlass) {
     return (
-      <GlassView colorScheme="auto" glassEffectStyle="regular" style={styles.frame}>
+      <GlassView colorScheme="auto" glassEffectStyle="regular" style={frameStyle}>
         {children}
       </GlassView>
     );
   }
 
-  return <View style={[styles.frame, styles.glassFallback]}>{children}</View>;
+  return <View style={[frameStyle, styles.glassFallback]}>{children}</View>;
 }
 
 type HomeComposerContextValue = {
@@ -180,11 +187,14 @@ export function HomeComposerProvider({ children }: { children: ReactNode }) {
   return <HomeComposerContext.Provider value={value}>{children}</HomeComposerContext.Provider>;
 }
 
-export function AskModelSelect() {
+export function AskModelSelect({ compact = false }: { compact?: boolean }) {
   const { askModel, setAskModel } = useHomeComposer();
   const modelValue = useMemo(
-    () => ({ value: askModel, label: ASK_AI_MODEL_LABELS[askModel] }),
-    [askModel],
+    () => ({
+      value: askModel,
+      label: compact && askModel === 'auto' ? 'Auto' : ASK_AI_MODEL_LABELS[askModel],
+    }),
+    [askModel, compact],
   );
 
   return (
@@ -198,7 +208,7 @@ export function AskModelSelect() {
       <Select.Trigger
         accessibilityLabel="AIモデルを選択"
         variant="unstyled"
-        style={styles.modelTrigger}
+        style={[styles.modelTrigger, compact && styles.modelTriggerCompact]}
       >
         <Select.Value numberOfLines={1} placeholder="モデルを選択" style={styles.modelValue} />
         <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
@@ -282,49 +292,53 @@ export function HomeComposer() {
   return (
     <View style={styles.accessory}>
       {viewMode === 'projects' ? <ProjectSelectPill /> : null}
-      <ComposerGlassFrame>
-        <Pressable
-          accessibilityLabel="Ask AI を開く"
-          accessibilityRole="button"
-          onPress={() => router.push('/ask')}
-          style={({ pressed }) => [styles.entryPrompt, pressed && styles.pressed]}
-        >
-          <Text style={styles.placeholder}>Ask anything...</Text>
-        </Pressable>
-        <View style={styles.actions}>
-          <Button
-            accessibilityLabel="ファイルを添付"
-            feedbackVariant="none"
-            isIconOnly
-            onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
-            size="md"
-            variant="ghost"
-            style={styles.iconButton}
+      <ComposerGlassFrame compact>
+        <View style={styles.entryRow}>
+          <Pressable
+            accessibilityLabel="Ask AI を開く"
+            accessibilityRole="button"
+            onPress={() => router.push('/ask')}
+            style={({ pressed }) => [styles.entryPrompt, pressed && styles.pressed]}
           >
-            <SymbolView
-              name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
-              size={18}
-              tintColor={colors.textTertiary}
-            />
-          </Button>
+            <Text numberOfLines={1} style={styles.placeholder}>
+              Ask anything...
+            </Text>
+          </Pressable>
+          <View style={styles.entryActions}>
+            <Button
+              accessibilityLabel="ファイルを添付"
+              feedbackVariant="none"
+              isIconOnly
+              onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
+              size="md"
+              variant="ghost"
+              style={styles.iconButton}
+            >
+              <SymbolView
+                name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
+                size={18}
+                tintColor={colors.textTertiary}
+              />
+            </Button>
 
-          <AskModelSelect />
+            <AskModelSelect compact />
 
-          <Button
-            accessibilityLabel="音声入力を開始"
-            feedbackVariant="none"
-            isIconOnly
-            onPress={() => Alert.alert('音声入力', 'この操作は現在利用できません。')}
-            size="md"
-            variant="primary"
-            style={styles.iconButton}
-          >
-            <SymbolView
-              name={{ ios: 'waveform', android: 'graphic_eq', web: 'graphic_eq' }}
-              size={18}
-              tintColor={colors.surface}
-            />
-          </Button>
+            <Button
+              accessibilityLabel="音声入力を開始"
+              feedbackVariant="none"
+              isIconOnly
+              onPress={() => Alert.alert('音声入力', 'この操作は現在利用できません。')}
+              size="md"
+              variant="primary"
+              style={styles.iconButton}
+            >
+              <SymbolView
+                name={{ ios: 'waveform', android: 'graphic_eq', web: 'graphic_eq' }}
+                size={18}
+                tintColor={colors.surface}
+              />
+            </Button>
+          </View>
         </View>
       </ComposerGlassFrame>
     </View>
@@ -352,7 +366,7 @@ export const homeComposerStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   accessory: {
-    gap: spacing.xs,
+    gap: HOME_COMPOSER_GAP,
   },
   frame: {
     borderColor: themeColors.light.glassBorderFallback,
@@ -363,12 +377,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  compactFrame: {
+    height: HOME_COMPOSER_HEIGHT,
+    justifyContent: 'center',
+    paddingVertical: spacing.xxs,
+  },
   glassFallback: {
     backgroundColor: themeColors.light.glassFallback,
   },
   entryPrompt: {
+    flex: 1,
     justifyContent: 'center',
     minHeight: 44,
+  },
+  entryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 44,
+  },
+  entryActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: spacing.xs,
   },
   placeholder: {
     color: colors.textTertiary,
@@ -381,10 +413,19 @@ const styles = StyleSheet.create({
   iconButton: homeComposerStyles.iconButton,
   modelTrigger: {
     alignItems: 'center',
-    flex: 1,
+    // Without an explicit row direction the value and the chevron stack vertically.
+    // `flex: 1` here collapses the label to zero width, so size from content instead.
+    flexDirection: 'row',
+    flexGrow: 0,
+    flexShrink: 1,
+    gap: spacing.xxs,
     justifyContent: 'center',
     minHeight: 44,
     paddingHorizontal: spacing.sm,
+  },
+  modelTriggerCompact: {
+    flex: 0,
+    width: 80,
   },
   modelValue: {
     color: colors.textSecondary,
