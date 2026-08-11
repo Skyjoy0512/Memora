@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">Memora color app icon concept</title>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B5BBC4"/>
+      <stop offset="1" stop-color="#7F98B7"/>
+    </linearGradient>
+    <linearGradient id="aqua" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A4A7A7"/>
+      <stop offset="1" stop-color="#75A9AB"/>
+    </linearGradient>
+    <linearGradient id="sage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A5A5A5"/>
+      <stop offset="1" stop-color="#7E8F7B"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A4A3A6"/>
+      <stop offset="1" stop-color="#9382A4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <rect x="160" y="390" width="128" height="430" rx="64" fill="url(#blue)"/>
+  <rect x="352" y="215" width="128" height="322" rx="64" fill="url(#aqua)"/>
+  <rect x="544" y="498" width="128" height="322" rx="64" fill="url(#sage)"/>
+  <rect x="736" y="390" width="128" height="430" rx="64" fill="url(#violet)"/>
+</svg>

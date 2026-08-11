@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">Memora monochrome app icon concept</title>
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <g fill="#3C3C3E">
+    <rect x="160" y="390" width="128" height="430" rx="64"/>
+    <rect x="352" y="215" width="128" height="322" rx="64"/>
+    <rect x="544" y="498" width="128" height="322" rx="64"/>
+    <rect x="736" y="390" width="128" height="430" rx="64"/>
+  </g>
+</svg>
