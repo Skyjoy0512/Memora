@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { PressableFeedback } from 'heroui-native/pressable-feedback';
 import { Separator } from 'heroui-native/separator';
 import { AppIcon } from './AppIcon';
 import { StatusPill } from './StatusPill';
-import { colors, radius, spacing, textStyles } from '../design/tokens';
+import { colors, motion, radius, spacing, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 
@@ -14,6 +15,36 @@ type FileCardProps = {
   showSummary?: boolean;
 };
 
+function CardMainTarget({
+  onPress,
+  accessibilityLabel,
+  children,
+}: {
+  onPress: () => void;
+  accessibilityLabel: string;
+  children: React.ReactNode;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withTiming(0.98, { duration: motion.duration.fast });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, motion.spring.tap);
+      }}
+      style={fcStyles.mainTarget}
+    >
+      <Animated.View style={[fcStyles.mainInner, animatedStyle]}>{children}</Animated.View>
+    </Pressable>
+  );
+}
+
 export function FileCard({
   file,
   onPress,
@@ -23,46 +54,36 @@ export function FileCard({
   return (
     <View>
       <View style={fcStyles.content}>
-        <PressableFeedback
+        <CardMainTarget
           accessibilityLabel={`${file.title}を開く`}
-          accessibilityRole="button"
-          animation={false}
           onPress={onPress}
-          style={fcStyles.mainTarget}
         >
-          <PressableFeedback.Highlight
-            animation={{
-              opacity: { value: [0, 0.08] },
-            }}
-          />
-          <View style={fcStyles.mainInner}>
-            <View style={fcStyles.icon}>
-              <AppIcon
-                color={colors.textSecondary}
-                name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
-                size={16}
-              />
-            </View>
-
-            <View style={fcStyles.body}>
-              <Text numberOfLines={1} style={fcStyles.title}>
-                {file.title}
-              </Text>
-              <Text numberOfLines={1} style={fcStyles.meta}>
-                {formatRecordedAt(file.recordedAt)} · {file.duration}
-              </Text>
-              {showSummary && file.summary ? (
-                <Text numberOfLines={1} style={fcStyles.summary}>
-                  {file.summary}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={fcStyles.status}>
-              <StatusPill status={file.status} />
-            </View>
+          <View style={fcStyles.icon}>
+            <AppIcon
+              color={colors.textSecondary}
+              name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
+              size={16}
+            />
           </View>
-        </PressableFeedback>
+
+          <View style={fcStyles.body}>
+            <Text numberOfLines={1} style={fcStyles.title}>
+              {file.title}
+            </Text>
+            <Text numberOfLines={1} style={fcStyles.meta}>
+              {formatRecordedAt(file.recordedAt)} · {file.duration}
+            </Text>
+            {showSummary && file.summary ? (
+              <Text numberOfLines={1} style={fcStyles.summary}>
+                {file.summary}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={fcStyles.status}>
+            <StatusPill status={file.status} />
+          </View>
+        </CardMainTarget>
 
         {onMore ? (
           <PressableFeedback

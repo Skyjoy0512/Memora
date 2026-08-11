@@ -1,5 +1,4 @@
 import { LiquidGlassView, isLiquidGlassSupported } from '@callstack/liquid-glass';
-import { Menu } from 'heroui-native/menu';
 import * as DocumentPicker from 'expo-document-picker';
 import { useState } from 'react';
 import {
@@ -10,18 +9,25 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePathname } from 'expo-router';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
 import { colors as themeColors, shadow as themeShadow, touchTarget } from '../theme/tokens';
-import { colors, textStyles } from '../design/tokens';
+import { colors } from '../design/tokens';
 import { AppIcon } from './AppIcon';
+import { FloatingBottomSheet } from './FloatingBottomSheet';
+import { Button } from 'heroui-native/button';
+import { Separator } from 'heroui-native/separator';
+import { HOME_COMPOSER_GAP, HOME_COMPOSER_HEIGHT } from './HomeComposer';
 
 export function CaptureFab() {
   const insets = useSafeAreaInsets();
+  const isHome = usePathname() === '/';
   const capture = useCaptureFlow();
   const [isBusy, setIsBusy] = useState(false);
-  const [isMenuOpen, setMenuOpen] = useState(false);
+  const [isSheetOpen, setSheetOpen] = useState(false);
 
   async function handleRecord() {
+    setSheetOpen(false);
     setIsBusy(true);
     try {
       await capture.openRecording();
@@ -33,6 +39,7 @@ export function CaptureFab() {
   }
 
   async function handleImport() {
+    setSheetOpen(false);
     setIsBusy(true);
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -50,71 +57,88 @@ export function CaptureFab() {
     }
   }
 
-  const fabBottom = insets.bottom + 57;
+  function handleMeetingCapture() {
+    setSheetOpen(false);
+    Alert.alert('準備中', '会議キャプチャーは次のネイティブ連携で追加します。');
+  }
+
+  // Home タブでは composer がタブバー直上に常時表示されるため、FAB をその分持ち上げる。
+  const fabBottom = insets.bottom + 57 + (isHome ? HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP : 0);
 
   return (
-    <View
-      style={[styles.container, { bottom: fabBottom }]}
-      pointerEvents="box-none"
-    >
-      <Menu isOpen={isMenuOpen} onOpenChange={setMenuOpen} isDisabled={isBusy}>
-        <Menu.Trigger asChild>
-          <Pressable
-            accessibilityLabel={isMenuOpen ? '追加メニューを閉じる' : '追加メニューを開く'}
-            accessibilityRole="button"
-            accessibilityState={{ busy: isBusy, expanded: isMenuOpen }}
-            disabled={isBusy}
+    <>
+      <View
+        style={[styles.container, { bottom: fabBottom }]}
+        pointerEvents="box-none"
+      >
+        <Pressable
+          accessibilityLabel={isSheetOpen ? '追加メニューを閉じる' : '追加メニューを開く'}
+          accessibilityRole="button"
+          accessibilityState={{ busy: isBusy, expanded: isSheetOpen }}
+          disabled={isBusy}
+          onPress={() => setSheetOpen(true)}
+        >
+          <LiquidGlassView
+            colorScheme="light"
+            effect="clear"
+            interactive
+            pointerEvents="none"
+            style={[
+              styles.fab,
+              styles.fabShadow,
+              !isLiquidGlassSupported && styles.fabFallback,
+            ]}
           >
-            <LiquidGlassView
-              colorScheme="light"
-              effect="clear"
-              interactive
-              pointerEvents="none"
-              style={[
-                styles.fab,
-                styles.fabShadow,
-                !isLiquidGlassSupported && styles.fabFallback,
-              ]}
-            >
-              <View style={styles.fabInner}>
-                {isBusy ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <AppIcon color={colors.text} name="add" size={20} />
-                )}
-              </View>
-            </LiquidGlassView>
-          </Pressable>
-        </Menu.Trigger>
-        <Menu.Portal>
-          <Menu.Overlay />
-          <Menu.Content align="center" placement="top" presentation="popover">
-            <Menu.Item
-              isDisabled={isBusy}
-              onPress={() => void handleRecord()}
-            >
-              <Menu.ItemTitle style={styles.menuItemTitle}>
-                {capture.isRecordingActive ? '録音に戻る' : '録音開始'}
-              </Menu.ItemTitle>
-            </Menu.Item>
-            <Menu.Item
-              isDisabled={isBusy}
-              onPress={() => void handleImport()}
-            >
-              <Menu.ItemTitle style={styles.menuItemTitle}>インポート</Menu.ItemTitle>
-            </Menu.Item>
-            <Menu.Item
-              isDisabled={isBusy}
-              onPress={() => {
-                Alert.alert('準備中', '会議キャプチャーは次のネイティブ連携で追加します。');
-              }}
-            >
-              <Menu.ItemTitle style={styles.menuItemTitle}>会議キャプチャー</Menu.ItemTitle>
-            </Menu.Item>
-          </Menu.Content>
-        </Menu.Portal>
-      </Menu>
-    </View>
+            <View style={styles.fabInner}>
+              {isBusy ? (
+                <ActivityIndicator color={colors.text} size="small" />
+              ) : (
+                <AppIcon color={colors.text} name="add" size={20} />
+              )}
+            </View>
+          </LiquidGlassView>
+        </Pressable>
+      </View>
+      <FloatingBottomSheet isOpen={isSheetOpen} onClose={() => setSheetOpen(false)}>
+        <View style={styles.sheetSurface}>
+          <Button
+            accessibilityLabel={capture.isRecordingActive ? '録音に戻る' : '録音開始'}
+            background={null}
+            isDisabled={isBusy}
+            onPress={() => void handleRecord()}
+            style={styles.sheetAction}
+            variant="ghost"
+          >
+            <AppIcon color={colors.text} name="mic-outline" size={18} />
+            <Button.Label>{capture.isRecordingActive ? '録音に戻る' : '録音開始'}</Button.Label>
+          </Button>
+          <Separator orientation="horizontal" variant="thin" />
+          <Button
+            accessibilityLabel="インポート"
+            background={null}
+            isDisabled={isBusy}
+            onPress={() => void handleImport()}
+            style={styles.sheetAction}
+            variant="ghost"
+          >
+            <AppIcon color={colors.text} name="attach-outline" size={18} />
+            <Button.Label>インポート</Button.Label>
+          </Button>
+          <Separator orientation="horizontal" variant="thin" />
+          <Button
+            accessibilityLabel="会議キャプチャー"
+            background={null}
+            isDisabled={isBusy}
+            onPress={handleMeetingCapture}
+            style={styles.sheetAction}
+            variant="ghost"
+          >
+            <AppIcon color={colors.text} name="chatbubble-outline" size={18} />
+            <Button.Label>会議キャプチャー</Button.Label>
+          </Button>
+        </View>
+      </FloatingBottomSheet>
+    </>
   );
 }
 
@@ -147,8 +171,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   fabShadow: themeShadow.recordingFab,
-  menuItemTitle: {
-    color: colors.text,
-    ...textStyles.body,
+  sheetSurface: {
+    backgroundColor: colors.surface,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    width: '100%',
+  },
+  sheetAction: {
+    justifyContent: 'flex-start',
+    minHeight: 44,
+    width: '100%' as const,
   },
 });
