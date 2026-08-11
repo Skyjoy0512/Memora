@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Memora app icon — refined color master</title>
+  <desc id="desc">Four equal-width vertical capsules arranged as an abstract audio waveform.</desc>
+  <defs>
+    <linearGradient id="memora-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#788FAE"/>
+    </linearGradient>
+    <linearGradient id="memora-teal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#6C9FA1"/>
+    </linearGradient>
+    <linearGradient id="memora-sage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#798973"/>
+    </linearGradient>
+    <linearGradient id="memora-violet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AAACAD"/>
+      <stop offset="1" stop-color="#897A99"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="#FBFBF9"/>
+
+  <!--
+    Geometry system:
+    capsule width = 112
+    capsule gap = 69 ≈ 112 / φ
+    short height = 293 ≈ 112 × φ²
+    long height = 474 ≈ 112 × φ³
+    radius = 56 = width / 2
+  -->
+  <rect x="184" y="362" width="112" height="474" rx="56" fill="url(#memora-blue)"/>
+  <rect x="365" y="188" width="112" height="293" rx="56" fill="url(#memora-teal)"/>
+  <rect x="546" y="543" width="112" height="293" rx="56" fill="url(#memora-sage)"/>
+  <rect x="727" y="362" width="112" height="474" rx="56" fill="url(#memora-violet)"/>
+</svg>

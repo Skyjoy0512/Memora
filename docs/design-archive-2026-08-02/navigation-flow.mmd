@@ -1,0 +1,27 @@
+flowchart TD
+    Root[Root Stack] --> Tabs[NativeTabs]
+    Tabs --> Home[ホーム]
+    Tabs --> Tasks[タスク]
+    Tabs --> AI[AI]
+    Tabs --> Settings[設定]
+
+    Tabs --- Composer[BottomAccessory AIComposer]
+    Tabs --- Fab[中央 FAB 作成メニュー]
+    Fab --> Record[録音 fullScreenModal]
+    Fab --> Import[インポート modal]
+    Fab --> Online[オンライン会議 modal]
+
+    Home -->|ファイルカード| FileDetail[file/id]
+    Home -->|検索| Search[検索 modal]
+    Tasks -->|出典ファイル| FileDetail
+    AI -->|参照ソース| FileDetail
+    Composer -->|送信| AI
+
+    FileDetail --> Summary[要約]
+    FileDetail --> Transcript[文字起こし]
+    FileDetail --> Memo[メモ]
+
+    Record -->|停止・保存| Processing[処理状態]
+    Import --> Processing
+    Online --> Processing
+    Processing --> FileDetail
