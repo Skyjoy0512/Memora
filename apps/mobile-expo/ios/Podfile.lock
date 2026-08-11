@@ -188,7 +188,7 @@ PODS:
     - ExpoModulesCore
   - ExpoFont (57.0.0):
     - ExpoModulesCore
-  - ExpoGlassEffect (57.0.0):
+  - ExpoGlassEffect (57.0.1):
     - ExpoModulesCore
   - ExpoHaptics (57.0.0):
     - ExpoModulesCore
@@ -242,7 +242,7 @@ PODS:
   - ExpoRouter (57.0.4):
     - ExpoModulesCore
     - RNScreens
-  - ExpoSymbols (57.0.0):
+  - ExpoSymbols (57.0.2):
     - ExpoModulesCore
   - ExpoUI (57.0.4):
     - ExpoModulesCore
@@ -2859,7 +2859,7 @@ SPEC CHECKSUMS:
   ExpoDomWebView: 73ba90107a5acc0017a09b06e66d8eb238e089b8
   ExpoFileSystem: ffcd56066188802f263254b6b2e60f74b6a0bdae
   ExpoFont: 35fd7ad72f697d3a9656545909972d8b9f60d5da
-  ExpoGlassEffect: 72e96f2f6cae69f970238b80656d869d1a9a98ff
+  ExpoGlassEffect: 4b62afb489e6b84357701737ce002137c9d5fdbc
   ExpoHaptics: c6d063c3bfda1c1d6d7fdf237ffb612c4fc09954
   ExpoImage: 65b2a2279aab4791eb242156a4bd9b891fab8d12
   ExpoImagePicker: 27f4e9a5d797abc31c75237362f90ac012d1a8fe
@@ -2867,16 +2867,16 @@ SPEC CHECKSUMS:
   ExpoLinearGradient: cb6781ae9bd07bcb2ab58221ce7612aadd81e1f4
   ExpoLinking: 24c7525db6e8ab5c347890b3498857babde8b306
   ExpoLogBox: b39a76aab749833d58111c3be1264bb90f3b92d4
-  ExpoModulesCore: 5b167937253ee267215eb031c4e6bb5bf73d4173
+  ExpoModulesCore: fb4a8f2e67efd271365bb4270122fb3c98d7440c
   ExpoModulesJSI: 0fad44a0464a4469b83a06e34e529c13043f2f69
   ExpoModulesWorklets: f6b71b8ddeb8dceb2ce3504544ecfbd708ba79a2
   ExpoModulesWorkletsAdapter: 4b63d6cf4db0897d2ec530d4f3d51eaaed319fd6
   ExpoRouter: a322bf2e409071b05ae9d4d86d5f283902364d65
-  ExpoSymbols: db28b9ea52c96fe67ff9c362f5dbc6bee240ca2d
+  ExpoSymbols: 0efd93edf0f825bf3c762582b0769dd3b296235c
   ExpoUI: 6dfd6c01cc124afb1f729548568f40fb00976f26
   EXUpdatesInterface: 492cdb30f3889cc35d9e737a4b5fc3aec39d1131
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
-  hermes-engine: 60408f95a3750005cb8138b9a2ca54f07f5f2ec5
+  hermes-engine: af73c12d20483c1686f73025f18143f12c10a12a
   LiquidGlass: 9dd6be7ac113cae8b84f895d8a3eede578dbef98
   MemoraNative: dbb4db5b25a13b61b88fb2901112a9377920bad2
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b

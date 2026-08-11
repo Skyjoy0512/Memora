@@ -1,28 +1,30 @@
-import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { SymbolView } from 'expo-symbols';
 import { SearchBar } from '../components/SearchBar';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { FileCard } from '../components/FileCard';
 import { FileCardSkeleton } from '../components/FileCardSkeleton';
 import { DateSeparator } from '../components/DateSeparator';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { Screen } from '../components/Screen';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
+import { HOME_COMPOSER_GAP, HOME_COMPOSER_HEIGHT } from '../components/HomeComposer';
 import { Button } from 'heroui-native/button';
+import { Select } from 'heroui-native/select';
 import { Separator } from 'heroui-native/separator';
+import { Spinner } from 'heroui-native/spinner';
 import { EmptyState, ErrorState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
@@ -30,19 +32,27 @@ import { useAudioFiles } from '../features/files/useAudioFiles';
 import { MemoraNative } from '../native/MemoraNative';
 import type { AudioFile } from '../types/memora';
 
-type HomeSegment = 'all' | 'favorites' | 'projects';
-const segmentItems: Array<{ key: HomeSegment; label: string }> = [
-  { key: 'all', label: 'すべて' },
-  { key: 'favorites', label: 'お気に入り' },
-  { key: 'projects', label: 'プロジェクト' },
+type HomeView = 'files' | 'projects';
+const viewOptions: Array<{ value: HomeView; label: string }> = [
+  { value: 'files', label: 'ファイル' },
+  { value: 'projects', label: 'プロジェクト' },
 ];
+
+type ListItem =
+  | { kind: 'date'; id: string; label: string }
+  | { kind: 'file'; id: string; file: AudioFile };
+
+/** Clear the raised center FAB (and, on fallback platforms, the composer) at the list tail. */
+const listBottomPadding =
+  112 + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP + 48;
 
 export function HomeScreen() {
   const router = useRouter();
   const { data: files, error, isLoading, refresh, removeAudioFile, upsertAudioFile } = useAudioFiles();
   const capture = useCaptureFlow();
 
-  const [segment, setSegment] = useState<HomeSegment>('all');
+  const [viewMode, setViewMode] = useState<HomeView>('files');
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [bridgeError, setBridgeError] = useState<string | undefined>();
@@ -110,38 +120,147 @@ export function HomeScreen() {
   // ── project view ───────────────────────────────────────
   const projectNames = [...new Set(files.map((f) => f.project).filter(Boolean))] as string[];
 
+  const viewValue = viewOptions.find((option) => option.value === viewMode) ?? viewOptions[0];
+
+  // ── FlashList items ────────────────────────────────────
+  const listItems = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    for (const group of grouped) {
+      items.push({ kind: 'date', id: `date-${group.label}`, label: group.label });
+      for (const file of group.files) {
+        items.push({ kind: 'file', id: file.id, file });
+      }
+    }
+    return items;
+  }, [grouped]);
+
+  const showFileList = viewMode === 'files' && !error;
+
   return (
     <>
       <Screen
         refreshControl={<RefreshControl colors={[colors.accent]} onRefresh={handleRefresh} refreshing={isRefreshing} tintColor={colors.accent} />}
         titleContent={<Text style={homeStyles.screenTitle}>Memora</Text>}
         headerAccessory={
-          <View style={homeStyles.headerActions}>
-            <Pressable
+          <View style={homeStyles.headerAccessory}>
+            <Select
+              onValueChange={(option) => {
+                if (!option) return;
+                setViewMode(option.value as HomeView);
+                setSelectedProject(undefined);
+              }}
+              presentation="popover"
+              value={viewValue}
+            >
+              <Select.Trigger variant="unstyled" style={homeStyles.viewSelectTrigger}>
+                <Select.Value numberOfLines={1} placeholder="表示" style={homeStyles.viewSelectValue} />
+                <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Overlay />
+                <Select.Content align="end" placement="bottom" presentation="popover">
+                  {viewOptions.map((option) => (
+                    <Select.Item key={option.value} label={option.label} value={option.value}>
+                      <Select.ItemLabel />
+                      <Select.ItemIndicator />
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Portal>
+            </Select>
+            <Button
+              accessibilityLabel={isSearchVisible ? '検索を閉じる' : '記録を検索'}
+              feedbackVariant="none"
+              isIconOnly
+              onPress={() => setIsSearchVisible((visible) => !visible)}
+              size="md"
+              variant="ghost"
+              style={homeStyles.headerIconButton}
+            >
+              <SymbolView
+                name={{
+                  ios: isSearchVisible ? 'xmark' : 'magnifyingglass',
+                  android: isSearchVisible ? 'close' : 'search',
+                  web: isSearchVisible ? 'close' : 'search',
+                }}
+                size={20}
+                tintColor={colors.text}
+              />
+            </Button>
+            <Button
               accessibilityLabel="音声ファイルを読み込む"
-              accessibilityRole="button"
-              disabled={isImporting}
+              feedbackVariant="none"
+              isDisabled={isImporting}
+              isIconOnly
               onPress={() => void handleImport()}
-              style={({ pressed }) => [homeStyles.headerBtn, (pressed || isImporting) && homeStyles.pressed]}
+              size="md"
+              variant="ghost"
+              style={homeStyles.headerIconButton}
             >
-              {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.text} name="attach-outline" size={20} />}
-            </Pressable>
-            <Pressable
-              accessibilityLabel="設定"
-              accessibilityRole="button"
-              onPress={() => router.push('/settings')}
-              style={({ pressed }) => [homeStyles.headerBtn, pressed && homeStyles.pressed]}
-            >
-              <Ionicons color={colors.text} name="settings-outline" size={20} />
-            </Pressable>
+              {isImporting ? (
+                <Spinner size="sm" />
+              ) : (
+                <SymbolView
+                  name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
+                  size={20}
+                  tintColor={colors.text}
+                />
+              )}
+            </Button>
           </View>
         }
+        list={showFileList ? (
+          <FlashList
+            contentContainerStyle={homeStyles.listContent}
+            data={listItems}
+            getItemType={(item) => item.kind}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={
+              isLoading ? (
+                <FileCardSkeleton count={5} />
+              ) : isEmpty ? (
+                <View style={homeStyles.emptyActions}>
+                  <EmptyState
+                    title="最初の記録を残してみましょう"
+                    body="中央の + から録音、またはファイルを取り込めます"
+                    actionLabel="録音を始める"
+                    onAction={() => capture.openRecording().catch(() => {})}
+                  />
+                  <Pressable
+                    accessibilityLabel="音声ファイルを読み込む"
+                    accessibilityRole="button"
+                    disabled={isImporting}
+                    onPress={() => void handleImport()}
+                    style={({ pressed }) => [homeStyles.importEmptyAction, (pressed || isImporting) && homeStyles.pressed]}
+                  >
+                    {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <SymbolView name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }} size={18} tintColor={colors.accent} />}
+                    <Text style={homeStyles.importEmptyActionText}>{isImporting ? '読み込み中…' : '音声ファイルを読み込む'}</Text>
+                  </Pressable>
+                </View>
+              ) : isSearchEmpty ? (
+                <EmptyState title="一致する記録はありません" body="別のキーワードで試してみてください" />
+              ) : null
+            }
+            onRefresh={handleRefresh}
+            refreshing={isRefreshing}
+            renderItem={({ item }) =>
+              item.kind === 'date' ? (
+                <DateSeparator date={item.label} />
+              ) : (
+                <FileCard
+                  file={item.file}
+                  onPress={() => router.push({ pathname: '/file/[id]', params: { id: item.file.id } })}
+                  onMore={() => setMoreTarget(item.file)}
+                  showSummary={!searchQuery.trim()}
+                />
+              )
+            }
+            showsVerticalScrollIndicator={false}
+          />
+        ) : undefined}
       >
         {/* search */}
-        <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
-
-        {/* segment */}
-        <SegmentedControl segments={segmentItems} selected={segment} onSelect={setSegment} />
+        {isSearchVisible ? <SearchBar value={searchQuery} onChangeText={setSearchQuery} /> : null}
 
         {/* offline */}
         {bridgeError ? <OfflineBanner message={bridgeError} /> : null}
@@ -149,38 +268,8 @@ export function HomeScreen() {
         {/* error */}
         {error ? <ErrorState message={error} onRetry={() => void handleRefresh()} /> : null}
 
-        {/* loading */}
-        {isLoading ? <FileCardSkeleton count={5} /> : null}
-
-        {/* empty — first time */}
-        {isEmpty && !isLoading && !error ? (
-          <View style={homeStyles.emptyActions}>
-            <EmptyState
-              title="最初の記録を残してみましょう"
-              body="中央の + から録音、またはファイルを取り込めます"
-              actionLabel="録音を始める"
-              onAction={() => capture.openRecording().catch(() => {})}
-            />
-            <Pressable
-              accessibilityLabel="音声ファイルを読み込む"
-              accessibilityRole="button"
-              disabled={isImporting}
-              onPress={() => void handleImport()}
-              style={({ pressed }) => [homeStyles.importEmptyAction, (pressed || isImporting) && homeStyles.pressed]}
-            >
-              {isImporting ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons color={colors.accent} name="attach-outline" size={18} />}
-              <Text style={homeStyles.importEmptyActionText}>{isImporting ? '読み込み中…' : '音声ファイルを読み込む'}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* empty — search */}
-        {isSearchEmpty ? (
-          <EmptyState title="一致する記録はありません" body="別のキーワードで試してみてください" />
-        ) : null}
-
         {/* project view */}
-        {!isLoading && !error && segment === 'projects' && files.length > 0 ? (
+        {!isLoading && !error && viewMode === 'projects' && files.length > 0 ? (
           selectedProject ? (
             <ProjectFiles
               files={files.filter((f) => f.project === selectedProject)}
@@ -196,26 +285,6 @@ export function HomeScreen() {
               onSelect={setSelectedProject}
             />
           )
-        ) : null}
-
-        {/* file list */}
-        {!isLoading && !error && segment !== 'projects' && !isEmpty && !isSearchEmpty ? (
-          <View>
-            {grouped.map((group) => (
-              <View key={group.label}>
-                <DateSeparator date={group.label} />
-                {group.files.map((file) => (
-                  <FileCard
-                    key={file.id}
-                    file={file}
-                    onPress={() => router.push({ pathname: '/file/[id]', params: { id: file.id } })}
-                    onMore={() => setMoreTarget(file)}
-                    showSummary={!searchQuery.trim()}
-                  />
-                ))}
-              </View>
-            ))}
-          </View>
         ) : null}
       </Screen>
 
@@ -262,7 +331,7 @@ function ProjectFiles({ files, onBack, onOpen, onMore, project }: { files: Audio
     <View style={homeStyles.projectView}>
       <View style={homeStyles.projectHeader}>
         <Pressable accessibilityLabel="プロジェクト一覧に戻る" accessibilityRole="button" onPress={onBack} style={homeStyles.backBtn}>
-          <Ionicons color={colors.text} name="chevron-back" size={18} />
+          <SymbolView name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }} size={18} tintColor={colors.text} />
         </Pressable>
         <View>
           <Text numberOfLines={1} style={homeStyles.projectViewTitle}>{project}</Text>
@@ -296,12 +365,12 @@ function FileMoreSheet({ file, onClose, onDelete }: { file?: AudioFile; onClose:
     <FloatingBottomSheet isOpen={Boolean(file)} onClose={handleDismiss}>
       <View style={homeStyles.sheetSurface}>
         <Button variant="ghost" background={null} onPress={() => closeThen('rename')} style={homeStyles.sheetAction} accessibilityLabel="タイトルを変更">
-          <Ionicons color={colors.text} name="create-outline" size={18} />
+          <SymbolView name={{ ios: 'pencil', android: 'edit', web: 'edit' }} size={18} tintColor={colors.text} />
           <Button.Label>タイトルを変更</Button.Label>
         </Button>
         <Separator orientation="horizontal" variant="thin" />
         <Button variant="danger-soft" background={null} onPress={() => closeThen('delete')} style={homeStyles.sheetAction} accessibilityLabel="削除">
-          <Ionicons color={colors.danger} name="trash-outline" size={18} />
+          <SymbolView name={{ ios: 'trash', android: 'delete', web: 'delete' }} size={18} tintColor={colors.danger} />
           <Button.Label>削除</Button.Label>
         </Button>
       </View>
@@ -359,8 +428,18 @@ function groupByDate(files: AudioFile[]) {
 // ── styles ───────────────────────────────────────────────
 const homeStyles = StyleSheet.create({
   screenTitle: { color: colors.text, ...textStyles.screenTitle },
-  headerActions: { flexDirection: 'row' },
-  headerBtn: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+  headerAccessory: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  headerIconButton: { height: 44, width: 44 },
+  viewSelectTrigger: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  viewSelectValue: { color: colors.text, ...textStyles.footnoteBold },
+  listContent: { paddingBottom: listBottomPadding, paddingHorizontal: 18 },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
   emptyActions: { gap: spacing.sm },
   importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.lg },

@@ -14,6 +14,8 @@ type Props = {
   footerAccessory?: ReactNode;
   children: ReactNode;
   refreshControl?: ReactElement<RefreshControlProps>;
+  /** When provided, the header stays fixed and this scroll body (e.g. FlashList) replaces the built-in ScrollView. */
+  list?: ReactElement;
 };
 
 export function Screen({
@@ -27,30 +29,45 @@ export function Screen({
   footerAccessory,
   children,
   refreshControl,
+  list,
 }: Props) {
+  const headerElement = (
+    <View style={styles.header}>
+      {topRow}
+      <View style={styles.titleRow}>
+        {headerLeading}
+        {titleContent ?? (title ? <Text numberOfLines={1} style={[styles.title, titleVariant === 'home' && styles.homeTitle]}>{title}</Text> : null)}
+        {headerAccessory}
+      </View>
+      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    </View>
+  );
+
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={refreshControl}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            {topRow}
-            <View style={styles.titleRow}>
-              {headerLeading}
-              {titleContent ?? (title ? <Text numberOfLines={1} style={[styles.title, titleVariant === 'home' && styles.homeTitle]}>{title}</Text> : null)}
-              {headerAccessory}
+        {list ? (
+          <>
+            <View style={styles.listHeaderArea}>
+              {headerElement}
+              {children}
             </View>
-            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-          </View>
-          {children}
-        </ScrollView>
+            <View style={styles.listBody}>{list}</View>
+          </>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
+            showsVerticalScrollIndicator={false}
+          >
+            {headerElement}
+            {children}
+          </ScrollView>
+        )}
         {footerAccessory}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -70,6 +87,14 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
     paddingHorizontal: 18,
     paddingTop: 10,
+  },
+  listHeaderArea: {
+    gap: spacing.lg,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+  },
+  listBody: {
+    flex: 1,
   },
   header: {
     gap: spacing.sm,
