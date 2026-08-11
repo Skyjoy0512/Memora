@@ -17,12 +17,18 @@ import { AppIcon } from './AppIcon';
 import { FloatingBottomSheet } from './FloatingBottomSheet';
 import { Button } from 'heroui-native/button';
 import { Separator } from 'heroui-native/separator';
-import { HOME_COMPOSER_GAP, HOME_COMPOSER_HEIGHT } from './HomeComposer';
+import {
+  HOME_COMPOSER_GAP,
+  HOME_COMPOSER_HEIGHT,
+  HOME_PROJECT_SELECTOR_HEIGHT,
+  useHomeComposer,
+} from './HomeComposer';
 
 export function CaptureFab() {
   const insets = useSafeAreaInsets();
   const isHome = usePathname() === '/';
   const capture = useCaptureFlow();
+  const { viewMode } = useHomeComposer();
   const [isBusy, setIsBusy] = useState(false);
   const [isSheetOpen, setSheetOpen] = useState(false);
 
@@ -63,7 +69,11 @@ export function CaptureFab() {
   }
 
   // Home タブでは composer がタブバー直上に常時表示されるため、FAB をその分持ち上げる。
-  const fabBottom = insets.bottom + 57 + (isHome ? HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP : 0);
+  const homeAccessoryHeight =
+    HOME_COMPOSER_HEIGHT +
+    HOME_COMPOSER_GAP +
+    (viewMode === 'projects' ? HOME_PROJECT_SELECTOR_HEIGHT : 0);
+  const fabBottom = insets.bottom + 57 + (isHome ? homeAccessoryHeight : 0);
 
   return (
     <>

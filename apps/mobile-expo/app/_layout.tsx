@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { HeroUINativeProvider } from 'heroui-native/provider';
 import '../global.css';
 import { colors } from '../src/design/tokens';
+import { HomeComposerProvider } from '../src/components/HomeComposer';
 import { CaptureFlowProvider } from '../src/features/capture/CaptureFlowProvider';
 import { shouldExposeRoute } from '../src/utils/releaseGate';
 
@@ -28,33 +29,43 @@ export default function RootLayout() {
       <HeroUINativeProvider config={heroUIConfig}>
         <BottomSheetModalProvider>
           <CaptureFlowProvider>
-            <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                contentStyle: { backgroundColor: colors.canvas },
-                headerShadowVisible: false,
-                headerTintColor: colors.text,
-                headerTitleStyle: { fontWeight: '700' },
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Protected guard={shouldExposeRoute('auth', __DEV__)}>
-                <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'card' }} />
-              </Stack.Protected>
-              <Stack.Screen
-                name="file/[id]"
-                options={{
-                  headerShown: false,
-                  presentation: 'card',
+            <HomeComposerProvider>
+              <StatusBar style="dark" />
+              <Stack
+                screenOptions={{
+                  contentStyle: { backgroundColor: colors.canvas },
+                  headerShadowVisible: false,
+                  headerTintColor: colors.text,
+                  headerTitleStyle: { fontWeight: '700' },
                 }}
-              />
-              <Stack.Protected guard={shouldExposeRoute('preview', __DEV__)}>
-                <Stack.Screen name="preview" options={{ title: 'Preview Index' }} />
-              </Stack.Protected>
-              <Stack.Protected guard={shouldExposeRoute('dev-fonts', __DEV__)}>
-                <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
-              </Stack.Protected>
-            </Stack>
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="ask"
+                  options={{
+                    animation: 'slide_from_bottom',
+                    headerShown: false,
+                    presentation: 'fullScreenModal',
+                  }}
+                />
+                <Stack.Protected guard={shouldExposeRoute('auth', __DEV__)}>
+                  <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'card' }} />
+                </Stack.Protected>
+                <Stack.Screen
+                  name="file/[id]"
+                  options={{
+                    headerShown: false,
+                    presentation: 'card',
+                  }}
+                />
+                <Stack.Protected guard={shouldExposeRoute('preview', __DEV__)}>
+                  <Stack.Screen name="preview" options={{ title: 'Preview Index' }} />
+                </Stack.Protected>
+                <Stack.Protected guard={shouldExposeRoute('dev-fonts', __DEV__)}>
+                  <Stack.Screen name="dev-fonts" options={{ headerShown: false, presentation: 'modal' }} />
+                </Stack.Protected>
+              </Stack>
+            </HomeComposerProvider>
           </CaptureFlowProvider>
         </BottomSheetModalProvider>
       </HeroUINativeProvider>

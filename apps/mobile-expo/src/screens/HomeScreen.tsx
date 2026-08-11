@@ -20,7 +20,12 @@ import { DateSeparator } from '../components/DateSeparator';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { Screen } from '../components/Screen';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
-import { HOME_COMPOSER_GAP, HOME_COMPOSER_HEIGHT } from '../components/HomeComposer';
+import {
+  HOME_COMPOSER_GAP,
+  HOME_COMPOSER_HEIGHT,
+  HOME_PROJECT_SELECTOR_HEIGHT,
+  useHomeComposer,
+} from '../components/HomeComposer';
 import { Button } from 'heroui-native/button';
 import { Select } from 'heroui-native/select';
 import { Separator } from 'heroui-native/separator';
@@ -32,26 +37,36 @@ import { useAudioFiles } from '../features/files/useAudioFiles';
 import { MemoraNative } from '../native/MemoraNative';
 import type { AudioFile } from '../types/memora';
 
-type HomeView = 'files' | 'projects';
-const viewOptions: Array<{ value: HomeView; label: string }> = [
+const viewOptions = [
   { value: 'files', label: 'ファイル' },
   { value: 'projects', label: 'プロジェクト' },
-];
+] as const;
 
 type ListItem =
   | { kind: 'date'; id: string; label: string }
   | { kind: 'file'; id: string; file: AudioFile };
 
-/** Clear the raised center FAB (and, on fallback platforms, the composer) at the list tail. */
-const listBottomPadding =
-  112 + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP + 48;
+/**
+ * Clear the raised center FAB (and, on fallback platforms, the composer) at the list tail.
+ * The FlashList only renders in `files` mode, where the project pill is hidden.
+ */
+const listBottomPadding = 112 + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP + 48;
+
+/** `projects` mode scrolls inside Screen's ScrollView, which stops short of the pill + composer. */
+const projectViewBottomInset = HOME_COMPOSER_HEIGHT + HOME_PROJECT_SELECTOR_HEIGHT + HOME_COMPOSER_GAP;
 
 export function HomeScreen() {
   const router = useRouter();
   const { data: files, error, isLoading, refresh, removeAudioFile, upsertAudioFile } = useAudioFiles();
   const capture = useCaptureFlow();
+  const {
+    selectedProject,
+    setProjectOptions,
+    setSelectedProject,
+    setViewMode,
+    viewMode,
+  } = useHomeComposer();
 
-  const [viewMode, setViewMode] = useState<HomeView>('files');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -60,7 +75,6 @@ export function HomeScreen() {
   const [deleteTarget, setDeleteTarget] = useState<AudioFile | undefined>();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<string | undefined>();
 
   useFocusEffect(useCallback(() => { void refresh({ silent: true }); }, [refresh]));
   useEffect(() => { if (capture.latestFile) upsertAudioFile(capture.latestFile); }, [capture.latestFile, upsertAudioFile]);
@@ -118,7 +132,14 @@ export function HomeScreen() {
   const isSearchEmpty = !isLoading && !error && searchQuery.trim() !== '' && filtered.length === 0;
 
   // ── project view ───────────────────────────────────────
-  const projectNames = [...new Set(files.map((f) => f.project).filter(Boolean))] as string[];
+  const projectNames = useMemo(
+    () => [...new Set(files.map((f) => f.project).filter(Boolean))] as string[],
+    [files],
+  );
+
+  useEffect(() => {
+    setProjectOptions(projectNames);
+  }, [projectNames, setProjectOptions]);
 
   const viewValue = viewOptions.find((option) => option.value === viewMode) ?? viewOptions[0];
 
@@ -146,7 +167,7 @@ export function HomeScreen() {
             <Select
               onValueChange={(option) => {
                 if (!option) return;
-                setViewMode(option.value as HomeView);
+                setViewMode(option.value as 'files' | 'projects');
                 setSelectedProject(undefined);
               }}
               presentation="popover"
@@ -285,6 +306,11 @@ export function HomeScreen() {
               onSelect={setSelectedProject}
             />
           )
+        ) : null}
+
+        {/* keep the project grid clear of the pill + composer */}
+        {viewMode === 'projects' ? (
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={homeStyles.projectBottomSpacer} />
         ) : null}
       </Screen>
 
@@ -440,6 +466,7 @@ const homeStyles = StyleSheet.create({
   },
   viewSelectValue: { color: colors.text, ...textStyles.footnoteBold },
   listContent: { paddingBottom: listBottomPadding, paddingHorizontal: 18 },
+  projectBottomSpacer: { height: projectViewBottomInset },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
   emptyActions: { gap: spacing.sm },
   importEmptyAction: { alignItems: 'center', borderColor: colors.accent, borderRadius: radius.sm, borderWidth: 1, flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', minHeight: 44, paddingHorizontal: spacing.lg },

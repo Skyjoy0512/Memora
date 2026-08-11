@@ -1,16 +1,19 @@
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
-import { SymbolView } from 'expo-symbols';
 import { useRouter } from 'expo-router';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { AccessibilityInfo, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'heroui-native/button';
 import { Select } from 'heroui-native/select';
-import { Spinner } from 'heroui-native/spinner';
-import { TextArea } from 'heroui-native/text-area';
-import { FloatingBottomSheet } from './FloatingBottomSheet';
-import { AppIcon } from './AppIcon';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
-import { colors as themeColors } from '../theme/tokens';
 import {
   ASK_AI_MODEL_LABELS,
   ASK_AI_MODEL_OPTIONS,
@@ -19,17 +22,16 @@ import {
   type AskAiModel,
 } from '../native/askAiLogic';
 import { MemoraNative } from '../native/MemoraNative';
-import type { KnowledgeQueryResponseDTO } from '../native/MemoraNative.types';
+import type { AskMessage } from '../types/memora';
+import { colors as themeColors } from '../theme/tokens';
 
-/**
- * Approximate height of the composer above the tab bar. Used by floating
- * siblings (e.g. CaptureFab) to keep clear of the composer on the Home tab.
- * Tunable after device QA.
- */
-export const HOME_COMPOSER_HEIGHT = 110;
-export const HOME_COMPOSER_GAP = spacing.sm;
+/** Exact Home frame height: one 44pt row plus padding/border, rounded to the 4pt grid. */
+export const HOME_COMPOSER_HEIGHT = 60;
+export const HOME_PROJECT_SELECTOR_HEIGHT = 52;
+export const HOME_COMPOSER_GAP = spacing.xxs;
 
-// ── Glass availability ─────────────────────────────────
+export type HomeViewMode = 'files' | 'projects';
+
 function useCanUseGlass() {
   const [reduceTransparency, setReduceTransparency] = useState(false);
 
@@ -40,7 +42,8 @@ function useCanUseGlass() {
         if (isMounted) setReduceTransparency(enabled);
       })
       .catch(() => {
-        // Reduce Transparency 判定が使えない環境では glass を使わない（false のまま）。
+        // 判定できない環境では不透明 Surface を使う。
+        if (isMounted) setReduceTransparency(true);
       });
     return () => {
       isMounted = false;
@@ -50,28 +53,27 @@ function useCanUseGlass() {
   return Platform.OS === 'ios' && isGlassEffectAPIAvailable() && !reduceTransparency;
 }
 
-function GlassFrame({ children }: { children: ReactNode }) {
+export function ComposerGlassFrame({
+  children,
+  compact = false,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+}) {
   const canUseGlass = useCanUseGlass();
+  const frameStyle = [styles.frame, compact && styles.compactFrame];
 
   if (canUseGlass) {
     return (
-      <GlassView colorScheme="auto" glassEffectStyle="regular" style={composerStyles.frame}>
+      <GlassView colorScheme="auto" glassEffectStyle="regular" style={frameStyle}>
         {children}
       </GlassView>
     );
   }
 
-  return (
-    <View style={[composerStyles.frame, composerStyles.frameFallback]}>{children}</View>
-  );
+  return <View style={[frameStyle, styles.glassFallback]}>{children}</View>;
 }
 
-// ── Answer sheet state ─────────────────────────────────
-type ComposerAnswerState =
-  | { kind: 'answer'; question: string; response: KnowledgeQueryResponseDTO }
-  | { kind: 'error'; question: string; message: string; hint: 'api-key' | null };
-
-// ── Context ────────────────────────────────────────────
 type HomeComposerContextValue = {
   draft: string;
   setDraft: (value: string) => void;
@@ -79,7 +81,14 @@ type HomeComposerContextValue = {
   setAskModel: (value: AskAiModel) => void;
   canSend: boolean;
   isAnswering: boolean;
-  send: () => void;
+  messages: AskMessage[];
+  send: () => Promise<void>;
+  viewMode: HomeViewMode;
+  setViewMode: (value: HomeViewMode) => void;
+  selectedProject: string | undefined;
+  setSelectedProject: (value: string | undefined) => void;
+  projectOptions: string[];
+  setProjectOptions: (value: string[]) => void;
 };
 
 const HomeComposerContext = createContext<HomeComposerContextValue | undefined>(undefined);
@@ -92,13 +101,14 @@ export function useHomeComposer(): HomeComposerContextValue {
   return value;
 }
 
-// ── Provider（タブレイアウトで 1 インスタンス）────────────
 export function HomeComposerProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState('');
   const [askModel, setAskModel] = useState<AskAiModel>('auto');
   const [isAnswering, setIsAnswering] = useState(false);
-  const [answerState, setAnswerState] = useState<ComposerAnswerState | undefined>();
-  const [isAnswerSheetOpen, setAnswerSheetOpen] = useState(false);
+  const [messages, setMessages] = useState<AskMessage[]>([]);
+  const [viewMode, setViewMode] = useState<HomeViewMode>('files');
+  const [selectedProject, setSelectedProject] = useState<string | undefined>();
+  const [projectOptions, setProjectOptions] = useState<string[]>([]);
 
   const canSend = draft.trim().length > 0 && !isAnswering;
 
@@ -106,228 +116,236 @@ export function HomeComposerProvider({ children }: { children: ReactNode }) {
     const question = draft.trim();
     if (!question || isAnswering) return;
 
+    const requestId = Date.now();
+    setDraft('');
     setIsAnswering(true);
+    setMessages((current) => [
+      ...current,
+      { id: `home-user-${requestId}`, role: 'user', text: question },
+    ]);
+
     try {
       const response = await MemoraNative.queryKnowledge(
         buildAskAiRequest('global', question, {}),
       );
-      setAnswerState({ kind: 'answer', question, response });
-      setDraft('');
-      setAnswerSheetOpen(true);
+      setMessages((current) => [
+        ...current,
+        {
+          id: response.id,
+          role: 'assistant',
+          text: response.answer,
+          sources: response.sources,
+          isSample: response.isSample,
+        },
+      ]);
     } catch (error) {
       const mapping = mapAskAiError(error);
-      setAnswerState({ kind: 'error', question, message: mapping.message, hint: mapping.hint });
-      setAnswerSheetOpen(true);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `home-error-${requestId}`,
+          role: 'assistant',
+          text: mapping.message,
+          hint: mapping.hint ?? undefined,
+        },
+      ]);
     } finally {
       setIsAnswering(false);
     }
   }, [draft, isAnswering]);
 
   const value = useMemo(
-    () => ({ draft, setDraft, askModel, setAskModel, canSend, isAnswering, send }),
-    [draft, askModel, canSend, isAnswering, send],
+    () => ({
+      draft,
+      setDraft,
+      askModel,
+      setAskModel,
+      canSend,
+      isAnswering,
+      messages,
+      send,
+      viewMode,
+      setViewMode,
+      selectedProject,
+      setSelectedProject,
+      projectOptions,
+      setProjectOptions,
+    }),
+    [
+      askModel,
+      canSend,
+      draft,
+      isAnswering,
+      messages,
+      projectOptions,
+      selectedProject,
+      send,
+      viewMode,
+    ],
   );
 
-  return (
-    <HomeComposerContext.Provider value={value}>
-      {children}
-      <HomeComposerAnswerSheet
-        isOpen={isAnswerSheetOpen}
-        onClose={() => setAnswerSheetOpen(false)}
-        state={answerState}
-      />
-    </HomeComposerContext.Provider>
-  );
+  return <HomeComposerContext.Provider value={value}>{children}</HomeComposerContext.Provider>;
 }
 
-// ── 本体（BottomAccessory / フォールバック overlay 共用）──
-export function HomeComposer() {
-  const { draft, setDraft, askModel, setAskModel, canSend, isAnswering, send } = useHomeComposer();
-
+export function AskModelSelect({ compact = false }: { compact?: boolean }) {
+  const { askModel, setAskModel } = useHomeComposer();
   const modelValue = useMemo(
-    () => ({ value: askModel, label: ASK_AI_MODEL_LABELS[askModel] }),
-    [askModel],
+    () => ({
+      value: askModel,
+      label: compact && askModel === 'auto' ? 'Auto' : ASK_AI_MODEL_LABELS[askModel],
+    }),
+    [askModel, compact],
   );
 
   return (
-    <GlassFrame>
-      <TextArea
-        accessibilityLabel="Ask anything"
-        background={null}
-        maxLength={2000}
-        onChangeText={setDraft}
-        placeholder="Ask anything..."
-        placeholderTextColor={colors.textTertiary}
-        style={composerStyles.input}
-        value={draft}
-        variant="secondary"
-      />
-      <View style={composerStyles.actions}>
-        <Button
-          accessibilityLabel="ファイルを添付"
-          feedbackVariant="none"
-          isIconOnly
-          onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
-          size="md"
-          variant="ghost"
-          style={composerStyles.iconButton}
-        >
-          <SymbolView
-            name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
-            size={18}
-            tintColor={colors.textTertiary}
-          />
-        </Button>
-
-        <Select
-          onValueChange={(option) => {
-            if (option) setAskModel(option.value as AskAiModel);
-          }}
-          presentation="popover"
-          value={modelValue}
-        >
-          <Select.Trigger variant="unstyled" style={composerStyles.modelTrigger}>
-            <Select.Value numberOfLines={1} placeholder="モデルを選択" style={composerStyles.modelValue} />
-            <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
-          </Select.Trigger>
-          <Select.Portal>
-            <Select.Overlay />
-            <Select.Content align="center" placement="top" presentation="popover">
-              {ASK_AI_MODEL_OPTIONS.map((model) => (
-                <Select.Item key={model} label={ASK_AI_MODEL_LABELS[model]} value={model}>
-                  <Select.ItemLabel />
-                  <Select.ItemIndicator />
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Portal>
-        </Select>
-
-        <Button
-          accessibilityLabel="Ask AI send"
-          feedbackVariant="none"
-          isDisabled={!canSend}
-          isIconOnly
-          onPress={() => void send()}
-          size="md"
-          variant="primary"
-          style={composerStyles.iconButton}
-        >
-          {isAnswering ? (
-            <Spinner size="sm" />
-          ) : (
-            <SymbolView
-              name={{ ios: 'arrow.up', android: 'arrow_upward', web: 'arrow_upward' }}
-              size={18}
-              tintColor={colors.surface}
-            />
-          )}
-        </Button>
-      </View>
-    </GlassFrame>
+    <Select
+      onValueChange={(option) => {
+        if (option) setAskModel(option.value as AskAiModel);
+      }}
+      presentation="popover"
+      value={modelValue}
+    >
+      <Select.Trigger
+        accessibilityLabel="AIモデルを選択"
+        variant="unstyled"
+        style={[styles.modelTrigger, compact && styles.modelTriggerCompact]}
+      >
+        <Select.Value numberOfLines={1} placeholder="モデルを選択" style={styles.modelValue} />
+        <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Overlay />
+        <Select.Content align="center" placement="top" presentation="popover">
+          {ASK_AI_MODEL_OPTIONS.map((model) => (
+            <Select.Item key={model} label={ASK_AI_MODEL_LABELS[model]} value={model}>
+              <Select.ItemLabel />
+              <Select.ItemIndicator />
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Portal>
+    </Select>
   );
 }
 
-// ── 回答シート ─────────────────────────────────────────
-function HomeComposerAnswerSheet({
-  isOpen,
-  onClose,
-  state,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  state: ComposerAnswerState | undefined;
-}) {
-  const router = useRouter();
-
-  const openAiTab = () => {
-    onClose();
-    router.push('/ask-ai');
-  };
+function ProjectSelectPill() {
+  const canUseGlass = useCanUseGlass();
+  const { projectOptions, selectedProject, setSelectedProject } = useHomeComposer();
+  const selectedValue = selectedProject
+    ? { value: selectedProject, label: selectedProject }
+    : undefined;
+  const trigger = (
+    <Select.Trigger
+      accessibilityLabel="プロジェクトを選択"
+      variant="unstyled"
+      style={styles.projectTrigger}
+    >
+      <SymbolView
+        name={{ ios: 'folder', android: 'folder', web: 'folder' }}
+        size={16}
+        tintColor={colors.textSecondary}
+      />
+      <Select.Value
+        numberOfLines={1}
+        placeholder="プロジェクトを選択"
+        style={styles.projectValue}
+      />
+      <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
+    </Select.Trigger>
+  );
 
   return (
-    <FloatingBottomSheet isOpen={isOpen} onClose={onClose}>
-      {state ? (
-        <View style={sheetStyles.container}>
-          <View style={sheetStyles.questionRow}>
-            <View style={sheetStyles.questionBubble}>
-              <Text style={sheetStyles.questionText}>{state.question}</Text>
-            </View>
-          </View>
+    <Select
+      isDisabled={projectOptions.length === 0}
+      onValueChange={(option) => setSelectedProject(option?.value)}
+      presentation="bottom-sheet"
+      value={selectedValue}
+    >
+      {canUseGlass ? (
+        <GlassView colorScheme="auto" glassEffectStyle="regular" style={styles.projectPill}>
+          {trigger}
+        </GlassView>
+      ) : (
+        <View style={[styles.projectPill, styles.glassFallback]}>{trigger}</View>
+      )}
+      <Select.Portal>
+        <Select.Overlay />
+        <Select.Content presentation="bottom-sheet">
+          <Select.ListLabel style={styles.projectSheetLabel}>プロジェクトを選択</Select.ListLabel>
+          {projectOptions.map((project) => (
+            <Select.Item key={project} label={project} value={project}>
+              <Select.ItemLabel />
+              <Select.ItemIndicator />
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select.Portal>
+    </Select>
+  );
+}
 
-          {state.kind === 'answer' ? (
-            <>
-              {state.response.isSample ? (
-                <View style={sheetStyles.sampleBadge}>
-                  <AppIcon color={colors.warning} name="warning-outline" size={12} />
-                  <Text style={sheetStyles.sampleBadgeText}>サンプル回答（ネイティブ未接続）</Text>
-                </View>
-              ) : null}
-              <Text style={sheetStyles.answerText}>{state.response.answer}</Text>
-              {state.response.sources && state.response.sources.length > 0 ? (
-                <View style={sheetStyles.sources}>
-                  {state.response.sources.map((source) => (
-                    <View key={source} style={sheetStyles.sourcePill}>
-                      <AppIcon color={colors.textTertiary} name="document-outline" size={10} />
-                      <Text numberOfLines={1} style={sheetStyles.sourceText}>
-                        {source}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <Text style={sheetStyles.errorText}>{state.message}</Text>
-          )}
+/** Home BottomAccessory entry point. The actual text input lives in /ask. */
+export function HomeComposer() {
+  const router = useRouter();
+  const { viewMode } = useHomeComposer();
 
-          <View style={sheetStyles.actions}>
-            {state.kind === 'error' && state.hint === 'api-key' ? (
-              <Button
-                accessibilityLabel="設定でAPIキーを入力"
-                onPress={() => router.push('/settings')}
-                size="sm"
-                variant="primary"
-              >
-                設定でAPIキーを入力
-              </Button>
-            ) : null}
+  return (
+    <View style={styles.accessory}>
+      {viewMode === 'projects' ? <ProjectSelectPill /> : null}
+      <ComposerGlassFrame compact>
+        <View style={styles.entryRow}>
+          <Pressable
+            accessibilityLabel="Ask AI を開く"
+            accessibilityRole="button"
+            onPress={() => router.push('/ask')}
+            style={({ pressed }) => [styles.entryPrompt, pressed && styles.pressed]}
+          >
+            <Text numberOfLines={1} style={styles.placeholder}>
+              Ask anything...
+            </Text>
+          </Pressable>
+          <View style={styles.entryActions}>
             <Button
-              accessibilityLabel="AIタブで開く"
-              onPress={openAiTab}
-              size="sm"
-              variant={state.kind === 'error' && state.hint === 'api-key' ? 'ghost' : 'primary'}
+              accessibilityLabel="ファイルを添付"
+              feedbackVariant="none"
+              isIconOnly
+              onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
+              size="md"
+              variant="ghost"
+              style={styles.iconButton}
             >
-              AIタブで開く
+              <SymbolView
+                name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
+                size={18}
+                tintColor={colors.textTertiary}
+              />
+            </Button>
+
+            <AskModelSelect compact />
+
+            <Button
+              accessibilityLabel="音声入力を開始"
+              feedbackVariant="none"
+              isIconOnly
+              onPress={() => Alert.alert('音声入力', 'この操作は現在利用できません。')}
+              size="md"
+              variant="primary"
+              style={styles.iconButton}
+            >
+              <SymbolView
+                name={{ ios: 'waveform', android: 'graphic_eq', web: 'graphic_eq' }}
+                size={18}
+                tintColor={colors.surface}
+              />
             </Button>
           </View>
         </View>
-      ) : null}
-    </FloatingBottomSheet>
+      </ComposerGlassFrame>
+    </View>
   );
 }
 
-// ── styles ─────────────────────────────────────────────
-const composerStyles = StyleSheet.create({
-  frame: {
-    borderColor: themeColors.light.glassBorderFallback,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.xs,
-    marginHorizontal: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  frameFallback: {
-    backgroundColor: themeColors.light.glassFallback,
-  },
-  input: {
-    color: colors.text,
-    maxHeight: 88,
-    minHeight: 40,
-    paddingVertical: 0,
-    ...textStyles.body,
-  },
+export const homeComposerStyles = StyleSheet.create({
   actions: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -337,83 +355,106 @@ const composerStyles = StyleSheet.create({
     height: 44,
     width: 44,
   },
-  modelTrigger: {
-    alignItems: 'center',
+  input: {
+    color: colors.text,
+    maxHeight: 88,
+    minHeight: 44,
+    paddingVertical: 0,
+    ...textStyles.body,
+  },
+});
+
+const styles = StyleSheet.create({
+  accessory: {
+    gap: HOME_COMPOSER_GAP,
+  },
+  frame: {
+    borderColor: themeColors.light.glassBorderFallback,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: spacing.xs,
+    marginHorizontal: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  compactFrame: {
+    height: HOME_COMPOSER_HEIGHT,
+    justifyContent: 'center',
+    paddingVertical: spacing.xxs,
+  },
+  glassFallback: {
+    backgroundColor: themeColors.light.glassFallback,
+  },
+  entryPrompt: {
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
+  },
+  entryRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 44,
+  },
+  entryActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: spacing.xs,
+  },
+  placeholder: {
+    color: colors.textTertiary,
+    ...textStyles.body,
+  },
+  pressed: {
+    opacity: 0.72,
+  },
+  actions: homeComposerStyles.actions,
+  iconButton: homeComposerStyles.iconButton,
+  modelTrigger: {
+    alignItems: 'center',
+    // Without an explicit row direction the value and the chevron stack vertically.
+    // `flex: 1` here collapses the label to zero width, so size from content instead.
+    flexDirection: 'row',
+    flexGrow: 0,
+    flexShrink: 1,
+    gap: spacing.xxs,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: spacing.sm,
+  },
+  modelTriggerCompact: {
+    flex: 0,
+    width: 80,
   },
   modelValue: {
     color: colors.textSecondary,
     flexShrink: 1,
     ...textStyles.caption,
   },
-});
-
-const sheetStyles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  questionRow: {
-    alignItems: 'flex-end',
-  },
-  questionBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.sm,
-    maxWidth: '84%',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  questionText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
-  sampleBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.warningSoft,
+  projectPill: {
+    borderColor: themeColors.light.glassBorderFallback,
     borderRadius: radius.pill,
+    borderWidth: 1,
+    marginHorizontal: spacing.md,
+    overflow: 'hidden',
+  },
+  projectTrigger: {
+    alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
   },
-  sampleBadgeText: {
-    color: colors.warning,
+  projectValue: {
+    color: colors.textSecondary,
+    flex: 1,
     ...textStyles.footnoteBold,
   },
-  answerText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
-  errorText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
-  sources: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  sourcePill: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: 2,
-  },
-  sourceText: {
-    color: colors.textTertiary,
-    ...textStyles.caption,
-  },
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+  projectSheetLabel: {
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...textStyles.footnoteBold,
   },
 });
