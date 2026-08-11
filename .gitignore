@@ -176,3 +176,6 @@ skills-lock.json
 
 # Reference materials (not source)
 References/
+
+# Codex CLI session logs
+.codex-logs/

@@ -33,7 +33,11 @@ jobs:
               { name: 'lane:qa-ops', color: '6f42c1', description: 'Lane E: QA and operations' },
               { name: 'agent:codex', color: 'bfdadc', description: 'Primary agent: Codex' },
               { name: 'agent:claude', color: 'c5def5', description: 'Primary agent: Claude' },
-              { name: 'agent:pair', color: 'fef2c0', description: 'Codex + Claude pair task' }
+              { name: 'agent:pair', color: 'fef2c0', description: 'Codex + Claude pair task' },
+              { name: 'agent:sol', color: 'f9d0c4', description: 'Planning and design owner: Sol' },
+              { name: 'agent:luna', color: 'd4c5f9', description: 'Primary implementation agent: Luna' },
+              { name: 'agent:opencode', color: 'bfd4f2', description: 'Implementation and verification agent: OpenCode DeepSeek' },
+              { name: 'agent:claude-review', color: 'c5def5', description: 'Periodic reviewer: Claude' }
             ];
 
             for (const label of labels) {
