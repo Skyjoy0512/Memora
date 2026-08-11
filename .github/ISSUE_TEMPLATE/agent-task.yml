@@ -39,6 +39,10 @@ body:
       label: Agent
       description: 主担当エージェント
       options:
+        - Luna
+        - OpenCode DeepSeek
+        - Sol
+        - Claude Reviewer
         - Codex
         - Claude
         - Claude + Codex

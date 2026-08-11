@@ -49,6 +49,10 @@ normalize_lane_label() {
 
 normalize_agent_label() {
   case "$1" in
+    "Sol") echo "agent:sol" ;;
+    "Luna") echo "agent:luna" ;;
+    "OpenCode"|"OpenCode DeepSeek") echo "agent:opencode" ;;
+    "Claude Reviewer") echo "agent:claude-review" ;;
     "Codex") echo "agent:codex" ;;
     "Claude") echo "agent:claude" ;;
     "Claude + Codex") echo "agent:pair" ;;
