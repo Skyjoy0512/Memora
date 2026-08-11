@@ -1,8 +1,9 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { useState } from 'react';
 import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname } from 'expo-router';
-import { CaptureFab } from '../../src/components/CaptureFab';
+import { CaptureSheet } from '../../src/components/CaptureSheet';
 import { HomeComposer } from '../../src/components/HomeComposer';
 import { colors as themeColors } from '../../src/theme/tokens';
 
@@ -17,6 +18,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const isHome = usePathname() === '/';
   const useNativeAccessory = isIos26OrHigher();
+  const [isCaptureSheetOpen, setCaptureSheetOpen] = useState(false);
 
   return (
     <View style={{ flex: 1 }}>
@@ -45,6 +47,18 @@ export default function TabLayout() {
           />
           <NativeTabs.Trigger.Label>タスク</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger
+          disabled
+          listeners={{ tabPress: () => setCaptureSheetOpen(true) }}
+          name="capture"
+          unstable_nativeProps={{ tabBarItemAccessibilityLabel: '録音メニューを開く' }}
+        >
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'plus', selected: 'plus' }}
+            md={{ default: 'add', selected: 'add' }}
+          />
+          <NativeTabs.Trigger.Label hidden>録音</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="ask-ai">
           <NativeTabs.Trigger.Icon
             sf={{ default: 'sparkles', selected: 'sparkles' }}
@@ -65,7 +79,7 @@ export default function TabLayout() {
           </NativeTabs.BottomAccessory>
         ) : null}
       </NativeTabs>
-      <CaptureFab />
+      <CaptureSheet isOpen={isCaptureSheetOpen} onClose={() => setCaptureSheetOpen(false)} />
       {!useNativeAccessory && isHome ? (
         <View
           pointerEvents="box-none"

@@ -46,14 +46,15 @@ type ListItem =
   | { kind: 'date'; id: string; label: string }
   | { kind: 'file'; id: string; file: AudioFile };
 
-/**
- * Clear the raised center FAB (and, on fallback platforms, the composer) at the list tail.
- * The FlashList only renders in `files` mode, where the project pill is hidden.
- */
-const listBottomPadding = 112 + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP + 48;
+/** The system tab bar is about 57pt; round up to the 4pt grid so content clears it. */
+const TAB_BAR_CLEARANCE = 60;
 
-/** `projects` mode scrolls inside Screen's ScrollView, which stops short of the pill + composer. */
-const projectViewBottomInset = HOME_COMPOSER_HEIGHT + HOME_PROJECT_SELECTOR_HEIGHT + HOME_COMPOSER_GAP;
+/** Files avoid only the tab bar, 60pt composer, and their 4pt gap; the FAB is gone. */
+const listBottomPadding = TAB_BAR_CLEARANCE + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP;
+
+/** Projects also avoid the 52pt selector pill rendered above the Home composer. */
+const projectViewBottomInset =
+  TAB_BAR_CLEARANCE + HOME_PROJECT_SELECTOR_HEIGHT + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP;
 
 export function HomeScreen() {
   const router = useRouter();
