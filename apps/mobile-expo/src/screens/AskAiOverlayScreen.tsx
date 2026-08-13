@@ -185,7 +185,7 @@ export function AskAiOverlayScreen() {
                 onPress={handlePrimaryAction}
                 size="md"
                 variant="primary"
-                style={homeComposerStyles.iconButton}
+                style={[homeComposerStyles.iconButton, styles.sendButton]}
               >
                 {isAnswering ? (
                   <Spinner size="sm" />
@@ -331,5 +331,8 @@ const styles = StyleSheet.create({
   },
   composerDock: {
     paddingBottom: spacing.xs,
+  },
+  sendButton: {
+    marginLeft: 'auto',
   },
 });
