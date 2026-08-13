@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     flexShrink: 0,
-    gap: spacing.xs,
+    gap: spacing.xxs,
   },
   placeholder: {
     color: colors.textTertiary,
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   },
   modelTriggerCompact: {
     flex: 0,
-    width: 80,
+    width: 72,
   },
   modelValue: {
     color: colors.textSecondary,
