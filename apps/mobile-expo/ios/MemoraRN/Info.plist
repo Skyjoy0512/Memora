@@ -58,13 +58,13 @@
 		<string>_expo._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
+	<string>Expo Dev Launcher が、お使いのコンピュータで実行中の開発サーバーを検出・接続するためにローカルネットワークを使用します。</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Memora uses the microphone to record meetings and create reviewable transcripts.</string>
+	<string>会議や打ち合わせを録音し、後から見返せる文字起こしを作成するために使用します。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Memora uses on-device speech recognition to create transcripts from your recordings.</string>
+	<string>録音した内容を端末内で処理し、文字起こしを作成するために使用します。音声は端末外へ送信されません。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Memora lets you attach photos to your memo notes for a recording.</string>
+	<string>録音メモに写真を添付するために使用します。</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

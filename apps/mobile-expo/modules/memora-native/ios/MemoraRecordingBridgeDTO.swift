@@ -40,6 +40,7 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   public let sourceDescription: String
 
   private var activeRecorders: [String: AVAudioRecorder] = [:]
+  private var activeRecorderStartDates: [String: Date] = [:]
   private let recorderLock = NSLock()
   private let isoFormatter = ISO8601DateFormatter()
   private let storageDirectory: URL?
@@ -77,6 +78,7 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
 
     recorderLock.lock()
     activeRecorders[sessionId] = recorder
+    activeRecorderStartDates[sessionId] = Date()
     recorderLock.unlock()
 
     return MemoraRecordingSessionDTO(
@@ -89,6 +91,7 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   public func stopRecording(sessionId: String) throws -> MemoraAudioFileDTO {
     recorderLock.lock()
     let recorder = activeRecorders.removeValue(forKey: sessionId)
+    let startDate = activeRecorderStartDates.removeValue(forKey: sessionId)
     recorderLock.unlock()
     guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
@@ -100,7 +103,8 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     return try makeAudioFileDTO(
       id: UUID().uuidString,
       fileURL: recorder.url,
-      summary: "Recorded with MemoraRN."
+      title: recordingTitle(for: startDate ?? Date()),
+      summary: ""
     )
   }
 
@@ -129,6 +133,7 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   public func discardRecording(sessionId: String) throws {
     recorderLock.lock()
     let recorder = activeRecorders.removeValue(forKey: sessionId)
+    activeRecorderStartDates.removeValue(forKey: sessionId)
     recorderLock.unlock()
     guard let recorder else {
       throw MemoraRecordingImportError.recordingSessionNotFound
@@ -149,7 +154,8 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     return try makeAudioFileDTO(
       id: UUID().uuidString,
       fileURL: destinationURL,
-      summary: "Imported with MemoraRN."
+      title: destinationURL.lastPathComponent,
+      summary: ""
     )
   }
 
@@ -293,10 +299,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     return URL(fileURLWithPath: uri)
   }
 
-  private func makeAudioFileDTO(id: String, fileURL: URL, summary: String) throws -> MemoraAudioFileDTO {
+  private func makeAudioFileDTO(id: String, fileURL: URL, title: String, summary: String) throws -> MemoraAudioFileDTO {
     let dto = MemoraAudioFileDTO(
       id: id,
-      title: fileURL.lastPathComponent,
+      title: title,
       project: "Inbox",
       source: "iPhone",
       recordedAt: isoFormatter.string(from: Date()),
@@ -306,10 +312,20 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       status: "queued",
       summary: summary,
       transcript: [],
-      memo: ["Native file path: \(fileURL.lastPathComponent)"]
+      memo: []
     )
     try MemoraNativeAudioFileMutationRegistry.audioFileMutator.upsertAudioFile(dto, fileURL: fileURL)
     return dto
+  }
+
+  /// Generates a human-readable default title from the recording start time.
+  /// Uses a numeric-only format with an explicit ja_JP locale so the title is
+  /// stable regardless of the device locale.
+  private func recordingTitle(for date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "ja_JP")
+    formatter.dateFormat = "M/d H:mm"
+    return "録音 " + formatter.string(from: date)
   }
 
   private func formattedDuration(for fileURL: URL) -> String {
