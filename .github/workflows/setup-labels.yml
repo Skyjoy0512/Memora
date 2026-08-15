@@ -20,6 +20,7 @@ jobs:
               { name: 'type:epic', color: '5319e7', description: 'Epic parent issue' },
               { name: 'type:bug', color: 'd73a4a', description: 'Bug report' },
               { name: 'automerge', color: '0e8a16', description: 'Enable GitHub auto-merge for this PR' },
+              { name: 'no-automerge', color: 'b60205', description: 'Hold this PR: do not enable auto-merge' },
               { name: 'needs:pm-triage', color: 'fef2c0', description: 'Needs PM/Lead decomposition or lane assignment' },
               { name: 'epic:child', color: 'c2e0c6', description: 'Issue created from an epic' },
               { name: 'status:todo', color: 'd4c5f9', description: 'Ready to start' },
