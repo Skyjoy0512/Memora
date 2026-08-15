@@ -33,6 +33,18 @@ describe('exportLogic', () => {
     it('returns empty string when both sections are empty', () => {
       expect(buildExportMarkdown('', [])).toBe('');
     });
+
+    it('trims whitespace around the summary before building sections', () => {
+      expect(
+        buildExportMarkdown('  まとめ  \n', [{ time: '00:01', text: 'はじめに' }]),
+      ).toBe('## 要約\n\nまとめ\n\n## 文字起こし\n\n00:01 はじめに');
+    });
+
+    it('omits the transcript section when segments produce no text', () => {
+      expect(buildExportMarkdown('要約だけ', [{ time: ' ', text: ' ' }])).toBe(
+        '## 要約\n\n要約だけ',
+      );
+    });
   });
 
   describe('buildExportPayload', () => {
@@ -50,6 +62,16 @@ describe('exportLogic', () => {
       expect(payload.text).toContain('## 要約');
       expect(payload.text).toContain('00:00 こんにちは');
       expect(payload.createdAt).toBeDefined();
+    });
+
+    it('omits the summary section when the file has no summary', () => {
+      const payload = buildExportPayload(
+        { id: 'file-2', title: '打ち合わせ', summary: '', transcript: TRANSCRIPT },
+        'file',
+      );
+      expect(payload.destination).toBe('file');
+      expect(payload.text).not.toContain('## 要約');
+      expect(payload.text).toContain('## 文字起こし');
     });
   });
 
@@ -78,6 +100,27 @@ describe('exportLogic', () => {
       expect(extractNotionParentPageId('')).toBeNull();
       expect(extractNotionParentPageId('https://www.notion.so/My-Page')).toBeNull();
       expect(extractNotionParentPageId('short-id')).toBeNull();
+    });
+
+    it('rejects a run too short to be a page id', () => {
+      expect(extractNotionParentPageId('0'.repeat(31))).toBeNull();
+    });
+
+    it('rejects a 32-char run containing a non-hex character', () => {
+      expect(extractNotionParentPageId('0123456789abcdef0123456789abcdeg')).toBeNull();
+    });
+
+    it('does not treat a dashed UUID form as a simple page id', () => {
+      expect(extractNotionParentPageId('01234567-89ab-cdef-0123-456789abcdef')).toBeNull();
+    });
+
+    it('extracts the first 32-char hex run even when input is longer', () => {
+      expect(extractNotionParentPageId('a'.repeat(33))).toBe('a'.repeat(32));
+    });
+
+    it('extracts a page id embedded in arbitrary surrounding text', () => {
+      expect(extractNotionParentPageId(`prefix ${'b'.repeat(32)} suffix`)).toBe('b'.repeat(32));
+      expect(extractNotionParentPageId(`  ${'c'.repeat(32)}  `)).toBe('c'.repeat(32));
     });
   });
 

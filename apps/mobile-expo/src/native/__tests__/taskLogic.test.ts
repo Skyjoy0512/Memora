@@ -26,6 +26,30 @@ describe('taskLogic', () => {
     it('honors a custom max length', () => {
       expect(truncateTaskTitle('あいうえお', 3)).toBe('あいう…');
     });
+
+    it('returns an empty string for empty or whitespace-only input', () => {
+      expect(truncateTaskTitle('')).toBe('');
+      expect(truncateTaskTitle('   ')).toBe('');
+      expect(truncateTaskTitle('\n\t ')).toBe('');
+    });
+
+    it('keeps text at exactly the limit without an ellipsis', () => {
+      const exact = 'あ'.repeat(TASK_TITLE_MAX_LENGTH);
+      expect(truncateTaskTitle(exact)).toBe(exact);
+      expect(truncateTaskTitle(exact).endsWith('…')).toBe(false);
+    });
+
+    it('truncates text one character past the limit with a single ellipsis', () => {
+      const over = 'あ'.repeat(TASK_TITLE_MAX_LENGTH + 1);
+      expect(truncateTaskTitle(over)).toBe(`${'あ'.repeat(TASK_TITLE_MAX_LENGTH)}…`);
+    });
+
+    it('ignores superfluous whitespace when sizing against the limit', () => {
+      const text = `${'あ'.repeat(39)} ${'い'.repeat(40)}\n`;
+      const expected = `${'あ'.repeat(39)} ${'い'.repeat(40)}`;
+      expect(truncateTaskTitle(text)).toBe(expected);
+      expect(expected.length).toBe(TASK_TITLE_MAX_LENGTH);
+    });
   });
 
   describe('buildTaskFromTranscriptSegment', () => {
@@ -56,6 +80,11 @@ describe('taskLogic', () => {
       const task = buildTaskFromTranscriptSegment({ text: 'タスク' }, { audioFileId: 'file-1' });
       expect(task.id).toMatch(/^task-\d+$/);
       expect(new Date(task.createdAt).getTime()).not.toBeNaN();
+    });
+
+    it('handles empty segment text with an empty title', () => {
+      const task = buildTaskFromTranscriptSegment({ text: '   ' }, { audioFileId: 'file-1' });
+      expect(task.title).toBe('');
     });
   });
 
@@ -89,6 +118,11 @@ describe('taskLogic', () => {
       const task = buildTaskFromAssistantAnswer(long, {});
       expect(task.title.length).toBeLessThanOrEqual(TASK_TITLE_MAX_LENGTH + 1);
       expect(task.title.endsWith('…')).toBe(true);
+    });
+
+    it('accepts an explicit null sourceAudioFileId', () => {
+      const task = buildTaskFromAssistantAnswer('回答', { sourceAudioFileId: null });
+      expect(task.sourceAudioFileId).toBeNull();
     });
   });
 });

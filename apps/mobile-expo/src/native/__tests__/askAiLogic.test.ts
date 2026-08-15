@@ -66,6 +66,12 @@ describe('askAiLogic', () => {
         question: 'q',
       });
     });
+
+    it('leaves the target id absent when none is supplied', () => {
+      const request = buildAskAiRequest('file', 'q', {});
+      expect(request.scope).toBe('file');
+      expect(request.audioFileId).toBeUndefined();
+    });
   });
 
   describe('describeNoTarget', () => {
@@ -107,6 +113,13 @@ describe('askAiLogic', () => {
     it('detects target lookup errors', () => {
       expect(mapAskAiError(new Error('質問対象が見つかりません。')).kind).toBe('target-unavailable');
       expect(mapAskAiError(new Error('質問対象を識別できません。')).hint).toBeNull();
+      expect(mapAskAiError('対象が見つかりません').kind).toBe('target-unavailable');
+    });
+
+    it('detects api-key variants with and without a full-width space', () => {
+      expect(mapAskAiError(new Error('API キーが設定されていません。')).kind).toBe('api-key-missing');
+      expect(mapAskAiError(new Error('apiKey is required')).kind).toBe('api-key-missing');
+      expect(mapAskAiError(new Error('APIキーが未設定です')).hint).toBe('api-key');
     });
 
     it('falls back for generic and non-Error failures', () => {
@@ -114,6 +127,12 @@ describe('askAiLogic', () => {
       expect(mapAskAiError('boom').kind).toBe('answer-failed');
       expect(mapAskAiError(undefined).kind).toBe('answer-failed');
       expect(mapAskAiError(undefined).hint).toBeNull();
+    });
+
+    it('maps non-Error thrown values to answer-failed', () => {
+      expect(mapAskAiError(null).kind).toBe('answer-failed');
+      expect(mapAskAiError({}).kind).toBe('answer-failed');
+      expect(mapAskAiError(42).kind).toBe('answer-failed');
     });
   });
 
@@ -128,6 +147,20 @@ describe('askAiLogic', () => {
       expect(isSupportedAskAiModel('DeepSeek')).toBe(false);
       expect(isSupportedAskAiModel('Local')).toBe(false);
       expect(isSupportedAskAiModel('unknown')).toBe(false);
+    });
+
+    it('accepts the two wired models', () => {
+      expect(isSupportedAskAiModel('auto')).toBe(true);
+      expect(isSupportedAskAiModel('OpenAI')).toBe(true);
+    });
+
+    it('rejects unknown and non-model inputs', () => {
+      expect(isSupportedAskAiModel(undefined)).toBe(false);
+      expect(isSupportedAskAiModel(null)).toBe(false);
+      expect(isSupportedAskAiModel('')).toBe(false);
+      expect(isSupportedAskAiModel('auto ')).toBe(false);
+      expect(isSupportedAskAiModel('openai')).toBe(false);
+      expect(isSupportedAskAiModel(42)).toBe(false);
     });
 
     it('labels every option', () => {
@@ -150,6 +183,22 @@ describe('askAiLogic', () => {
       expect(buildFallbackKnowledgeResponse({ scope: 'project', question: 'q' }).scope).toBe(
         'project',
       );
+    });
+
+    it('preserves the request sessionId when provided', () => {
+      const response = buildFallbackKnowledgeResponse({
+        scope: 'global',
+        question: 'q',
+        sessionId: 's-1',
+      });
+      expect(response.sessionId).toBe('s-1');
+    });
+
+    it('generates a sample session and id for requests without one', () => {
+      const response = buildFallbackKnowledgeResponse({ scope: 'global', question: 'q' });
+      expect(response.sessionId).toMatch(/^sample-session-\d+$/);
+      expect(response.id).toMatch(/^sample-query-global-\d+$/);
+      expect(new Date(response.answeredAt).getTime()).not.toBeNaN();
     });
   });
 });
