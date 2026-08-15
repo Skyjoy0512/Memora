@@ -56,6 +56,6 @@ const skStyles = StyleSheet.create({
     flex: 1,
     gap: spacing.xs,
     minWidth: 0,
-    paddingTop: 2,
+    paddingTop: spacing.xxs,
   },
 });

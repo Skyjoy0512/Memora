@@ -492,7 +492,7 @@ const homeStyles = StyleSheet.create({
   projectAvatar: { alignItems: 'center', borderRadius: radius.sm, height: 26, justifyContent: 'center', width: 26 },
   projectAvatarText: { color: colors.surface, ...textStyles.captionBold },
   projectName: { color: colors.text, ...textStyles.footnoteBold },
-  projectCount: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
+  projectCount: { color: colors.textTertiary, marginTop: spacing.xxs, ...textStyles.caption },
   projectView: { gap: spacing.xs },
   projectHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   projectViewTitle: { color: colors.text, ...textStyles.callout },

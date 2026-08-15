@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     flexDirection: 'row',
     minHeight: 52,
-    paddingHorizontal: 2,
+    paddingHorizontal: spacing.xxs,
   },
   suggestionPressed: { opacity: 0.46 },
   suggestionText: { color: colors.text, flex: 1, ...textStyles.body },
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-    paddingVertical: 2,
+    paddingVertical: spacing.xxs,
   },
   sourceText: {
     color: colors.textTertiary,
