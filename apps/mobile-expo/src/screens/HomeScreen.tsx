@@ -181,7 +181,7 @@ export function HomeScreen() {
               </Select.Trigger>
               <Select.Portal>
                 <Select.Overlay />
-                <Select.Content align="end" placement="bottom" presentation="popover">
+                <Select.Content align="end" placement="bottom" presentation="popover" style={homeStyles.viewSelectContent}>
                   {viewOptions.map((option) => (
                     <Select.Item key={option.value} label={option.label} value={option.value}>
                       <Select.ItemLabel />
@@ -464,17 +464,20 @@ const homeStyles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: 'center',
     minHeight: 44,
+    // heroui-native の .select__value は flex: 1（flexBasis: 0）を持つ。自動幅の親では
+    // 配分すべき空間が確定せずラベルが幅ゼロに潰れるため、トリガに確定幅を与える。
+    // style prop で flexGrow/flexBasis を打ち消す方法は実機で効かなかった（検証済み）。
+    // 値は最長ラベル「プロジェクト」+ シェブロンが収まる 4pt 基底の幅。
+    minWidth: 112,
     paddingHorizontal: spacing.sm,
   },
   viewSelectValue: {
     color: colors.text,
-    // heroui-native の .select__value クラスが flex: 1（flexBasis: 0）を付与し、
-    // 自動幅のトリガ内でラベルが幅ゼロに潰れるため、コンテンツ基準でサイズさせる。
-    flexBasis: 'auto',
-    flexGrow: 0,
-    flexShrink: 1,
     ...textStyles.footnoteBold,
   },
+  // .select__item-label も flex: 1 を持つため、Content が自動幅だと項目ラベルが
+  // 1文字ずつ折り返す（実機で確認）。Content 側にも確定幅を与える。
+  viewSelectContent: { minWidth: 180 },
   listContent: { paddingBottom: listBottomPadding, paddingHorizontal: screenMargin.compact },
   projectBottomSpacer: { height: projectViewBottomInset },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
