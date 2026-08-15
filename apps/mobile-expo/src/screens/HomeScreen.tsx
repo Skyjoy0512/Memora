@@ -32,6 +32,7 @@ import { Separator } from 'heroui-native/separator';
 import { Spinner } from 'heroui-native/spinner';
 import { EmptyState, ErrorState } from '../components/StateViews';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
+import { screenMargin } from '../theme/tokens';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
 import { useAudioFiles } from '../features/files/useAudioFiles';
 import { MemoraNative } from '../native/MemoraNative';
@@ -174,7 +175,7 @@ export function HomeScreen() {
               presentation="popover"
               value={viewValue}
             >
-              <Select.Trigger variant="unstyled" style={homeStyles.viewSelectTrigger}>
+              <Select.Trigger accessibilityLabel="表示を切り替え" variant="unstyled" style={homeStyles.viewSelectTrigger}>
                 <Select.Value numberOfLines={1} placeholder="表示" style={homeStyles.viewSelectValue} />
                 <Select.TriggerIndicator iconProps={{ color: colors.textSecondary, size: 12 }} />
               </Select.Trigger>
@@ -465,8 +466,16 @@ const homeStyles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: spacing.sm,
   },
-  viewSelectValue: { color: colors.text, ...textStyles.footnoteBold },
-  listContent: { paddingBottom: listBottomPadding, paddingHorizontal: 18 },
+  viewSelectValue: {
+    color: colors.text,
+    // heroui-native の .select__value クラスが flex: 1（flexBasis: 0）を付与し、
+    // 自動幅のトリガ内でラベルが幅ゼロに潰れるため、コンテンツ基準でサイズさせる。
+    flexBasis: 'auto',
+    flexGrow: 0,
+    flexShrink: 1,
+    ...textStyles.footnoteBold,
+  },
+  listContent: { paddingBottom: listBottomPadding, paddingHorizontal: screenMargin.compact },
   projectBottomSpacer: { height: projectViewBottomInset },
   pressed: { opacity: 0.62, transform: [{ scale: 0.93 }] },
   emptyActions: { gap: spacing.sm },

@@ -18,7 +18,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, fonts, radius, textStyles } from "../../design/tokens";
+import { colors, fonts, radius, spacing, textStyles } from "../../design/tokens";
+import { shadow as themeShadow } from "../../theme/tokens";
 import { MemoraNative } from "../../native/MemoraNative";
 import type { SummaryOptionsDTO } from "../../native/MemoraNative.types";
 import type { AudioFile } from "../../types/memora";
@@ -772,8 +773,8 @@ const styles = StyleSheet.create({
   backgroundButton: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
   backgroundButtonText: { color: colors.text, ...textStyles.footnoteBold },
   confirmActions: { flexDirection: "row", gap: 8, marginTop: 16 },
@@ -818,7 +819,7 @@ const styles = StyleSheet.create({
   },
   confirmTitle: {
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: spacing.xs,
     textAlign: "center",
     ...textStyles.callout,
   },
@@ -841,14 +842,14 @@ const styles = StyleSheet.create({
   generateCenter: {
     alignItems: "center",
     flex: 1,
-    gap: 26,
+    gap: spacing.xl,
     justifyContent: "center",
-    paddingHorizontal: 30,
+    paddingHorizontal: spacing.xxl,
   },
   generateChip: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 8,
   },
   generateChipActive: { backgroundColor: colors.text },
@@ -870,8 +871,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.xs,
   },
   generateIconCircle: {
     alignItems: "center",
@@ -881,7 +882,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 56,
   },
-  generateIconRow: { alignItems: "center", flexDirection: "row", gap: 18 },
+  generateIconRow: { alignItems: "center", flexDirection: "row", gap: spacing.md },
   generateModeCard: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
@@ -894,7 +895,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     ...textStyles.caption,
   },
-  generateModeRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  generateModeRow: { flexDirection: "row", gap: 8, marginBottom: spacing.sm },
   generateModeTextActive: { color: colors.surface },
   generateModeTitle: {
     color: colors.text,
@@ -908,27 +909,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingBottom: 16,
     paddingHorizontal: 2,
-    paddingTop: 6,
+    paddingTop: spacing.xs,
   },
   generateModelValue: { color: colors.textTertiary, ...textStyles.footnote },
   generateModelValueWrap: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 5,
+    gap: spacing.xxs,
   },
   generateName: {
     color: colors.text,
-    paddingBottom: 18,
-    paddingHorizontal: 18,
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.md,
     paddingTop: 2,
     ...textStyles.sectionTitle,
   },
   generatePanel: {
     borderTopColor: "#F2F2F2",
     borderTopWidth: 1,
-    paddingBottom: 26,
-    paddingHorizontal: 18,
-    paddingTop: 14,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   generateScreen: { backgroundColor: "#FFFFFF", flex: 1 },
   generateSkip: {
@@ -944,8 +945,8 @@ const styles = StyleSheet.create({
   generateTemplateRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 14,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   generateTitle: {
     color: colors.text,
@@ -968,8 +969,8 @@ const styles = StyleSheet.create({
   },
   generationLabel: {
     color: colors.text,
-    marginBottom: 22,
-    marginTop: 22,
+    marginBottom: spacing.lg,
+    marginTop: spacing.lg,
     ...textStyles.callout,
   },
   generationScreen: { backgroundColor: "#FFFFFF", flex: 1 },
@@ -987,7 +988,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
     minWidth: 16,
     overflow: "hidden",
-    paddingHorizontal: 3,
+    paddingHorizontal: spacing.xxs,
     position: "absolute",
     right: -2,
     textAlign: "center",
@@ -1001,10 +1002,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     position: "absolute",
-    shadowColor: "#000000",
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
+    ...themeShadow.recordingFab,
     top: 11,
     zIndex: 50,
   },
@@ -1015,15 +1013,15 @@ const styles = StyleSheet.create({
     width: 7,
   },
   islandDotPaused: { backgroundColor: colors.textTertiary },
-  islandGeneration: { gap: 8, height: 36, paddingHorizontal: 14, width: 198 },
+  islandGeneration: { gap: 8, height: 36, paddingHorizontal: spacing.sm, width: 198 },
   islandGenerationText: {
     color: colors.surface,
     flex: 1,
     ...textStyles.caption,
   },
-  islandRecording: { gap: 8, height: 36, paddingHorizontal: 14, width: 156 },
+  islandRecording: { gap: 8, height: 36, paddingHorizontal: spacing.sm, width: 156 },
   islandSnackbar: {
-    gap: 10,
+    gap: spacing.xs,
     height: 54,
     justifyContent: "flex-start",
     paddingHorizontal: 16,
@@ -1054,7 +1052,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     borderRadius: 2,
     height: 4,
-    marginBottom: 18,
+    marginBottom: spacing.md,
     width: 220,
   },
   recordingContent: {
@@ -1072,8 +1070,8 @@ const styles = StyleSheet.create({
   recordingHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
-    paddingTop: 18,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
   },
   recordingStatus: {
     color: colors.textTertiary,
@@ -1114,7 +1112,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderLight,
     borderTopWidth: 1,
     minHeight: 96,
-    paddingTop: 14,
+    paddingTop: spacing.sm,
   },
   transcriptText: { color: colors.textTertiary, ...textStyles.footnote },
   wave: { borderRadius: 2, width: 4 },

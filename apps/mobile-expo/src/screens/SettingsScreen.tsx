@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     minHeight: 50,
-    paddingVertical: 14,
+    paddingVertical: spacing.sm,
   },
   v6RowTitle: {
     color: colors.text,
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 50,
-    paddingVertical: 14,
+    paddingVertical: spacing.sm,
   },
   vocabularyRow: {
     alignItems: 'center',

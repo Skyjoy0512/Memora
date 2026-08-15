@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
   attachmentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   attachmentThumbWrap: { aspectRatio: 1, borderRadius: radius.md, overflow: 'hidden', width: '30.8%' },
   attachmentThumb: { height: '100%', width: '100%' },
-  attachmentLocalBadge: { backgroundColor: 'rgba(13,13,13,0.7)', borderRadius: 6, left: 5, paddingHorizontal: 5, paddingVertical: 2, position: 'absolute', top: 5 },
+  attachmentLocalBadge: { backgroundColor: 'rgba(13,13,13,0.7)', borderRadius: 6, left: 5, paddingHorizontal: spacing.xxs, paddingVertical: 2, position: 'absolute', top: 5 },
   attachmentLocalBadgeText: { color: colors.surface, ...textStyles.captionBold },
   attachmentAdd: { alignItems: 'center', aspectRatio: 1, borderColor: colors.border, borderRadius: radius.md, borderStyle: 'dashed', borderWidth: 1.5, justifyContent: 'center', width: '30.8%' },
   attachmentStorageNote: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    gap: 3,
+    gap: spacing.xxs,
     minHeight: 44,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
