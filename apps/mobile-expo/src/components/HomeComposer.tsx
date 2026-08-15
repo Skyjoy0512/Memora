@@ -215,7 +215,7 @@ export function AskModelSelect({ compact = false }: { compact?: boolean }) {
       </Select.Trigger>
       <Select.Portal>
         <Select.Overlay />
-        <Select.Content align="center" placement="top" presentation="popover">
+        <Select.Content align="center" placement="top" presentation="popover" style={styles.selectContent}>
           {ASK_AI_MODEL_OPTIONS.map((model) => (
             <Select.Item key={model} label={ASK_AI_MODEL_LABELS[model]} value={model}>
               <Select.ItemLabel />
@@ -270,7 +270,7 @@ function ProjectSelectPill() {
       )}
       <Select.Portal>
         <Select.Overlay />
-        <Select.Content presentation="bottom-sheet">
+        <Select.Content presentation="bottom-sheet" style={styles.selectContent}>
           <Select.ListLabel style={styles.projectSheetLabel}>プロジェクトを選択</Select.ListLabel>
           {projectOptions.map((project) => (
             <Select.Item key={project} label={project} value={project}>
@@ -432,6 +432,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     ...textStyles.caption,
   },
+  // heroui-native の .select__item-label は flex: 1 を持つため、Content が自動幅だと
+  // 項目ラベルが1文字ずつ折り返す（実機で確認）。Content 側に確定幅を与える。
+  selectContent: { minWidth: 220 },
   projectPill: {
     borderColor: themeColors.light.glassBorderFallback,
     borderRadius: radius.pill,
