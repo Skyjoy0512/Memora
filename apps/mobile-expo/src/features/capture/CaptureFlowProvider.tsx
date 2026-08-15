@@ -17,7 +17,10 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import { colors, fonts, radius, spacing, textStyles } from "../../design/tokens";
 import { shadow as themeShadow } from "../../theme/tokens";
 import { MemoraNative } from "../../native/MemoraNative";
@@ -160,48 +163,54 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
         transparent={false}
         visible={mode !== "idle"}
       >
-        {mode === "recording" ? (
-          <RecordingOverlay
-            elapsedSeconds={elapsedSeconds}
-            highlightCount={highlightCount}
-            isPaused={isPaused}
-            onDiscard={() => void flow.discardRecording()}
-            onHighlight={() => setHighlightCount((count) => count + 1)}
-            onMinimize={() => setMode("idle")}
-            onTogglePause={() =>
-              void (isPaused ? flow.resumeRecording() : flow.pauseRecording())
-            }
-            onStop={() => void flow.stopRecording()}
-          />
-        ) : mode === "generate" ? (
-          <GenerateOverlay
-            defaultName={latestFile?.title ?? "新しい録音"}
-            onBack={() => setMode("idle")}
-            onGenerate={(request) => {
-              if (latestFile) startGeneration(latestFile, request);
-            }}
-            onSkip={(options) => {
-              if (latestFile) startGeneration(latestFile, { options });
-            }}
-          />
-        ) : (
-          <GenerationOverlay
-            error={generationError}
-            onClose={() => {
-              setMode("idle");
-              if (
-                generationPhase === "completed" ||
-                generationPhase === "failed"
-              ) {
-                setGenerationPhase("analyzing");
-                setGenerationProgress(0);
-                setGenerationError(undefined);
+        {/* RN の Modal は別のネイティブ view 階層に描画されるため、アプリ側の
+            SafeAreaProvider の context が Modal 内部に届かず inset が 0 になる。
+            ここにローカルな SafeAreaProvider を置き、Modal 自身の safe-area を
+            計測させる（AskAiOverlayScreen の fullScreenModal と同じパターン）。 */}
+        <SafeAreaProvider style={styles.modalContainer}>
+          {mode === "recording" ? (
+            <RecordingOverlay
+              elapsedSeconds={elapsedSeconds}
+              highlightCount={highlightCount}
+              isPaused={isPaused}
+              onDiscard={() => void flow.discardRecording()}
+              onHighlight={() => setHighlightCount((count) => count + 1)}
+              onMinimize={() => setMode("idle")}
+              onTogglePause={() =>
+                void (isPaused ? flow.resumeRecording() : flow.pauseRecording())
               }
-            }}
-            phase={generationPhase}
-            progress={generationProgress}
-          />
-        )}
+              onStop={() => void flow.stopRecording()}
+            />
+          ) : mode === "generate" ? (
+            <GenerateOverlay
+              defaultName={latestFile?.title ?? "新しい録音"}
+              onBack={() => setMode("idle")}
+              onGenerate={(request) => {
+                if (latestFile) startGeneration(latestFile, request);
+              }}
+              onSkip={(options) => {
+                if (latestFile) startGeneration(latestFile, { options });
+              }}
+            />
+          ) : (
+            <GenerationOverlay
+              error={generationError}
+              onClose={() => {
+                setMode("idle");
+                if (
+                  generationPhase === "completed" ||
+                  generationPhase === "failed"
+                ) {
+                  setGenerationPhase("analyzing");
+                  setGenerationProgress(0);
+                  setGenerationError(undefined);
+                }
+              }}
+              phase={generationPhase}
+              progress={generationProgress}
+            />
+          )}
+        </SafeAreaProvider>
       </Modal>
       <DynamicIslandPill
         elapsedSeconds={elapsedSeconds}
@@ -286,7 +295,7 @@ function RecordingOverlay({
   );
 
   return (
-    <SafeAreaView style={styles.modalScreen}>
+    <SafeAreaView edges={["top", "bottom"]} style={styles.modalScreen}>
       <View style={styles.recordingHeader}>
         <RoundIcon
           accessibilityLabel="録音を最小化"
@@ -315,7 +324,10 @@ function RecordingOverlay({
               key={index}
               style={[
                 styles.wave,
-                { backgroundColor: isPaused ? "#D6D6DB" : colors.text, height },
+                {
+                  backgroundColor: isPaused ? colors.borderLight : colors.text,
+                  height,
+                },
               ]}
             />
           ))}
@@ -425,7 +437,7 @@ function GenerateOverlay({
   }, []);
 
   return (
-    <SafeAreaView style={styles.generateScreen}>
+    <SafeAreaView edges={["top", "bottom"]} style={styles.generateScreen}>
       <View style={styles.generateHeader}>
         <Pressable
           accessibilityLabel="録音に戻る"
@@ -596,7 +608,7 @@ function GenerationOverlay({
   const isComplete = phase === "completed" || phase === "failed";
 
   return (
-    <SafeAreaView style={styles.generationScreen}>
+    <SafeAreaView edges={["top", "bottom"]} style={styles.generationScreen}>
       <View style={styles.generationContent}>
         {isComplete ? (
           <Ionicons
@@ -710,7 +722,7 @@ function DynamicIslandPill({
         onPress={onOpenGeneration}
         style={[styles.island, styles.islandGeneration]}
       >
-        <ActivityIndicator color="#FFFFFF" size="small" />
+        <ActivityIndicator color={colors.textInverse} size="small" />
         <Text numberOfLines={1} style={styles.islandGenerationText}>
           {label}
         </Text>
@@ -770,6 +782,7 @@ function generationLabel(phase: GenerationPhase) {
 }
 
 const styles = StyleSheet.create({
+  modalContainer: { flex: 1 },
   backgroundButton: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
@@ -793,7 +806,7 @@ const styles = StyleSheet.create({
   },
   confirmCancelText: { color: colors.text, ...textStyles.footnoteBold },
   confirmCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.surfaceElevated,
     borderRadius: radius.lg,
     marginHorizontal: 40,
     padding: 20,
@@ -859,7 +872,7 @@ const styles = StyleSheet.create({
   },
   generateHandle: {
     alignSelf: "center",
-    backgroundColor: "#D9D9D9",
+    backgroundColor: colors.border,
     borderRadius: 2,
     height: 4,
     marginBottom: 16,
@@ -923,13 +936,13 @@ const styles = StyleSheet.create({
     ...textStyles.sectionTitle,
   },
   generatePanel: {
-    borderTopColor: "#F2F2F2",
+    borderTopColor: colors.borderLight,
     borderTopWidth: 1,
     paddingBottom: spacing.xl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
-  generateScreen: { backgroundColor: "#FFFFFF", flex: 1 },
+  generateScreen: { backgroundColor: colors.surface, flex: 1 },
   generateSkip: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
@@ -971,7 +984,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     ...textStyles.callout,
   },
-  generationScreen: { backgroundColor: "#FFFFFF", flex: 1 },
+  generationScreen: { backgroundColor: colors.surface, flex: 1 },
   highlightButton: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
@@ -1035,7 +1048,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     ...fonts.mono.regular,
   },
-  islandWave: { backgroundColor: "#FFFFFF", borderRadius: 1, width: 2 },
+  islandWave: { backgroundColor: colors.textInverse, borderRadius: 1, width: 2 },
   islandWaveform: {
     alignItems: "center",
     flex: 1,
@@ -1043,7 +1056,7 @@ const styles = StyleSheet.create({
     gap: 2,
     justifyContent: "center",
   },
-  modalScreen: { backgroundColor: "#FFFFFF", flex: 1 },
+  modalScreen: { backgroundColor: colors.surface, flex: 1 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.93 }] },
   progressFill: { backgroundColor: colors.text, borderRadius: 2, height: 4 },
   progressTrack: {
@@ -1100,7 +1113,7 @@ const styles = StyleSheet.create({
     width: 72,
   },
   stopSquare: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.textInverse,
     borderRadius: 6,
     height: 26,
     width: 26,

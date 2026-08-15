@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   track: {
-    backgroundColor: '#EEEEEE',
+    backgroundColor: colors.borderLight,
     borderRadius: 2,
     height: 3,
     overflow: 'hidden',

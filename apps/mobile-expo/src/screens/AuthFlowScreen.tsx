@@ -15,6 +15,11 @@ import { colors, fonts, radius, spacing, textStyles } from "../design/tokens";
 import { isCompleteCode, isEmailLike } from "../utils/authFlow";
 
 type Stage = "onboarding" | "login" | "email" | "code" | "paywall";
+
+// Google ブランドカラー。意味論トークンの対象外（ブランド色はトークン体系に
+// 載せず、名前付き定数として切り出す）。
+const GOOGLE_BLUE = "#4285F4";
+
 const slides = [
   ["記録を、もっと自然に", "会議や雑談をワンタップで記録します。"],
   ["要点を、すぐに把握", "決定事項と次のアクションを自動で整理します。"],
@@ -517,7 +522,7 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: "center",
   },
-  googleG: { color: "#4285F4", ...textStyles.callout },
+  googleG: { color: GOOGLE_BLUE, ...textStyles.callout },
   googleText: { color: colors.text, ...textStyles.bodyBold },
   emailButton: {
     alignItems: "center",
