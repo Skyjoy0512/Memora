@@ -1,7 +1,6 @@
 import type { IconComponent, IconProps } from 'reicon-react-native';
 import AlertCircle from 'reicon-react-native/icons/AlertCircle';
 import ArrowRight from 'reicon-react-native/icons/ArrowRight';
-import AttachCircle2 from 'reicon-react-native/icons/AttachCircle2';
 import Bookmark from 'reicon-react-native/icons/Bookmark';
 import Chat from 'reicon-react-native/icons/Chat';
 import Check from 'reicon-react-native/icons/Check';
@@ -20,6 +19,7 @@ import Image from 'reicon-react-native/icons/Image';
 import Microphone from 'reicon-react-native/icons/Microphone';
 import MoreH from 'reicon-react-native/icons/MoreH';
 import Pause from 'reicon-react-native/icons/Pause';
+import Paperclip from 'reicon-react-native/icons/Paperclip';
 import Play from 'reicon-react-native/icons/Play';
 import Plus from 'reicon-react-native/icons/Plus';
 import Pulse from 'reicon-react-native/icons/Pulse';
@@ -40,7 +40,7 @@ const icons = {
   add: Plus,
   'alert-circle': AlertCircle,
   'arrow-forward': ArrowRight,
-  'attach-outline': AttachCircle2,
+  'attach-outline': Paperclip,
   'bookmark-outline': Bookmark,
   'chatbubble-outline': Chat,
   checkmark: Check,

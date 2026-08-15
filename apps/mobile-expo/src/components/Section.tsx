@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, textStyles } from '../design/tokens';
 
 type Props = {
-  title: string;
+  title?: string;
   children: ReactNode;
   action?: ReactNode;
 };
@@ -11,10 +11,12 @@ type Props = {
 export function Section({ title, children, action }: Props) {
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {action}
-      </View>
+      {title || action ? (
+        <View style={styles.header}>
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {action}
+        </View>
+      ) : null}
       {children}
     </View>
   );

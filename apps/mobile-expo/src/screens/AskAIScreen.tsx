@@ -557,7 +557,6 @@ const styles = StyleSheet.create({
   },
   composerBlocked: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     justifyContent: 'center',
     minHeight: 92,
     paddingHorizontal: spacing.md,
@@ -583,7 +582,6 @@ const styles = StyleSheet.create({
   },
   sendButton: { height: 44, marginLeft: 'auto', width: 44 },
   askDock: {
-    backgroundColor: colors.surface,
     paddingBottom: DOCK_BOTTOM_CLEARANCE,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,

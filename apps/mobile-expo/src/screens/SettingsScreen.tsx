@@ -395,6 +395,7 @@ export function SettingsScreen() {
         value={editingVocabulary}
       />
       <NotionParentPageEditor
+        isOpen={editingNotionParentPage}
         onClose={() => setEditingNotionParentPage(false)}
         onChangeText={setNotionParentDraft}
         onSave={() => void saveNotionParentPage()}
@@ -636,16 +637,20 @@ function VocabularyEditor({
 }
 
 function NotionParentPageEditor({
+  isOpen,
   onClose,
   onChangeText,
   onSave,
   value,
 }: {
+  isOpen: boolean;
   onClose: () => void;
   onChangeText: (text: string) => void;
   onSave: () => void;
   value: string;
 }) {
+  if (!isOpen) return null;
+
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible>
       <View style={styles.modalBackdrop}>
