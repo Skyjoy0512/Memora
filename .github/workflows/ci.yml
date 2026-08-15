@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+    # 既定の types は [opened, synchronize, reopened]。auto-pr-from-push が
+    # GITHUB_TOKEN で作る PR では opened が連鎖しないため、draft を ready に
+    # した時点で CI が走るよう ready_for_review を足す。
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ios-ci-${{ github.ref }}
