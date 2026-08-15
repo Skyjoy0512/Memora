@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   chip: { backgroundColor: colors.surfaceAlt, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   chipSelected: { backgroundColor: colors.text },
   chipText: { color: colors.textSecondary, fontSize: typography.size.body, fontWeight: '600' },
-  chipTextSelected: { color: '#FFFFFF' },
+  chipTextSelected: { color: colors.textInverse },
   persistenceError: { color: colors.danger, fontSize: typography.size.caption, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   preview: { padding: spacing.lg },
   previewCard: { backgroundColor: colors.surfaceAlt, borderRadius: radius.lg, gap: spacing.md, padding: spacing.lg },
