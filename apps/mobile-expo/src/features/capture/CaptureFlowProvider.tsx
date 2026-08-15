@@ -842,8 +842,6 @@ const styles = StyleSheet.create({
   generateCenter: {
     alignItems: "center",
     flex: 1,
-    gap: spacing.xl,
-    justifyContent: "center",
     paddingHorizontal: spacing.xxl,
   },
   generateChip: {
@@ -892,14 +890,14 @@ const styles = StyleSheet.create({
   generateModeCardActive: { backgroundColor: colors.text },
   generateModeDesc: {
     color: colors.textTertiary,
-    marginTop: 2,
+    marginTop: spacing.xxs,
     ...textStyles.caption,
   },
   generateModeRow: { flexDirection: "row", gap: 8, marginBottom: spacing.sm },
   generateModeTextActive: { color: colors.surface },
   generateModeTitle: {
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: spacing.xxs,
     ...textStyles.footnoteBold,
   },
   generateModelLabel: { color: colors.text, ...textStyles.footnoteBold },
@@ -908,7 +906,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingBottom: 16,
-    paddingHorizontal: 2,
+    paddingHorizontal: spacing.xxs,
     paddingTop: spacing.xs,
   },
   generateModelValue: { color: colors.textTertiary, ...textStyles.footnote },
@@ -921,7 +919,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingTop: 2,
+    paddingTop: spacing.xxs,
     ...textStyles.sectionTitle,
   },
   generatePanel: {

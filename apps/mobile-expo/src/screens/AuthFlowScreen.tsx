@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   glyphTitle: {
     color: colors.text,
-    marginBottom: 1,
+    marginBottom: spacing.xxs,
     ...textStyles.footnoteBold,
   },
   glyphLineLong: {
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
     left: 10,
     paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
+    paddingVertical: spacing.xxs,
     position: "absolute",
     top: -10,
     ...textStyles.captionBold,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     ...textStyles.footnoteBold,
   },
   planPrice: { color: colors.text, ...textStyles.callout },
-  planNote: { color: colors.textTertiary, marginTop: 2, ...textStyles.caption },
+  planNote: { color: colors.textTertiary, marginTop: spacing.xxs, ...textStyles.caption },
   cancelHint: {
     color: colors.textTertiary,
     marginBottom: 16,

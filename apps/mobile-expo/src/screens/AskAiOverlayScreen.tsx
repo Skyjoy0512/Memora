@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-    paddingVertical: 2,
+    paddingVertical: spacing.xxs,
   },
   sourceText: {
     color: colors.textTertiary,

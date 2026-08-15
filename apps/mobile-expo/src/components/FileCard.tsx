@@ -4,7 +4,7 @@ import { PressableFeedback } from 'heroui-native/pressable-feedback';
 import { Separator } from 'heroui-native/separator';
 import { AppIcon } from './AppIcon';
 import { StatusPill } from './StatusPill';
-import { colors, motion, radius, spacing, textStyles } from '../design/tokens';
+import { colors, motion, spacing, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 
@@ -60,7 +60,7 @@ export function FileCard({
         >
           <View style={fcStyles.icon}>
             <AppIcon
-              color={colors.textSecondary}
+              color={file.source === 'iPhone' ? colors.text : colors.textSecondary}
               name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
               size={16}
             />
@@ -127,8 +127,6 @@ const fcStyles = StyleSheet.create({
   },
   icon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.xs,
     flexShrink: 0,
     height: 32,
     justifyContent: 'center',
@@ -144,13 +142,13 @@ const fcStyles = StyleSheet.create({
   },
   meta: {
     color: colors.textSecondary,
-    marginTop: 1,
-    ...textStyles.caption,
-  },
-  summary: {
-    color: colors.textSecondary,
     marginTop: spacing.xxs,
     ...textStyles.footnote,
+  },
+  summary: {
+    color: colors.textTertiary,
+    marginTop: spacing.xxs,
+    ...textStyles.caption,
   },
   status: {
     flexShrink: 0,
