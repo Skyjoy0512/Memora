@@ -16,8 +16,10 @@ import { Tabs } from 'heroui-native/tabs';
 import { RadioGroup } from 'heroui-native/radio-group';
 import { PlayerBar } from '../components/PlayerBar';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { Screen } from '../components/Screen';
 import { Section } from '../components/Section';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { EmptyState, ErrorState, LoadingState } from '../components/StateViews';
 import { StatusPill } from '../components/StatusPill';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
@@ -655,8 +657,8 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
       ) : null}
 
       {tab === 'transcript' ? (
-        <Section title="文字起こし">
-          {playback.error ? <Text style={styles.summaryError}>{playback.error}</Text> : null}
+        <Section>
+          {playback.error ? <OfflineBanner message={playback.error} /> : null}
 
           {transcriptCount === 0 ? <TranscriptionProgressCard
             error={transcription.error}
@@ -667,9 +669,14 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             task={transcription.task}
           /> : null}
           <View style={styles.panel}>
-            {transcriptCount > 0 ? <Pressable accessibilityLabel="文字起こし表示を切り替え" accessibilityRole="button" onPress={() => setShowCleanedTranscript((value) => !value)} style={styles.startTranscription}>
-              <Text style={styles.startTranscriptionText}>{showCleanedTranscript ? '元の文字起こしを表示' : '整形後を表示'}</Text>
-            </Pressable> : null}
+            {transcriptCount > 0 ? <SegmentedControl
+              onSelect={(key) => setShowCleanedTranscript(key === 'cleaned')}
+              segments={[
+                { key: 'cleaned', label: '整形後' },
+                { key: 'original', label: '元の文字起こし' },
+              ]}
+              selected={showCleanedTranscript ? 'cleaned' : 'original'}
+            /> : null}
             {transcriptCount === 0 ? (
               <View style={styles.generateCta}>
                 <View style={styles.generateIconRow}>
@@ -728,14 +735,12 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                     <Button
                       accessibilityLabel="この発言をタスクに追加"
                       background={null}
-                      feedbackVariant="none"
-                      isIconOnly
                       onPress={() => void handleTaskizeSegment(segment)}
-                      size="sm"
                       variant="ghost"
                       style={styles.segmentTaskize}
                     >
                       <Ionicons color={colors.textTertiary} name="add" size={14} />
+                      <Button.Label>タスク</Button.Label>
                     </Button>
                   </View>
                 ))}
@@ -746,7 +751,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
       ) : null}
 
       {tab === 'memo' ? (
-        <Section title="メモ">
+        <Section>
           <View style={styles.panel}>
             {isEditingMemo ? (
               <View style={styles.memoEditBlock}>
@@ -1381,7 +1386,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   segmentActive: { backgroundColor: colors.accentSoft },
-  segmentTaskize: { height: 44, justifyContent: 'center', width: 44 },
+  segmentTaskize: { minHeight: 44 },
   segmentMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1401,8 +1406,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingBottom: spacing.md,
   },
-  startTranscription: { backgroundColor: colors.text, borderRadius: radius.md, marginTop: spacing.xs, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  startTranscriptionText: { color: colors.surface, ...textStyles.footnoteBold },
   memoEditBlock: {
     gap: spacing.sm,
   },
