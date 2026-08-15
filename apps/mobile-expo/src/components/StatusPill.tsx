@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: spacing.xxs,
   },
   label: {
     ...textStyles.captionBold,

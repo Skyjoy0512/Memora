@@ -2,6 +2,15 @@ import type { ReactElement, ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, textStyles } from '../design/tokens';
+import { screenMargin } from '../theme/tokens';
+
+/**
+ * スクロール末尾の下部クリアランス。システムタブバー（約57pt → 4pt基底で60）と
+ * 下部コンポーザーを避けるための値で、従来からある 4pt 基底の値（4×28）。
+ * HomeScreen の TAB_BAR_CLEARANCE + HOME_COMPOSER_HEIGHT + HOME_COMPOSER_GAP と
+ * 同じ考え方だが、全画面共通のため既存レイアウトを変えない値に据え置く。
+ */
+const BOTTOM_ACCESSORY_CLEARANCE = 112;
 
 type Props = {
   title?: string;
@@ -84,14 +93,14 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: spacing.lg,
-    paddingBottom: 112,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingBottom: BOTTOM_ACCESSORY_CLEARANCE,
+    paddingHorizontal: screenMargin.compact,
+    paddingTop: spacing.xs,
   },
   listHeaderArea: {
     gap: spacing.lg,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingHorizontal: screenMargin.compact,
+    paddingTop: spacing.xs,
   },
   listBody: {
     flex: 1,

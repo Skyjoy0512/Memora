@@ -1,7 +1,7 @@
 import { AppIcon } from './AppIcon';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type GestureResponderEvent } from 'react-native';
-import { colors, textStyles } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
 import type { PlaybackStatusDTO } from '../native/MemoraNative.types';
 
 type Props = {
@@ -60,8 +60,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.surfaceAlt,
     borderBottomWidth: 1,
     gap: 8,
-    paddingBottom: 10,
-    paddingTop: 6,
+    paddingBottom: spacing.xs,
+    paddingTop: spacing.xs,
   },
   row: {
     alignItems: 'center',
@@ -86,8 +86,8 @@ const styles = StyleSheet.create({
   rateButton: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
   },
   rateText: {
     color: colors.text,

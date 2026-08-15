@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { colors, fonts, radius, textStyles } from "../design/tokens";
+import { colors, fonts, radius, spacing, textStyles } from "../design/tokens";
 import { isCompleteCode, isEmailLike } from "../utils/authFlow";
 
 type Stage = "onboarding" | "login" | "email" | "code" | "paywall";
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     gap: 32,
     justifyContent: "center",
   },
-  onboardingCopy: { gap: 8, paddingHorizontal: 18 },
+  onboardingCopy: { gap: 8, paddingHorizontal: spacing.md },
   authTitle: {
     color: colors.text,
     textAlign: "center",
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   summaryGlyph: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 16,
-    gap: 7,
+    gap: spacing.xs,
     padding: 16,
     width: 220,
   },
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     borderRadius: 4,
     height: 8,
-    marginBottom: 7,
+    marginBottom: spacing.xs,
     width: "65%",
   },
   glyphLineMedium: {
@@ -465,9 +465,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text,
     borderRadius: 26,
     flexDirection: "row",
-    gap: 10,
+    gap: spacing.xs,
     height: 52,
-    paddingHorizontal: 18,
+    paddingHorizontal: spacing.md,
     width: 220,
   },
   askGlyphText: { color: colors.textTertiary, flex: 1, ...textStyles.footnote },
@@ -479,9 +479,9 @@ const styles = StyleSheet.create({
   },
   dots: {
     flexDirection: "row",
-    gap: 6,
+    gap: spacing.xs,
     justifyContent: "center",
-    marginBottom: 22,
+    marginBottom: spacing.lg,
   },
   dot: { backgroundColor: colors.border, borderRadius: 3, height: 6, width: 6 },
   dotActive: { backgroundColor: colors.text, width: 20 },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     ...textStyles.display,
   },
-  loginActions: { gap: 10 },
+  loginActions: { gap: spacing.xs },
   googleButton: {
     alignItems: "center",
     borderColor: colors.border,
@@ -552,12 +552,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.text,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: spacing.sm,
     ...textStyles.callout,
   },
   codeHint: {
     color: colors.textTertiary,
-    marginTop: 6,
+    marginTop: spacing.xs,
     textAlign: "center",
     ...textStyles.footnote,
   },
@@ -582,18 +582,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.text,
     fontSize: 15,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 12,
     ...fonts.mono.regular,
   },
-  paywallContent: { flex: 1, justifyContent: "center", paddingHorizontal: 6 },
-  paywallHero: { alignItems: "center", gap: 4, marginBottom: 22 },
+  paywallContent: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.xs },
+  paywallHero: { alignItems: "center", gap: 4, marginBottom: spacing.lg },
   proTitle: {
     color: colors.text,
     letterSpacing: -0.26,
     ...textStyles.title2,
   },
-  plans: { flexDirection: "row", gap: 10 },
+  plans: { flexDirection: "row", gap: spacing.xs },
   plan: {
     borderColor: colors.border,
     borderRadius: 14,
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     color: colors.surface,
     left: 10,
-    paddingHorizontal: 7,
+    paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     position: "absolute",
     top: -10,

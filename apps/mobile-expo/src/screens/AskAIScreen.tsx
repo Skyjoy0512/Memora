@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xxs,
   },
   sampleBadgeText: {
     color: colors.warning,

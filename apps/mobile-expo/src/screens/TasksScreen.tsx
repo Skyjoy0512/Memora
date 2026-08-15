@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md, ...textStyles.captionBold },
   projectRow: { backgroundColor: colors.surfaceAlt, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   projectText: { color: colors.text, ...textStyles.body },
-  metaRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: 3 },
+  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xxs },
   metaDot: { backgroundColor: colors.textTertiary, borderRadius: 1.5, height: 3, width: 3 },
   sourceShrink: { flexShrink: 1 },
   sourceLink: { color: colors.textTertiary, textDecorationLine: 'underline', ...textStyles.caption },
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   sourceText: { color: colors.textTertiary, ...textStyles.caption },
   dueBadge: { ...textStyles.captionBold },
   taskBody: { flex: 1 },
-  taskRow: { borderBottomColor: colors.borderLight, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 44, paddingVertical: 14 },
+  taskRow: { borderBottomColor: colors.borderLight, borderBottomWidth: 1, flexDirection: 'row', gap: spacing.md, minHeight: 44, paddingVertical: spacing.sm },
   taskTitle: { color: colors.text, ...textStyles.body },
   taskTitleCompleted: { color: colors.textTertiary, textDecorationLine: 'line-through' },
 });
