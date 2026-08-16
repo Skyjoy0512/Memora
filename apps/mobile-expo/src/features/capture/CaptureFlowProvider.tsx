@@ -441,6 +441,7 @@ function GenerateOverlay({
       <View style={styles.generateHeader}>
         <Pressable
           accessibilityLabel="録音に戻る"
+          hitSlop={2}
           onPress={onBack}
           style={({ pressed }) => [
             styles.generateBack,
@@ -701,6 +702,7 @@ function DynamicIslandPill({
     return (
       <Pressable
         accessibilityLabel="録音を開く"
+        hitSlop={{ bottom: 4, top: 4 }}
         onPress={onOpenRecording}
         style={[styles.island, styles.islandRecording]}
       >
@@ -719,6 +721,7 @@ function DynamicIslandPill({
     return (
       <Pressable
         accessibilityLabel="生成進捗を開く"
+        hitSlop={{ bottom: 4, top: 4 }}
         onPress={onOpenGeneration}
         style={[styles.island, styles.islandGeneration]}
       >
@@ -750,6 +753,7 @@ function RoundIcon({
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
+      hitSlop={size === "small" ? 2 : 0}
       onPress={onPress}
       style={({ pressed }) => [
         styles.roundIcon,

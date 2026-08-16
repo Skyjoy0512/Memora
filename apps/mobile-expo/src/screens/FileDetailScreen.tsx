@@ -789,6 +789,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                   <Image source={{ uri: photo.uri }} style={styles.photoThumb} transition={150} />
                   <Pressable
                     accessibilityLabel="写真を削除"
+                    hitSlop={12}
                     onPress={() => void memoNotes.deletePhoto(photo.id)}
                     style={styles.photoDeleteButton}
                   >

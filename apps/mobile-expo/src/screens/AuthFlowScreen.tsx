@@ -367,7 +367,7 @@ function Plan({
 }
 function BackButton({ onPress }: { onPress: () => void }) {
   return (
-    <Pressable accessibilityLabel="戻る" onPress={onPress} style={styles.back}>
+    <Pressable accessibilityLabel="戻る" hitSlop={2} onPress={onPress} style={styles.back}>
       <AppIcon color={colors.text} name="chevron-back" size={19} />
     </Pressable>
   );
