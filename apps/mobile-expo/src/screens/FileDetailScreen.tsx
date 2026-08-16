@@ -1190,9 +1190,7 @@ const styles = StyleSheet.create({
   },
   heroSummary: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '400',
-    lineHeight: 24,
+    ...textStyles.callout,
   },
   heroActions: {
     flexDirection: 'row',
