@@ -1,27 +1,37 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Separator } from 'heroui-native/separator';
 import { colors, spacing, textStyles } from '../design/tokens';
 
 type DateSeparatorProps = {
   date: string;
 };
 
+/**
+ * Open Design v2 の `.date-label`。ラベルの右側を罫線が埋め、
+ * 日付グループの切れ目を横罫として示す。
+ */
 export function DateSeparator({ date }: DateSeparatorProps) {
   return (
-    <View style={dsStyles.container} accessibilityRole="header">
+    <View accessibilityRole="header" style={dsStyles.container}>
       <Text style={dsStyles.label}>{date}</Text>
-      <Separator orientation="horizontal" variant="thin" />
+      <View style={dsStyles.rule} />
     </View>
   );
 }
 
 const dsStyles = StyleSheet.create({
   container: {
-    gap: spacing.xs,
-    paddingTop: spacing.md,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingTop: spacing.xl,
   },
   label: {
-    color: colors.textTertiary,
-    ...textStyles.caption,
+    color: colors.textSecondary,
+    ...textStyles.footnote,
+  },
+  rule: {
+    backgroundColor: colors.border,
+    flex: 1,
+    height: 1,
   },
 });

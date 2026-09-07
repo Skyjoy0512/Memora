@@ -1,4 +1,8 @@
-import { Children, Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Children, useEffect, useState, type ReactNode } from 'react';
+import { NumericText } from '../components/NumericText';
+import { ToggleSwitch } from '../components/ToggleSwitch';
+import { PrimaryAction, SecondaryAction } from '../components/Buttons';
+import { buildRecordingHabit, type RecordingHabit } from '../utils/recordingHabit';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppIcon as Ionicons } from '../components/AppIcon';
 import { useRouter } from 'expo-router';
@@ -19,12 +23,8 @@ import type {
   SummaryOptionsDTO,
 } from '../native/MemoraNative.types';
 import type { SettingsGroup } from '../types/memora';
-import { Switch } from 'heroui-native/switch';
 import { Input } from 'heroui-native/input';
-import { Button } from 'heroui-native/button';
 import { RadioGroup } from 'heroui-native/radio-group';
-import { Separator } from 'heroui-native/separator';
-import { Chip } from 'heroui-native/chip';
 
 const NOT_CONNECTED_MESSAGE =
   'ネイティブブリッジがこのアクションにまだ接続されていません。実データ接続後に有効化します。';
@@ -58,6 +58,7 @@ export function SettingsScreen() {
   const [editingVocabulary, setEditingVocabulary] = useState<CustomVocabularyDTO | null>(null);
   const [editingNotionParentPage, setEditingNotionParentPage] = useState(false);
   const [notionParentDraft, setNotionParentDraft] = useState('');
+  const [habit, setHabit] = useState<RecordingHabit>(() => buildRecordingHabit([]));
 
   useEffect(() => {
     let isMounted = true;
@@ -67,12 +68,14 @@ export function SettingsScreen() {
       MemoraNative.loadSettings(),
       MemoraNative.listCustomVocabulary(),
       MemoraNative.getSecureCredentialStatus('Notion'),
-    ]).then(([info, nextSettings, vocabulary, isNotionConfigured]) => {
+      MemoraNative.listAudioFiles(),
+    ]).then(([info, nextSettings, vocabulary, isNotionConfigured, audioFiles]) => {
       if (isMounted) {
         setBridgeInfo(info);
         setSettings(nextSettings);
         setCustomVocabulary(vocabulary);
         setIsNotionTokenConfigured(isNotionConfigured);
+        setHabit(buildRecordingHabit(audioFiles.map((file) => file.recordedAt)));
       }
     });
 
@@ -97,14 +100,16 @@ export function SettingsScreen() {
 
   return (
     <Screen title="設定">
+      <RecordingHabitRow habit={habit} />
+
       <SettingsGroupCard title="アカウント">
         <SettingsRow onPress={notConnected} title="未設定" />
         <Pressable accessibilityLabel="プラン" accessibilityRole="button" onPress={() => router.push('/auth?stage=paywall')} style={styles.v6Row}>
           <Text style={styles.v6RowTitle}>プラン</Text>
-          <Chip background={null} color="default" size="sm" variant="primary">
-            <Chip.Label>Free</Chip.Label>
-          </Chip>
-          <Ionicons color={colors.border} name="chevron-forward" size={12} />
+          <View style={styles.planBadge}>
+            <Text style={styles.planBadgeLabel}>Free</Text>
+          </View>
+          <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
         </Pressable>
       </SettingsGroupCard>
 
@@ -123,12 +128,10 @@ export function SettingsScreen() {
       <SettingsGroupCard title="通知">
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>プッシュ通知</Text>
-          <Switch
+          <ToggleSwitch
             accessibilityLabel="プッシュ通知のオン・オフ"
-            background={null}
-            hitSlop={6}
-            isSelected={notifEnabled}
-            onSelectedChange={setNotifEnabled}
+            isOn={notifEnabled}
+            onToggle={setNotifEnabled}
           />
         </View>
       </SettingsGroupCard>
@@ -169,12 +172,10 @@ export function SettingsScreen() {
         <SettingsRow onPress={notConnected} title="要約テンプレート" value="議事録" />
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>音声解析（話者識別）</Text>
-          <Switch
+          <ToggleSwitch
             accessibilityLabel="音声解析（話者識別）のオン・オフ"
-            background={null}
-            hitSlop={6}
-            isSelected={settings.speechAnalyzerEnabled}
-            onSelectedChange={(selected) => saveSettings({ ...settings, speechAnalyzerEnabled: selected })}
+            isOn={settings.speechAnalyzerEnabled}
+            onToggle={(selected) => saveSettings({ ...settings, speechAnalyzerEnabled: selected })}
           />
         </View>
       </SettingsGroupCard>
@@ -193,12 +194,10 @@ export function SettingsScreen() {
                 <Text style={styles.vocabularyReplacement}>→ {vocabulary.replacement || '削除'}</Text>
               </View>
             </Pressable>
-            <Switch
+            <ToggleSwitch
               accessibilityLabel={`${vocabulary.pattern} を${vocabulary.enabled ? '無効' : '有効'}にする`}
-              background={null}
-              hitSlop={6}
-              isSelected={vocabulary.enabled}
-              onSelectedChange={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
+              isOn={vocabulary.enabled}
+              onToggle={(enabled) => void setCustomVocabularyEnabled(vocabulary.id, enabled)}
             />
           </View>
         ))}
@@ -291,12 +290,10 @@ export function SettingsScreen() {
                 {settings.speechAnalyzerEnabled ? 'Feature flag on' : 'Feature flag off'}
               </Text>
             </View>
-            <Switch
+            <ToggleSwitch
               accessibilityLabel="SpeechAnalyzer のオン・オフ"
-              background={null}
-              hitSlop={6}
-              isSelected={settings.speechAnalyzerEnabled}
-              onSelectedChange={(selected) =>
+              isOn={settings.speechAnalyzerEnabled}
+              onToggle={(selected) =>
                 saveSettings({ ...settings, speechAnalyzerEnabled: selected })
               }
             />
@@ -598,36 +595,27 @@ function VocabularyEditor({
           />
           <View style={styles.modalActions}>
             {!draft.id.startsWith('vocabulary-') ? (
-              <Button
+              <SecondaryAction
                 accessibilityLabel="辞書を削除"
+                label="削除"
                 onPress={() => onDelete(draft.id)}
-                size="sm"
                 style={styles.vocabularyButton}
-                variant="danger"
-              >
-                <Button.Label>削除</Button.Label>
-              </Button>
+              />
             ) : <View />}
             <View style={styles.modalPrimaryActions}>
-              <Button
+              <SecondaryAction
                 accessibilityLabel="辞書の編集をキャンセル"
+                label="キャンセル"
                 onPress={onClose}
-                size="sm"
                 style={styles.vocabularyButton}
-                variant="ghost"
-              >
-                <Button.Label>キャンセル</Button.Label>
-              </Button>
-              <Button
+              />
+              <PrimaryAction
                 accessibilityLabel="辞書を保存"
                 isDisabled={!draft.pattern.trim()}
+                label="保存"
                 onPress={() => onSave(draft)}
-                size="sm"
                 style={styles.vocabularyButton}
-                variant="primary"
-              >
-                <Button.Label>保存</Button.Label>
-              </Button>
+              />
             </View>
           </View>
         </View>
@@ -672,25 +660,19 @@ function NotionParentPageEditor({
           </Text>
           <View style={styles.modalActions}>
             <View style={styles.modalPrimaryActions}>
-              <Button
+              <SecondaryAction
                 accessibilityLabel="親ページ設定をキャンセル"
+                label="キャンセル"
                 onPress={onClose}
-                size="sm"
                 style={styles.vocabularyButton}
-                variant="ghost"
-              >
-                <Button.Label>キャンセル</Button.Label>
-              </Button>
-              <Button
+              />
+              <PrimaryAction
                 accessibilityLabel="親ページ設定を保存"
                 isDisabled={!value.trim()}
+                label="保存"
                 onPress={onSave}
-                size="sm"
                 style={styles.vocabularyButton}
-                variant="primary"
-              >
-                <Button.Label>保存</Button.Label>
-              </Button>
+              />
             </View>
           </View>
         </View>
@@ -745,6 +727,49 @@ function buildSettingsGroups(
   ];
 }
 
+/**
+ * Open Design v2 の `.settings-group` / `.setting-row`。
+ * グループ見出しは小さなラベル、行は上罫線で区切り、最後の行だけ下罫線を足す。
+ * カード面や角丸は使わない。
+ */
+/**
+ * Open Design v2 の `settings-habit-grid`。直近28日を 7 列 × 4 行の升目で示す。
+ * 数字は mono、記録した日だけを塗る。励ましも警告もしない事実の表示。
+ */
+function RecordingHabitRow({ habit }: { habit: RecordingHabit }) {
+  const weeks: boolean[][] = [];
+  for (let index = 0; index < habit.days.length; index += 7) {
+    weeks.push(habit.days.slice(index, index + 7));
+  }
+
+  return (
+    <View style={styles.habitRow}>
+      <View style={styles.habitCopy}>
+        <Text style={styles.habitLabel}>記録の習慣</Text>
+        <NumericText style={styles.habitMeta}>
+          {`${habit.recordedCount}日記録 · 直近${habit.totalDays}日`}
+        </NumericText>
+      </View>
+      <View
+        accessibilityLabel={`直近${habit.totalDays}日間の記録状況。${habit.recordedCount}日記録しました`}
+        accessibilityRole="image"
+        style={styles.habitGrid}
+      >
+        {weeks.map((week, weekIndex) => (
+          <View key={weekIndex} style={styles.habitWeek}>
+            {week.map((isRecorded, dayIndex) => (
+              <View
+                key={dayIndex}
+                style={[styles.habitCell, isRecorded && styles.habitCellOn]}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function SettingsGroupCard({ children, title }: { children: ReactNode; title: string }) {
   const rows = Children.toArray(children);
   return (
@@ -752,10 +777,9 @@ function SettingsGroupCard({ children, title }: { children: ReactNode; title: st
       <Text style={styles.v6GroupTitle}>{title}</Text>
       <View style={styles.v6Card}>
         {rows.map((row, index) => (
-          <Fragment key={index}>
+          <View key={index} style={[styles.v6RowFrame, index === rows.length - 1 && styles.v6RowFrameLast]}>
             {row}
-            {index < rows.length - 1 ? <Separator variant="thin" /> : null}
-          </Fragment>
+          </View>
         ))}
       </View>
     </View>
@@ -783,7 +807,7 @@ function SettingsRow({
           {value}
         </Text>
       ) : null}
-      {showChevron ? <Ionicons color={colors.border} name="chevron-forward" size={12} /> : null}
+      {showChevron ? <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} /> : null}
     </Pressable>
   );
 }
@@ -809,15 +833,59 @@ function InfoRow({
 }
 
 const styles = StyleSheet.create({
+  habitRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 72,
+    paddingVertical: spacing.sm,
+  },
+  habitCopy: { flexShrink: 1 },
+  habitLabel: { color: colors.text, ...textStyles.label },
+  habitMeta: { color: colors.textSecondary, marginTop: spacing.xxs, ...textStyles.footnote },
+  habitGrid: { flexShrink: 0, gap: spacing.xxs },
+  habitWeek: { flexDirection: 'row', gap: spacing.xxs },
+  habitCell: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: 0,
+    borderWidth: 1,
+    height: 12,
+    width: 12,
+  },
+  habitCellOn: { backgroundColor: colors.text, borderColor: colors.text },
   v6Group: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   v6GroupTitle: {
-    color: colors.textTertiary,
-    ...textStyles.footnoteBold,
+    color: colors.textSecondary,
+    ...textStyles.label,
   },
   v6Card: {
     backgroundColor: colors.canvas,
+  },
+  planBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 0,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+  },
+  planBadgeLabel: {
+    color: colors.textInverse,
+    ...textStyles.label,
+  },
+  v6RowFrame: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+  },
+  v6RowFrameLast: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
   },
   developerToggle: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   developerTogglePressed: { opacity: 0.65, transform: [{ scale: 0.96 }] },
@@ -826,20 +894,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 50,
+    minHeight: 56,
     paddingVertical: spacing.sm,
   },
   v6RowTitle: {
     color: colors.text,
     flexShrink: 0,
-    ...textStyles.body,
+    ...textStyles.footnote,
   },
   v6RowTitleDestructive: {
     color: colors.danger,
     flex: 1,
   },
   v6RowValue: {
-    color: colors.textTertiary,
+    color: colors.textSecondary,
     flex: 1,
     textAlign: 'right',
     ...textStyles.footnote,
@@ -848,7 +916,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 50,
+    minHeight: 56,
     paddingVertical: spacing.sm,
   },
   vocabularyRow: {
@@ -888,7 +956,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: 0,
     gap: spacing.md,
     padding: spacing.lg,
     width: '100%',
@@ -911,7 +979,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   vocabularyButton: {
-    borderRadius: radius.sm,
+    borderRadius: 0,
     minHeight: 44,
   },
   groupCard: {
@@ -951,7 +1019,7 @@ const styles = StyleSheet.create({
     ...textStyles.footnote,
   },
   dot: {
-    borderRadius: radius.pill,
+    borderRadius: radius.circle,
     height: 10,
     width: 10,
   },

@@ -1,46 +1,46 @@
 import { AppIcon } from '../components/AppIcon';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
+import { NumericText } from '../components/NumericText';
+import { IconButton } from '../components/Buttons';
+import { EmptyState } from '../components/StateViews';
+import { useTabBarClearance } from '../components/useTabBarClearance';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Keyboard, LayoutAnimation, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import {
-  ASK_AI_MODEL_LABELS,
-  ASK_AI_MODEL_OPTIONS,
   buildAskAiRequest,
   describeNoTarget,
   mapAskAiError,
   resolveAskAiDataStatus,
   resolveAskAiScope,
-  type AskAiModel,
 } from '../native/askAiLogic';
 import { MemoraNative } from '../native/MemoraNative';
 import { buildTaskFromAssistantAnswer } from '../native/taskLogic';
 import type { BridgeInfoDTO, KnowledgeQueryScope } from '../native/MemoraNative.types';
 import type { AskMessage } from '../types/memora';
-import { Button } from 'heroui-native/button';
-import { TextArea } from 'heroui-native/text-area';
-import { Tabs } from 'heroui-native/tabs';
 import { RadioGroup } from 'heroui-native/radio-group';
 import { Spinner } from 'heroui-native/spinner';
 
-const scopeOptions: Array<{ label: string; value: KnowledgeQueryScope }> = [
-  { label: '全体', value: 'global' },
-  { label: 'プロジェクト', value: 'project' },
-  { label: 'ファイル', value: 'file' },
-];
+const scopeLabels: Record<KnowledgeQueryScope, string> = {
+  global: 'すべての記録',
+  project: 'プロジェクト',
+  file: '記録',
+};
 
 const suggestedQuestions = ['この会議の決定事項は？', '次に対応すべきことを教えて', '関連する記録を探して'];
 
 export function AskAIScreen() {
   const router = useRouter();
+  const tabBarClearance = useTabBarClearance();
   const [activeScope, setActiveScope] = useState<KnowledgeQueryScope>('global');
   const [draft, setDraft] = useState('');
   const [isAnswering, setIsAnswering] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-  const [askModel, setAskModel] = useState<AskAiModel>('auto');
-  const [isModelSheetOpen, setIsModelSheetOpen] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isScopeSheetOpen, setIsScopeSheetOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
   const [hasRecords, setHasRecords] = useState<boolean | null>(null);
   const [isKeyConfigured, setIsKeyConfigured] = useState<boolean | null>(null);
@@ -87,20 +87,19 @@ export function AskAIScreen() {
   const composerBlocked = !scopeResolution.canSend || dataStatus === 'empty';
   const noTarget = describeNoTarget(activeScope);
   const canSend = draft.trim().length > 0 && !isAnswering && !composerBlocked;
-  const placeholder = useMemo(() => {
-    if (activeScope === 'file') return 'この記録について質問する';
-    if (activeScope === 'project') return 'このプロジェクトについて質問する';
-    return 'すべての記録に質問する';
-  }, [activeScope]);
 
-  const blockedDockText = useMemo(() => {
-    if (!scopeResolution.canSend) {
-      return activeScope === 'file'
-        ? 'このスコープで質問するには対象のファイルを選ぶ必要があります。'
-        : 'このスコープで質問するには対象のプロジェクトを選ぶ必要があります。';
-    }
-    return 'まだ記録がないため質問できません。録音・取り込み・文字起こしが完了すると利用できます。';
-  }, [activeScope, scopeResolution.canSend]);
+  // 質問の履歴。永続化はまだ無いので、このセッションで送った質問だけを並べる。
+  const history = useMemo(
+    () =>
+      (Object.keys(messagesByScope) as KnowledgeQueryScope[])
+        .flatMap((scope) =>
+          messagesByScope[scope]
+            .filter((message) => message.role === 'user')
+            .map((message) => ({ id: message.id, question: message.text, scope })),
+        )
+        .reverse(),
+    [messagesByScope],
+  );
 
   async function sendQuestion(questionOverride?: string) {
     const question = (questionOverride ?? draft).trim();
@@ -166,7 +165,7 @@ export function AskAIScreen() {
       { style: 'cancel', text: 'キャンセル' },
       {
         style: 'destructive',
-        text: '新しい会話を始める',
+        text: '新しい質問を始める',
         onPress: () => setMessagesByScope((current) => ({ ...current, [activeScope]: [] })),
       },
     ]);
@@ -197,245 +196,244 @@ export function AskAIScreen() {
   return (
     <Screen
       footerAccessory={
-        <View style={[styles.askDock, isKeyboardOpen && styles.askDockKeyboard]}>
-          {composerBlocked ? (
-            <View style={styles.composerBlocked}>
-              <Text style={styles.composerBlockedText}>{blockedDockText}</Text>
-            </View>
-          ) : (
-            <View style={styles.askBox}>
-              <TextArea
-                accessibilityLabel="Ask AI question"
+        <View
+          style={[
+            styles.dock,
+            { paddingBottom: tabBarClearance + spacing.xs },
+            isKeyboardOpen && styles.dockKeyboard,
+          ]}
+        >
+          {/* 対象の宣言。プロジェクト/記録の指定はここから切り替える。 */}
+          <Pressable
+            accessibilityLabel="質問の対象を選ぶ"
+            accessibilityRole="button"
+            onPress={() => setIsScopeSheetOpen(true)}
+            style={({ pressed }) => [styles.scopeRow, pressed && styles.pressed]}
+          >
+            <Text numberOfLines={1} style={styles.scopeText}>{`対象: ${scopeLabels[activeScope]}`}</Text>
+            <AppIcon color={colors.textSecondary} name="chevron-forward" size={16} />
+          </Pressable>
+
+          {/* 質問できない理由は本文の空状態ブロックが説明しているので、ここでは繰り返さない。
+              対象行だけ残し、対象を変えれば解除できることを示す。 */}
+          {composerBlocked ? null : (
+            <View style={styles.composerRow}>
+              <TextInput
+                accessibilityLabel="記録について質問"
+                onBlur={() => setIsInputFocused(false)}
                 onChangeText={setDraft}
+                onFocus={() => setIsInputFocused(true)}
                 onSubmitEditing={() => void sendQuestion()}
-                placeholder={placeholder}
-                placeholderTextColor={colors.textTertiary}
+                placeholder="記録について質問"
+                placeholderTextColor={colors.accentMuted}
                 returnKeyType="send"
-                style={styles.askInput}
+                style={[styles.input, isInputFocused && styles.inputFocused]}
                 value={draft}
-                variant="secondary"
               />
-              <View style={styles.composerActions}>
-                <Button
-                  accessibilityLabel="ファイルを添付"
-                  feedbackVariant="none"
-                  isIconOnly
-                  onPress={() => Alert.alert('添付', 'この操作は現在利用できません。')}
-                  size="sm"
-                  variant="ghost"
-                  style={styles.attachButton}
-                >
-                  <AppIcon color={colors.textTertiary} name="attach-outline" size={18} />
-                </Button>
-                <Button
-                  accessibilityLabel="AIモデルを選択"
-                  onPress={() => setIsModelSheetOpen(true)}
-                  size="md"
-                  variant="ghost"
-                  style={styles.modelButton}
-                >
-                  <Text style={styles.modelButtonText}>{ASK_AI_MODEL_LABELS[askModel]}</Text>
-                  <AppIcon color={colors.textSecondary} name="chevron-down" size={12} />
-                </Button>
-                <Button
-                  accessibilityLabel="Ask AI send"
-                  feedbackVariant="none"
-                  isDisabled={!canSend}
-                  isIconOnly
-                  onPress={() => void sendQuestion()}
-                  variant="primary"
-                  style={styles.sendButton}
-                >
-                  {isAnswering ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <AppIcon color={colors.surface} name="arrow-forward" size={17} />
-                  )}
-                </Button>
-              </View>
+              <Pressable
+                accessibilityLabel="質問を送信"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSend }}
+                disabled={!canSend}
+                onPress={() => void sendQuestion()}
+                style={({ pressed }) => [styles.sendButton, !canSend && styles.sendDisabled, pressed && styles.pressed]}
+              >
+                {isAnswering ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <AppIcon color={colors.textInverse} name="arrow-forward" size={18} />
+                )}
+              </Pressable>
             </View>
           )}
         </View>
       }
       headerAccessory={
-        <Button
-          accessibilityLabel="新しい会話"
-          feedbackVariant="none"
-          isIconOnly
-          onPress={handleNewChat}
-          size="md"
-          variant="ghost"
-          style={styles.newChatButton}
-        >
-          <AppIcon color={colors.text} name="create-outline" size={21} />
-        </Button>
+        <View style={styles.headerActions}>
+          <IconButton
+            accessibilityLabel="質問の履歴"
+            onPress={() => setIsHistoryOpen(true)}
+            style={styles.headerIconButton}
+          >
+            <AppIcon color={colors.text} name="chatbubble-outline" size={20} />
+          </IconButton>
+          <IconButton
+            accessibilityLabel="新しい質問"
+            onPress={handleNewChat}
+            style={styles.headerIconButton}
+          >
+            <AppIcon color={colors.text} name="create-outline" size={20} />
+          </IconButton>
+        </View>
       }
-      title="聞く"
+      title="Ask AI"
     >
-      <Tabs
-        onValueChange={(value) => {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          setActiveScope(value as KnowledgeQueryScope);
-        }}
-        value={activeScope}
-        variant="secondary"
-      >
-        <Tabs.List>
-          <Tabs.Indicator />
-          {scopeOptions.map((scope) => (
-            <Tabs.Trigger key={scope.value} value={scope.value}>
-              <Tabs.Label>{scope.label}</Tabs.Label>
-            </Tabs.Trigger>
-          ))}
-        </Tabs.List>
-      </Tabs>
-      <Text style={styles.scopeCaption}>
-        {activeScope === 'global'
-          ? 'すべての記録から回答します'
-          : activeScope === 'project'
-            ? 'プロジェクト内から回答します'
-            : 'このファイルの内容から回答します'}
-      </Text>
-
-      <View style={styles.thread}>
-        {messages.length === 0 ? (
-          <View style={styles.emptyAsk}>
-            {!scopeResolution.canSend ? (
-              <>
-                <Text style={styles.emptyTitle}>{noTarget.title}</Text>
-                <Text style={styles.emptySubtitle}>{noTarget.body}</Text>
-              </>
-            ) : dataStatus === 'loading' ? null : dataStatus === 'empty' ? (
-              <>
-                <Text style={styles.emptyTitle}>まだ記録がありません</Text>
-                <Text style={styles.emptySubtitle}>
-                  録音・取り込み・文字起こしが完了すると、Ask AI が記録から回答できるようになります。
-                </Text>
-              </>
-            ) : bridgeInfo?.knowledgeQuerySource === 'swiftdata' && isKeyConfigured === false ? (
-              <>
-                <Text style={styles.emptyTitle}>OpenAI の API キーが未設定です</Text>
-                <Text style={styles.emptySubtitle}>
-                  「設定 {'>'} 文字起こし・要約 {'>'} AI providerのAPIキー」から OpenAI の API キーを入力すると、記録から回答できるようになります。
-                </Text>
-                <Button
-                  accessibilityLabel="設定でAPIキーを入力する"
-                  onPress={() => router.push('/settings')}
-                  size="sm"
-                  style={styles.settingsHintButton}
-                  variant="primary"
-                >
-                  設定を開く
-                </Button>
-              </>
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>調べたいことを質問してください</Text>
-                <Text style={styles.emptySubtitle}>最近の記録から</Text>
-                <View style={styles.suggestions}>
-                  {suggestedQuestions.map((question) => (
-                    <Pressable
-                      accessibilityLabel={`${question}を質問する`}
-                      accessibilityRole="button"
-                      key={question}
-                      onPress={() => void sendQuestion(question)}
-                      style={({ pressed }) => [styles.suggestion, pressed && styles.suggestionPressed]}
-                    >
-                      <Text style={styles.suggestionText}>{question}</Text>
-                      <AppIcon color={colors.border} name="arrow-forward" size={15} />
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
-          </View>
-        ) : (
-          messages.map((message) =>
+      {messages.length === 0 ? (
+        <View>
+          {/* 質問できない状態は、記録・タスクと同じ空状態ブロックで揃える。
+              質問できる状態の導入文だけがプロトタイプ通りの左寄せ（.ask-empty-intro）。 */}
+          {!scopeResolution.canSend ? (
+            <EmptyState body={noTarget.body} title={noTarget.title} />
+          ) : dataStatus === 'loading' ? null : dataStatus === 'empty' ? (
+            <EmptyState
+              body="録音・取り込み・文字起こしが完了すると、Ask AI が記録から回答できるようになります。"
+              title="まだ記録がありません"
+            />
+          ) : bridgeInfo?.knowledgeQuerySource === 'swiftdata' && isKeyConfigured === false ? (
+            <EmptyState
+              actionLabel="設定を開く"
+              body="「設定 > 文字起こし・要約 > AI providerのAPIキー」から OpenAI の API キーを入力すると、記録から回答できるようになります。"
+              onAction={() => router.push('/settings')}
+              title="OpenAI の API キーが未設定です"
+            />
+          ) : (
+            <>
+              <View style={styles.intro}>
+                <Text style={styles.introTitle}>調べたいことを質問してください</Text>
+                <Text style={styles.introBody}>最近の記録、または選択した対象から回答します。</Text>
+              </View>
+              <View style={styles.promptList}>
+                {suggestedQuestions.map((question) => (
+                  <Pressable
+                    accessibilityLabel={`${question}を質問する`}
+                    accessibilityRole="button"
+                    key={question}
+                    onPress={() => void sendQuestion(question)}
+                    style={({ pressed }) => [styles.promptButton, pressed && styles.rowPressed]}
+                  >
+                    <Text style={styles.promptText}>{question}</Text>
+                    <AppIcon color={colors.textSecondary} name="chevron-forward" size={20} />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+        </View>
+      ) : (
+        <View>
+          {messages.map((message) =>
             message.role === 'user' ? (
-              <View key={message.id} style={styles.userRow}>
-                <View style={styles.userBubble}>
-                  <Text style={styles.userText}>{message.text}</Text>
-                </View>
+              <View key={message.id} style={styles.questionBlock}>
+                <Text style={styles.label}>質問</Text>
+                <Text style={styles.questionText}>{message.text}</Text>
               </View>
             ) : (
-              <View key={message.id} style={styles.assistantBlock}>
+              <View key={message.id} style={styles.answerCard}>
+                <View style={styles.answerHead}>
+                  <Text style={styles.label}>回答</Text>
+                  {message.sources?.length ? (
+                    <NumericText style={styles.answerMeta}>
+                      {`${message.sources.length}件の記録を参照`}
+                    </NumericText>
+                  ) : null}
+                </View>
                 {message.isSample ? (
-                  <View style={styles.sampleBadge}>
-                    <AppIcon color={colors.warning} name="warning-outline" size={12} />
-                    <Text style={styles.sampleBadgeText}>サンプル回答（ネイティブ未接続）</Text>
-                  </View>
+                  <Text style={styles.sampleNote}>サンプル回答（ネイティブ未接続）</Text>
                 ) : null}
-                <Text style={styles.assistantText}>{message.text}</Text>
-                {message.sources ? (
-                  <View style={styles.sources}>
+                <Text style={styles.answerBody}>{message.text}</Text>
+
+                {message.sources?.length ? (
+                  <View style={styles.answerSection}>
+                    <Text style={styles.sectionLabel}>出典</Text>
                     {message.sources.map((source) => (
-                      <View key={source} style={styles.sourcePill}>
-                        <AppIcon color={colors.textTertiary} name="document-outline" size={10} />
-                        <Text numberOfLines={1} style={styles.sourceText}>
-                          {source}
-                        </Text>
-                      </View>
+                      <Text key={source} numberOfLines={2} style={styles.sourceLink}>
+                        {source}
+                      </Text>
                     ))}
                   </View>
                 ) : null}
-                <View style={styles.messageActions}>
-                  <Button
+
+                <View style={styles.answerActions}>
+                  <Pressable
                     accessibilityLabel="回答をコピー"
+                    accessibilityRole="button"
                     onPress={() => Alert.alert('コピー', 'この操作は現在利用できません。')}
-                    size="sm"
-                    variant="ghost"
-                    style={styles.actionButton}
+                    style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
                   >
-                    コピー
-                  </Button>
-                  <Button
+                    <Text style={styles.actionText}>コピー</Text>
+                  </Pressable>
+                  <Pressable
                     accessibilityLabel="回答からタスクを作成"
+                    accessibilityRole="button"
                     onPress={() => void handleTaskize(message)}
-                    size="sm"
-                    variant="ghost"
-                    style={styles.actionButton}
+                    style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
                   >
-                    タスク化
-                  </Button>
+                    <Text style={styles.actionText}>タスク化</Text>
+                  </Pressable>
                   {message.hint === 'api-key' ? (
-                    <Button
+                    <Pressable
                       accessibilityLabel="設定でAPIキーを入力する"
+                      accessibilityRole="button"
                       onPress={() => router.push('/settings')}
-                      size="sm"
-                      style={styles.actionButton}
-                      variant="primary"
+                      style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
                     >
-                      設定でAPIキーを入力
-                    </Button>
+                      <Text style={styles.actionText}>設定でAPIキーを入力</Text>
+                    </Pressable>
                   ) : null}
-                  <Text style={styles.messageTime}>たった今</Text>
                 </View>
               </View>
             ),
-          )
-        )}
-        {isAnswering ? (
-          <View style={styles.answeringStatus}>
-            <Spinner size="sm" />
-            <Text style={styles.answeringLabel}>回答を生成中</Text>
-          </View>
-        ) : null}
-      </View>
+          )}
+          {isAnswering ? (
+            <View style={styles.answeringStatus}>
+              <Spinner size="sm" />
+              <Text style={styles.answeringLabel}>回答を生成中</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
-      <FloatingBottomSheet isOpen={isModelSheetOpen} onClose={() => setIsModelSheetOpen(false)}>
-        <View style={styles.modelSheetContainer}>
-          <Text style={styles.modelSheetHeading}>AIモデル</Text>
-          <Text style={styles.modelSheetNote}>現在は OpenAI のみ利用できます。他のプロバイダーは対応後に追加します。</Text>
+      <FloatingBottomSheet isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)}>
+        <View style={styles.historySheet}>
+          <Text style={styles.sheetTitle}>質問の履歴</Text>
+          <Text style={styles.sheetNote}>
+            このセッションで送った質問です。アプリを閉じると消えます。
+          </Text>
+          {history.length === 0 ? (
+            <Text style={styles.historyEmpty}>まだ質問していません。</Text>
+          ) : (
+            <View style={styles.historyList}>
+              <Text style={styles.label}>最近</Text>
+              {history.map((item) => (
+                <Pressable
+                  accessibilityLabel={`${item.question}をもう一度質問する`}
+                  accessibilityRole="button"
+                  key={item.id}
+                  onPress={() => {
+                    setIsHistoryOpen(false);
+                    setActiveScope(item.scope);
+                    void sendQuestion(item.question);
+                  }}
+                  style={({ pressed }) => [styles.historyRow, pressed && styles.rowPressed]}
+                >
+                  <View style={styles.historyBody}>
+                    <Text numberOfLines={2} style={styles.historyTitle}>{item.question}</Text>
+                    <Text style={styles.historyMeta}>{`対象: ${scopeLabels[item.scope]}`}</Text>
+                  </View>
+                  <AppIcon color={colors.textSecondary} name="chevron-forward" size={16} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      </FloatingBottomSheet>
+
+      <FloatingBottomSheet isOpen={isScopeSheetOpen} onClose={() => setIsScopeSheetOpen(false)}>
+        <View style={styles.scopeSheet}>
+          <Text style={styles.sheetTitle}>質問の対象</Text>
+          <Text style={styles.sheetNote}>
+            プロジェクトと記録の指定は、対象を選んでから質問すると絞り込まれます。
+          </Text>
           <RadioGroup
             onValueChange={(value) => {
-              setAskModel(value as AskAiModel);
-              setIsModelSheetOpen(false);
+              setActiveScope(value as KnowledgeQueryScope);
+              setIsScopeSheetOpen(false);
             }}
-            value={askModel}
+            value={activeScope}
           >
-            {ASK_AI_MODEL_OPTIONS.map((model) => (
-              <RadioGroup.Item key={model} value={model}>
-                {ASK_AI_MODEL_LABELS[model]}
+            {(Object.keys(scopeLabels) as KnowledgeQueryScope[]).map((scope) => (
+              <RadioGroup.Item key={scope} value={scope}>
+                {scopeLabels[scope]}
               </RadioGroup.Item>
             ))}
           </RadioGroup>
@@ -445,154 +443,141 @@ export function AskAIScreen() {
   );
 }
 
-/** Dock bottom clearance when keyboard is closed, tuned to clear the center FAB and NativeTabs on iPhone. */
-const DOCK_BOTTOM_CLEARANCE = 176;
-
 const styles = StyleSheet.create({
-  scopeCaption: { color: colors.textTertiary, marginTop: spacing.xs, ...textStyles.caption },
-  newChatButton: { height: 44, marginRight: -spacing.sm, width: 44 },
-  thread: {
+  headerActions: { flexDirection: 'row' },
+  headerIconButton: { height: 44, width: 44 },
+  pressed: { opacity: 0.62 },
+  rowPressed: { backgroundColor: colors.surfaceAlt },
+
+  // intro / prompts
+  intro: { gap: spacing.xs, paddingTop: spacing.xxl },
+  introTitle: { color: colors.text, ...textStyles.sectionTitle },
+  introBody: { color: colors.textSecondary, ...textStyles.footnote },
+  promptList: { borderTopColor: colors.border, borderTopWidth: 1, marginTop: spacing.xl },
+  promptButton: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     gap: spacing.md,
-  },
-  userRow: {
-    alignItems: 'flex-end',
-  },
-  userBubble: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.sm,
-    maxWidth: '84%',
-    paddingHorizontal: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 56,
     paddingVertical: spacing.sm,
   },
-  userText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
-  assistantBlock: {
-    borderBottomColor: colors.borderLight,
+  promptText: { color: colors.text, flexShrink: 1, ...textStyles.body },
+
+  // thread
+  label: { color: colors.textSecondary, ...textStyles.label },
+  questionBlock: { gap: spacing.xxs, paddingTop: spacing.lg },
+  questionText: { color: colors.text, ...textStyles.sectionTitle },
+  answerCard: {
+    borderBottomColor: colors.border,
     borderBottomWidth: 1,
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
+    borderTopColor: colors.text,
+    borderTopWidth: 2,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.md,
   },
-  sampleBadge: {
+  answerHead: { alignItems: 'baseline', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between' },
+  answerMeta: { color: colors.textSecondary, ...textStyles.caption },
+  sampleNote: { color: colors.textSecondary, marginTop: spacing.xs, ...textStyles.caption },
+  answerBody: { color: colors.text, marginTop: spacing.xs, ...textStyles.body },
+  answerSection: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+  },
+  sectionLabel: { color: colors.textSecondary, marginBottom: spacing.xxs, ...textStyles.label },
+  sourceLink: {
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textDecorationLine: 'underline',
+    ...textStyles.footnote,
+  },
+  answerActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  actionButton: { justifyContent: 'center', minHeight: 44 },
+  actionText: { color: colors.textSecondary, textDecorationLine: 'underline', ...textStyles.footnote },
+  answeringStatus: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.sm },
+  answeringLabel: { color: colors.textSecondary, ...textStyles.caption },
+
+  // composer
+  dock: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  dockKeyboard: { paddingBottom: spacing.sm },
+  scopeRow: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.warningSoft,
-    borderRadius: radius.pill,
     flexDirection: 'row',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
+    justifyContent: 'space-between',
+    minHeight: 36,
   },
-  sampleBadgeText: {
-    color: colors.warning,
-    ...textStyles.footnoteBold,
-  },
-  messageActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
-  actionButton: { minHeight: 44, minWidth: 44 },
-  settingsHintButton: { alignSelf: 'flex-start', minHeight: 44, marginTop: spacing.sm },
-  modelSheetContainer: {
+  scopeText: { color: colors.textSecondary, flexShrink: 1, ...textStyles.caption },
+  composerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  input: {
     backgroundColor: colors.surface,
-    borderRadius: radius.sm,
+    borderColor: colors.borderLight,
+    borderRadius: 0,
+    borderWidth: 1,
+    color: colors.text,
+    flex: 1,
+    height: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 0,
+    ...textStyles.footnote,
+  },
+  inputFocused: { borderColor: colors.text },
+  sendButton: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: radius.circle,
+    flexShrink: 0,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  sendDisabled: { opacity: 0.38 },
+
+  // history sheet
+  historySheet: {
+    backgroundColor: colors.surface,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+    marginHorizontal: spacing.md,
+    padding: spacing.md,
+  },
+  historyEmpty: { color: colors.textSecondary, paddingVertical: spacing.md, ...textStyles.footnote },
+  historyList: { marginTop: spacing.sm },
+  historyRow: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: -1,
+    minHeight: 72,
+    paddingVertical: spacing.sm,
+  },
+  historyBody: { flex: 1, minWidth: 0 },
+  historyTitle: { color: colors.text, ...textStyles.rowTitle },
+  historyMeta: { color: colors.textSecondary, marginTop: spacing.xxs, ...textStyles.caption },
+
+  // scope sheet
+  scopeSheet: {
+    backgroundColor: colors.surface,
+    borderRadius: 0,
     gap: spacing.sm,
     marginBottom: spacing.md,
     marginHorizontal: spacing.md,
     padding: spacing.md,
   },
-  modelSheetHeading: {
-    color: colors.textSecondary,
-    ...textStyles.captionBold,
-  },
-  modelSheetNote: {
-    color: colors.textTertiary,
-    ...textStyles.caption,
-  },
-  messageTime: { color: colors.border, marginLeft: 'auto', ...textStyles.caption },
-  emptyAsk: { gap: spacing.xs, paddingTop: spacing.xl },
-  emptyTitle: { color: colors.text, ...textStyles.callout },
-  emptySubtitle: { color: colors.textTertiary, paddingBottom: spacing.sm, ...textStyles.captionBold },
-  suggestions: { borderTopColor: colors.borderLight, borderTopWidth: 1 },
-  suggestion: {
-    alignItems: 'center',
-    borderBottomColor: colors.borderLight,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    minHeight: 52,
-    paddingHorizontal: spacing.xxs,
-  },
-  suggestionPressed: { opacity: 0.46 },
-  suggestionText: { color: colors.text, flex: 1, ...textStyles.body },
-  answeringStatus: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  answeringLabel: { color: colors.textTertiary, ...textStyles.caption },
-  assistantText: {
-    color: colors.text,
-    ...textStyles.body,
-  },
-  sources: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-  },
-  sourcePill: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xxs,
-  },
-  sourceText: {
-    color: colors.textTertiary,
-    ...textStyles.caption,
-  },
-  askBox: {
-    backgroundColor: colors.surface,
-    flexDirection: 'column',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  composerBlocked: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 92,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  composerBlockedText: {
-    color: colors.textTertiary,
-    textAlign: 'center',
-    ...textStyles.caption,
-  },
-  attachButton: { height: 44, justifyContent: 'center', width: 44 },
-  modelButton: { minHeight: 44 },
-  modelButtonText: {
-    color: colors.textSecondary,
-    ...textStyles.caption,
-  },
-  composerActions: {
-    alignItems: 'center',
-    borderTopColor: colors.borderLight,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    paddingTop: spacing.xs,
-  },
-  sendButton: { height: 44, marginLeft: 'auto', width: 44 },
-  askDock: {
-    paddingBottom: DOCK_BOTTOM_CLEARANCE,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-  },
-  askDockKeyboard: {
-    paddingBottom: spacing.sm,
-  },
-  askInput: {
-    color: colors.text,
-    height: 72,
-    width: '100%',
-    ...textStyles.body,
-  },
+  sheetTitle: { color: colors.text, ...textStyles.sectionTitle },
+  sheetNote: { color: colors.textSecondary, ...textStyles.caption },
 });

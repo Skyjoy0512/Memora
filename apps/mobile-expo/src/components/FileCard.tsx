@@ -1,10 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { PressableFeedback } from 'heroui-native/pressable-feedback';
-import { Separator } from 'heroui-native/separator';
 import { AppIcon } from './AppIcon';
+import { NumericText } from './NumericText';
 import { StatusPill } from './StatusPill';
-import { colors, motion, spacing, textStyles } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
 import type { AudioFile } from '../types/memora';
 import { formatRecordedAt } from '../utils/formatRecordedAt';
 
@@ -15,155 +13,96 @@ type FileCardProps = {
   showSummary?: boolean;
 };
 
-function CardMainTarget({
-  onPress,
-  accessibilityLabel,
-  children,
-}: {
-  onPress: () => void;
-  accessibilityLabel: string;
-  children: React.ReactNode;
-}) {
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+/** 状態バッジを出さない＝読める記録。それ以外は行の右端で状態を明示する。 */
+const settledStatuses = new Set(['ready', 'summarized', 'completed']);
+
+/**
+ * Open Design v2 の `.record-row`。
+ * 情報の順序は 収録時刻・再生時間（mono）→ タイトル → 要約 2行。
+ * カードや角丸は使わず、行の区切りは下罫線だけで表す。
+ */
+export function FileCard({ file, onPress, onMore, showSummary = true }: FileCardProps) {
+  const isSettled = settledStatuses.has(file.status);
 
   return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-      onPress={onPress}
-      onPressIn={() => {
-        scale.value = withTiming(0.98, { duration: motion.duration.fast });
-      }}
-      onPressOut={() => {
-        scale.value = withSpring(1, motion.spring.tap);
-      }}
-      style={fcStyles.mainTarget}
-    >
-      <Animated.View style={[fcStyles.mainInner, animatedStyle]}>{children}</Animated.View>
-    </Pressable>
-  );
-}
+    <View style={fcStyles.row}>
+      <Pressable
+        accessibilityLabel={`${file.title}を開く`}
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [fcStyles.main, pressed && fcStyles.pressed]}
+      >
+        <NumericText numberOfLines={1} style={fcStyles.meta}>
+          {`${formatRecordedAt(file.recordedAt)} · ${file.duration}`}
+        </NumericText>
+        <Text numberOfLines={1} style={fcStyles.title}>
+          {file.title}
+        </Text>
+        {showSummary && file.summary ? (
+          <Text numberOfLines={2} style={fcStyles.summary}>
+            {file.summary}
+          </Text>
+        ) : null}
+      </Pressable>
 
-export function FileCard({
-  file,
-  onPress,
-  onMore,
-  showSummary = true,
-}: FileCardProps) {
-  return (
-    <View>
-      <View style={fcStyles.content}>
-        <CardMainTarget
-          accessibilityLabel={`${file.title}を開く`}
-          onPress={onPress}
-        >
-          <View style={fcStyles.icon}>
-            <AppIcon
-              color={file.source === 'iPhone' ? colors.text : colors.textSecondary}
-              name={file.source === 'iPhone' ? 'mic-outline' : 'document-outline'}
-              size={16}
-            />
-          </View>
-
-          <View style={fcStyles.body}>
-            <Text numberOfLines={1} style={fcStyles.title}>
-              {file.title}
-            </Text>
-            <Text numberOfLines={1} style={fcStyles.meta}>
-              {formatRecordedAt(file.recordedAt)} · {file.duration}
-            </Text>
-            {showSummary && file.summary ? (
-              <Text numberOfLines={1} style={fcStyles.summary}>
-                {file.summary}
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={fcStyles.status}>
-            <StatusPill status={file.status} />
-          </View>
-        </CardMainTarget>
-
+      <View style={fcStyles.trailing}>
+        {isSettled ? null : <StatusPill status={file.status} variant="outline" />}
         {onMore ? (
-          <PressableFeedback
+          <Pressable
             accessibilityLabel="その他の操作"
             accessibilityRole="button"
-            animation={false}
+            hitSlop={4}
             onPress={onMore}
-            style={fcStyles.more}
+            style={({ pressed }) => [fcStyles.more, pressed && fcStyles.pressed]}
           >
-            <PressableFeedback.Highlight
-              animation={{
-                opacity: { value: [0, 0.12] },
-              }}
-            />
-            <Text style={fcStyles.moreText}>⋯</Text>
-          </PressableFeedback>
+            <AppIcon color={colors.textSecondary} name="ellipsis-horizontal" size={20} />
+          </Pressable>
         ) : null}
       </View>
-      <Separator orientation="horizontal" variant="thin" />
     </View>
   );
 }
 
 const fcStyles = StyleSheet.create({
-  content: {
-    alignItems: 'center',
+  row: {
+    alignItems: 'flex-start',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    minHeight: 72,
-  },
-  mainTarget: {
-    alignSelf: 'stretch',
-    flex: 1,
-  },
-  mainInner: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 72,
+    gap: spacing.xs,
     paddingVertical: spacing.md,
   },
-  icon: {
-    alignItems: 'center',
-    flexShrink: 0,
-    height: 32,
-    justifyContent: 'center',
-    width: 32,
-  },
-  body: {
+  main: {
     flex: 1,
     minWidth: 0,
   },
-  title: {
-    color: colors.text,
-    ...textStyles.bodyBold,
+  pressed: {
+    opacity: 0.62,
   },
   meta: {
+    color: colors.textSecondary,
+    ...textStyles.caption,
+  },
+  title: {
+    color: colors.text,
+    marginTop: spacing.xxs,
+    ...textStyles.rowTitle,
+  },
+  summary: {
     color: colors.textSecondary,
     marginTop: spacing.xxs,
     ...textStyles.footnote,
   },
-  summary: {
-    color: colors.textTertiary,
-    marginTop: spacing.xxs,
-    ...textStyles.caption,
-  },
-  status: {
+  trailing: {
+    alignItems: 'flex-end',
     flexShrink: 0,
+    gap: spacing.xs,
   },
   more: {
     alignItems: 'center',
-    flexShrink: 0,
-    height: 44,
+    height: 36,
     justifyContent: 'center',
-    marginVertical: -6,
-    marginLeft: -6,
-    width: 44,
-  },
-  moreText: {
-    color: colors.textTertiary,
-    ...textStyles.callout,
+    marginRight: -spacing.xs,
+    width: 36,
   },
 });

@@ -1,6 +1,8 @@
 import { AppIcon as Ionicons } from "../../components/AppIcon";
+import { ProcessRail } from "../../components/ProcessRail";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -34,6 +36,12 @@ type GenerationPhase =
 type CaptureFlow = {
   discardRecording: () => Promise<void>;
   importAudio: (uri: string) => Promise<void>;
+  /** 取り込みが進行中かどうか。Open Design v2 の `importing` 画面に対応する。 */
+  isImporting: boolean;
+  /** 記録メニュー（`.capture-menu`）の開閉。タブと /capture ルートの両方から開く。 */
+  isCaptureMenuOpen: boolean;
+  openCaptureMenu: () => void;
+  closeCaptureMenu: () => void;
   isRecordingActive: boolean;
   latestFile?: AudioFile;
   mode: CaptureMode;
@@ -57,6 +65,11 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationError, setGenerationError] = useState<string>();
   const [showCompletionSnackbar, setShowCompletionSnackbar] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isCaptureMenuOpen, setIsCaptureMenuOpen] = useState(false);
+  // 参照が変わると /capture 側の focus effect が繰り返し発火するので固定する。
+  const openCaptureMenu = useCallback(() => setIsCaptureMenuOpen(true), []);
+  const closeCaptureMenu = useCallback(() => setIsCaptureMenuOpen(false), []);
 
   useEffect(() => {
     if (!sessionId || isPaused) return;
@@ -87,9 +100,19 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
         setMode("idle");
       },
       async importAudio(uri: string) {
-        const file = await MemoraNative.importAudio(uri);
-        setLatestFile(file);
+        // 進捗率はブリッジが返さないので割合は出さない。段階だけを示す。
+        setIsImporting(true);
+        try {
+          const file = await MemoraNative.importAudio(uri);
+          setLatestFile(file);
+        } finally {
+          setIsImporting(false);
+        }
       },
+      isImporting,
+      isCaptureMenuOpen,
+      openCaptureMenu,
+      closeCaptureMenu,
       isRecordingActive: Boolean(sessionId),
       latestFile,
       mode,
@@ -128,7 +151,7 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
         setMode("generate");
       },
     }),
-    [latestFile, mode, sessionId],
+    [closeCaptureMenu, isCaptureMenuOpen, isImporting, latestFile, mode, openCaptureMenu, sessionId],
   );
 
   function startGeneration(
@@ -211,6 +234,33 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
             />
           )}
         </SafeAreaProvider>
+      </Modal>
+      {/* Open Design v2 `importing`: 取り込みの間、段階だけを見せて画面を占有しない */}
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {}}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        transparent
+        visible={isImporting}
+      >
+        <View style={styles.importingBackdrop}>
+          <View style={styles.importingCard}>
+            <Text style={styles.importingLabel}>取り込み状況</Text>
+            <ProcessRail
+              label="取り込みの進捗"
+              steps={[
+                { label: "選択済み", state: "done" },
+                { label: "取り込み中", state: "active" },
+                { label: "処理待ち", state: "pending" },
+              ]}
+            />
+            <Text style={styles.importingTitle}>音声を取り込んでいます</Text>
+            <Text style={styles.importingBody}>
+              完了後に文字起こしを開始できます。音声は元の場所にも残ります。
+            </Text>
+          </View>
+        </View>
       </Modal>
       <DynamicIslandPill
         elapsedSeconds={elapsedSeconds}
@@ -787,9 +837,24 @@ function generationLabel(phase: GenerationPhase) {
 
 const styles = StyleSheet.create({
   modalContainer: { flex: 1 },
+  importingBackdrop: {
+    backgroundColor: colors.overlay,
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  importingCard: {
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  importingLabel: { color: colors.textSecondary, ...textStyles.label },
+  importingTitle: { color: colors.text, ...textStyles.sectionTitle },
+  importingBody: { color: colors.textSecondary, ...textStyles.footnote },
   backgroundButton: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    borderRadius: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
@@ -803,7 +868,7 @@ const styles = StyleSheet.create({
   confirmCancel: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    borderRadius: 0,
     flex: 1,
     height: 44,
     justifyContent: "center",
@@ -811,14 +876,14 @@ const styles = StyleSheet.create({
   confirmCancelText: { color: colors.text, ...textStyles.footnoteBold },
   confirmCard: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    borderRadius: 0,
     marginHorizontal: 40,
     padding: 20,
   },
   confirmDelete: {
     alignItems: "center",
     backgroundColor: colors.danger,
-    borderRadius: radius.md,
+    borderRadius: 0,
     flex: 1,
     height: 44,
     justifyContent: "center",
@@ -849,7 +914,7 @@ const styles = StyleSheet.create({
   generateButton: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 16,
+    borderRadius: 0,
     paddingVertical: 16,
   },
   generateButtonText: {
@@ -863,7 +928,7 @@ const styles = StyleSheet.create({
   },
   generateChip: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
   },
@@ -877,7 +942,7 @@ const styles = StyleSheet.create({
   generateHandle: {
     alignSelf: "center",
     backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 0,
     height: 4,
     marginBottom: 16,
     width: 36,
@@ -892,7 +957,7 @@ const styles = StyleSheet.create({
   generateIconCircle: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 28,
+    borderRadius: radius.circle,
     height: 56,
     justifyContent: "center",
     width: 56,
@@ -900,7 +965,7 @@ const styles = StyleSheet.create({
   generateIconRow: { alignItems: "center", flexDirection: "row", gap: spacing.md },
   generateModeCard: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
+    borderRadius: 0,
     flex: 1,
     padding: 12,
   },
@@ -949,7 +1014,7 @@ const styles = StyleSheet.create({
   generateScreen: { backgroundColor: colors.surface, flex: 1 },
   generateSkip: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -992,14 +1057,14 @@ const styles = StyleSheet.create({
   highlightButton: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 26,
+    borderRadius: radius.circle,
     height: 52,
     justifyContent: "center",
     width: 52,
   },
   highlightCount: {
     backgroundColor: colors.text,
-    borderRadius: 8,
+    borderRadius: 0,
     color: colors.surface,
     minWidth: 16,
     overflow: "hidden",
@@ -1013,7 +1078,7 @@ const styles = StyleSheet.create({
   island: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 20,
+    borderRadius: 0,
     flexDirection: "row",
     justifyContent: "center",
     position: "absolute",
@@ -1023,7 +1088,7 @@ const styles = StyleSheet.create({
   },
   islandDot: {
     backgroundColor: colors.accent,
-    borderRadius: 4,
+    borderRadius: radius.circle,
     height: 7,
     width: 7,
   },
@@ -1052,7 +1117,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     ...fonts.mono.regular,
   },
-  islandWave: { backgroundColor: colors.textInverse, borderRadius: 1, width: 2 },
+  islandWave: { backgroundColor: colors.textInverse, borderRadius: 0, width: 2 },
   islandWaveform: {
     alignItems: "center",
     flex: 1,
@@ -1062,10 +1127,10 @@ const styles = StyleSheet.create({
   },
   modalScreen: { backgroundColor: colors.surface, flex: 1 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.93 }] },
-  progressFill: { backgroundColor: colors.text, borderRadius: 2, height: 4 },
+  progressFill: { backgroundColor: colors.text, borderRadius: 0, height: 4 },
   progressTrack: {
     backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 0,
     height: 4,
     marginBottom: spacing.md,
     width: 220,
@@ -1103,7 +1168,7 @@ const styles = StyleSheet.create({
   roundIcon: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 26,
+    borderRadius: 0,
     justifyContent: "center",
   },
   skipButton: { alignItems: "center", paddingBottom: 20 },
@@ -1111,14 +1176,14 @@ const styles = StyleSheet.create({
   stopButton: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 36,
+    borderRadius: radius.circle,
     height: 72,
     justifyContent: "center",
     width: 72,
   },
   stopSquare: {
     backgroundColor: colors.textInverse,
-    borderRadius: 6,
+    borderRadius: 0,
     height: 26,
     width: 26,
   },
@@ -1130,7 +1195,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   transcriptText: { color: colors.textTertiary, ...textStyles.footnote },
-  wave: { borderRadius: 2, width: 4 },
+  wave: { borderRadius: 0, width: 4 },
   waveform: {
     alignItems: "flex-end",
     flexDirection: "row",

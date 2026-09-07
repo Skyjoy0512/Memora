@@ -1,7 +1,7 @@
 import { AppIcon } from './AppIcon';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent, type GestureResponderEvent } from 'react-native';
-import { colors, spacing, textStyles } from '../design/tokens';
+import { colors, fonts, radius, spacing, textStyles } from '../design/tokens';
 import type { PlaybackStatusDTO } from '../native/MemoraNative.types';
 
 type Props = {
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   playButton: {
     alignItems: 'center',
     borderColor: colors.border,
-    borderRadius: 19,
+    borderRadius: radius.circle,
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
@@ -79,19 +79,21 @@ const styles = StyleSheet.create({
   },
   time: {
     color: colors.text,
-    fontVariant: ['tabular-nums'],
     ...textStyles.footnote,
+    // 再生位置は純粋な数値。fonts.mono が tabular-nums も持つ
+    ...fonts.mono.regular,
   },
   spacer: { flex: 1 },
   rateButton: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 8,
+    borderRadius: 0,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xxs,
   },
   rateText: {
     color: colors.text,
     ...textStyles.captionBold,
+    ...fonts.mono.regular,
   },
   pressed: { opacity: 0.74, transform: [{ scale: 0.93 }] },
   trackWrap: {
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   },
   track: {
     backgroundColor: colors.borderLight,
-    borderRadius: 2,
+    borderRadius: 0,
     height: 3,
     overflow: 'hidden',
   },

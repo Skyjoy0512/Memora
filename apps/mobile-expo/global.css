@@ -8,47 +8,49 @@
 @layer theme {
   :root {
     @variant light {
-      --background: #F7F7F6;
-      --foreground: #16171A;
-      --muted: #5E6063;
+      /* v0.7 の寒色ランプ（hue 220）。src/theme/tokens.ts の light と同じ値にする。 */
+      --background: #F9FAFB;
+      --foreground: #14181C;
+      --muted: #535B67;
 
       --surface: #FFFFFF;
-      --surface-foreground: #16171A;
-      --surface-secondary: #F1F1F0;
-      --surface-secondary-foreground: #16171A;
-      --surface-tertiary: #EDEDEC;
-      --surface-tertiary-foreground: #16171A;
+      --surface-foreground: #14181C;
+      --surface-secondary: #F3F4F7;
+      --surface-secondary-foreground: #14181C;
+      --surface-tertiary: #EBEDF1;
+      --surface-tertiary-foreground: #14181C;
 
       --overlay: #FFFFFF;
-      --overlay-foreground: #16171A;
-      --backdrop: rgba(0, 0, 0, 0.4);
+      --overlay-foreground: #14181C;
+      --backdrop: rgba(20, 24, 28, 0.44);
 
-      --default: #ECECEA;
-      --default-foreground: #16171A;
+      --default: #EBEDF1;
+      --default-foreground: #14181C;
 
-      --accent: #16171A;
+      --accent: #14181C;
       --accent-foreground: #FFFFFF;
 
       --field-background: #FFFFFF;
-      --field-foreground: #16171A;
-      --field-placeholder: #5E6063;
-      --field-border: #E3E3E1;
+      --field-foreground: #14181C;
+      --field-placeholder: #8C95A3;
+      --field-border: #DFE2E7;
       --field-border-width: 1px;
 
-      --success: #4F7A55;
+      /* success / warning は v0.6 で脱色済み。ランプの明度差だけで表す。 */
+      --success: #535B67;
       --success-foreground: #FFFFFF;
-      --warning: #8A6A3C;
+      --warning: #535B67;
       --warning-foreground: #FFFFFF;
-      --danger: #A34B45;
+      --danger: #B64351;
       --danger-foreground: #FFFFFF;
 
       --segment: #FFFFFF;
-      --segment-foreground: #16171A;
+      --segment-foreground: #14181C;
 
-      --border: #E3E3E1;
-      --separator: #EDEDEC;
-      --focus: #16171A;
-      --link: #16171A;
+      --border: #DFE2E7;
+      --separator: #EBEDF1;
+      --focus: #14181C;
+      --link: #14181C;
 
       --surface-shadow: none;
       --overlay-shadow: none;
@@ -56,51 +58,92 @@
     }
 
     @variant dark {
-      --background: #101112;
-      --foreground: #E9E9E8;
-      --muted: #9C9D9F;
+      /* src/theme/tokens.ts の dark と同じ値。 */
+      --background: #0F1014;
+      --foreground: #E7E8EC;
+      --muted: #9197A1;
 
-      --surface: #17181A;
-      --surface-foreground: #E9E9E8;
-      --surface-secondary: #202123;
-      --surface-secondary-foreground: #E9E9E8;
-      --surface-tertiary: #26272A;
-      --surface-tertiary-foreground: #E9E9E8;
+      --surface: #15171C;
+      --surface-foreground: #E7E8EC;
+      --surface-secondary: #1E2025;
+      --surface-secondary-foreground: #E7E8EC;
+      --surface-tertiary: #262A30;
+      --surface-tertiary-foreground: #E7E8EC;
 
-      --overlay: #26272A;
-      --overlay-foreground: #E9E9E8;
+      --overlay: #262A30;
+      --overlay-foreground: #E7E8EC;
       --backdrop: rgba(0, 0, 0, 0.6);
 
-      --default: #232527;
-      --default-foreground: #E9E9E8;
+      --default: #23262B;
+      --default-foreground: #E7E8EC;
 
-      --accent: #E9E9E8;
-      --accent-foreground: #101112;
+      --accent: #E7E8EC;
+      --accent-foreground: #0F1014;
 
-      --field-background: #17181A;
-      --field-foreground: #E9E9E8;
-      --field-placeholder: #9C9D9F;
-      --field-border: #2E2F31;
+      --field-background: #15171C;
+      --field-foreground: #E7E8EC;
+      --field-placeholder: #6E757F;
+      --field-border: #2F333A;
       --field-border-width: 1px;
 
-      --success: #7FA187;
-      --success-foreground: #101112;
-      --warning: #B99A6C;
-      --warning-foreground: #101112;
-      --danger: #C98884;
-      --danger-foreground: #101112;
+      --success: #9197A1;
+      --success-foreground: #0F1014;
+      --warning: #9197A1;
+      --warning-foreground: #0F1014;
+      --danger: #DD7E8B;
+      --danger-foreground: #0F1014;
 
-      --segment: #26272A;
-      --segment-foreground: #E9E9E8;
+      --segment: #262A30;
+      --segment-foreground: #E7E8EC;
 
-      --border: #2E2F31;
-      --separator: #26272A;
-      --focus: #E9E9E8;
-      --link: #E9E9E8;
+      --border: #2F333A;
+      --separator: #1E2025;
+      --focus: #E7E8EC;
+      --link: #E7E8EC;
 
       --surface-shadow: none;
       --overlay-shadow: none;
       --field-shadow: none;
     }
+  }
+}
+
+/* --------------------------------------------------------------
+   web だけの補正。
+   expo-router の NativeTabs は web では `position: fixed; top: 24px` の
+   浮きピルとしてタブバーを画面「上部」に描く（native-tabs.module.css）。
+   ネイティブは下部なので、web プレビューでも同じ位置になるよう下端へ移す。
+   クラス名はハッシュ付きなので、expo-router が付ける role/aria で狙う。
+   -------------------------------------------------------------- */
+[role='tablist'][aria-label='Main'] {
+  top: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+/* --------------------------------------------------------------
+   web だけの補正: フォーカスリング。
+   ブラウザ既定のリング（Chrome ではオレンジ）が出ると、モノクロの
+   デザインシステムから浮く。プロトタイプの
+   `outline: 1.5px solid var(--focus); outline-offset: 2px` に合わせる。
+   ネイティブには outline の概念がないので web 限定で問題ない。
+   -------------------------------------------------------------- */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+[role='button']:focus-visible,
+[contenteditable]:focus-visible {
+  outline: 1.5px solid #14181c;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible,
+  [contenteditable]:focus-visible {
+    outline-color: #e7e8ec;
   }
 }

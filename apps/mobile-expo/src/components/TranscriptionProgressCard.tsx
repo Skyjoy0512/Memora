@@ -1,6 +1,7 @@
-import { AppIcon } from './AppIcon';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, textStyles } from '../design/tokens';
+import { colors, spacing, textStyles } from '../design/tokens';
+import { NumericText } from './NumericText';
+import { ProcessAlert, ProcessCurrent, ProcessRail, type ProcessStep } from './ProcessRail';
 import type {
   TranscriptionEventDTO,
   TranscriptionTaskDTO,
@@ -15,6 +16,11 @@ type Props = {
   task: TranscriptionTaskDTO | null;
 };
 
+/**
+ * Open Design v2 の `processing` / `processing-error` 画面を、記録詳細の
+ * 文字起こしタブに埋め込んだもの。プロトタイプでは独立画面だが、RN では
+ * 記録詳細が処理状況の置き場所なので、レール＋現在の段階だけを持ち込む。
+ */
 export function TranscriptionProgressCard({
   error,
   event,
@@ -25,130 +31,121 @@ export function TranscriptionProgressCard({
 }: Props) {
   const progress = Math.round((event?.progress ?? task?.progress ?? 0) * 100);
   const isCompleted = task?.status === 'completed';
+  const hasFailed = Boolean(error) || task?.status === 'failed';
+
+  const steps: ProcessStep[] = [
+    { label: '記録済み', state: 'done' },
+    {
+      label: hasFailed ? '失敗' : isRunning ? '文字起こし中' : isCompleted ? '文字起こし済み' : '文字起こし待ち',
+      state: hasFailed || isRunning || isCompleted ? 'active' : 'pending',
+    },
+    { label: '要約待ち', state: isCompleted ? 'active' : 'pending' },
+  ];
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.iconWrap}>
-          <AppIcon color={colors.accent} name="pulse-outline" size={20} />
+    <View style={styles.block}>
+      <ProcessRail
+        label={hasFailed ? '処理に失敗' : '処理の進捗'}
+        steps={steps}
+      />
+
+      {hasFailed ? (
+        <View style={styles.section}>
+          <ProcessAlert
+            title="文字起こしを完了できませんでした"
+            body="接続を確認して、もう一度試してください。音声はこのデバイスに残っています。"
+          />
+          {error ? <Text style={styles.detailText}>{error}</Text> : null}
         </View>
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>Native bridge event preview</Text>
-          <Text style={styles.subtitle}>
-            {event?.message ?? 'ネイティブ STT 接続前の mock 進捗です。'}
+      ) : (
+        <View style={styles.section}>
+          <ProcessCurrent current={isCompleted ? 3 : isRunning ? 2 : 1} total={3} />
+          <Text style={styles.title}>
+            {isCompleted ? '文字起こしが終わりました' : isRunning ? '音声を文字にしています' : '文字起こしはまだ始まっていません'}
           </Text>
+          <Text style={styles.body}>
+            {event?.message ??
+              (isRunning
+                ? 'この画面を閉じても処理は続きます。音声はいつでも再生できます。'
+                : '開始すると、音声を文字起こしして要約まで進みます。')}
+          </Text>
+          {isRunning ? (
+            <View style={styles.progressRow}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              </View>
+              <NumericText style={styles.progressText}>{`${progress}%`}</NumericText>
+            </View>
+          ) : null}
         </View>
-      </View>
-
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${progress}%` }]} />
-      </View>
-      <Text style={styles.progressText}>{progress}%</Text>
-
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      )}
 
       <View style={styles.actions}>
         <Pressable
+          accessibilityLabel={hasFailed ? '再試行する' : isCompleted ? '再実行' : '文字起こしを開始'}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isRunning }}
           disabled={isRunning}
           onPress={onStart}
-          style={[styles.primaryButton, isRunning && styles.disabledButton]}
+          style={({ pressed }) => [styles.primaryButton, isRunning && styles.disabled, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryText}>{isCompleted ? '再実行' : '開始'}</Text>
-        </Pressable>
-        <Pressable disabled={!isRunning} onPress={onCancel} style={styles.secondaryButton}>
-          <Text style={[styles.secondaryText, !isRunning && styles.disabledText]}>
-            キャンセル
+          <Text style={styles.primaryText}>
+            {hasFailed ? '再試行する' : isCompleted ? '再実行' : '開始'}
           </Text>
         </Pressable>
+        {isRunning ? (
+          <Pressable
+            accessibilityLabel="文字起こしをキャンセル"
+            accessibilityRole="button"
+            onPress={onCancel}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.secondaryText}>キャンセル</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: 'center',
-    width: 42,
-  },
-  titleBlock: {
-    flex: 1,
-    gap: 4,
-  },
-  title: {
-    color: colors.text,
-    ...textStyles.callout,
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    ...textStyles.footnote,
-  },
+  block: { gap: spacing.xxl },
+  section: { gap: spacing.xs },
+  title: { color: colors.text, ...textStyles.sectionTitle },
+  body: { color: colors.textSecondary, ...textStyles.body },
+  detailText: { color: colors.textSecondary, marginTop: spacing.xs, ...textStyles.footnote },
+  progressRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   progressTrack: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
-    height: 10,
+    borderRadius: 0,
+    flex: 1,
+    height: 3,
     overflow: 'hidden',
   },
-  progressFill: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.pill,
-    height: '100%',
-  },
-  progressText: {
-    color: colors.textSecondary,
-    textAlign: 'right',
-    ...textStyles.captionBold,
-  },
-  errorText: {
-    color: colors.danger,
-    ...textStyles.footnoteBold,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
+  progressFill: { backgroundColor: colors.text, borderRadius: 0, height: '100%' },
+  progressText: { color: colors.textSecondary, ...textStyles.monoBody },
+  actions: { flexDirection: 'row', gap: spacing.sm },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.accent,
-    borderRadius: radius.pill,
+    borderColor: colors.accent,
+    borderRadius: 0,
+    borderWidth: 1,
     flex: 1,
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    minHeight: 44,
   },
-  disabledButton: {
-    opacity: 0.45,
-  },
-  primaryText: {
-    color: colors.surface,
-    ...textStyles.bodyBold,
-  },
+  primaryText: { color: colors.textInverse, ...textStyles.footnoteBold },
   secondaryButton: {
     alignItems: 'center',
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.pill,
+    borderColor: colors.borderLight,
+    borderRadius: 0,
+    borderWidth: 1,
     flex: 1,
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    minHeight: 44,
   },
-  secondaryText: {
-    color: colors.accent,
-    ...textStyles.bodyBold,
-  },
-  disabledText: {
-    color: colors.textTertiary,
-  },
+  secondaryText: { color: colors.text, ...textStyles.footnoteBold },
+  disabled: { opacity: 0.38 },
+  pressed: { opacity: 0.62 },
 });
