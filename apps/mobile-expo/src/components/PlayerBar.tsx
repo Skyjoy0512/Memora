@@ -41,12 +41,12 @@ export function PlayerBar({ onCycleRate, onSeek, onTogglePlay, status }: Props) 
           {formatTime(status.position)} / {formatTime(status.duration)}
         </Text>
         <View style={styles.spacer} />
-        <Pressable accessibilityLabel={`再生速度を変更、現在 ${status.rate}倍速`} accessibilityRole="button" hitSlop={{ bottom: 10, left: 2, right: 2, top: 10 }} onPress={onCycleRate} style={({ pressed }) => [styles.rateButton, pressed && styles.pressed]}>
+        <Pressable accessibilityLabel={`再生速度を変更、現在 ${status.rate}倍速`} accessibilityRole="button" hitSlop={{ bottom: 10, left: 15, right: 8, top: 10 }} onPress={onCycleRate} style={({ pressed }) => [styles.rateButton, pressed && styles.pressed]}>
           <Text style={styles.rateText}>{status.rate}x</Text>
         </Pressable>
       </View>
 
-      <Pressable accessibilityLabel={`再生位置、${formatTime(status.position)} / ${formatTime(status.duration)}`} accessibilityRole="button" onLayout={handleLayout} onPress={handleSeekPress} style={styles.trackWrap}>
+      <Pressable accessibilityLabel={`再生位置、${formatTime(status.position)} / ${formatTime(status.duration)}`} accessibilityRole="button" hitSlop={{ bottom: 8, top: 8 }} onLayout={handleLayout} onPress={handleSeekPress} style={styles.trackWrap}>
         <View style={styles.track}>
           <View style={[styles.trackFill, { width: `${ratio * 100}%` }]} />
         </View>

@@ -207,6 +207,7 @@ export function AskAIScreen() {
           <Pressable
             accessibilityLabel="質問の対象を選ぶ"
             accessibilityRole="button"
+            hitSlop={{ bottom: 4, top: 8 }}
             onPress={() => setIsScopeSheetOpen(true)}
             style={({ pressed }) => [styles.scopeRow, pressed && styles.pressed]}
           >
