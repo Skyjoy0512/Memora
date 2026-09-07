@@ -23,8 +23,10 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { colors, fonts, radius, spacing, textStyles } from "../../design/tokens";
 import { shadow as themeShadow } from "../../theme/tokens";
+import { mapAskAiError } from "../../native/askAiLogic";
 import { MemoraNative } from "../../native/MemoraNative";
 import type { SummaryOptionsDTO } from "../../native/MemoraNative.types";
 import type { AudioFile } from "../../types/memora";
@@ -32,6 +34,13 @@ import type { AudioFile } from "../../types/memora";
 type CaptureMode = "idle" | "recording" | "generate" | "generating";
 type GenerationPhase =
   "analyzing" | "transcribing" | "summarizing" | "completed" | "failed";
+type GenerationFailure = {
+  message: string;
+  hint: "api-key" | null;
+};
+
+const GENERATION_FAILED_RECOVERABLE_MESSAGE =
+  "ファイルは保存されているので、あとで再試行できます。";
 
 type CaptureFlow = {
   discardRecording: () => Promise<void>;
@@ -63,7 +72,7 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
   const [generationPhase, setGenerationPhase] =
     useState<GenerationPhase>("analyzing");
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationError, setGenerationError] = useState<string>();
+  const [generationError, setGenerationError] = useState<GenerationFailure>();
   const [showCompletionSnackbar, setShowCompletionSnackbar] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isCaptureMenuOpen, setIsCaptureMenuOpen] = useState(false);
@@ -293,7 +302,7 @@ export function useCaptureFlow() {
 async function runGeneration(
   file: AudioFile,
   options: SummaryOptionsDTO,
-  setError: (message: string | undefined) => void,
+  setError: (failure: GenerationFailure | undefined) => void,
   setPhase: (phase: GenerationPhase) => void,
   setProgress: (progress: number) => void,
 ) {
@@ -312,8 +321,17 @@ async function runGeneration(
     await delay(450);
     setPhase("completed");
     setProgress(1);
-  } catch {
-    setError("生成に失敗しました。ファイルは保存されています。");
+  } catch (error: unknown) {
+    // Ask AI と同じ判定を再利用する（新たなエラー分類を作らない）。
+    // APIキー未設定は native 側も "APIキーが設定されていません" 等で届くため、
+    // mapAskAiError の keyword 判定でそのまま拾える。
+    const mapping = mapAskAiError(error);
+    const hint = mapping.hint ?? null;
+    setError({
+      message:
+        hint === "api-key" ? mapping.message : GENERATION_FAILED_RECOVERABLE_MESSAGE,
+      hint,
+    });
     setPhase("failed");
     setProgress(0);
   }
@@ -651,11 +669,12 @@ function GenerationOverlay({
   phase,
   progress,
 }: {
-  error?: string;
+  error?: GenerationFailure;
   onClose: () => void;
   phase: GenerationPhase;
   progress: number;
 }) {
+  const router = useRouter();
   const isComplete = phase === "completed" || phase === "failed";
 
   return (
@@ -671,15 +690,36 @@ function GenerationOverlay({
           <ActivityIndicator color={colors.text} size="large" />
         )}
         <Text style={styles.generationLabel}>{generationLabel(phase)}</Text>
-        <View style={styles.progressTrack}>
-          <View
-            style={[styles.progressFill, { width: `${progress * 100}%` }]}
-          />
-        </View>
+        {/* 失敗時は実測値のない進捗バーを残さない（prohibitions §7.4）。 */}
+        {phase !== "failed" ? (
+          <View style={styles.progressTrack}>
+            <View
+              style={[styles.progressFill, { width: `${progress * 100}%` }]}
+            />
+          </View>
+        ) : null}
         <Text style={styles.generationDescription}>
-          {error ??
+          {error?.message ??
             "この処理はバックグラウンドで継続されます。ホームに戻っても続行できます。"}
         </Text>
+        {error?.hint === "api-key" ? (
+          <Pressable
+            accessibilityLabel="設定でAPIキーを入力する"
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              router.push("/settings");
+            }}
+            style={({ pressed }) => [
+              styles.backgroundButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.backgroundButtonText}>
+              設定でAPIキーを入力
+            </Text>
+          </Pressable>
+        ) : null}
         {!isComplete ? (
           <Pressable
             onPress={onClose}
