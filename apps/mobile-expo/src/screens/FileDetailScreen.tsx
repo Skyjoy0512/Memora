@@ -1183,12 +1183,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
   },
-  backButton: {
-    alignItems: 'center',
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
   fileMetaRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1208,11 +1202,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  date: {
-    color: colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
   titleBlock: {
     gap: spacing.sm,
   },
@@ -1222,48 +1211,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     justifyContent: 'space-between',
   },
-  heroTitle: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 24,
-    fontWeight: '600',
-    letterSpacing: -0.24,
-    lineHeight: 30,
-  },
   renameForm: {
     gap: spacing.md,
-  },
-  titleInput: {
-    backgroundColor: colors.surface,
-    borderColor: colors.accent,
-    borderRadius: 0,
-    borderWidth: 2,
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '600',
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
   renameActions: {
     flexDirection: 'row',
     gap: spacing.sm,
-  },
-  iconButton: {
-    alignItems: 'center',
-    backgroundColor: colors.accent,
-    borderRadius: radius.circle,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  ghostIconButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.circle,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
   },
   renameError: {
     color: colors.danger,
