@@ -31,6 +31,8 @@ final class MemoraRNTranscriptionHandler: MemoraTranscriptionHandling {
     }
 
     let audioURL = try await resolveAudioURL(for: id)
+    // RN ホストはリモート文字起こしが未接続（MemoraRNUnavailableRemoteTranscriber）のため
+    // 常にローカル処理。Settings の transcriptionMode は開発者向け切替だが API モードは実行不能。
     sttService.updateConfiguration(apiKey: "", provider: .openai, transcriptionMode: .local)
     let (rawHandle, events) = try await sttService.startTranscription(audioURL: audioURL, language: nil)
     guard let handle = rawHandle as? STTTaskHandle else {
@@ -198,7 +200,9 @@ enum MemoraRNSTTServiceFactory {
     let dependencies = STTReadOnlyHostDependencies(
       logger: MemoraRNSTTLogger(),
       consoleLogger: consoleLogger,
-      settings: MemoraRNLocalSTTSettings(),
+      settings: MemoraRNLocalSTTSettings(
+        store: MemoraNativeSettingsRegistry.settingsStore
+      ),
       diagnostics: MemoraRNSTTDiagnosticsRecorder()
     )
     let executionDependencies = STTServiceExecutionDependencies(
@@ -293,7 +297,41 @@ private struct MemoraRNSTTDiagnosticsRecorder: STTDiagnosticsRecording {
   }
 }
 
-private struct MemoraRNLocalSTTSettings: STTSettingsProviding { let isSpeechAnalyzerEnabled = true; let isSpeakerDiarizationEnabled = false; let contextualVocabulary: [String] = [] }
+/// 設定ストア（Settings 画面・開発者向け切替）の値を文字起こし実行時に読むローカル STT 設定。
+/// 従来は `isSpeechAnalyzerEnabled = true` 固定で、Settings のオフ設定が実処理へ届かなかった。
+private struct MemoraRNLocalSTTSettings: STTSettingsProviding {
+  private let store: MemoraRNSettingsStoreBox
+
+  init(store: any MemoraSettingsReadingWriting) {
+    self.store = MemoraRNSettingsStoreBox(store: store)
+  }
+
+  var isSpeechAnalyzerEnabled: Bool {
+    store.speechAnalyzerEnabled
+  }
+
+  /// 話者分離は設定 DTO に項目がなく、RN ホストは常にローカル文字起こし
+  /// （リモート文字起こしは未接続のため API モードが実行不能）なので常に false が正しい。
+  /// 話者を区別した出力は実装されていない（仕様: Phase 1 は Speaker 1 に固定）。
+  var isSpeakerDiarizationEnabled: Bool { false }
+
+  /// ユーザー辞書は文字起こし後の CustomVocabulary 適用（persist）で処理するため空。
+  var contextualVocabulary: [String] { [] }
+}
+
+/// STTSettingsProviding: Sendable の要件を満たすための読み取り専用ボックス。
+/// ストアへの書き込みは起動時の bootstrap（MainActor）のみで、実行中は読み取り専用。
+private final class MemoraRNSettingsStoreBox: @unchecked Sendable {
+  private let store: any MemoraSettingsReadingWriting
+
+  init(store: any MemoraSettingsReadingWriting) {
+    self.store = store
+  }
+
+  var speechAnalyzerEnabled: Bool {
+    (try? store.loadSettings())?.speechAnalyzerEnabled ?? false
+  }
+}
 private struct MemoraRNNoopBackgroundTasks: STTBackgroundTaskManaging { @MainActor func beginBackgroundTask(named name: String, expirationHandler: @escaping @Sendable () -> Void) -> STTBackgroundTaskToken? { nil }; @MainActor func endBackgroundTask(_ token: STTBackgroundTaskToken) {} }
 private struct MemoraRNNoopIdleTimer: STTIdleTimerManaging { @MainActor func setIdleTimerDisabled(_ isDisabled: Bool) {} }
 private struct MemoraRNNoopMemoryWarnings: STTMemoryWarningObserving { func observeMemoryWarnings(_ handler: @escaping @Sendable () -> Void) {} }
