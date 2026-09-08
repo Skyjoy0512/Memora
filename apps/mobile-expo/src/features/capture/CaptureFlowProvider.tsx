@@ -224,8 +224,10 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
               onGenerate={(request) => {
                 if (latestFile) startGeneration(latestFile, request);
               }}
-              onSkip={(options) => {
-                if (latestFile) startGeneration(latestFile, { options });
+              onSkip={() => {
+                // 生成をスキップ: 保存済みの latestFile は保持したまま、
+                // STT・要約（runGeneration）は開始せずオプション画面を閉じる。
+                setMode("idle");
               }}
             />
           ) : (
@@ -512,7 +514,7 @@ function GenerateOverlay({
   defaultName: string;
   onBack: () => void;
   onGenerate: (request: { name: string; options: SummaryOptionsDTO }) => void;
-  onSkip: (options: SummaryOptionsDTO) => void;
+  onSkip: () => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [genMode, setGenMode] = useState<"auto" | "custom">("auto");
@@ -547,7 +549,7 @@ function GenerateOverlay({
         </Pressable>
         <Pressable
           accessibilityLabel="生成をスキップ"
-          onPress={() => onSkip({ provider: model })}
+          onPress={onSkip}
           style={({ pressed }) => [
             styles.generateSkip,
             pressed && styles.pressed,
