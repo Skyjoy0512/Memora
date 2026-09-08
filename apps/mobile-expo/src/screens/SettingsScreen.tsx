@@ -50,6 +50,7 @@ export function SettingsScreen() {
   const router = useRouter();
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
   const [isSecureCredentialConfigured, setIsSecureCredentialConfigured] = useState(false);
+  const [isAskAiKeyConfigured, setIsAskAiKeyConfigured] = useState(false);
   const [isNotionTokenConfigured, setIsNotionTokenConfigured] = useState(false);
   const [settings, setSettings] = useState<SettingsDTO>(defaultSettings);
   const [notifEnabled, setNotifEnabled] = useState(false);
@@ -68,13 +69,15 @@ export function SettingsScreen() {
       MemoraNative.loadSettings(),
       MemoraNative.listCustomVocabulary(),
       MemoraNative.getSecureCredentialStatus('Notion'),
+      MemoraNative.getSecureCredentialStatus('OpenAI'),
       MemoraNative.listAudioFiles(),
-    ]).then(([info, nextSettings, vocabulary, isNotionConfigured, audioFiles]) => {
+    ]).then(([info, nextSettings, vocabulary, isNotionConfigured, isOpenAiConfigured, audioFiles]) => {
       if (isMounted) {
         setBridgeInfo(info);
         setSettings(nextSettings);
         setCustomVocabulary(vocabulary);
         setIsNotionTokenConfigured(isNotionConfigured);
+        setIsAskAiKeyConfigured(isOpenAiConfigured);
         setHabit(buildRecordingHabit(audioFiles.map((file) => file.recordedAt)));
       }
     });
@@ -168,6 +171,11 @@ export function SettingsScreen() {
                 ? '設定済み'
                 : '未設定'
           }
+        />
+        <SettingsRow
+          onPress={manageAskAiCredential}
+          title="Ask AI（OpenAI）のAPIキー"
+          value={isAskAiKeyConfigured ? '設定済み' : '未設定'}
         />
         <SettingsRow onPress={notConnected} title="要約テンプレート" value="議事録" />
         <View style={styles.toggleRow}>
@@ -429,14 +437,42 @@ export function SettingsScreen() {
     ]);
   }
 
+  function manageAskAiCredential() {
+    if (!isAskAiKeyConfigured) {
+      void presentSecureCredentialInput('OpenAI');
+      return;
+    }
+
+    Alert.alert('OpenAI のAPIキー', 'Ask AI は OpenAI のAPIキーを使います。APIキーの値は表示されません。', [
+      { text: '更新', onPress: () => void presentSecureCredentialInput('OpenAI') },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () => void deleteSecureCredential('OpenAI'),
+      },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  }
+
+  /** OpenAI キーは Ask AI（固定）と要約AIモデル（OpenAI選択時）で共用されるため、両方の表示状態を更新する。 */
+  async function refreshCredentialStatus(provider: SecureCredentialProvider) {
+    const isConfigured = await MemoraNative.getSecureCredentialStatus(provider);
+    if (provider === 'Notion') {
+      setIsNotionTokenConfigured(isConfigured);
+    } else if (provider === 'OpenAI') {
+      setIsAskAiKeyConfigured(isConfigured);
+      if (settings.summaryProvider === 'OpenAI') {
+        setIsSecureCredentialConfigured(isConfigured);
+      }
+    } else {
+      setIsSecureCredentialConfigured(isConfigured);
+    }
+  }
+
   async function presentSecureCredentialInput(provider: SecureCredentialProvider): Promise<boolean> {
     const saved = await MemoraNative.presentSecureCredentialInput(provider);
     if (saved) {
-      if (provider === 'Notion') {
-        setIsNotionTokenConfigured(await MemoraNative.getSecureCredentialStatus('Notion'));
-      } else {
-        setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
-      }
+      await refreshCredentialStatus(provider);
     }
     return saved;
   }
@@ -444,11 +480,7 @@ export function SettingsScreen() {
   async function deleteSecureCredential(provider: SecureCredentialProvider) {
     const deleted = await MemoraNative.deleteSecureCredential(provider);
     if (deleted) {
-      if (provider === 'Notion') {
-        setIsNotionTokenConfigured(await MemoraNative.getSecureCredentialStatus('Notion'));
-      } else {
-        setIsSecureCredentialConfigured(await MemoraNative.getSecureCredentialStatus(provider));
-      }
+      await refreshCredentialStatus(provider);
     }
   }
 
