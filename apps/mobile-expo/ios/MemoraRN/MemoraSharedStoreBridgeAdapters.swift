@@ -16,10 +16,15 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     store.sourceDescription
   }
 
-  init(store: any MemoraSharedAudioFileStore, container: ModelContainer? = nil) {
+  init(
+    store: any MemoraSharedAudioFileStore,
+    container: ModelContainer? = nil,
+    ownedAudioDirectories: [URL] = MemoraSharedStoreBridgeAdapter.defaultOwnedAudioDirectories()
+  ) {
     self.store = store
     self.isoFormatter = ISO8601DateFormatter()
     self.modelContainer = container
+    self.ownedAudioDirectories = ownedAudioDirectories
   }
 
   func listAudioFiles() throws -> [MemoraAudioFileDTO] {
@@ -98,12 +103,75 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
   }
 
   func deleteAudioFile(id: String) throws -> Bool {
-    guard let uuid = UUID(uuidString: id), try store.fetch(id: uuid) != nil else {
+    guard let uuid = UUID(uuidString: id), let record = try store.fetch(id: uuid) else {
       return false
     }
 
+    // R09: DB レコード削除に先立ち、アプリ所有の音声実体（単一ファイル録音の
+    // audioURL と分割録音の segmentPaths）を削除する。所有ルート外のパス
+    // （例: importAudio の原本）は対象外。実体削除に失敗した場合はエラーを返し、
+    // レコードを残すことで再試行できる状態を保つ。レコード削除は最後に行う。
+    try removeOwnedAudioPayloads(of: record)
+
     try store.delete(id: uuid)
     return true
+  }
+
+  private func removeOwnedAudioPayloads(of record: MemoraSharedAudioFileRecord) throws {
+    var candidatePaths = record.segmentPaths
+    if !record.audioURL.isEmpty {
+      candidatePaths.append(record.audioURL)
+    }
+
+    for rawPath in candidatePaths {
+      let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty else { continue }
+
+      let payloadURL = URL(fileURLWithPath: trimmed).standardizedFileURL
+      guard Self.isAppOwnedPayload(payloadURL, within: ownedAudioDirectories) else {
+        continue
+      }
+
+      // 存在しない実体（再試行・既に削除済み）は黙ってスキップする。
+      guard FileManager.default.fileExists(atPath: payloadURL.path) else { continue }
+      try FileManager.default.removeItem(at: payloadURL)
+    }
+  }
+
+  /// 所有ルートの「配下」（ルート自身を含まない）だけを削除対象とみなす。
+  /// 誤削除防止: 所有ルート配下でないパスは何も削除しない。
+  private static func isAppOwnedPayload(_ url: URL, within roots: [URL]) -> Bool {
+    let path = url.standardizedFileURL.path
+    for root in roots {
+      let rootPath = root.standardizedFileURL.path
+      if path.hasPrefix(rootPath + "/") {
+        return true
+      }
+    }
+    return false
+  }
+
+  /// 音声実体を書き込む側（MemoraNativeFileRecordingImportHandler 等）が使う
+  /// 格納ルートを環境（App Group / サンドボックスの Application Support /
+  /// Documents フォールバック）から再現する。ここで返るルート配下のみが
+  /// 「アプリ所有」の削除対象となる。
+  static func defaultOwnedAudioDirectories() -> [URL] {
+    let fileManager = FileManager.default
+    var roots: [URL] = []
+
+    if let groupContainer = fileManager.containerURL(
+      forSecurityApplicationGroupIdentifier: MemoraSharedStoreLocation.primaryAppGroupIdentifier
+    ) {
+      roots.append(MemoraSharedStoreLocation.audioFilesDirectory(in: groupContainer))
+    }
+    if let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+      roots.append(MemoraSharedStoreLocation.audioFilesDirectory(in: applicationSupport))
+    }
+    if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+      roots.append(documents.appendingPathComponent("MemoraNativeAudioFiles", isDirectory: true))
+    }
+
+    return roots
   }
 
   private func makeDTO(from record: MemoraSharedAudioFileRecord) throws -> MemoraAudioFileDTO {

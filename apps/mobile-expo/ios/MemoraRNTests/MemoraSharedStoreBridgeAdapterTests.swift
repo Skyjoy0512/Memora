@@ -241,6 +241,115 @@ struct MemoraSharedStoreBridgeAdapterTests {
     }
   }
 
+  @Test("R09: 削除は所有する音声実体（audioURL と分割セグメント）を消し、ストアからも消える")
+  func deleteAudioFileRemovesOwnedAudioPayloads() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-owned-\(UUID().uuidString)", isDirectory: true)
+    let audioURL = root.appendingPathComponent("Recordings").appendingPathComponent("session.m4a")
+    let segmentURLs = [
+      root.appendingPathComponent("Segments").appendingPathComponent("segment-1.wav"),
+      root.appendingPathComponent("Segments").appendingPathComponent("segment-2.wav")
+    ]
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    try FileManager.default.createDirectory(at: audioURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("audio-payload".utf8).write(to: audioURL)
+    try FileManager.default.createDirectory(at: segmentURLs[0].deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("segment-1".utf8).write(to: segmentURLs[0])
+    try Data("segment-2".utf8).write(to: segmentURLs[1])
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete owned payloads",
+        createdAt: Date(),
+        duration: 3,
+        audioURL: audioURL.path,
+        segmentPaths: segmentURLs.map(\.path)
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(try adapter.deleteAudioFile(id: id.uuidString))
+    #expect(try store.fetch(id: id) == nil)
+    #expect(FileManager.default.fileExists(atPath: audioURL.path) == false)
+    #expect(segmentURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+  }
+
+  @Test("R09: 所有範囲外の音声パス（importAudio の原本等）は削除しない")
+  func deleteAudioFileKeepsPayloadsOutsideOwnedRoots() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-owned-\(UUID().uuidString)", isDirectory: true)
+    let externalRoot = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-external-\(UUID().uuidString)", isDirectory: true)
+    defer {
+      try? FileManager.default.removeItem(at: root)
+      try? FileManager.default.removeItem(at: externalRoot)
+    }
+
+    let ownedAudioURL = root.appendingPathComponent("owned.m4a")
+    let externalAudioURL = externalRoot.appendingPathComponent("original-import.m4a")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: externalRoot, withIntermediateDirectories: true)
+    try Data("owned".utf8).write(to: ownedAudioURL)
+    try Data("external-original".utf8).write(to: externalAudioURL)
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete record but keep import original",
+        createdAt: Date(),
+        duration: 1,
+        audioURL: externalAudioURL.path,
+        segmentPaths: [ownedAudioURL.path]
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(try adapter.deleteAudioFile(id: id.uuidString))
+    #expect(try store.fetch(id: id) == nil)
+    // 所有ルート配下の実体のみ削除され、所有外（原本）は残る。
+    #expect(FileManager.default.fileExists(atPath: ownedAudioURL.path) == false)
+    #expect(FileManager.default.fileExists(atPath: externalAudioURL.path))
+  }
+
+  @Test("R09: 実体削除に失敗したらエラーを返し、レコードは残って再試行できる")
+  func deleteAudioFileFailureKeepsRecordForRetry() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-failure-\(UUID().uuidString)", isDirectory: true)
+    let audioURL = root.appendingPathComponent("locked.m4a")
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path)
+      try? FileManager.default.removeItem(at: root)
+    }
+
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    try Data("locked-payload".utf8).write(to: audioURL)
+    // 親ディレクトリから書き込み権限を外し、removeItem を確実に失敗させる。
+    try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: root.path)
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete failure",
+        createdAt: Date(),
+        duration: 1,
+        audioURL: audioURL.path
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(throws: (any Error).self) {
+      try adapter.deleteAudioFile(id: id.uuidString)
+    }
+    // 実体削除失敗時はレコード削除まで進まない（再試行可能な状態を保つ）。
+    #expect(try store.fetch(id: id) != nil)
+    #expect(FileManager.default.fileExists(atPath: audioURL.path))
+  }
+
   @Test("processing retries deduplicate, persist attempts, and complete")
   func persistsProcessingRetries() throws {
     let root = FileManager.default.temporaryDirectory
@@ -551,5 +660,73 @@ struct MemoraSharedStoreProjectBridgeAdapterTests {
   func projectAdapterReturnsEmptyWhenNoProjects() throws {
     let adapter = try makeAdapter()
     #expect(try adapter.listProjects().isEmpty)
+  }
+}
+
+@Suite("RN native-files memo/photos deletion (R09)")
+struct MemoraNativeMemoDataDeletionTests {
+  /// R09: MemoraNativeModule.deleteAudioFile がレコード削除前に
+  /// MemoraMemoHandling.deleteMemoData を呼ぶ設計の実体削除側の検証。
+  /// モジュール層（AsyncFunction）自体はこのテストターゲットから直接呼べないため、
+  /// MemoraNativeFileMemoStore の実体削除（メモ JSON レコード・写真ディレクトリ）を
+  /// 対象ファイルのみ削除し他レコードを保持することを確認する。
+  @Test("メモと写真は対象ファイルのみ削除し、他レコードは保持する")
+  func deletesOnlyTargetMemoAndPhotos() throws {
+    let memoStore = MemoraNativeFileMemoStore()
+    let targetID = UUID().uuidString
+    let otherID = UUID().uuidString
+    let documents = try #require(
+      FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+    )
+    let memoFileURL = documents
+      .appendingPathComponent("MemoraNativeMetadata", isDirectory: true)
+      .appendingPathComponent("memo-notes.json")
+    let photosRootURL = documents.appendingPathComponent("MemoraNativeMemoPhotos", isDirectory: true)
+    let targetPhotosURL = photosRootURL.appendingPathComponent(targetID, isDirectory: true)
+
+    // テストが書き込んだファイルだけを確実に後始末する（既存データは保持）。
+    let memoFileExistedBefore = FileManager.default.fileExists(atPath: memoFileURL.path)
+    let photosRootExistedBefore = FileManager.default.fileExists(atPath: photosRootURL.path)
+    defer {
+      try? memoStore.deleteMemoData(audioFileId: targetID)
+      try? memoStore.deleteMemoData(audioFileId: otherID)
+      if !memoFileExistedBefore, FileManager.default.fileExists(atPath: memoFileURL.path),
+         let data = try? Data(contentsOf: memoFileURL),
+         String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "{}" {
+        try? FileManager.default.removeItem(at: memoFileURL)
+      }
+      if !photosRootExistedBefore, FileManager.default.fileExists(atPath: photosRootURL.path),
+         let contents = try? FileManager.default.contentsOfDirectory(atPath: photosRootURL.path),
+         contents.isEmpty {
+        try? FileManager.default.removeItem(at: photosRootURL)
+      }
+    }
+
+    // 写真のコピー元（テスト専用の一時ファイル）。
+    let sourceRoot = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-memo-photo-source-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: sourceRoot) }
+    try FileManager.default.createDirectory(at: sourceRoot, withIntermediateDirectories: true)
+    let sourceURL = sourceRoot.appendingPathComponent("photo.jpg")
+    try Data("fake-jpeg-payload".utf8).write(to: sourceURL)
+
+    try memoStore.saveMemoDraft(audioFileId: otherID, text: "他ファイルのメモ")
+    try memoStore.saveMemoDraft(audioFileId: targetID, text: "削除対象メモ")
+    _ = try memoStore.addPhotoAttachment(audioFileId: targetID, sourceUri: sourceURL.absoluteString)
+    #expect(try memoStore.listPhotoAttachments(audioFileId: targetID).count == 1)
+    #expect(FileManager.default.fileExists(atPath: targetPhotosURL.path))
+
+    // 対象の削除: メモ本文・写真の一覧・写真ディレクトリ実体が消える。
+    try memoStore.deleteMemoData(audioFileId: targetID)
+    #expect(try memoStore.getMemoDraft(audioFileId: targetID).isEmpty)
+    #expect(try memoStore.listPhotoAttachments(audioFileId: targetID).isEmpty)
+    #expect(FileManager.default.fileExists(atPath: targetPhotosURL.path) == false)
+
+    // 他レコードは保持される。
+    #expect(try memoStore.getMemoDraft(audioFileId: otherID) == "他ファイルのメモ")
+
+    // べき等: 2回目・未知 ID の削除は副作用なく成功する。
+    try memoStore.deleteMemoData(audioFileId: targetID)
+    try memoStore.deleteMemoData(audioFileId: UUID().uuidString)
   }
 }
