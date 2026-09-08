@@ -59,6 +59,7 @@ export function SettingsScreen() {
   const [editingVocabulary, setEditingVocabulary] = useState<CustomVocabularyDTO | null>(null);
   const [editingNotionParentPage, setEditingNotionParentPage] = useState(false);
   const [notionParentDraft, setNotionParentDraft] = useState('');
+  const [isSummaryProviderPickerOpen, setIsSummaryProviderPickerOpen] = useState(false);
   const [habit, setHabit] = useState<RecordingHabit>(() => buildRecordingHabit([]));
 
   useEffect(() => {
@@ -160,7 +161,11 @@ export function SettingsScreen() {
       </SettingsGroupCard>
 
       <SettingsGroupCard title="文字起こし・要約">
-        <SettingsRow onPress={notConnected} title="要約AIモデル" value={settings.summaryProvider} />
+        <SettingsRow
+          onPress={() => setIsSummaryProviderPickerOpen(true)}
+          title="要約AIモデル"
+          value={settings.summaryProvider}
+        />
         <SettingsRow
           onPress={manageSecureCredential}
           title="AI providerのAPIキー"
@@ -177,7 +182,11 @@ export function SettingsScreen() {
           title="Ask AI（OpenAI）のAPIキー"
           value={isAskAiKeyConfigured ? '設定済み' : '未設定'}
         />
-        <SettingsRow onPress={notConnected} title="要約テンプレート" value="議事録" />
+        <SettingsRow
+          onPress={summaryTemplateGuide}
+          title="要約テンプレート"
+          value="生成時に選択"
+        />
         <View style={styles.toggleRow}>
           <Text style={styles.v6RowTitle}>音声解析（話者識別）</Text>
           <ToggleSwitch
@@ -406,6 +415,15 @@ export function SettingsScreen() {
         onSave={() => void saveNotionParentPage()}
         value={notionParentDraft}
       />
+      <SummaryProviderPicker
+        isOpen={isSummaryProviderPickerOpen}
+        onClose={() => setIsSummaryProviderPickerOpen(false)}
+        onSelect={(summaryProvider) => {
+          saveSettings({ ...settings, summaryProvider });
+          setIsSummaryProviderPickerOpen(false);
+        }}
+        value={settings.summaryProvider}
+      />
     </Screen>
   );
 
@@ -488,6 +506,13 @@ export function SettingsScreen() {
     Alert.alert(
       'ChatGPT に共有',
       'ファイル詳細の「書き出す」から、要約と文字起こしをMarkdownでクリップボードにコピーして共有シートを開きます。認証は不要です。',
+    );
+  }
+
+  function summaryTemplateGuide() {
+    Alert.alert(
+      'テンプレートは生成時に選択します',
+      'ファイル詳細または録音直後の生成画面でテンプレートを選び、選択した内容で要約を生成します。',
     );
   }
 
@@ -703,6 +728,53 @@ function NotionParentPageEditor({
                 isDisabled={!value.trim()}
                 label="保存"
                 onPress={onSave}
+                style={styles.vocabularyButton}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function SummaryProviderPicker({
+  isOpen,
+  onClose,
+  onSelect,
+  value,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (provider: SettingsDTO['summaryProvider']) => void;
+  value: SettingsDTO['summaryProvider'];
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <Modal animationType="slide" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>要約AIモデル</Text>
+          <RadioGroup
+            onValueChange={(next) => onSelect(next as SettingsDTO['summaryProvider'])}
+            value={value}
+          >
+            {providerOptions.map((provider) => (
+              <RadioGroup.Item key={provider} variant="primary" value={provider}>
+                {provider === 'Local' ? 'Local（端末内）' : provider}
+              </RadioGroup.Item>
+            ))}
+          </RadioGroup>
+          <Text style={styles.notionParentHint}>
+            要約の生成に使うAIモデルを選びます。APIキーはこの画面の「AI providerのAPIキー」から設定します。
+          </Text>
+          <View style={styles.modalActions}>
+            <View style={styles.modalPrimaryActions}>
+              <SecondaryAction
+                accessibilityLabel="要約AIモデルの変更をキャンセル"
+                label="キャンセル"
+                onPress={onClose}
                 style={styles.vocabularyButton}
               />
             </View>

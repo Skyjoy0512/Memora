@@ -46,6 +46,28 @@ enum MemoraRNSummaryError: LocalizedError {
   }
 }
 
+/// RN の生成画面が渡す安定 ID（templateId）を、要約プロンプトの指示文へ対応付ける。
+/// RN 側のテンプレート候補（FileDetailScreen / 録音後の GenerateOverlay）と ID を合わせる。
+enum MemoraRNSummaryTemplateInstruction {
+  static func instruction(for templateId: String?) -> String? {
+    guard let templateId else { return nil }
+    switch templateId {
+    case "meeting-notes":
+      return "会議の議事録として整理してください。テーマ・決定事項・残課題・次のアクションが分かる構成にしてください。"
+    case "detailed-notes":
+      return "詳細な議事録として、発言の要旨を時系列に沿って詳しく残してください。"
+    case "key-points":
+      return "重要なポイントだけを簡潔に抽出してください。"
+    case "action-items":
+      return "タスク化できる項目をアクションアイテムとして一覧にしてください。"
+    case "clean-transcript":
+      return "文字起こしを読みやすい文章に整形してください。内容は変えず、冗長な言い回しの整理だけにしてください。"
+    default:
+      return nil
+    }
+  }
+}
+
 @MainActor
 final class MemoraSharedStoreSummaryGenerator: MemoraSummaryGenerating {
   let sourceDescription = "swiftdata"
@@ -104,7 +126,15 @@ final class MemoraSharedStoreSummaryGenerator: MemoraSummaryGenerating {
     engine.configure(provider: llmProvider)
     let result: SummaryResult
     do {
-      result = try await engine.summarize(transcript: transcript)
+      // テンプレート選択時は指示文を customPrompt に載せ、未選択（自動生成）は従来どおり固定プロンプト。
+      if let instruction = MemoraRNSummaryTemplateInstruction.instruction(for: request.options.templateId) {
+        result = try await engine.summarize(
+          transcript: transcript,
+          config: SummaryGenerationConfig(customPrompt: instruction)
+        )
+      } else {
+        result = try await engine.summarize(transcript: transcript)
+      }
     } catch {
       throw MemoraRNSummaryError.generationFailed
     }
