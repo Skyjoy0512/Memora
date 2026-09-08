@@ -329,7 +329,7 @@ export function AskAIScreen() {
           ) : bridgeInfo?.knowledgeQuerySource === 'swiftdata' && isKeyConfigured === false ? (
             <EmptyState
               actionLabel="設定を開く"
-              body="「設定 > 文字起こし・要約 > AI providerのAPIキー」から OpenAI の API キーを入力すると、記録から回答できるようになります。"
+              body="「設定 > 文字起こし・要約 > Ask AI（OpenAI）のAPIキー」から OpenAI の API キーを入力すると、記録から回答できるようになります。"
               onAction={() => router.push('/settings')}
               title="OpenAI の API キーが未設定です"
             />
