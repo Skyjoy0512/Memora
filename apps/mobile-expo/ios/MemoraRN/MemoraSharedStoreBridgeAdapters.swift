@@ -23,7 +23,20 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
   }
 
   func listAudioFiles() throws -> [MemoraAudioFileDTO] {
-    try store.fetchPage(offset: 0, limit: 50).map(makeDTO)
+    // R10: 一覧・検索は全件を返す。fetchPage は新しい順ソートのままページングで
+    // 末尾（最古の録音）まで取得する（旧実装は limit: 50 固定のため 51件目以降が
+    // 一覧・検索から見つからなかった）。
+    let pageSize = 100
+    var offset = 0
+    var allRecords: [MemoraSharedAudioFileRecord] = []
+    while true {
+      let page = try store.fetchPage(offset: offset, limit: pageSize)
+      allRecords.append(contentsOf: page)
+      // 総件数が pageSize の倍数でも、次の空ページ取得で確実に終了する。
+      guard page.count == pageSize else { break }
+      offset += page.count
+    }
+    return allRecords.map(makeDTO)
   }
 
   func getAudioFile(id: String) throws -> MemoraAudioFileDTO? {

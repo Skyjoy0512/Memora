@@ -414,6 +414,36 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.transcript[1]["cleanedText"] as? String == "CRMの計画です")
     #expect(dto.transcript[1]["text"] as? String == "えー、CRMの計画です")
   }
+
+  @Test("録音が51件以上でも一覧は全件を新しい順で返す（50件上限の撤廃）")
+  func listsAllRecordingsBeyondLegacyFiftyRecordCap() throws {
+    let totalCount = 53
+    let baseDate = Date(timeIntervalSince1970: 1_000_000)
+    let records = (0..<totalCount).map { index in
+      MemoraSharedAudioFileRecord(
+        id: UUID(),
+        title: "Recording \(index)",
+        createdAt: baseDate.addingTimeInterval(TimeInterval(index)),
+        duration: 1,
+        audioURL: "/tmp/recording-\(index).m4a"
+      )
+    }
+    // 生成順 = createdAt 昇順のため、先頭が最古、末尾が最新。
+    let oldest = try #require(records.first)
+    let newest = try #require(records.last)
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: records)
+    )
+
+    let dtos = try adapter.listAudioFiles()
+
+    // 旧実装は limit: 50 のため 51件目以降（最古の録音）が一覧結果に含まれなかった。
+    #expect(dtos.count == totalCount)
+    #expect(dtos.contains { $0.id == oldest.id.uuidString })
+    // ページングの重複・欠落がないことと、既存の並び順（新しい順）の維持。
+    #expect(Set(dtos.map(\.id)).count == totalCount)
+    #expect(dtos.first?.id == newest.id.uuidString)
+  }
 }
 
 @Suite("RN shared store task bridge adapter")
