@@ -36,11 +36,31 @@ public enum MemoraNativeRecordingImportRegistry {
   public static var handler: MemoraRecordingImportHandling = MemoraNativeFileRecordingImportHandler()
 }
 
+/// 録音セッションの状態。ユーザー操作による pause と OS 割込みによる停止を区別し、
+/// 割込み復帰（.ended + .shouldResume）時の自動再開対象を決める（R18）。
+private enum MemoraRecordingSessionState {
+  case recording
+  /// ユーザー操作（pauseRecording）による一時停止。割込み復帰時も自動再開しない。
+  case pausedByUser
+  /// 進行中の OS 割込み（interruption .began）による自動停止。
+  /// .ended + shouldResume で自動再開の対象になる。
+  case interruptedBySystem
+  /// 割込み終了後も停止中（shouldResume なし、または自動再開失敗）。
+  /// 明示的な resumeRecording のみで再開する。
+  case pausedAfterInterruption
+}
+
+/// 開始〜停止中の録音セッション（旧 activeRecorders + activeRecorderStartDates 相当）。
+private struct MemoraActiveRecording {
+  let recorder: AVAudioRecorder
+  let startDate: Date
+  var state: MemoraRecordingSessionState
+}
+
 public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecordingImportHandling {
   public let sourceDescription: String
 
-  private var activeRecorders: [String: AVAudioRecorder] = [:]
-  private var activeRecorderStartDates: [String: Date] = [:]
+  private var activeRecordings: [String: MemoraActiveRecording] = [:]
   private let recorderLock = NSLock()
   private let isoFormatter = ISO8601DateFormatter()
   private let storageDirectory: URL?
@@ -76,69 +96,81 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       throw MemoraRecordingImportError.recordingStartFailed
     }
 
+    let startDate = Date()
     recorderLock.lock()
-    activeRecorders[sessionId] = recorder
-    activeRecorderStartDates[sessionId] = Date()
+    activeRecordings[sessionId] = MemoraActiveRecording(
+      recorder: recorder,
+      startDate: startDate,
+      state: .recording
+    )
     recorderLock.unlock()
 
     return MemoraRecordingSessionDTO(
       id: sessionId,
-      startedAt: isoFormatter.string(from: Date()),
+      startedAt: isoFormatter.string(from: startDate),
       source: "iPhone"
     )
   }
 
   public func stopRecording(sessionId: String) throws -> MemoraAudioFileDTO {
     recorderLock.lock()
-    let recorder = activeRecorders.removeValue(forKey: sessionId)
-    let startDate = activeRecorderStartDates.removeValue(forKey: sessionId)
+    let recording = activeRecordings.removeValue(forKey: sessionId)
     recorderLock.unlock()
-    guard let recorder else {
+    guard let recording else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
 
-    recorder.stop()
+    recording.recorder.stop()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
     return try makeAudioFileDTO(
       id: UUID().uuidString,
-      fileURL: recorder.url,
-      title: recordingTitle(for: startDate ?? Date()),
+      fileURL: recording.recorder.url,
+      title: recordingTitle(for: recording.startDate),
       summary: ""
     )
   }
 
   public func pauseRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders[sessionId]
-    recorderLock.unlock()
-    guard let recorder else {
+    guard let recorder = activeRecordings[sessionId]?.recorder else {
+      recorderLock.unlock()
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
+    recorderLock.unlock()
     recorder.pause()
+
+    recorderLock.lock()
+    // R18: ユーザーによる明示 pause は自動再開対象から外す。
+    activeRecordings[sessionId]?.state = .pausedByUser
+    recorderLock.unlock()
   }
 
   public func resumeRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders[sessionId]
-    recorderLock.unlock()
-    guard let recorder else {
+    guard let recorder = activeRecordings[sessionId]?.recorder else {
+      recorderLock.unlock()
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
+    recorderLock.unlock()
     guard recorder.record() else {
       throw MemoraRecordingImportError.recordingStartFailed
     }
+
+    recorderLock.lock()
+    activeRecordings[sessionId]?.state = .recording
+    recorderLock.unlock()
   }
 
   public func discardRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders.removeValue(forKey: sessionId)
-    activeRecorderStartDates.removeValue(forKey: sessionId)
+    let recording = activeRecordings.removeValue(forKey: sessionId)
     recorderLock.unlock()
-    guard let recorder else {
+
+    guard let recording else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
-    recorder.deleteRecording()
+    recording.recorder.deleteRecording()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
   }
 
@@ -177,9 +209,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
 
   private func handleInterruption(_ notification: Notification) {
     recorderLock.lock()
-    let hasActiveRecorders = !activeRecorders.isEmpty
+    let hasActiveRecordings = !activeRecordings.isEmpty
     recorderLock.unlock()
-    guard hasActiveRecorders else { return }
+    guard hasActiveRecordings else { return }
     guard
       let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
       let type = AVAudioSession.InterruptionType(rawValue: rawType)
@@ -190,32 +222,68 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     switch type {
     case .began:
       // The system pauses AVAudioRecorder automatically when the interruption begins.
-      break
+      // R18: 録音中（ユーザー一時停止でない）セッションだけを「割込み停止」として記録する。
+      recorderLock.lock()
+      for sessionId in Array(activeRecordings.keys) {
+        guard activeRecordings[sessionId]?.state == .recording else { continue }
+        activeRecordings[sessionId]?.state = .interruptedBySystem
+      }
+      recorderLock.unlock()
     case .ended:
       let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
       guard AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) else {
+        // R18: 自動再開が許可されない割込みでは、割込み停止分を明示再開待ちへ戻す。
+        markInterruptedBySystemAsPaused()
         return
       }
-      resumeActiveRecorders()
+      resumeInterruptedBySystemRecordings()
     @unknown default:
       break
     }
   }
 
-  private func resumeActiveRecorders() {
+  private func markInterruptedBySystemAsPaused() {
     recorderLock.lock()
-    let recorders = Array(activeRecorders.values)
+    for sessionId in Array(activeRecordings.keys)
+    where activeRecordings[sessionId]?.state == .interruptedBySystem {
+      activeRecordings[sessionId]?.state = .pausedAfterInterruption
+    }
     recorderLock.unlock()
+  }
+
+  /// R18: 割込み終了（.ended + shouldResume）時に自動再開するのは、
+  /// その割込みで停止された（interruptedBySystem の）録音だけ。ユーザーが明示的に
+  /// pause した録音（pausedByUser）や、割込み終了済みの録音は再開しない。
+  private func resumeInterruptedBySystemRecordings() {
+    recorderLock.lock()
+    let hasActiveRecordings = !activeRecordings.isEmpty
+    let interruptedRecordings = activeRecordings.compactMap { sessionId, recording -> (String, AVAudioRecorder)? in
+      guard recording.state == .interruptedBySystem else { return nil }
+      return (sessionId, recording.recorder)
+    }
+    recorderLock.unlock()
+
+    // 旧実装と同じく、割込み復帰時はアクティブ録音があればセッションを再有効化する。
+    // これにより、自動再開対象が無い場合（全て pausedByUser 等）でも、
+    // その後の明示的な resumeRecording が record() できる状態を維持する。
+    guard hasActiveRecordings else { return }
 
     let session = AVAudioSession.sharedInstance()
     do {
       try session.setActive(true, options: .notifyOthersOnDeactivation)
     } catch {
+      markInterruptedBySystemAsPaused()
       return
     }
 
-    for recorder in recorders {
-      _ = recorder.record()
+    for (sessionId, recorder) in interruptedRecordings {
+      let resumed = recorder.record()
+      recorderLock.lock()
+      // 再開成功/失敗にかかわらず、この割込みサイクルの自動再開対象から外す。
+      if activeRecordings[sessionId]?.state == .interruptedBySystem {
+        activeRecordings[sessionId]?.state = resumed ? .recording : .pausedAfterInterruption
+      }
+      recorderLock.unlock()
     }
   }
 
