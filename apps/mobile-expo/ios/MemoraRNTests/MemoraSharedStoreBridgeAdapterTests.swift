@@ -348,30 +348,71 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(MemoraCustomVocabularyApplier(vocabulary: []).apply(to: "既存の整形結果") == "既存の整形結果")
   }
 
-  @Test("transcript DTO applies vocabulary to saved and fallback cleaned text without changing raw")
-  func transcriptDTOVocabularyPreservesRawText() throws {
+  @Test("STT 保存で辞書適用済みの cleanedText を DTO 読込時に再適用しない")
+  func transcriptDTODoesNotReapplyVocabularyAfterPersist() throws {
     let container = try ModelContainer(
       for: Schema(versionedSchema: MemoraSchemaV6.self),
       configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let context = ModelContext(container)
     let file = AudioFile(title: "Vocabulary fixture", audioURL: "/tmp/vocabulary.m4a")
-    let transcript = Transcript(audioFileID: file.id, text: "えー、メモラです")
+    let transcript = Transcript(audioFileID: file.id, text: "CRMを導入しました")
     transcript.audioFile = file
-    transcript.segmentTexts = ["えー、メモラです", "メモラを確認します"]
-    transcript.cleanedSegmentTexts = ["メモラです"]
+    let rawSegments = ["CRMを導入しました", "CRMの商談です"]
+    transcript.segmentTexts = rawSegments
     context.insert(file)
     context.insert(transcript)
-    context.insert(CustomVocabulary(pattern: "メモラ", replacement: "Memora", enabled: true))
-    context.insert(CustomVocabulary(pattern: "確認", replacement: "確認済み", enabled: false))
+    context.insert(CustomVocabulary(pattern: "CRM", replacement: "CRMシステム", enabled: true))
+    context.insert(CustomVocabulary(pattern: "商談", replacement: "商談済み", enabled: false))
+    try context.save()
+
+    // 保存時（MemoraRNTranscriptionBridge.persist）の適用順を再現する:
+    // clean 後に辞書を1回だけ適用し、適用済み文字列を cleanedSegmentTexts へ保存する。
+    let postProcessor = TranscriptPostProcessor()
+    let vocabularyApplier = MemoraCustomVocabularyApplier(
+      vocabulary: try context.fetch(FetchDescriptor<CustomVocabulary>())
+    )
+    transcript.cleanedSegmentTexts = rawSegments.map {
+      vocabularyApplier.apply(to: postProcessor.clean($0))
+    }
     try context.save()
 
     let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
     let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
-    #expect(dto.transcript[0]["text"] as? String == "えー、メモラです")
-    #expect(dto.transcript[0]["cleanedText"] as? String == "Memoraです")
-    #expect(dto.transcript[1]["text"] as? String == "メモラを確認します")
-    #expect(dto.transcript[1]["cleanedText"] as? String == "Memoraを確認します")
+    // text は補正前のまま
+    #expect(dto.transcript[0]["text"] as? String == "CRMを導入しました")
+    #expect(dto.transcript[1]["text"] as? String == "CRMの商談です")
+    // cleanedText は保存時の適用結果（1回のみ）。二重適用なら「CRMシステムシステム」になる。
+    #expect(dto.transcript[0]["cleanedText"] as? String == "CRMシステムを導入しました")
+    #expect(dto.transcript[1]["cleanedText"] as? String == "CRMシステムの商談です")
+    #expect((dto.transcript[0]["cleanedText"] as? String)?.contains("システムシステム") == false)
+  }
+
+  @Test("cleanedSegmentTexts 欠落時も DTO は辞書を再適用せず補正のみ行う")
+  func transcriptDTOFallbackNeverReappliesVocabulary() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Vocabulary fallback fixture", audioURL: "/tmp/vocabulary-fallback.m4a")
+    let transcript = Transcript(audioFileID: file.id, text: "CRMです")
+    transcript.audioFile = file
+    transcript.segmentTexts = ["CRMです", "えー、CRMの計画です"]
+    // 保存時に辞書適用済みの1件のみ保持（後続セグメントは保存時の欠落を模す）
+    transcript.cleanedSegmentTexts = ["CRMシステムです"]
+    context.insert(file)
+    context.insert(transcript)
+    context.insert(CustomVocabulary(pattern: "CRM", replacement: "CRMシステム", enabled: true))
+    try context.save()
+
+    let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
+    let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
+    // 保存済みの適用結果は素通し（再適用すると「CRMシステムシステムです」になる）
+    #expect(dto.transcript[0]["cleanedText"] as? String == "CRMシステムです")
+    // 欠落セグメントはフィラー除去などの補正のみ（辞書は適用しない）
+    #expect(dto.transcript[1]["cleanedText"] as? String == "CRMの計画です")
+    #expect(dto.transcript[1]["text"] as? String == "えー、CRMの計画です")
   }
 }
 

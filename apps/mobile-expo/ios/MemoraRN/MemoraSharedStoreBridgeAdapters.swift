@@ -115,8 +115,9 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
     guard let transcript = try modelContext.fetch(descriptor).first?.transcripts.first else { return [] }
     let cleaned = transcript.cleanedSegmentTexts
     let postProcessor = TranscriptPostProcessor()
-    let vocabulary = try modelContext.fetch(FetchDescriptor<CustomVocabulary>())
-    let vocabularyApplier = MemoraCustomVocabularyApplier(vocabulary: vocabulary)
+    // ユーザー辞書の適用は保存時（MemoraRNTranscriptionBridge.persist）の
+    // 1回だけ。cleanedSegmentTexts は適用済みの最終文字列のため、DTO読込時に
+    // 再適用すると二重適用になる（例: CRM→CRMシステム が CRMシステムシステム になる）。
     return transcript.segmentTexts.enumerated().map { index, text in
       let cleanedText = index < cleaned.count ? cleaned[index] : postProcessor.clean(text)
       return [
@@ -124,7 +125,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
         "speaker": index < transcript.speakerLabels.count ? transcript.speakerLabels[index] : "",
         "time": formattedDuration(index < transcript.segmentStartTimes.count ? transcript.segmentStartTimes[index] : 0),
         "text": text,
-        "cleanedText": vocabularyApplier.apply(to: cleanedText),
+        "cleanedText": cleanedText,
         "confidence": 1.0
       ]
     }
