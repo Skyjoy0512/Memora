@@ -31,9 +31,18 @@ final class MemoraSharedStoreKnowledgeQuery: MemoraKnowledgeQuerying {
   }
 
   private let container: ModelContainer
-  private let credentials = MemoraRNKeychainSecureCredentials()
+  private let keyReader: any MemoraRNSummaryKeyReading
+  private let providerFactory: (MemoraRNSummaryProvider, String) throws -> any LLMProvider
 
-  init(container: ModelContainer) { self.container = container }
+  init(
+    container: ModelContainer,
+    keyReader: any MemoraRNSummaryKeyReading = MemoraRNKeychainSecureCredentials(),
+    providerFactory: @escaping (MemoraRNSummaryProvider, String) throws -> any LLMProvider = MemoraRNRemoteLLMProvider.make
+  ) {
+    self.container = container
+    self.keyReader = keyReader
+    self.providerFactory = providerFactory
+  }
 
   func queryKnowledge(_ request: MemoraKnowledgeQueryRequestDTO) async throws -> MemoraKnowledgeQueryResponseDTO {
     let context = ModelContext(container)
@@ -98,11 +107,18 @@ final class MemoraSharedStoreKnowledgeQuery: MemoraKnowledgeQuerying {
     }
 
     // Provider selection is intentionally host-local; no credential crosses this boundary.
-    guard let key = try credentials.apiKey(for: .openAI), !key.isEmpty else { throw MemoraKnowledgeQueryError.apiKeyMissing }
+    guard let key = try keyReader.apiKey(for: .openAI), !key.isEmpty else { throw MemoraKnowledgeQueryError.apiKeyMissing }
     let provider: any LLMProvider
-    do { provider = try MemoraRNRemoteLLMProvider.make(provider: .openAI, apiKey: key) } catch { throw MemoraKnowledgeQueryError.providerUnavailable }
+    do { provider = try providerFactory(.openAI, key) } catch { throw MemoraKnowledgeQueryError.providerUnavailable }
     let answer: String
-    do { answer = try await provider.summarize(transcript: prompt).summary.trimmingCharacters(in: .whitespacesAndNewlines) } catch { throw MemoraKnowledgeQueryError.generationFailed }
+    do {
+      // Ask AI の回答は会議要約 API（summarize）ではなく平文の回答生成 API（generate）を使う。
+      // 質問＋コンテキストは makePrompt が組み立てた回答プロンプトのまま渡し、
+      // 要約メタデータ（title/summary/keyPoints/actionItems）抽出の指示を混ぜない。
+      answer = try await provider.generate(prompt: prompt).trimmingCharacters(in: .whitespacesAndNewlines)
+    } catch {
+      throw MemoraKnowledgeQueryError.generationFailed
+    }
 
     // 既存セッションへ追記 / 新規セッションへの初回保存。
     context.insert(AskAIMessage(sessionID: session.id, role: .user, content: request.question))
