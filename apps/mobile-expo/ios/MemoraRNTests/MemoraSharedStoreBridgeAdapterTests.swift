@@ -193,6 +193,52 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(soughtStatus.position >= 0.1)
   }
 
+  @Test("audio session is activated at play time, not at load (R19)")
+  func configuresAudioSessionOnlyWhenPlayStarts() throws {
+    let id = UUID()
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-playback-session-tests-\(UUID().uuidString)", isDirectory: true)
+    let segmentURL = directory.appendingPathComponent("segment.wav")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try writeSilentAudio(to: segmentURL)
+
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: [
+        MemoraSharedAudioFileRecord(
+          id: id,
+          title: "Session deferral",
+          createdAt: Date(),
+          duration: 0.1,
+          audioURL: segmentURL.path,
+          segmentPaths: [segmentURL.path]
+        )
+      ])
+    )
+    let originalReader = MemoraNativeAudioFileReaderRegistry.audioFileReader
+    defer { MemoraNativeAudioFileReaderRegistry.audioFileReader = originalReader }
+    MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
+
+    let controller = MemoraAVAudioPlaybackController()
+    var activationCount = 0
+    controller.activateAudioSessionForPlayback = {
+      activationCount += 1
+    }
+
+    _ = try controller.load(audioFileId: id.uuidString)
+    #expect(activationCount == 0, "詳細表示（load）では AudioSession を変更しない")
+
+    _ = try controller.play()
+    #expect(activationCount == 1, "play で初めて再生用セッションへ切り替える")
+
+    _ = try controller.pause()
+    _ = try controller.seek(to: 0.05)
+    #expect(activationCount == 1, "pause / seek では再設定しない")
+
+    _ = try controller.play()
+    #expect(activationCount == 2, "一時停止後の再開（play）でも設定できる")
+  }
+
   private func writeSilentAudio(to url: URL) throws {
     let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
     let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4410)!

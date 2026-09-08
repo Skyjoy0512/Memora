@@ -59,6 +59,16 @@ enum MemoraPlaybackError: LocalizedError {
 public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackControlling, AVAudioPlayerDelegate {
   public let sourceDescription = "native-file"
 
+  /// 再生を実際に開始する直前でのみ共有 AVAudioSession を .playback へ切り替えて
+  /// 有効化する処理。R19: load（詳細表示）では変更せず、play() からのみ実行する
+  /// ことで、録音セッション（.playAndRecord）を奪わない設計にする。
+  /// 呼び出しタイミングを検証できるようクロージャで保持する。
+  internal var activateAudioSessionForPlayback: () throws -> Void = {
+    let session = AVAudioSession.sharedInstance()
+    try session.setCategory(.playback, mode: .default)
+    try session.setActive(true)
+  }
+
   private var player: AVAudioPlayer?
   private var segmentPlayers: [AVAudioPlayer] = []
   private var segmentStartOffsets: [TimeInterval] = []
@@ -77,10 +87,9 @@ public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackCont
       throw MemoraPlaybackError.fileNotFound
     }
 
-    let session = AVAudioSession.sharedInstance()
-    try session.setCategory(.playback, mode: .default)
-    try session.setActive(true)
-
+    // R19: ここ（ファイル詳細表示）で AudioSession を変更しない。再生用の
+    // .playback への切り替えと setActive は、ユーザーが再生操作を行った
+    // play() に遅延させる（録音中のセッションとの競合を避ける）。
     let nextPlayers = try filePaths.map { filePath in
       let nextPlayer = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: filePath))
       nextPlayer.enableRate = true
@@ -106,6 +115,7 @@ public final class MemoraAVAudioPlaybackController: NSObject, MemoraPlaybackCont
 
   public func play() throws -> MemoraPlaybackStatusDTO {
     guard let player else { throw MemoraPlaybackError.noFileLoaded }
+    try activateAudioSessionForPlayback()
     player.play()
     return currentStatus()
   }
