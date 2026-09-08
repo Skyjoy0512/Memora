@@ -1,6 +1,6 @@
 import { AppIcon } from '../components/AppIcon';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FloatingBottomSheet } from '../components/FloatingBottomSheet';
 import { NumericText } from '../components/NumericText';
@@ -57,29 +57,44 @@ export function TasksScreen() {
   const [projects, setProjects] = useState<ProjectDTO[]>([]);
   const audioTitlesRef = useRef<Map<string, string>>(new Map());
   const projectTitlesRef = useRef<Map<string, string>>(new Map());
+  // 並行取得が起きた場合は、最後に開始した取得の結果だけを採用する。
+  const reloadGenerationRef = useRef(0);
 
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([MemoraNative.listTasks(), MemoraNative.listAudioFiles(), MemoraNative.listProjects()])
-      .then(([taskItems, audioFiles, projects]) => {
-        if (!isMounted) return;
-        const titles = new Map(audioFiles.map((file) => [file.id, file.title] as const));
-        const projectTitles = new Map(
-          projects.map((project: ProjectDTO) => [project.id, project.title] as const),
-        );
-        audioTitlesRef.current = titles;
-        projectTitlesRef.current = projectTitles;
-        setProjects(projects);
-        setTasks(taskItems.map((item) => toScreenTask(item, titles, projectTitles)));
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
+  const reload = useCallback(async () => {
+    const generation = ++reloadGenerationRef.current;
+    try {
+      const [taskItems, audioFiles, projects] = await Promise.all([
+        MemoraNative.listTasks(),
+        MemoraNative.listAudioFiles(),
+        MemoraNative.listProjects(),
+      ]);
+      if (generation !== reloadGenerationRef.current) {
+        return;
+      }
+      const titles = new Map(audioFiles.map((file) => [file.id, file.title] as const));
+      const projectTitles = new Map(
+        projects.map((project: ProjectDTO) => [project.id, project.title] as const),
+      );
+      audioTitlesRef.current = titles;
+      projectTitlesRef.current = projectTitles;
+      setProjects(projects);
+      setTasks(taskItems.map((item) => toScreenTask(item, titles, projectTitles)));
+    } catch {
+      // 取得失敗時は直前の表示を維持する。
+    }
   }, []);
+
+  // 初回フォーカスと再フォーカスの両方で再取得する。FileDetail など他画面で
+  // 追加・更新されたタスクや、録音・プロジェクトのタイトル変更を、戻ってきた
+  // 際に反映する。再取得中はローディング表示へ戻さず既存一覧を維持する
+  // （isLoading は初回取得のみを担い、完了時に false へ倒す）。
+  useFocusEffect(
+    useCallback(() => {
+      void reload().finally(() => {
+        setIsLoading(false);
+      });
+    }, [reload]),
+  );
 
   const grouped = useMemo(() => ({
     done: tasks.filter((task) => task.completed),
