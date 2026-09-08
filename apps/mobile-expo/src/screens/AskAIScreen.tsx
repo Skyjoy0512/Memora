@@ -4,9 +4,9 @@ import { NumericText } from '../components/NumericText';
 import { IconButton } from '../components/Buttons';
 import { EmptyState } from '../components/StateViews';
 import { useTabBarClearance } from '../components/useTabBarClearance';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Keyboard, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import {
@@ -31,10 +31,31 @@ const scopeLabels: Record<KnowledgeQueryScope, string> = {
 
 const suggestedQuestions = ['この会議の決定事項は？', '次に対応すべきことを教えて', '関連する記録を探して'];
 
+type AskAiRouteParams = {
+  audioFileId?: string | string[];
+  projectId?: string | string[];
+};
+
+/** ルートパラメータの対象IDを正規化する。空・空白・配列は対象なしとして扱う。 */
+function toTargetId(value: string | string[] | undefined): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 export function AskAIScreen() {
   const router = useRouter();
   const tabBarClearance = useTabBarClearance();
-  const [activeScope, setActiveScope] = useState<KnowledgeQueryScope>('global');
+  // File Detail からの遷移時に audioFileId / projectId をルートパラメータで受け取り、
+  // 対象スコープの初期値に反映する。別の記録から遷移し直すとフォーカス同期で差し替わる。
+  const params = useLocalSearchParams<AskAiRouteParams>();
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+  const initialTargets = useRef({
+    audioFileId: toTargetId(params.audioFileId),
+    projectId: toTargetId(params.projectId),
+  }).current;
+  const [activeScope, setActiveScope] = useState<KnowledgeQueryScope>(() =>
+    initialTargets.audioFileId ? 'file' : initialTargets.projectId ? 'project' : 'global',
+  );
   const [draft, setDraft] = useState('');
   const [isAnswering, setIsAnswering] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
@@ -44,9 +65,29 @@ export function AskAIScreen() {
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfoDTO | null>(null);
   const [hasRecords, setHasRecords] = useState<boolean | null>(null);
   const [isKeyConfigured, setIsKeyConfigured] = useState<boolean | null>(null);
-  // 対象選択UIが未実装のため常に未選択。File Detail からの遷移時に audioFileId / projectId を渡す経路を確保する。
-  const [audioFileId] = useState<string | undefined>(undefined);
-  const [projectId] = useState<string | undefined>(undefined);
+  // 対象（audioFileId / projectId）はルートパラメータ経由で設定される。
+  // 対象の選択シートはスコープ（すべての記録/プロジェクト/記録）の切替のみを担い、
+  // 記録・プロジェクトの実体指定は File Detail などの遷移元から渡される。
+  const [audioFileId, setAudioFileId] = useState<string | undefined>(initialTargets.audioFileId);
+  const [projectId, setProjectId] = useState<string | undefined>(initialTargets.projectId);
+  const targetIdsRef = useRef({ audioFileId, projectId });
+  targetIdsRef.current = { audioFileId, projectId };
+
+  // フォーカス時にルートパラメータの対象を反映する。対象IDが変わる遷移（別の記録から
+  // 開き直す等）だけを適用し、パラメータなしのフォーカス（タブ切替など）では現在の対象を
+  // 維持する。全体スコープへの切替は対象選択シートからいつでも行える。
+  function applyRouteTargets() {
+    const nextFileId = toTargetId(paramsRef.current.audioFileId);
+    const nextProjectId = toTargetId(paramsRef.current.projectId);
+    const current = targetIdsRef.current;
+    if (nextFileId && nextFileId !== current.audioFileId) {
+      setAudioFileId(nextFileId);
+      setActiveScope('file');
+    } else if (nextProjectId && nextProjectId !== current.projectId) {
+      setProjectId(nextProjectId);
+      setActiveScope('project');
+    }
+  }
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -62,6 +103,7 @@ export function AskAIScreen() {
   useFocusEffect(
     useCallback(() => {
       let isMounted = true;
+      applyRouteTargets();
 
       void (async () => {
         const [info, files, keyConfigured] = await Promise.all([
@@ -174,7 +216,8 @@ export function AskAIScreen() {
   async function handleTaskize(message: AskMessage) {
     try {
       const task = buildTaskFromAssistantAnswer(message.text, {
-        sourceAudioFileId: audioFileId,
+        // 対象スコープが「記録」のときだけ、回答元の記録として紐付ける。
+        sourceAudioFileId: activeScope === 'file' ? audioFileId : undefined,
       });
       const created = await MemoraNative.createTask(task);
       if (!created) {
@@ -211,7 +254,10 @@ export function AskAIScreen() {
             onPress={() => setIsScopeSheetOpen(true)}
             style={({ pressed }) => [styles.scopeRow, pressed && styles.pressed]}
           >
-            <Text numberOfLines={1} style={styles.scopeText}>{`対象: ${scopeLabels[activeScope]}`}</Text>
+            {/* File Detail から対象指定で来たときは「この記録」と表示する。 */}
+            <Text numberOfLines={1} style={styles.scopeText}>
+              {`対象: ${activeScope === 'file' && audioFileId ? 'この記録' : scopeLabels[activeScope]}`}
+            </Text>
             <AppIcon color={colors.textSecondary} name="chevron-forward" size={16} />
           </Pressable>
 

@@ -527,7 +527,9 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
           <AskEntryBar
             accessibilityLabel="この記録についてAsk AIで質問"
             label="この記録について質問"
-            onPress={() => router.push('/ask-ai')}
+            onPress={() =>
+              router.push({ pathname: '/ask-ai', params: { audioFileId: file.id } })
+            }
           />
         </>
       }
