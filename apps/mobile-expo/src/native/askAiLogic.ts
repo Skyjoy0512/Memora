@@ -55,10 +55,11 @@ export function buildAskAiRequest(
   targetIds: AskAiTargetIds,
 ): KnowledgeQueryRequestDTO {
   if (scope === 'file') {
-    return { scope, question, audioFileId: targetIds.audioFileId };
+    // 空文字の対象IDは未指定として扱う（ルートパラメータの空値対策）。
+    return { scope, question, audioFileId: targetIds.audioFileId || undefined };
   }
   if (scope === 'project') {
-    return { scope, question, projectId: targetIds.projectId };
+    return { scope, question, projectId: targetIds.projectId || undefined };
   }
   return { scope, question };
 }
@@ -68,7 +69,7 @@ export function describeNoTarget(scope: KnowledgeQueryScope): { title: string; b
     return {
       title: '質問するファイルが未選択です',
       body:
-        'このスコープでは対象の記録を選ぶ必要があります。ファイル詳細画面から Ask AI を開くと対象が自動で設定される予定です。',
+        'ファイル詳細画面から Ask AI を開くと、対象の記録が自動で設定されます。対象が見つからない場合は、全体スコープ（すべての記録）で質問してください。',
     };
   }
   return {

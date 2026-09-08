@@ -41,6 +41,24 @@ describe('askAiLogic', () => {
         blocker: null,
       });
     });
+
+    it('treats empty-string ids as missing', () => {
+      expect(resolveAskAiScope('file', { audioFileId: '' })).toEqual({
+        canSend: false,
+        blocker: 'no-target',
+      });
+      expect(resolveAskAiScope('project', { projectId: '' })).toEqual({
+        canSend: false,
+        blocker: 'no-target',
+      });
+    });
+
+    it('ignores an audioFileId for project scope', () => {
+      expect(resolveAskAiScope('project', { audioFileId: 'a' })).toEqual({
+        canSend: false,
+        blocker: 'no-target',
+      });
+    });
   });
 
   describe('buildAskAiRequest', () => {
@@ -71,6 +89,17 @@ describe('askAiLogic', () => {
       const request = buildAskAiRequest('file', 'q', {});
       expect(request.scope).toBe('file');
       expect(request.audioFileId).toBeUndefined();
+    });
+
+    it('omits empty-string target ids', () => {
+      expect(buildAskAiRequest('file', 'q', { audioFileId: '' })).toEqual({
+        scope: 'file',
+        question: 'q',
+      });
+      expect(buildAskAiRequest('project', 'q', { projectId: '' })).toEqual({
+        scope: 'project',
+        question: 'q',
+      });
     });
   });
 
