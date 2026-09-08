@@ -962,12 +962,12 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             <Text style={styles.exportRowStatus}>コピー＋共有シート</Text>
           </Pressable>
           <Pressable
-            accessibilityLabel="Markdown / TXT / SRT で書き出す"
+            accessibilityLabel="テキストを共有シートで書き出す"
             accessibilityRole="button"
             onPress={() => closeExportThen('share')}
             style={({ pressed }) => [styles.shareRow, styles.shareRowLast, pressed && styles.shareRowPressed]}
           >
-            <Text style={styles.shareRowLabel}>Markdown / TXT / SRT</Text>
+            <Text style={styles.shareRowLabel}>テキストを共有シートで書き出す</Text>
             <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
           </Pressable>
         </View>
