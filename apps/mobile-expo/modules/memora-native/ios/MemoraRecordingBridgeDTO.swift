@@ -57,10 +57,24 @@ private struct MemoraActiveRecording {
   var state: MemoraRecordingSessionState
 }
 
+/// stopRecording 後、DB（upsert）保存が完了するまで保持する復旧情報（R20）。
+/// 録音は停止済みだが保存に失敗した場合も、同じ sessionId による再試行で
+/// 同じ DTO（id・recordedAt 固定）を保存し直せるようにする。成功時のみ除去する。
+private struct MemoraPendingRecordingSave {
+  let recorder: AVAudioRecorder
+  let dto: MemoraAudioFileDTO
+
+  var fileURL: URL {
+    recorder.url
+  }
+}
+
 public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecordingImportHandling {
   public let sourceDescription: String
 
   private var activeRecordings: [String: MemoraActiveRecording] = [:]
+  /// R20: 停止済みだが DB upsert 未完了のセッション（sessionId キー）。
+  private var pendingRecordingSaves: [String: MemoraPendingRecordingSave] = [:]
   private let recorderLock = NSLock()
   private let isoFormatter = ISO8601DateFormatter()
   private let storageDirectory: URL?
@@ -114,6 +128,17 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
 
   public func stopRecording(sessionId: String) throws -> MemoraAudioFileDTO {
     recorderLock.lock()
+    let existingPendingSave = pendingRecordingSaves[sessionId]
+    recorderLock.unlock()
+
+    // R20: 前回の停止で DB 保存に失敗した場合の再試行。録音は停止済みのため、
+    // 保存のみを同じ DTO で再実行する。
+    if let existingPendingSave {
+      let pendingSave = existingPendingSave
+      return try finalizePendingSave(sessionId: sessionId, pendingSave: pendingSave)
+    }
+
+    recorderLock.lock()
     let recording = activeRecordings.removeValue(forKey: sessionId)
     recorderLock.unlock()
     guard let recording else {
@@ -123,12 +148,43 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     recording.recorder.stop()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-    return try makeAudioFileDTO(
-      id: UUID().uuidString,
-      fileURL: recording.recorder.url,
-      title: recordingTitle(for: recording.startDate),
-      summary: ""
+    // R20: 保存成功まで復旧情報（recorder/DTO）を保持する。成功時のみ pending から除去し、
+    // 失敗時は同じ sessionId で stopRecording を再試行できる状態を保つ。
+    let pendingSave = MemoraPendingRecordingSave(
+      recorder: recording.recorder,
+      dto: makeAudioFileDTO(
+        id: UUID().uuidString,
+        fileURL: recording.recorder.url,
+        title: recordingTitle(for: recording.startDate),
+        summary: ""
+      )
     )
+    recorderLock.lock()
+    pendingRecordingSaves[sessionId] = pendingSave
+    recorderLock.unlock()
+
+    return try finalizePendingSave(sessionId: sessionId, pendingSave: pendingSave)
+  }
+
+  private func finalizePendingSave(
+    sessionId: String,
+    pendingSave: MemoraPendingRecordingSave
+  ) throws -> MemoraAudioFileDTO {
+    do {
+      try MemoraNativeAudioFileMutationRegistry.audioFileMutator
+        .upsertAudioFile(pendingSave.dto, fileURL: pendingSave.fileURL)
+    } catch {
+      // R20: 保存失敗時は pending を残したままエラーを返す（同じ sessionId で再試行可能）。
+      throw error
+    }
+
+    recorderLock.lock()
+    // 再試行中に discard 等で pending が差し替わっていた場合は誤って除去しない。
+    if pendingRecordingSaves[sessionId]?.fileURL == pendingSave.fileURL {
+      pendingRecordingSaves.removeValue(forKey: sessionId)
+    }
+    recorderLock.unlock()
+    return pendingSave.dto
   }
 
   public func pauseRecording(sessionId: String) throws {
@@ -165,13 +221,20 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
   public func discardRecording(sessionId: String) throws {
     recorderLock.lock()
     let recording = activeRecordings.removeValue(forKey: sessionId)
+    let pendingSave = pendingRecordingSaves.removeValue(forKey: sessionId)
     recorderLock.unlock()
 
-    guard let recording else {
+    guard recording != nil || pendingSave != nil else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
-    recording.recorder.deleteRecording()
-    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+
+    // R20: 保存に失敗した pending の破棄も、録音実体を削除して同じように扱う。
+    if let recorder = recording?.recorder ?? pendingSave?.recorder {
+      recorder.deleteRecording()
+    }
+    if recording != nil {
+      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
   }
 
   public func importAudio(uri: String) throws -> MemoraAudioFileDTO {
@@ -183,12 +246,14 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     let destinationURL = try uniqueDestinationURL(for: sourceURL)
     try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-    return try makeAudioFileDTO(
+    let dto = makeAudioFileDTO(
       id: UUID().uuidString,
       fileURL: destinationURL,
       title: destinationURL.lastPathComponent,
       summary: ""
     )
+    try MemoraNativeAudioFileMutationRegistry.audioFileMutator.upsertAudioFile(dto, fileURL: destinationURL)
+    return dto
   }
 
   private func configureAudioSession() throws {
@@ -367,8 +432,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     return URL(fileURLWithPath: uri)
   }
 
-  private func makeAudioFileDTO(id: String, fileURL: URL, title: String, summary: String) throws -> MemoraAudioFileDTO {
-    let dto = MemoraAudioFileDTO(
+  /// DTO を組み立てるだけのヘルパー。DB 書き込み（upsert）は行わず、
+  /// 呼び出し側（stopRecording の pending 保存 / importAudio）で明示的に行う。
+  private func makeAudioFileDTO(id: String, fileURL: URL, title: String, summary: String) -> MemoraAudioFileDTO {
+    MemoraAudioFileDTO(
       id: id,
       title: title,
       project: "Inbox",
@@ -382,8 +449,6 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       transcript: [],
       memo: []
     )
-    try MemoraNativeAudioFileMutationRegistry.audioFileMutator.upsertAudioFile(dto, fileURL: fileURL)
-    return dto
   }
 
   /// Generates a human-readable default title from the recording start time.
