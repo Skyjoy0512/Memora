@@ -45,6 +45,38 @@ describe('exportLogic', () => {
         '## 要約\n\n要約だけ',
       );
     });
+
+    it('respects includeSummary=true and includeTranscript=true', () => {
+      expect(
+        buildExportMarkdown('まとめ本文', TRANSCRIPT, {
+          includeSummary: true,
+          includeTranscript: true,
+        }),
+      ).toBe(
+        '## 要約\n\nまとめ本文\n\n## 文字起こし\n\n00:00 こんにちは\n00:02 よろしくお願いします',
+      );
+    });
+
+    it('omits the transcript section when includeTranscript=false', () => {
+      expect(
+        buildExportMarkdown('まとめ本文', TRANSCRIPT, { includeTranscript: false }),
+      ).toBe('## 要約\n\nまとめ本文');
+    });
+
+    it('omits the summary section when includeSummary=false', () => {
+      expect(
+        buildExportMarkdown('まとめ本文', TRANSCRIPT, { includeSummary: false }),
+      ).toBe('## 文字起こし\n\n00:00 こんにちは\n00:02 よろしくお願いします');
+    });
+
+    it('returns empty string when both sections are excluded', () => {
+      expect(
+        buildExportMarkdown('まとめ本文', TRANSCRIPT, {
+          includeSummary: false,
+          includeTranscript: false,
+        }),
+      ).toBe('');
+    });
   });
 
   describe('buildExportPayload', () => {
@@ -72,6 +104,67 @@ describe('exportLogic', () => {
       expect(payload.destination).toBe('file');
       expect(payload.text).not.toContain('## 要約');
       expect(payload.text).toContain('## 文字起こし');
+    });
+
+    it('includes both sections when includeSummary=true and includeTranscript=true', () => {
+      const payload = buildExportPayload(
+        {
+          id: 'file-3',
+          title: 'Growth 定例',
+          summary: '決定事項',
+          transcript: TRANSCRIPT,
+        },
+        'notion',
+        { includeSummary: true, includeTranscript: true },
+      );
+      expect(payload.text).toContain('## 要約');
+      expect(payload.text).toContain('## 文字起こし');
+    });
+
+    it('omits the transcript when includeTranscript=false', () => {
+      const payload = buildExportPayload(
+        {
+          id: 'file-4',
+          title: 'Growth 定例',
+          summary: '決定事項',
+          transcript: TRANSCRIPT,
+        },
+        'notion',
+        { includeTranscript: false },
+      );
+      expect(payload.text).toBe('## 要約\n\n決定事項');
+    });
+
+    it('omits the summary when includeSummary=false', () => {
+      const payload = buildExportPayload(
+        {
+          id: 'file-5',
+          title: 'Growth 定例',
+          summary: '決定事項',
+          transcript: TRANSCRIPT,
+        },
+        'chatgpt',
+        { includeSummary: false },
+      );
+      expect(payload.destination).toBe('chatgpt');
+      expect(payload.text).not.toContain('## 要約');
+      expect(payload.text).toBe(
+        '## 文字起こし\n\n00:00 こんにちは\n00:02 よろしくお願いします',
+      );
+    });
+
+    it('builds an empty text when both sections are excluded', () => {
+      const payload = buildExportPayload(
+        {
+          id: 'file-6',
+          title: 'Growth 定例',
+          summary: '決定事項',
+          transcript: TRANSCRIPT,
+        },
+        'chatgpt',
+        { includeSummary: false, includeTranscript: false },
+      );
+      expect(payload.text).toBe('');
     });
   });
 

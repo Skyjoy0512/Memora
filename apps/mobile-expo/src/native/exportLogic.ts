@@ -5,6 +5,14 @@ import type { AudioFile } from '../types/memora';
 const SUMMARY_HEADING = '## 要約';
 const TRANSCRIPT_HEADING = '## 文字起こし';
 
+/** 書き出しに含めるセクションの選択（未指定は両方含む = 従来動作）。 */
+export type ExportContentOptions = {
+  /** 要約セクションを含めるか */
+  includeSummary?: boolean;
+  /** 文字起こしセクションを含めるか */
+  includeTranscript?: boolean;
+};
+
 /**
  * summary（Markdown）と transcript（`time text` 行並び）を結合した書き出し用 Markdown を組み立てる。
  * 見出し区切りは native（MemoraRNExportHandlers.makeBlocks）と共有する決め事。
@@ -12,17 +20,19 @@ const TRANSCRIPT_HEADING = '## 文字起こし';
 export function buildExportMarkdown(
   summary: string,
   transcript: Array<{ time: string; text: string }>,
+  options: ExportContentOptions = {},
 ): string {
+  const { includeSummary = true, includeTranscript = true } = options;
   const sections: string[] = [];
   const trimmedSummary = summary.trim();
-  if (trimmedSummary) {
+  if (includeSummary && trimmedSummary) {
     sections.push(`${SUMMARY_HEADING}\n\n${trimmedSummary}`);
   }
   const transcriptText = transcript
     .map((segment) => `${segment.time} ${segment.text}`)
     .join('\n')
     .trim();
-  if (transcriptText) {
+  if (includeTranscript && transcriptText) {
     sections.push(`${TRANSCRIPT_HEADING}\n\n${transcriptText}`);
   }
   return sections.join('\n\n');
@@ -32,10 +42,11 @@ export function buildExportMarkdown(
 export function buildExportPayload(
   file: Pick<AudioFile, 'id' | 'title' | 'summary' | 'transcript'>,
   destination: ExportDestination,
+  options: ExportContentOptions = {},
 ): ExportPayloadDTO {
   return {
     title: file.title,
-    text: buildExportMarkdown(file.summary, file.transcript),
+    text: buildExportMarkdown(file.summary, file.transcript, options),
     createdAt: new Date().toISOString(),
     sourceFileId: file.id,
     destination,

@@ -399,7 +399,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     }
 
     try {
-      const result = await MemoraNative.exportToDestination(buildExportPayload(file, 'notion'));
+      // 共有シートの「含める内容」を payload へ反映（handleShare と同条件）。
+      const result = await MemoraNative.exportToDestination(
+        buildExportPayload(file, 'notion', {
+          includeSummary: shareSummary,
+          includeTranscript: shareTranscript,
+        }),
+      );
       if (result.ok) {
         Alert.alert('転記しました', 'Notion に子ページを作成しました。');
       } else {
@@ -417,7 +423,13 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     if (!file) return;
 
     try {
-      const result = await MemoraNative.exportToDestination(buildExportPayload(file, 'chatgpt'));
+      // 共有シートの「含める内容」を payload へ反映（handleShare と同条件）。
+      const result = await MemoraNative.exportToDestination(
+        buildExportPayload(file, 'chatgpt', {
+          includeSummary: shareSummary,
+          includeTranscript: shareTranscript,
+        }),
+      );
       if (result.ok) {
         Alert.alert(
           '共有シートを開きました',
