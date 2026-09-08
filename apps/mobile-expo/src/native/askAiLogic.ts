@@ -2,6 +2,7 @@ import type {
   KnowledgeQueryRequestDTO,
   KnowledgeQueryResponseDTO,
   KnowledgeQueryScope,
+  KnowledgeQueryHistoryMessage,
 } from './MemoraNative.types';
 
 // ── Model selection ─────────────────────────────────────
@@ -33,6 +34,45 @@ export type AskAiScopeResolution = {
   blocker: AskAiScopeBlocker | null;
 };
 
+// ── Conversation continuation (R15) ────────────────────
+// 直近の履歴をモデル入力へ含める上限。native（MemoraSharedStoreKnowledgeQuery）が
+// SwiftData の永続メッセージから履歴を組み立てる際も同じ件数で制限する。
+export const ASK_AI_HISTORY_MAX_MESSAGES = 6;
+export const ASK_AI_HISTORY_MAX_CONTENT_LENGTH = 800;
+
+export type AskAiConversationMessage = {
+  role: 'user' | 'assistant';
+  text: string;
+  isSample?: boolean;
+  hint?: string;
+};
+
+export type AskAiContinuation = {
+  sessionId?: string;
+  history?: readonly KnowledgeQueryHistoryMessage[];
+};
+
+/**
+ * 画面に表示中の会話から、モデル入力に載せる直近履歴を作る。
+ * サンプル回答・エラー代替（hint つき）の assistant メッセージは履歴から除く。
+ */
+export function buildAskAiHistory(
+  messages: readonly AskAiConversationMessage[],
+): KnowledgeQueryHistoryMessage[] {
+  return messages
+    .filter(
+      (message) => message.role === 'user' || (!message.isSample && !message.hint),
+    )
+    .slice(-ASK_AI_HISTORY_MAX_MESSAGES)
+    .map((message) => ({
+      role: message.role,
+      content:
+        message.text.length <= ASK_AI_HISTORY_MAX_CONTENT_LENGTH
+          ? message.text
+          : `${message.text.slice(0, ASK_AI_HISTORY_MAX_CONTENT_LENGTH)}…`,
+    }));
+}
+
 export function resolveAskAiScope(
   scope: KnowledgeQueryScope,
   targetIds: AskAiTargetIds,
@@ -53,15 +93,23 @@ export function buildAskAiRequest(
   scope: KnowledgeQueryScope,
   question: string,
   targetIds: AskAiTargetIds,
+  continuation?: AskAiContinuation,
 ): KnowledgeQueryRequestDTO {
+  const request: KnowledgeQueryRequestDTO = { scope, question };
   if (scope === 'file') {
     // 空文字の対象IDは未指定として扱う（ルートパラメータの空値対策）。
-    return { scope, question, audioFileId: targetIds.audioFileId || undefined };
+    request.audioFileId = targetIds.audioFileId || undefined;
+  } else if (scope === 'project') {
+    request.projectId = targetIds.projectId || undefined;
   }
-  if (scope === 'project') {
-    return { scope, question, projectId: targetIds.projectId || undefined };
+  // 2回目以降は会話を継続するため sessionId と直近の履歴を同梱する。
+  if (continuation?.sessionId) {
+    request.sessionId = continuation.sessionId;
   }
-  return { scope, question };
+  if (continuation?.history && continuation.history.length > 0) {
+    request.history = [...continuation.history];
+  }
+  return request;
 }
 
 export function describeNoTarget(scope: KnowledgeQueryScope): { title: string; body: string } {

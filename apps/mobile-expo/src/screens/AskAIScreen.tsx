@@ -10,6 +10,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { colors, radius, spacing, textStyles } from '../design/tokens';
 import {
+  buildAskAiHistory,
   buildAskAiRequest,
   describeNoTarget,
   mapAskAiError,
@@ -99,6 +100,11 @@ export function AskAIScreen() {
 
   const [messagesByScope, setMessagesByScope] =
     useState<Record<KnowledgeQueryScope, AskMessage[]>>({ file: [], project: [], global: [] });
+  // スコープ別の会話セッションID。Ask AI は対象（file/project/global）ごとに会話が分かれる。
+  // native の AskAISession に追記するための識別子で、UI の履歴は messagesByScope が担う。
+  const [sessionIdsByScope, setSessionIdsByScope] = useState<
+    Record<KnowledgeQueryScope, string | undefined>
+  >({ file: undefined, project: undefined, global: undefined });
 
   useFocusEffect(
     useCallback(() => {
@@ -169,8 +175,17 @@ export function AskAIScreen() {
         throw new Error('選択したプロバイダーのAPIキーが設定されていません。');
       }
 
+      // 2回目以降は同じ会話として続けるため、スコープの sessionId と直近の履歴をリクエストへ載せる。
       const response = await MemoraNative.queryKnowledge(
-        buildAskAiRequest(requestScope, question, { audioFileId, projectId }),
+        buildAskAiRequest(
+          requestScope,
+          question,
+          { audioFileId, projectId },
+          {
+            sessionId: sessionIdsByScope[requestScope],
+            history: buildAskAiHistory(messagesByScope[requestScope]),
+          },
+        ),
       );
       const assistantMessage: AskMessage = {
         id: response.id,
@@ -184,6 +199,13 @@ export function AskAIScreen() {
         ...current,
         [requestScope]: [...current[requestScope], assistantMessage],
       }));
+      // native が採番/維持したセッションをスコープに記録し、次の質問から引き継ぐ。
+      if (response.sessionId) {
+        setSessionIdsByScope((current) => ({
+          ...current,
+          [requestScope]: response.sessionId,
+        }));
+      }
     } catch (error) {
       const mapping = mapAskAiError(error);
       const errorMessage: AskMessage = {
@@ -208,7 +230,11 @@ export function AskAIScreen() {
       {
         style: 'destructive',
         text: '新しい質問を始める',
-        onPress: () => setMessagesByScope((current) => ({ ...current, [activeScope]: [] })),
+        onPress: () => {
+          setMessagesByScope((current) => ({ ...current, [activeScope]: [] }));
+          // 新しい会話は native 側でも別セッションとして始まるよう、保持中の sessionId を破棄する。
+          setSessionIdsByScope((current) => ({ ...current, [activeScope]: undefined }));
+        },
       },
     ]);
   }
