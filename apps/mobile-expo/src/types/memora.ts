@@ -19,7 +19,9 @@ export type AudioFile = {
   status: AudioStatus;
   summary: string;
   transcript: TranscriptSegment[];
+  /** ネイティブ要約で抽出された次のアクション（行単位）。未保存・フォールバックでは undefined。 */
   memo: string[];
+  actionItems?: string[];
 };
 
 export type SettingsGroup = {

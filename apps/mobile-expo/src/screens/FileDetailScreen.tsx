@@ -348,10 +348,10 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     }
   }
 
-  async function handleTaskizeSegment(segment: AudioFile['transcript'][number]) {
+  async function handleTaskizeText(text: string) {
     if (!file) return;
     try {
-      const task = buildTaskFromTranscriptSegment(segment, { audioFileId: file.id });
+      const task = buildTaskFromTranscriptSegment({ text }, { audioFileId: file.id });
       const created = await MemoraNative.createTask(task);
       if (!created) {
         Alert.alert('タスクを追加できません', 'タスクの保存に失敗しました。');
@@ -367,6 +367,15 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
         error instanceof Error ? error.message : 'タスクの保存に失敗しました。',
       );
     }
+  }
+
+  function handleTaskizeSegment(segment: AudioFile['transcript'][number]) {
+    void handleTaskizeText(segment.text);
+  }
+
+  /** R11: 次のアクション（actionItems）の1行からタスクを作成する。 */
+  function handleTaskizeActionItem(actionItem: string) {
+    void handleTaskizeText(actionItem);
   }
 
   function closeExportThen(action: ExportSheetAction) {
@@ -492,6 +501,10 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
     );
   }
 
+  // R11: 次のアクションは要約由来の明示フィールド（actionItems）だけを使う。
+  // memo（ユーザーメモ用）を内部情報の運び屋にしない。旧データは空扱いになる。
+  const actionItems = file.actionItems ?? [];
+
   return (
     <Screen
       topRow={
@@ -595,7 +608,7 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
             </View>
           ) : null}
           {!isGeneratingSummary && file.status !== 'queued' ? (
-            <NumericText style={styles.summaryMeta}>{`${file.duration} ・ 話者${new Set(file.transcript.map((segment) => segment.speaker).filter(Boolean)).size}名 ・ タスク${file.memo.length}件`}</NumericText>
+            <NumericText style={styles.summaryMeta}>{`${file.duration} ・ 話者${new Set(file.transcript.map((segment) => segment.speaker).filter(Boolean)).size}名 ・ タスク${actionItems.length}件`}</NumericText>
           ) : null}
           {!isGeneratingSummary && file.transcript.length ? <View style={styles.summarySection}><Text style={styles.summarySectionTitle}>チャプター</Text><View>{file.transcript.slice(0, 4).map((segment) => <Pressable accessibilityRole="button" key={segment.id} onPress={() => setTab('transcript')} style={styles.chapterRow}><Text numberOfLines={1} style={styles.chapterTime}>{segment.time}</Text><Text numberOfLines={1} style={styles.chapterText}>{segment.text}</Text><Ionicons color={colors.border} name="chevron-forward" size={12} /></Pressable>)}</View></View> : null}
           {isGeneratingSummary ? <FileDetailGeneratingSkeleton /> : null}
@@ -605,25 +618,27 @@ export function FileDetailScreen({ fileId }: { fileId?: string }) {
                 <Text style={styles.summarySectionTitle}>決定事項</Text>
                 <SummaryList items={toSummaryItems(file.summary)} />
               </View>
-              <View style={styles.summarySection}>
-                <Text style={styles.summarySectionTitle}>次のアクション</Text>
-                <View style={styles.actionList}>
-                  {file.memo.map((item) => (
-                    <View key={item} style={styles.actionItem}>
-                      <Text style={styles.actionItemText}>{item}</Text>
-                      <Pressable
-                        accessibilityLabel="タスクに追加"
-                        accessibilityRole="button"
-                        onPress={() => Alert.alert('タスクに追加', 'この操作は現在利用できません。')}
-                        style={({ pressed }) => [styles.taskAction, pressed && styles.scalePress]}
-                      >
-                        <Ionicons color={colors.textTertiary} name="add" size={14} />
-                        <Text style={styles.taskActionLabel}>タスク</Text>
-                      </Pressable>
-                    </View>
-                  ))}
+              {actionItems.length > 0 ? (
+                <View style={styles.summarySection}>
+                  <Text style={styles.summarySectionTitle}>次のアクション</Text>
+                  <View style={styles.actionList}>
+                    {actionItems.map((item) => (
+                      <View key={item} style={styles.actionItem}>
+                        <Text style={styles.actionItemText}>{item}</Text>
+                        <Pressable
+                          accessibilityLabel="タスクに追加"
+                          accessibilityRole="button"
+                          onPress={() => handleTaskizeActionItem(item)}
+                          style={({ pressed }) => [styles.taskAction, pressed && styles.scalePress]}
+                        >
+                          <Ionicons color={colors.textTertiary} name="add" size={14} />
+                          <Text style={styles.taskActionLabel}>タスク</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
+              ) : null}
             </>
           ) : null}
           <View style={styles.summarySection}>

@@ -185,8 +185,29 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
       status: record.isTranscribed ? "ready" : "queued",
       summary: record.summary ?? "",
       transcript: try transcriptDTOs(for: record.id),
-      memo: record.audioURL.isEmpty ? [] : ["Stored path: \(URL(fileURLWithPath: record.audioURL).lastPathComponent)"]
+      // R11: memo はユーザーメモ専用のため内部の格納パス（Stored path）を載せない。
+      // 要約由来の actionItems は明示フィールドで運び、共有レコードには無いため
+      // SwiftData エンティティを直接読み取る（transcriptDTOs と同じ読み出し経路）。
+      memo: [],
+      actionItems: try actionItemLines(for: record.id)
     )
+  }
+
+  /// SwiftData の要約メタデータ（actionItems、改行区切りで保存）を行単位で返す。
+  /// 共有ストア未接続（modelContainer なし）・未保存の場合は空配列。
+  private func actionItemLines(for audioFileID: UUID) throws -> [String] {
+    guard let modelContainer else { return [] }
+    let modelContext = ModelContext(modelContainer)
+    let descriptor = FetchDescriptor<AudioFile>(predicate: #Predicate { $0.id == audioFileID })
+    guard let audioFile = try modelContext.fetch(descriptor).first,
+          let rawActionItems = audioFile.actionItems,
+          !rawActionItems.isEmpty else {
+      return []
+    }
+    return rawActionItems
+      .split(separator: "\n")
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
   }
 
   private func transcriptDTOs(for audioFileID: UUID) throws -> [[String: Any]] {

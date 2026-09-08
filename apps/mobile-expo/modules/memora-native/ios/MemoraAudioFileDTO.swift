@@ -10,7 +10,9 @@ public struct MemoraAudioFileDTO {
   public let status: String
   public let summary: String
   public let transcript: [[String: Any]]
+  /// 要約から抽出された次のアクション（行単位）。未保存・未対応ストアでは空配列。
   public let memo: [String]
+  public let actionItems: [String]
 
   public init(
     id: String,
@@ -22,7 +24,8 @@ public struct MemoraAudioFileDTO {
     status: String,
     summary: String,
     transcript: [[String: Any]],
-    memo: [String]
+    memo: [String],
+    actionItems: [String] = []
   ) {
     self.id = id
     self.title = title
@@ -34,6 +37,7 @@ public struct MemoraAudioFileDTO {
     self.summary = summary
     self.transcript = transcript
     self.memo = memo
+    self.actionItems = actionItems
   }
 
   public func asDictionary() -> [String: Any] {
@@ -47,7 +51,8 @@ public struct MemoraAudioFileDTO {
       "status": status,
       "summary": summary,
       "transcript": transcript,
-      "memo": memo
+      "memo": memo,
+      "actionItems": actionItems
     ]
   }
 }
@@ -188,7 +193,9 @@ struct MemoraNativeAudioFileMetadata: Codable {
       status: status,
       summary: summary,
       transcript: [],
-      memo: memo + ["Stored path: \(URL(fileURLWithPath: filePath).lastPathComponent)"]
+      // R11: memo はユーザーメモ専用とし、内部の格納パスを表示データへ載せない。
+      // このストア（native-files）は AI 要約を保持しないため actionItems は空。
+      memo: memo
     )
   }
 

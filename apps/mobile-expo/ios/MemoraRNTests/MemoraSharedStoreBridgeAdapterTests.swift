@@ -97,6 +97,32 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.duration == "02:05")
     #expect(dto.status == "ready")
     #expect(dto.summary == "Summary")
+    // R11: memo はユーザーメモ専用。内部の格納パス（Stored path）を載せず、
+    // actionItems は SwiftData 未接続時は空配列のまま。
+    #expect(dto.memo.isEmpty)
+    #expect(dto.actionItems.isEmpty)
+  }
+
+  @Test("R11: SwiftData の actionItems を行単位の明示フィールドとして読み出す")
+  func actionItemsAreReadFromSwiftDataEntityAsExplicitDTOField() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Action fixture", audioURL: "/tmp/actions.m4a")
+    file.summary = "Summary"
+    file.isSummarized = true
+    file.actionItems = "alpha\n\n  beta  \n"
+    context.insert(file)
+    try context.save()
+
+    let store = MemoraSharedSwiftDataAudioFileStore(container: container)
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, container: container)
+    let dto = try #require(try adapter.getAudioFile(id: file.id.uuidString))
+    #expect(dto.memo.isEmpty)
+    #expect(dto.actionItems == ["alpha", "beta"])
+    #expect(dto.summary == "Summary")
   }
 
   @Test("playback paths are resolved from the same shared record as the DTO")
