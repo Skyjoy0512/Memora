@@ -30,6 +30,10 @@ import { mapAskAiError } from "../../native/askAiLogic";
 import { MemoraNative } from "../../native/MemoraNative";
 import type { SummaryOptionsDTO } from "../../native/MemoraNative.types";
 import type { AudioFile } from "../../types/memora";
+import {
+  TRANSCRIPTION_COMPLETION_TIMEOUT_MS,
+  waitForTranscriptionCompletion,
+} from "./transcriptionWait";
 
 type CaptureMode = "idle" | "recording" | "generate" | "generating";
 type GenerationPhase =
@@ -220,8 +224,10 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
               onGenerate={(request) => {
                 if (latestFile) startGeneration(latestFile, request);
               }}
-              onSkip={(options) => {
-                if (latestFile) startGeneration(latestFile, { options });
+              onSkip={() => {
+                // 生成をスキップ: 保存済みの latestFile は保持したまま、
+                // STT・要約（runGeneration）は開始せずオプション画面を閉じる。
+                setMode("idle");
               }}
             />
           ) : (
@@ -307,18 +313,41 @@ async function runGeneration(
   setProgress: (progress: number) => void,
 ) {
   try {
-    await delay(450);
     setPhase("transcribing");
     setProgress(0.45);
-    await MemoraNative.startTranscription(file.id);
-    await delay(650);
+    const task = await MemoraNative.startTranscription(file.id);
+    // 固定 delay で「完了待ち」を偽装せず、文字起こしの保存完了（completed
+    // イベント）を待ってから要約へ進む。failed / cancelled / timeout では
+    // 本文が未保存の可能性があるため要約を開始しない。
+    let lastTranscribingProgress = 0.45;
+    const outcome = await waitForTranscriptionCompletion(
+      (taskId, listener) =>
+        MemoraNative.addTranscriptionListener(taskId, listener),
+      task.id,
+      {
+        timeoutMs: TRANSCRIPTION_COMPLETION_TIMEOUT_MS,
+        onProgress(progress) {
+          // STT の実進捗を transcribing 区間のバーへ写像する（後退させない）。
+          const mapped = Math.min(
+            0.8,
+            0.45 + 0.35 * Math.max(0, Math.min(1, progress)),
+          );
+          if (mapped > lastTranscribingProgress) {
+            lastTranscribingProgress = mapped;
+            setProgress(mapped);
+          }
+        },
+      },
+    );
+    if (outcome !== "completed") {
+      throw new Error(`transcription did not complete: ${outcome}`);
+    }
     setPhase("summarizing");
     setProgress(0.8);
     await MemoraNative.generateSummary({
       audioFileId: file.id,
       options,
     });
-    await delay(450);
     setPhase("completed");
     setProgress(1);
   } catch (error: unknown) {
@@ -485,7 +514,7 @@ function GenerateOverlay({
   defaultName: string;
   onBack: () => void;
   onGenerate: (request: { name: string; options: SummaryOptionsDTO }) => void;
-  onSkip: (options: SummaryOptionsDTO) => void;
+  onSkip: () => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [genMode, setGenMode] = useState<"auto" | "custom">("auto");
@@ -520,7 +549,7 @@ function GenerateOverlay({
         </Pressable>
         <Pressable
           accessibilityLabel="生成をスキップ"
-          onPress={() => onSkip({ provider: model })}
+          onPress={onSkip}
           style={({ pressed }) => [
             styles.generateSkip,
             pressed && styles.pressed,
@@ -854,10 +883,6 @@ function RoundIcon({
       <Ionicons color={color} name={icon} size={size === "medium" ? 18 : 16} />
     </Pressable>
   );
-}
-
-function delay(milliseconds: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function formatElapsed(seconds: number) {
