@@ -63,7 +63,12 @@ final class MemoraSharedStoreKnowledgeQuery: MemoraKnowledgeQuerying {
     }
 
     let core = KnowledgeQueryCore(modelContext: context, memoryPrivacy: .init(mode: "standard", disabledFactIDs: []))
-    let pack = core.buildContext(for: scope, query: request.question)
+    // file スコープでは、現在アクティブなメモストア（MemoraNativeMemoRegistry が指す
+    // Documents/JSON のメモ等）から対象 audioFile のユーザーメモを読み、
+    // 「ユーザーメモ」として参照コンテキストへ含める。
+    // RN のメモは SwiftData の MeetingMemo へ保存されないため、ここで明示的に読む必要がある。
+    let userMemo = Self.currentUserMemoText(scopeType: scopeType, audioFileID: scopeID)
+    let pack = core.buildContext(for: scope, query: request.question, userMemo: userMemo)
 
     // 既存セッションの解決（R15）:
     // - sessionId が渡され、その AskAISession が存在し、スコープ種別が一致すれば再利用して
@@ -128,6 +133,18 @@ final class MemoraSharedStoreKnowledgeQuery: MemoraKnowledgeQuerying {
   }
 
   // MARK: - Session helpers
+
+  /// file スコープ時のみ、対象 audioFile に紐づくユーザーメモ本文を読み取る。
+  /// メモストアはレジストリ経由で参照するため、将来 MeetingMemo（SwiftData）への
+  /// 保存先統一が行われても読み出し先の切り替えだけで追従できる。
+  /// メモ本文はユーザーデータのためログへ全文を出さず、プロンプト内でのみ使う。
+  /// メモが無い・空の場合は nil を返し、コンテキストへ何も追加しない（従来どおり）。
+  private static func currentUserMemoText(scopeType: AskAIScopeType, audioFileID: UUID?) -> String? {
+    guard scopeType == .file, let audioFileID else { return nil }
+    let text = (try? MemoraNativeMemoRegistry.memoHandler.getMemoDraft(audioFileId: audioFileID.uuidString)) ?? ""
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+  }
 
   private static func fetchSession(id: UUID, in context: ModelContext) -> AskAISession? {
     let descriptor = FetchDescriptor<AskAISession>(
