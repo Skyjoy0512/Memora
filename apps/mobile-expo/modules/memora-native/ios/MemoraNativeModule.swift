@@ -37,7 +37,7 @@ public class MemoraNativeModule: Module {
       // audioFileMutator（swiftdata: 共有ストアアダプタ / native-files: 実体も削除）
       // がレコード削除前に実行する。
       try self.memoHandler.deleteMemoData(audioFileId: id)
-      try self.audioFileMutator.deleteAudioFile(id: id)
+      return try self.audioFileMutator.deleteAudioFile(id: id)
     }
 
     AsyncFunction("listTasks") { () -> [[String: Any]] in
