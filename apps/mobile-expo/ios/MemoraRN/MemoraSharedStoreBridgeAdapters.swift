@@ -11,6 +11,8 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
   private let store: any MemoraSharedAudioFileStore
   private let isoFormatter: ISO8601DateFormatter
   private let modelContainer: ModelContainer?
+  /// R09: 削除対象とみなす「アプリ所有」の音声格納ルート（配下のみ削除）。
+  private let ownedAudioDirectories: [URL]
 
   var sourceDescription: String {
     store.sourceDescription
@@ -41,7 +43,7 @@ final class MemoraSharedStoreBridgeAdapter: MemoraAudioFileReading, MemoraAudioF
       guard page.count == pageSize else { break }
       offset += page.count
     }
-    return allRecords.map(makeDTO)
+    return try allRecords.map(makeDTO)
   }
 
   func getAudioFile(id: String) throws -> MemoraAudioFileDTO? {

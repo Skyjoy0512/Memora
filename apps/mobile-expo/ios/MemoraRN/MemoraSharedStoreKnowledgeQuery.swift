@@ -120,7 +120,7 @@ final class MemoraSharedStoreKnowledgeQuery: MemoraKnowledgeQuerying {
       // Ask AI の回答は会議要約 API（summarize）ではなく平文の回答生成 API（generate）を使う。
       // 質問＋コンテキストは makePrompt が組み立てた回答プロンプトのまま渡し、
       // 要約メタデータ（title/summary/keyPoints/actionItems）抽出の指示を混ぜない。
-      answer = try await provider.generate(prompt: prompt).trimmingCharacters(in: .whitespacesAndNewlines)
+      answer = try await provider.generate(prompt).trimmingCharacters(in: .whitespacesAndNewlines)
     } catch {
       throw MemoraKnowledgeQueryError.generationFailed
     }
