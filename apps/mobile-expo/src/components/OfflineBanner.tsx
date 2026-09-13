@@ -21,7 +21,7 @@ const obStyles = StyleSheet.create({
   banner: {
     alignItems: 'center',
     backgroundColor: colors.warningSoft,
-    borderRadius: radius.sm,
+    borderRadius: 0,
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,

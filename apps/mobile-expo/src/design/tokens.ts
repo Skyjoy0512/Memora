@@ -17,30 +17,42 @@ import {
   space,
   screenMargin,
   radius as themeRadius,
+  fontFamily as FF,
   shadow as themeShadow,
   icon,
   motion as themeMotion,
 } from '../theme/tokens';
 
-// ── Fonts（System フォント。fontFamily を指定しない）──────────
-// 装飾的な極細・極太は避け、regular/medium/semibold 系へ正規化する。
-const systemWeight = themeTypography.weight;
+// ── Fonts（v0.6: IBM Plex）───────────────────────────────────
+// ウェイトは fontFamily のバリアントで表現するため fontWeight は指定しない。
+// カスタム fontFamily と fontWeight を併用すると、iOS/Android が合成ボールドを
+// かけて字面が濁る。太字（700 以上）はデザインシステム上も禁止。
+// display は大きい段。v0.6 の反比例タイポに合わせて light(300) を使う。
+const tabular = ['tabular-nums'] as 'tabular-nums'[];
 
 export const fonts = {
   sans: {
-    extralight: { fontWeight: systemWeight.regular },
-    light:      { fontWeight: systemWeight.medium },
-    regular:    { fontWeight: systemWeight.regular },
-    medium:     { fontWeight: systemWeight.medium },
-    semibold:   { fontWeight: systemWeight.semibold },
+    extralight: { fontFamily: FF.jp.light },
+    light:      { fontFamily: FF.jp.light },
+    regular:    { fontFamily: FF.jp.regular },
+    medium:     { fontFamily: FF.jp.medium },
+    semibold:   { fontFamily: FF.jp.semibold },
   },
   display: {
-    extralight: { fontWeight: systemWeight.regular },
-    light:      { fontWeight: systemWeight.medium },
+    extralight: { fontFamily: FF.jp.light },
+    light:      { fontFamily: FF.jp.light },
   },
+  // 欧文が確定している要素（大文字ラベル・英数見出し）のみ
+  latin: {
+    light:    { fontFamily: FF.latin.light },
+    regular:  { fontFamily: FF.latin.regular },
+    medium:   { fontFamily: FF.latin.medium },
+    semibold: { fontFamily: FF.latin.semibold },
+  },
+  // 数値・時刻・経過時間・ID・件数は必ずこれ
   mono: {
-    regular:  { fontWeight: systemWeight.regular, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
-    bold:     { fontWeight: systemWeight.bold, fontVariant: ['tabular-nums'] as 'tabular-nums'[] },
+    regular:  { fontFamily: FF.mono.regular, fontVariant: tabular },
+    bold:     { fontFamily: FF.mono.medium, fontVariant: tabular },
   },
 } as const;
 
@@ -155,11 +167,13 @@ export const screenPadding = {
 
 // ── Radius ─────────────────────────────────────────────────
 export const radius = {
-  xs:    themeRadius.xs,
-  sm:    themeRadius.sm,
-  md:    themeRadius.md,
-  lg:    themeRadius.lg,
-  pill:  themeRadius.pill,
+  none:   themeRadius.none,
+  xs:     themeRadius.xs,
+  sm:     themeRadius.sm,
+  md:     themeRadius.md,
+  lg:     themeRadius.lg,
+  pill:   themeRadius.pill,
+  circle: themeRadius.circle,
 } as const;
 
 // ── Typography ─────────────────────────────────────────────
@@ -238,6 +252,21 @@ export const textStyles = {
     lineHeight: T.lineHeight(T.size.caption2),
     letterSpacing: T.letterSpacing.wide,
     ...fonts.sans.light,
+  },
+  // リスト行の見出し（記録・タスク・会話）。本文より一段小さく、
+  // medium で「押せる行の主語」であることを示す。
+  rowTitle: {
+    fontSize: T.size.subheadline,
+    lineHeight: T.lineHeight(T.size.subheadline),
+    ...fonts.sans.medium,
+  },
+  // セクションラベル（期限切れ / 決定 / 出典 など）。
+  // 小さく・広めのトラッキングで、内容ではなく分類であることを示す。
+  label: {
+    fontSize: T.size.caption2,
+    lineHeight: T.lineHeight(T.size.caption2),
+    letterSpacing: T.letterSpacing.wide,
+    ...fonts.sans.medium,
   },
   captionBold: {
     fontSize: T.size.caption2,

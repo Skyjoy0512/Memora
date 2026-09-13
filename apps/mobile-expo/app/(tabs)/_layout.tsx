@@ -1,11 +1,25 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useState } from 'react';
-import { DynamicColorIOS, Platform, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePathname } from 'expo-router';
+import { DynamicColorIOS, Platform, StyleSheet, View, useColorScheme } from 'react-native';
+import { useTabBarClearance } from '../../src/components/useTabBarClearance';
+import { usePathname, useRouter } from 'expo-router';
 import { CaptureSheet } from '../../src/components/CaptureSheet';
-import { HomeComposer } from '../../src/components/HomeComposer';
+import { useCaptureFlow } from '../../src/features/capture/CaptureFlowProvider';
+import { AskEntryBar } from '../../src/components/AskEntryBar';
 import { colors as themeColors } from '../../src/theme/tokens';
+
+// DynamicColorIOS は iOS 専用で、react-native-web / Android には存在しない。
+// ガードなしで呼ぶと web が起動時にクラッシュする。
+// 非 iOS では useColorScheme() で解決済みの静的な色を返す。
+function useTabTint(): string | ReturnType<typeof DynamicColorIOS> {
+  const scheme = useColorScheme();
+  if (Platform.OS === 'ios') {
+    return DynamicColorIOS({
+      dark: themeColors.dark.accent,
+      light: themeColors.light.accent,
+    });
+  }
+  return scheme === 'dark' ? themeColors.dark.accent : themeColors.light.accent;
+}
 
 function isIos26OrHigher(): boolean {
   if (Platform.OS !== 'ios') return false;
@@ -15,19 +29,19 @@ function isIos26OrHigher(): boolean {
 }
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-  const isHome = usePathname() === '/';
+  const tabBarClearance = useTabBarClearance();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isHome = pathname === '/';
   const useNativeAccessory = isIos26OrHigher();
-  const [isCaptureSheetOpen, setCaptureSheetOpen] = useState(false);
+  const capture = useCaptureFlow();
+  const tabTint = useTabTint();
 
   return (
     <View style={{ flex: 1 }}>
       <NativeTabs
         minimizeBehavior="onScrollDown"
-        tintColor={DynamicColorIOS({
-          dark: themeColors.dark.accent,
-          light: themeColors.light.accent,
-        })}
+        tintColor={tabTint}
         labelStyle={{
           fontSize: 11,
           fontWeight: '600',
@@ -38,7 +52,7 @@ export default function TabLayout() {
             sf={{ default: 'house', selected: 'house.fill' }}
             md={{ default: 'home', selected: 'home' }}
           />
-          <NativeTabs.Trigger.Label>ホーム</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label>記録</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="tasks">
           <NativeTabs.Trigger.Icon
@@ -49,7 +63,7 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
         <NativeTabs.Trigger
           disabled
-          listeners={{ tabPress: () => setCaptureSheetOpen(true) }}
+          listeners={{ tabPress: () => capture.openCaptureMenu() }}
           name="capture"
           unstable_nativeProps={{ tabBarItemAccessibilityLabel: '録音メニューを開く' }}
         >
@@ -57,7 +71,9 @@ export default function TabLayout() {
             sf={{ default: 'plus', selected: 'plus' }}
             md={{ default: 'add', selected: 'add' }}
           />
-          <NativeTabs.Trigger.Label hidden>録音</NativeTabs.Trigger.Label>
+          {/* ラベルを隠すと、アイコンを描けないプラットフォーム（web など）で
+              タブが見えなくなる。プロトタイプの録音FABに当たる導線なので必ず出す。 */}
+          <NativeTabs.Trigger.Label>録音</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
         <NativeTabs.Trigger name="ask-ai">
           <NativeTabs.Trigger.Icon
@@ -75,17 +91,17 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
         {useNativeAccessory && isHome ? (
           <NativeTabs.BottomAccessory>
-            <HomeComposer />
+            <AskEntryBar onPress={() => router.push('/ask-ai')} />
           </NativeTabs.BottomAccessory>
         ) : null}
       </NativeTabs>
-      <CaptureSheet isOpen={isCaptureSheetOpen} onClose={() => setCaptureSheetOpen(false)} />
+      <CaptureSheet isOpen={capture.isCaptureMenuOpen} onClose={capture.closeCaptureMenu} />
       {!useNativeAccessory && isHome ? (
         <View
           pointerEvents="box-none"
-          style={[styles.composerOverlay, { bottom: insets.bottom + 57 }]}
+          style={[styles.composerOverlay, { bottom: tabBarClearance }]}
         >
-          <HomeComposer />
+          <AskEntryBar onPress={() => router.push('/ask-ai')} />
         </View>
       ) : null}
     </View>

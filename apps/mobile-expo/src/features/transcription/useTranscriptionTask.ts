@@ -67,8 +67,30 @@ export function useTranscriptionTask(
     }
 
     await MemoraNative.cancelTranscription(task.id);
+
+    // native はキャンセル要求への応答のみを返し、cancelled 終端イベントは
+    // 別途非同期で届く。応答前に終端イベント（completed/failed/cancelled）が
+    // 届いていた場合はリスナー側で反映済みのため、ここでは残りのイベントを
+    // 待たずに購読を解除し、応答時点の状態が非終端なら cancelled へ確定させる。
+    // これにより終端イベントが応答の前後どちらに届いても running に残らない。
+    const wasActive = task.status === 'queued' || task.status === 'running';
     subscriptionRef.current?.remove();
-  }, [task]);
+    subscriptionRef.current = null;
+    setTask((current) =>
+      current && (current.status === 'queued' || current.status === 'running')
+        ? { ...current, status: 'cancelled' }
+        : current,
+    );
+    if (wasActive) {
+      setLatestEvent({
+        audioFileId,
+        message: '文字起こしをキャンセルしました',
+        progress: 0,
+        taskId: task.id,
+        type: 'cancelled',
+      });
+    }
+  }, [audioFileId, task]);
 
   return {
     cancel,

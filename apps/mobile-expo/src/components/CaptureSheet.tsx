@@ -1,18 +1,21 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import { Button } from 'heroui-native/button';
-import { Separator } from 'heroui-native/separator';
-import { colors } from '../design/tokens';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, radius, spacing, textStyles } from '../design/tokens';
 import { useCaptureFlow } from '../features/capture/CaptureFlowProvider';
-import { AppIcon } from './AppIcon';
-import { FloatingBottomSheet } from './FloatingBottomSheet';
+import { AppIcon, type AppIconName } from './AppIcon';
 
 type CaptureSheetProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
+/**
+ * Open Design v2 の `.capture-menu`。
+ * 小さなボトムシートではなく全画面。選択肢は親指の届く下端に寄せ、
+ * ラベルは sheet-title と同じ大きさで「記録の入口」であることを明示する。
+ */
 export function CaptureSheet({ isOpen, onClose }: CaptureSheetProps) {
   const capture = useCaptureFlow();
   const [isBusy, setIsBusy] = useState(false);
@@ -57,59 +60,103 @@ export function CaptureSheet({ isOpen, onClose }: CaptureSheetProps) {
   }
 
   return (
-    <FloatingBottomSheet isOpen={isOpen} onClose={onClose}>
-      <View style={styles.sheetSurface}>
-        <Button
-          accessibilityLabel={capture.isRecordingActive ? '録音に戻る' : '録音開始'}
-          background={null}
-          isDisabled={isBusy}
-          onPress={() => void handleRecord()}
-          style={styles.sheetAction}
-          variant="ghost"
+    <Modal
+      animationType="fade"
+      onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      transparent
+      visible={isOpen}
+    >
+      <SafeAreaView edges={['top', 'bottom']} style={styles.menu}>
+        <View style={styles.options}>
+          <CaptureOption
+            icon="mic-outline"
+            label={capture.isRecordingActive ? '録音に戻る' : 'マイクで録音'}
+            onPress={() => void handleRecord()}
+          />
+          <CaptureOption
+            icon="document-outline"
+            label="ファイルインポート"
+            onPress={() => void handleImport()}
+          />
+          <CaptureOption
+            icon="chatbubble-outline"
+            label="オンライン会議キャプチャ"
+            onPress={handleMeetingCapture}
+          />
+        </View>
+
+        <Pressable
+          accessibilityLabel="閉じる"
+          accessibilityRole="button"
+          onPress={onClose}
+          style={({ pressed }) => [styles.close, pressed && styles.closePressed]}
         >
-          <AppIcon color={colors.text} name="mic-outline" size={18} />
-          <Button.Label>{capture.isRecordingActive ? '録音に戻る' : '録音開始'}</Button.Label>
-        </Button>
-        <Separator orientation="horizontal" variant="thin" />
-        <Button
-          accessibilityLabel="インポート"
-          background={null}
-          isDisabled={isBusy}
-          onPress={() => void handleImport()}
-          style={styles.sheetAction}
-          variant="ghost"
-        >
-          <AppIcon color={colors.text} name="attach-outline" size={18} />
-          <Button.Label>インポート</Button.Label>
-        </Button>
-        <Separator orientation="horizontal" variant="thin" />
-        <Button
-          accessibilityLabel="会議キャプチャー"
-          background={null}
-          isDisabled={isBusy}
-          onPress={handleMeetingCapture}
-          style={styles.sheetAction}
-          variant="ghost"
-        >
-          <AppIcon color={colors.text} name="chatbubble-outline" size={18} />
-          <Button.Label>会議キャプチャー</Button.Label>
-        </Button>
-      </View>
-    </FloatingBottomSheet>
+          <AppIcon color={colors.textInverse} name="close" size={24} />
+        </Pressable>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+function CaptureOption({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: AppIconName;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.option, pressed && styles.optionPressed]}
+    >
+      <AppIcon color={colors.textSecondary} name={icon} size={24} />
+      <Text style={styles.optionLabel}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  sheetSurface: {
-    backgroundColor: colors.surface,
-    paddingBottom: 0,
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    width: '100%',
+  menu: {
+    backgroundColor: colors.canvas,
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
-  sheetAction: {
-    justifyContent: 'flex-start',
-    minHeight: 44,
-    width: '100%' as const,
+  options: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
   },
+  option: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 64,
+    paddingVertical: spacing.xs,
+  },
+  optionPressed: { backgroundColor: colors.surfaceAlt },
+  optionLabel: { color: colors.text, flexShrink: 1, ...textStyles.title2 },
+  close: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    borderRadius: radius.circle,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    marginTop: spacing.xxl,
+    width: 52,
+  },
+  closePressed: { opacity: 0.72 },
 });

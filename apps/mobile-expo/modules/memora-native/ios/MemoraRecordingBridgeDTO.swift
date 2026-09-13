@@ -36,11 +36,45 @@ public enum MemoraNativeRecordingImportRegistry {
   public static var handler: MemoraRecordingImportHandling = MemoraNativeFileRecordingImportHandler()
 }
 
+/// 録音セッションの状態。ユーザー操作による pause と OS 割込みによる停止を区別し、
+/// 割込み復帰（.ended + .shouldResume）時の自動再開対象を決める（R18）。
+private enum MemoraRecordingSessionState {
+  case recording
+  /// ユーザー操作（pauseRecording）による一時停止。割込み復帰時も自動再開しない。
+  case pausedByUser
+  /// 進行中の OS 割込み（interruption .began）による自動停止。
+  /// .ended + shouldResume で自動再開の対象になる。
+  case interruptedBySystem
+  /// 割込み終了後も停止中（shouldResume なし、または自動再開失敗）。
+  /// 明示的な resumeRecording のみで再開する。
+  case pausedAfterInterruption
+}
+
+/// 開始〜停止中の録音セッション（旧 activeRecorders + activeRecorderStartDates 相当）。
+private struct MemoraActiveRecording {
+  let recorder: AVAudioRecorder
+  let startDate: Date
+  var state: MemoraRecordingSessionState
+}
+
+/// stopRecording 後、DB（upsert）保存が完了するまで保持する復旧情報（R20）。
+/// 録音は停止済みだが保存に失敗した場合も、同じ sessionId による再試行で
+/// 同じ DTO（id・recordedAt 固定）を保存し直せるようにする。成功時のみ除去する。
+private struct MemoraPendingRecordingSave {
+  let recorder: AVAudioRecorder
+  let dto: MemoraAudioFileDTO
+
+  var fileURL: URL {
+    recorder.url
+  }
+}
+
 public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecordingImportHandling {
   public let sourceDescription: String
 
-  private var activeRecorders: [String: AVAudioRecorder] = [:]
-  private var activeRecorderStartDates: [String: Date] = [:]
+  private var activeRecordings: [String: MemoraActiveRecording] = [:]
+  /// R20: 停止済みだが DB upsert 未完了のセッション（sessionId キー）。
+  private var pendingRecordingSaves: [String: MemoraPendingRecordingSave] = [:]
   private let recorderLock = NSLock()
   private let isoFormatter = ISO8601DateFormatter()
   private let storageDirectory: URL?
@@ -76,70 +110,131 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       throw MemoraRecordingImportError.recordingStartFailed
     }
 
+    let startDate = Date()
     recorderLock.lock()
-    activeRecorders[sessionId] = recorder
-    activeRecorderStartDates[sessionId] = Date()
+    activeRecordings[sessionId] = MemoraActiveRecording(
+      recorder: recorder,
+      startDate: startDate,
+      state: .recording
+    )
     recorderLock.unlock()
 
     return MemoraRecordingSessionDTO(
       id: sessionId,
-      startedAt: isoFormatter.string(from: Date()),
+      startedAt: isoFormatter.string(from: startDate),
       source: "iPhone"
     )
   }
 
   public func stopRecording(sessionId: String) throws -> MemoraAudioFileDTO {
     recorderLock.lock()
-    let recorder = activeRecorders.removeValue(forKey: sessionId)
-    let startDate = activeRecorderStartDates.removeValue(forKey: sessionId)
+    let existingPendingSave = pendingRecordingSaves[sessionId]
     recorderLock.unlock()
-    guard let recorder else {
+
+    // R20: 前回の停止で DB 保存に失敗した場合の再試行。録音は停止済みのため、
+    // 保存のみを同じ DTO で再実行する。
+    if let existingPendingSave {
+      let pendingSave = existingPendingSave
+      return try finalizePendingSave(sessionId: sessionId, pendingSave: pendingSave)
+    }
+
+    recorderLock.lock()
+    let recording = activeRecordings.removeValue(forKey: sessionId)
+    recorderLock.unlock()
+    guard let recording else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
 
-    recorder.stop()
+    recording.recorder.stop()
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-    return try makeAudioFileDTO(
-      id: UUID().uuidString,
-      fileURL: recorder.url,
-      title: recordingTitle(for: startDate ?? Date()),
-      summary: ""
+    // R20: 保存成功まで復旧情報（recorder/DTO）を保持する。成功時のみ pending から除去し、
+    // 失敗時は同じ sessionId で stopRecording を再試行できる状態を保つ。
+    let pendingSave = MemoraPendingRecordingSave(
+      recorder: recording.recorder,
+      dto: makeAudioFileDTO(
+        id: UUID().uuidString,
+        fileURL: recording.recorder.url,
+        title: recordingTitle(for: recording.startDate),
+        summary: ""
+      )
     )
+    recorderLock.lock()
+    pendingRecordingSaves[sessionId] = pendingSave
+    recorderLock.unlock()
+
+    return try finalizePendingSave(sessionId: sessionId, pendingSave: pendingSave)
+  }
+
+  private func finalizePendingSave(
+    sessionId: String,
+    pendingSave: MemoraPendingRecordingSave
+  ) throws -> MemoraAudioFileDTO {
+    do {
+      try MemoraNativeAudioFileMutationRegistry.audioFileMutator
+        .upsertAudioFile(pendingSave.dto, fileURL: pendingSave.fileURL)
+    } catch {
+      // R20: 保存失敗時は pending を残したままエラーを返す（同じ sessionId で再試行可能）。
+      throw error
+    }
+
+    recorderLock.lock()
+    // 再試行中に discard 等で pending が差し替わっていた場合は誤って除去しない。
+    if pendingRecordingSaves[sessionId]?.fileURL == pendingSave.fileURL {
+      pendingRecordingSaves.removeValue(forKey: sessionId)
+    }
+    recorderLock.unlock()
+    return pendingSave.dto
   }
 
   public func pauseRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders[sessionId]
-    recorderLock.unlock()
-    guard let recorder else {
+    guard let recorder = activeRecordings[sessionId]?.recorder else {
+      recorderLock.unlock()
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
+    recorderLock.unlock()
     recorder.pause()
+
+    recorderLock.lock()
+    // R18: ユーザーによる明示 pause は自動再開対象から外す。
+    activeRecordings[sessionId]?.state = .pausedByUser
+    recorderLock.unlock()
   }
 
   public func resumeRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders[sessionId]
-    recorderLock.unlock()
-    guard let recorder else {
+    guard let recorder = activeRecordings[sessionId]?.recorder else {
+      recorderLock.unlock()
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
+    recorderLock.unlock()
     guard recorder.record() else {
       throw MemoraRecordingImportError.recordingStartFailed
     }
+
+    recorderLock.lock()
+    activeRecordings[sessionId]?.state = .recording
+    recorderLock.unlock()
   }
 
   public func discardRecording(sessionId: String) throws {
     recorderLock.lock()
-    let recorder = activeRecorders.removeValue(forKey: sessionId)
-    activeRecorderStartDates.removeValue(forKey: sessionId)
+    let recording = activeRecordings.removeValue(forKey: sessionId)
+    let pendingSave = pendingRecordingSaves.removeValue(forKey: sessionId)
     recorderLock.unlock()
-    guard let recorder else {
+
+    guard recording != nil || pendingSave != nil else {
       throw MemoraRecordingImportError.recordingSessionNotFound
     }
-    recorder.deleteRecording()
-    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+
+    // R20: 保存に失敗した pending の破棄も、録音実体を削除して同じように扱う。
+    if let recorder = recording?.recorder ?? pendingSave?.recorder {
+      recorder.deleteRecording()
+    }
+    if recording != nil {
+      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
   }
 
   public func importAudio(uri: String) throws -> MemoraAudioFileDTO {
@@ -151,12 +246,14 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     let destinationURL = try uniqueDestinationURL(for: sourceURL)
     try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-    return try makeAudioFileDTO(
+    let dto = makeAudioFileDTO(
       id: UUID().uuidString,
       fileURL: destinationURL,
       title: destinationURL.lastPathComponent,
       summary: ""
     )
+    try MemoraNativeAudioFileMutationRegistry.audioFileMutator.upsertAudioFile(dto, fileURL: destinationURL)
+    return dto
   }
 
   private func configureAudioSession() throws {
@@ -177,9 +274,9 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
 
   private func handleInterruption(_ notification: Notification) {
     recorderLock.lock()
-    let hasActiveRecorders = !activeRecorders.isEmpty
+    let hasActiveRecordings = !activeRecordings.isEmpty
     recorderLock.unlock()
-    guard hasActiveRecorders else { return }
+    guard hasActiveRecordings else { return }
     guard
       let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
       let type = AVAudioSession.InterruptionType(rawValue: rawType)
@@ -190,32 +287,68 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     switch type {
     case .began:
       // The system pauses AVAudioRecorder automatically when the interruption begins.
-      break
+      // R18: 録音中（ユーザー一時停止でない）セッションだけを「割込み停止」として記録する。
+      recorderLock.lock()
+      for sessionId in Array(activeRecordings.keys) {
+        guard activeRecordings[sessionId]?.state == .recording else { continue }
+        activeRecordings[sessionId]?.state = .interruptedBySystem
+      }
+      recorderLock.unlock()
     case .ended:
       let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
       guard AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) else {
+        // R18: 自動再開が許可されない割込みでは、割込み停止分を明示再開待ちへ戻す。
+        markInterruptedBySystemAsPaused()
         return
       }
-      resumeActiveRecorders()
+      resumeInterruptedBySystemRecordings()
     @unknown default:
       break
     }
   }
 
-  private func resumeActiveRecorders() {
+  private func markInterruptedBySystemAsPaused() {
     recorderLock.lock()
-    let recorders = Array(activeRecorders.values)
+    for sessionId in Array(activeRecordings.keys)
+    where activeRecordings[sessionId]?.state == .interruptedBySystem {
+      activeRecordings[sessionId]?.state = .pausedAfterInterruption
+    }
     recorderLock.unlock()
+  }
+
+  /// R18: 割込み終了（.ended + shouldResume）時に自動再開するのは、
+  /// その割込みで停止された（interruptedBySystem の）録音だけ。ユーザーが明示的に
+  /// pause した録音（pausedByUser）や、割込み終了済みの録音は再開しない。
+  private func resumeInterruptedBySystemRecordings() {
+    recorderLock.lock()
+    let hasActiveRecordings = !activeRecordings.isEmpty
+    let interruptedRecordings = activeRecordings.compactMap { sessionId, recording -> (String, AVAudioRecorder)? in
+      guard recording.state == .interruptedBySystem else { return nil }
+      return (sessionId, recording.recorder)
+    }
+    recorderLock.unlock()
+
+    // 旧実装と同じく、割込み復帰時はアクティブ録音があればセッションを再有効化する。
+    // これにより、自動再開対象が無い場合（全て pausedByUser 等）でも、
+    // その後の明示的な resumeRecording が record() できる状態を維持する。
+    guard hasActiveRecordings else { return }
 
     let session = AVAudioSession.sharedInstance()
     do {
       try session.setActive(true, options: .notifyOthersOnDeactivation)
     } catch {
+      markInterruptedBySystemAsPaused()
       return
     }
 
-    for recorder in recorders {
-      _ = recorder.record()
+    for (sessionId, recorder) in interruptedRecordings {
+      let resumed = recorder.record()
+      recorderLock.lock()
+      // 再開成功/失敗にかかわらず、この割込みサイクルの自動再開対象から外す。
+      if activeRecordings[sessionId]?.state == .interruptedBySystem {
+        activeRecordings[sessionId]?.state = resumed ? .recording : .pausedAfterInterruption
+      }
+      recorderLock.unlock()
     }
   }
 
@@ -299,8 +432,10 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
     return URL(fileURLWithPath: uri)
   }
 
-  private func makeAudioFileDTO(id: String, fileURL: URL, title: String, summary: String) throws -> MemoraAudioFileDTO {
-    let dto = MemoraAudioFileDTO(
+  /// DTO を組み立てるだけのヘルパー。DB 書き込み（upsert）は行わず、
+  /// 呼び出し側（stopRecording の pending 保存 / importAudio）で明示的に行う。
+  private func makeAudioFileDTO(id: String, fileURL: URL, title: String, summary: String) -> MemoraAudioFileDTO {
+    MemoraAudioFileDTO(
       id: id,
       title: title,
       project: "Inbox",
@@ -314,8 +449,6 @@ public final class MemoraNativeFileRecordingImportHandler: NSObject, MemoraRecor
       transcript: [],
       memo: []
     )
-    try MemoraNativeAudioFileMutationRegistry.audioFileMutator.upsertAudioFile(dto, fileURL: fileURL)
-    return dto
   }
 
   /// Generates a human-readable default title from the recording start time.

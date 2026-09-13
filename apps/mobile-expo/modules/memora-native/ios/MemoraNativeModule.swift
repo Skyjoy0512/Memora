@@ -30,7 +30,14 @@ public class MemoraNativeModule: Module {
     }
 
     AsyncFunction("deleteAudioFile") { (id: String) -> Bool in
-      try self.audioFileMutator.deleteAudioFile(id: id)
+      // R09: FileDetail の削除説明（録音・文字起こし・メモをすべて削除）に合わせ、
+      // ストア（DB）レコード削除に先立ち、アプリ所有のメモ本文と写真実体を削除する。
+      // deleteMemoData はべき等で、失敗時はエラーを投げてレコード削除を行わず、
+      // 再試行できる状態を保つ。音声実体（audioURL / segmentPaths）の削除は
+      // audioFileMutator（swiftdata: 共有ストアアダプタ / native-files: 実体も削除）
+      // がレコード削除前に実行する。
+      try self.memoHandler.deleteMemoData(audioFileId: id)
+      return try self.audioFileMutator.deleteAudioFile(id: id)
     }
 
     AsyncFunction("listTasks") { () -> [[String: Any]] in

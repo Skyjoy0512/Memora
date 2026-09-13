@@ -65,10 +65,29 @@ public final class KnowledgeQueryCore {
     /// LocalRetrievalEngine の keyword scoring と rankHint を組み合わせ、
     /// クエリに関連するチャンクを優先的に取得する。
     public func buildContext(for scope: ChatScope, query: String) -> NeutralContextPack {
+        buildContext(for: scope, query: query, userMemo: nil)
+    }
+
+    /// Query-aware retrieval を利用して context を構築する。
+    /// LocalRetrievalEngine の keyword scoring と rankHint を組み合わせ、
+    /// クエリに関連するチャンクを優先的に取得する。
+    /// - Parameter userMemo: file スコープ時にコンテキストへ含めるユーザーメモ本文。
+    ///   ホスト側（RN の Documents/JSON メモストア等）が対象 audioFile に紐づくメモを
+    ///   読み取って渡す。ユーザーメモは SwiftData の MeetingMemo とは別系統のため
+    ///   KnowledgeChunk 検索結果の有無に依存せず必ず追加し、メモにだけ書かれた
+    ///   決定事項などが回答の根拠として使えるようにする。
+    ///   nil・空文字の場合は何も追加しない（従来どおり）。
+    public func buildContext(for scope: ChatScope, query: String, userMemo: String?) -> NeutralContextPack {
         let retrievalScope = Self.toRetrievalScope(scope)
         let retrievalContext = retrievalService.retrieve(scope: retrievalScope, query: query, topN: 8)
 
         var sources: [ContextSource] = memoryContextSources()
+
+        // ユーザーメモはメモリ文脈の直後（検索チャンクより前）へ置き、
+        // makeContextPack の上位6件制限でも必ず残るようにする。
+        if case .file(let fileID) = scope {
+            appendUserMemo(userMemo, audioFileID: fileID, to: &sources)
+        }
 
         for retrieved in retrievalContext.chunks {
             let chunk = retrieved.chunk
@@ -84,7 +103,9 @@ public final class KnowledgeQueryCore {
 
         // File scope のみ直接コンテキストを追加
         if case .file(let fileID) = scope, let file = fetchAudioFile(id: fileID) {
-            if sources.isEmpty {
+            // ユーザーメモだけが存在する状態でもフォールバックが実行されるよう、
+            // メモリ系・ユーザーメモ以外の実コンテンツ有無で判定する。
+            if !hasContentSource(sources) {
                 // Fallback: direct entity queries when no chunks exist
                 let transcript = retrievalContext.transcriptText
                 let memo = fetchMeetingMemo(for: file.id)?.plainTextCache
@@ -550,6 +571,33 @@ public final class KnowledgeQueryCore {
     }
 
     // MARK: - Pack Building
+
+    /// ホスト提供のユーザーメモを「ユーザーメモ」と明示したソースへ追加する。
+    /// メモ本文はユーザーデータのためログ等へ全文は出さず、プロンプトへの埋め込みにのみ
+    /// 使う（makeContextPack でさらに上限文字数まで切り詰められる）。
+    private func appendUserMemo(_ memo: String?, audioFileID: UUID, to sources: inout [ContextSource]) {
+        guard let memo, let file = fetchAudioFile(id: audioFileID) else { return }
+        let trimmed = memo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        sources.append(
+            ContextSource(
+                type: "user-memo",
+                title: "\(file.title) / ユーザーメモ",
+                body: trimmed
+            )
+        )
+    }
+
+    /// メモリ系・ユーザーメモ以外の実コンテンツソースが含まれるかを返す。
+    /// file スコープのフォールバック判定で、ユーザーメモ単独の存在により
+    /// transcript / summary / reference が省略されないようにするためのヘルパー。
+    private func hasContentSource(_ sources: [ContextSource]) -> Bool {
+        sources.contains { source in
+            source.type != "memory-profile"
+                && source.type != "memory-facts"
+                && source.type != "user-memo"
+        }
+    }
 
     private func makeContextPack(scopeTitle: String, sources: [ContextSource]) -> NeutralContextPack {
         let limitedSources = sources.prefix(6)

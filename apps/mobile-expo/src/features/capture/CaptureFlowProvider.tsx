@@ -1,6 +1,8 @@
 import { AppIcon as Ionicons } from "../../components/AppIcon";
+import { ProcessRail } from "../../components/ProcessRail";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -21,19 +23,38 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { colors, fonts, radius, spacing, textStyles } from "../../design/tokens";
 import { shadow as themeShadow } from "../../theme/tokens";
+import { mapAskAiError } from "../../native/askAiLogic";
 import { MemoraNative } from "../../native/MemoraNative";
 import type { SummaryOptionsDTO } from "../../native/MemoraNative.types";
 import type { AudioFile } from "../../types/memora";
+import {
+  TRANSCRIPTION_COMPLETION_TIMEOUT_MS,
+  waitForTranscriptionCompletion,
+} from "./transcriptionWait";
 
 type CaptureMode = "idle" | "recording" | "generate" | "generating";
 type GenerationPhase =
   "analyzing" | "transcribing" | "summarizing" | "completed" | "failed";
+type GenerationFailure = {
+  message: string;
+  hint: "api-key" | null;
+};
+
+const GENERATION_FAILED_RECOVERABLE_MESSAGE =
+  "ファイルは保存されているので、あとで再試行できます。";
 
 type CaptureFlow = {
   discardRecording: () => Promise<void>;
   importAudio: (uri: string) => Promise<void>;
+  /** 取り込みが進行中かどうか。Open Design v2 の `importing` 画面に対応する。 */
+  isImporting: boolean;
+  /** 記録メニュー（`.capture-menu`）の開閉。タブと /capture ルートの両方から開く。 */
+  isCaptureMenuOpen: boolean;
+  openCaptureMenu: () => void;
+  closeCaptureMenu: () => void;
   isRecordingActive: boolean;
   latestFile?: AudioFile;
   mode: CaptureMode;
@@ -55,8 +76,13 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
   const [generationPhase, setGenerationPhase] =
     useState<GenerationPhase>("analyzing");
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationError, setGenerationError] = useState<string>();
+  const [generationError, setGenerationError] = useState<GenerationFailure>();
   const [showCompletionSnackbar, setShowCompletionSnackbar] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isCaptureMenuOpen, setIsCaptureMenuOpen] = useState(false);
+  // 参照が変わると /capture 側の focus effect が繰り返し発火するので固定する。
+  const openCaptureMenu = useCallback(() => setIsCaptureMenuOpen(true), []);
+  const closeCaptureMenu = useCallback(() => setIsCaptureMenuOpen(false), []);
 
   useEffect(() => {
     if (!sessionId || isPaused) return;
@@ -87,9 +113,19 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
         setMode("idle");
       },
       async importAudio(uri: string) {
-        const file = await MemoraNative.importAudio(uri);
-        setLatestFile(file);
+        // 進捗率はブリッジが返さないので割合は出さない。段階だけを示す。
+        setIsImporting(true);
+        try {
+          const file = await MemoraNative.importAudio(uri);
+          setLatestFile(file);
+        } finally {
+          setIsImporting(false);
+        }
       },
+      isImporting,
+      isCaptureMenuOpen,
+      openCaptureMenu,
+      closeCaptureMenu,
       isRecordingActive: Boolean(sessionId),
       latestFile,
       mode,
@@ -128,7 +164,7 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
         setMode("generate");
       },
     }),
-    [latestFile, mode, sessionId],
+    [closeCaptureMenu, isCaptureMenuOpen, isImporting, latestFile, mode, openCaptureMenu, sessionId],
   );
 
   function startGeneration(
@@ -188,8 +224,10 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
               onGenerate={(request) => {
                 if (latestFile) startGeneration(latestFile, request);
               }}
-              onSkip={(options) => {
-                if (latestFile) startGeneration(latestFile, { options });
+              onSkip={() => {
+                // 生成をスキップ: 保存済みの latestFile は保持したまま、
+                // STT・要約（runGeneration）は開始せずオプション画面を閉じる。
+                setMode("idle");
               }}
             />
           ) : (
@@ -211,6 +249,33 @@ export function CaptureFlowProvider({ children }: { children: ReactNode }) {
             />
           )}
         </SafeAreaProvider>
+      </Modal>
+      {/* Open Design v2 `importing`: 取り込みの間、段階だけを見せて画面を占有しない */}
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {}}
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        transparent
+        visible={isImporting}
+      >
+        <View style={styles.importingBackdrop}>
+          <View style={styles.importingCard}>
+            <Text style={styles.importingLabel}>取り込み状況</Text>
+            <ProcessRail
+              label="取り込みの進捗"
+              steps={[
+                { label: "選択済み", state: "done" },
+                { label: "取り込み中", state: "active" },
+                { label: "処理待ち", state: "pending" },
+              ]}
+            />
+            <Text style={styles.importingTitle}>音声を取り込んでいます</Text>
+            <Text style={styles.importingBody}>
+              完了後に文字起こしを開始できます。音声は元の場所にも残ります。
+            </Text>
+          </View>
+        </View>
       </Modal>
       <DynamicIslandPill
         elapsedSeconds={elapsedSeconds}
@@ -243,27 +308,59 @@ export function useCaptureFlow() {
 async function runGeneration(
   file: AudioFile,
   options: SummaryOptionsDTO,
-  setError: (message: string | undefined) => void,
+  setError: (failure: GenerationFailure | undefined) => void,
   setPhase: (phase: GenerationPhase) => void,
   setProgress: (progress: number) => void,
 ) {
   try {
-    await delay(450);
     setPhase("transcribing");
     setProgress(0.45);
-    await MemoraNative.startTranscription(file.id);
-    await delay(650);
+    const task = await MemoraNative.startTranscription(file.id);
+    // 固定 delay で「完了待ち」を偽装せず、文字起こしの保存完了（completed
+    // イベント）を待ってから要約へ進む。failed / cancelled / timeout では
+    // 本文が未保存の可能性があるため要約を開始しない。
+    let lastTranscribingProgress = 0.45;
+    const outcome = await waitForTranscriptionCompletion(
+      (taskId, listener) =>
+        MemoraNative.addTranscriptionListener(taskId, listener),
+      task.id,
+      {
+        timeoutMs: TRANSCRIPTION_COMPLETION_TIMEOUT_MS,
+        onProgress(progress) {
+          // STT の実進捗を transcribing 区間のバーへ写像する（後退させない）。
+          const mapped = Math.min(
+            0.8,
+            0.45 + 0.35 * Math.max(0, Math.min(1, progress)),
+          );
+          if (mapped > lastTranscribingProgress) {
+            lastTranscribingProgress = mapped;
+            setProgress(mapped);
+          }
+        },
+      },
+    );
+    if (outcome !== "completed") {
+      throw new Error(`transcription did not complete: ${outcome}`);
+    }
     setPhase("summarizing");
     setProgress(0.8);
     await MemoraNative.generateSummary({
       audioFileId: file.id,
       options,
     });
-    await delay(450);
     setPhase("completed");
     setProgress(1);
-  } catch {
-    setError("生成に失敗しました。ファイルは保存されています。");
+  } catch (error: unknown) {
+    // Ask AI と同じ判定を再利用する（新たなエラー分類を作らない）。
+    // APIキー未設定は native 側も "APIキーが設定されていません" 等で届くため、
+    // mapAskAiError の keyword 判定でそのまま拾える。
+    const mapping = mapAskAiError(error);
+    const hint = mapping.hint ?? null;
+    setError({
+      message:
+        hint === "api-key" ? mapping.message : GENERATION_FAILED_RECOVERABLE_MESSAGE,
+      hint,
+    });
     setPhase("failed");
     setProgress(0);
   }
@@ -417,7 +514,7 @@ function GenerateOverlay({
   defaultName: string;
   onBack: () => void;
   onGenerate: (request: { name: string; options: SummaryOptionsDTO }) => void;
-  onSkip: (options: SummaryOptionsDTO) => void;
+  onSkip: () => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [genMode, setGenMode] = useState<"auto" | "custom">("auto");
@@ -441,6 +538,7 @@ function GenerateOverlay({
       <View style={styles.generateHeader}>
         <Pressable
           accessibilityLabel="録音に戻る"
+          hitSlop={2}
           onPress={onBack}
           style={({ pressed }) => [
             styles.generateBack,
@@ -451,7 +549,7 @@ function GenerateOverlay({
         </Pressable>
         <Pressable
           accessibilityLabel="生成をスキップ"
-          onPress={() => onSkip({ provider: model })}
+          onPress={onSkip}
           style={({ pressed }) => [
             styles.generateSkip,
             pressed && styles.pressed,
@@ -600,11 +698,12 @@ function GenerationOverlay({
   phase,
   progress,
 }: {
-  error?: string;
+  error?: GenerationFailure;
   onClose: () => void;
   phase: GenerationPhase;
   progress: number;
 }) {
+  const router = useRouter();
   const isComplete = phase === "completed" || phase === "failed";
 
   return (
@@ -620,15 +719,36 @@ function GenerationOverlay({
           <ActivityIndicator color={colors.text} size="large" />
         )}
         <Text style={styles.generationLabel}>{generationLabel(phase)}</Text>
-        <View style={styles.progressTrack}>
-          <View
-            style={[styles.progressFill, { width: `${progress * 100}%` }]}
-          />
-        </View>
+        {/* 失敗時は実測値のない進捗バーを残さない（prohibitions §7.4）。 */}
+        {phase !== "failed" ? (
+          <View style={styles.progressTrack}>
+            <View
+              style={[styles.progressFill, { width: `${progress * 100}%` }]}
+            />
+          </View>
+        ) : null}
         <Text style={styles.generationDescription}>
-          {error ??
+          {error?.message ??
             "この処理はバックグラウンドで継続されます。ホームに戻っても続行できます。"}
         </Text>
+        {error?.hint === "api-key" ? (
+          <Pressable
+            accessibilityLabel="設定でAPIキーを入力する"
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              router.push("/settings");
+            }}
+            style={({ pressed }) => [
+              styles.backgroundButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.backgroundButtonText}>
+              設定でAPIキーを入力
+            </Text>
+          </Pressable>
+        ) : null}
         {!isComplete ? (
           <Pressable
             onPress={onClose}
@@ -701,6 +821,7 @@ function DynamicIslandPill({
     return (
       <Pressable
         accessibilityLabel="録音を開く"
+        hitSlop={{ bottom: 4, top: 4 }}
         onPress={onOpenRecording}
         style={[styles.island, styles.islandRecording]}
       >
@@ -719,6 +840,7 @@ function DynamicIslandPill({
     return (
       <Pressable
         accessibilityLabel="生成進捗を開く"
+        hitSlop={{ bottom: 4, top: 4 }}
         onPress={onOpenGeneration}
         style={[styles.island, styles.islandGeneration]}
       >
@@ -750,6 +872,7 @@ function RoundIcon({
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
+      hitSlop={size === "small" ? 2 : 0}
       onPress={onPress}
       style={({ pressed }) => [
         styles.roundIcon,
@@ -760,10 +883,6 @@ function RoundIcon({
       <Ionicons color={color} name={icon} size={size === "medium" ? 18 : 16} />
     </Pressable>
   );
-}
-
-function delay(milliseconds: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function formatElapsed(seconds: number) {
@@ -783,9 +902,24 @@ function generationLabel(phase: GenerationPhase) {
 
 const styles = StyleSheet.create({
   modalContainer: { flex: 1 },
+  importingBackdrop: {
+    backgroundColor: colors.overlay,
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  importingCard: {
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+  },
+  importingLabel: { color: colors.textSecondary, ...textStyles.label },
+  importingTitle: { color: colors.text, ...textStyles.sectionTitle },
+  importingBody: { color: colors.textSecondary, ...textStyles.footnote },
   backgroundButton: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    borderRadius: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
@@ -799,7 +933,7 @@ const styles = StyleSheet.create({
   confirmCancel: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
+    borderRadius: 0,
     flex: 1,
     height: 44,
     justifyContent: "center",
@@ -807,14 +941,14 @@ const styles = StyleSheet.create({
   confirmCancelText: { color: colors.text, ...textStyles.footnoteBold },
   confirmCard: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    borderRadius: 0,
     marginHorizontal: 40,
     padding: 20,
   },
   confirmDelete: {
     alignItems: "center",
     backgroundColor: colors.danger,
-    borderRadius: radius.md,
+    borderRadius: 0,
     flex: 1,
     height: 44,
     justifyContent: "center",
@@ -845,7 +979,7 @@ const styles = StyleSheet.create({
   generateButton: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 16,
+    borderRadius: 0,
     paddingVertical: 16,
   },
   generateButtonText: {
@@ -859,7 +993,7 @@ const styles = StyleSheet.create({
   },
   generateChip: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: 8,
   },
@@ -873,7 +1007,7 @@ const styles = StyleSheet.create({
   generateHandle: {
     alignSelf: "center",
     backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 0,
     height: 4,
     marginBottom: 16,
     width: 36,
@@ -888,7 +1022,7 @@ const styles = StyleSheet.create({
   generateIconCircle: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 28,
+    borderRadius: radius.circle,
     height: 56,
     justifyContent: "center",
     width: 56,
@@ -896,7 +1030,7 @@ const styles = StyleSheet.create({
   generateIconRow: { alignItems: "center", flexDirection: "row", gap: spacing.md },
   generateModeCard: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 14,
+    borderRadius: 0,
     flex: 1,
     padding: 12,
   },
@@ -945,7 +1079,7 @@ const styles = StyleSheet.create({
   generateScreen: { backgroundColor: colors.surface, flex: 1 },
   generateSkip: {
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
+    borderRadius: 0,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -988,14 +1122,14 @@ const styles = StyleSheet.create({
   highlightButton: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 26,
+    borderRadius: radius.circle,
     height: 52,
     justifyContent: "center",
     width: 52,
   },
   highlightCount: {
     backgroundColor: colors.text,
-    borderRadius: 8,
+    borderRadius: 0,
     color: colors.surface,
     minWidth: 16,
     overflow: "hidden",
@@ -1009,7 +1143,7 @@ const styles = StyleSheet.create({
   island: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 20,
+    borderRadius: 0,
     flexDirection: "row",
     justifyContent: "center",
     position: "absolute",
@@ -1019,7 +1153,7 @@ const styles = StyleSheet.create({
   },
   islandDot: {
     backgroundColor: colors.accent,
-    borderRadius: 4,
+    borderRadius: radius.circle,
     height: 7,
     width: 7,
   },
@@ -1048,7 +1182,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     ...fonts.mono.regular,
   },
-  islandWave: { backgroundColor: colors.textInverse, borderRadius: 1, width: 2 },
+  islandWave: { backgroundColor: colors.textInverse, borderRadius: 0, width: 2 },
   islandWaveform: {
     alignItems: "center",
     flex: 1,
@@ -1058,10 +1192,10 @@ const styles = StyleSheet.create({
   },
   modalScreen: { backgroundColor: colors.surface, flex: 1 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.93 }] },
-  progressFill: { backgroundColor: colors.text, borderRadius: 2, height: 4 },
+  progressFill: { backgroundColor: colors.text, borderRadius: 0, height: 4 },
   progressTrack: {
     backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 0,
     height: 4,
     marginBottom: spacing.md,
     width: 220,
@@ -1099,7 +1233,7 @@ const styles = StyleSheet.create({
   roundIcon: {
     alignItems: "center",
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 26,
+    borderRadius: 0,
     justifyContent: "center",
   },
   skipButton: { alignItems: "center", paddingBottom: 20 },
@@ -1107,14 +1241,14 @@ const styles = StyleSheet.create({
   stopButton: {
     alignItems: "center",
     backgroundColor: colors.text,
-    borderRadius: 36,
+    borderRadius: radius.circle,
     height: 72,
     justifyContent: "center",
     width: 72,
   },
   stopSquare: {
     backgroundColor: colors.textInverse,
-    borderRadius: 6,
+    borderRadius: 0,
     height: 26,
     width: 26,
   },
@@ -1126,7 +1260,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   transcriptText: { color: colors.textTertiary, ...textStyles.footnote },
-  wave: { borderRadius: 2, width: 4 },
+  wave: { borderRadius: 0, width: 4 },
   waveform: {
     alignItems: "flex-end",
     flexDirection: "row",

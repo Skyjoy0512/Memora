@@ -24,6 +24,13 @@ public protocol MemoraMemoHandling {
   func listPhotoAttachments(audioFileId: String) throws -> [MemoraPhotoAttachmentDTO]
   func addPhotoAttachment(audioFileId: String, sourceUri: String) throws -> MemoraPhotoAttachmentDTO
   func deletePhotoAttachment(audioFileId: String, attachmentId: String) throws -> Bool
+
+  /// R09: 指定した音声ファイルに紐づくメモ本文（memo-notes.json のレコード）と
+  /// 写真の実体（MemoraNativeMemoPhotos/{audioFileId} ディレクトリ）をすべて削除する。
+  /// 対象が存在しない場合は何もせず成功する（べき等）。呼び出しは
+  /// MemoraNativeModule の deleteAudioFile フローが行い、レコード（DB）削除より先に
+  /// 実行されることで、失敗時はレコードを残して再試行できる状態を保つ。
+  func deleteMemoData(audioFileId: String) throws
 }
 
 public enum MemoraNativeMemoRegistry {
@@ -113,6 +120,50 @@ public final class MemoraNativeFileMemoStore: MemoraMemoHandling {
     return true
   }
 
+  public func deleteMemoData(audioFileId: String) throws {
+    try removeMemoRecord(audioFileId: audioFileId)
+    try removePhotoDirectory(audioFileId: audioFileId)
+  }
+
+  /// memo-notes.json から対象レコードのみを削除する。ファイルが存在しない場合や
+  /// 対象レコードが無い場合は何も書き換えない（未知 ID でも副作用がない）。
+  private func removeMemoRecord(audioFileId: String) throws {
+    let url = try memoRecordsFileURL()
+    guard FileManager.default.fileExists(atPath: url.path) else { return }
+
+    let data = try Data(contentsOf: url)
+    var records = try JSONDecoder().decode([String: MemoraMemoRecord].self, from: data)
+    guard records.removeValue(forKey: audioFileId) != nil else { return }
+    try save(records)
+  }
+
+  /// MemoraNativeMemoPhotos/{audioFileId} ディレクトリ（写真実体）を削除する。
+  /// 誤削除防止のため、対象ディレクトリが photos ルートの直接の子であることを
+  /// パス単位で検証してから削除する（トラバーサル対策）。
+  private func removePhotoDirectory(audioFileId: String) throws {
+    guard Self.isPlainPathComponent(audioFileId) else { return }
+
+    let root = try photosRootDirectory()
+    guard FileManager.default.fileExists(atPath: root.path) else { return }
+
+    let standardizedRoot = root.standardizedFileURL
+    let directory = standardizedRoot.appendingPathComponent(audioFileId, isDirectory: true).standardizedFileURL
+    let isDirectChild = directory.path.hasPrefix(standardizedRoot.path + "/") &&
+      directory.deletingLastPathComponent().path == standardizedRoot.path
+    guard isDirectChild else { return }
+
+    guard FileManager.default.fileExists(atPath: directory.path) else { return }
+    try FileManager.default.removeItem(at: directory)
+  }
+
+  /// ディレクトリ名として使える単一のパス成分のみ許可する（"/"・"."・".."・空を拒否）。
+  private static func isPlainPathComponent(_ value: String) -> Bool {
+    guard !value.isEmpty, value != ".", value != "..", !value.contains("/") else {
+      return false
+    }
+    return URL(fileURLWithPath: value).lastPathComponent == value
+  }
+
   private func loadAll() throws -> [String: MemoraMemoRecord] {
     let url = try metadataURL()
     guard FileManager.default.fileExists(atPath: url.path) else {
@@ -129,24 +180,33 @@ public final class MemoraNativeFileMemoStore: MemoraMemoHandling {
     try data.write(to: url, options: [.atomic])
   }
 
-  private func metadataURL() throws -> URL {
+  private func memoRecordsFileURL() throws -> URL {
     guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
       throw CocoaError(.fileNoSuchFile)
     }
 
-    let directory = documentsDirectory.appendingPathComponent("MemoraNativeMetadata", isDirectory: true)
+    return documentsDirectory
+      .appendingPathComponent("MemoraNativeMetadata", isDirectory: true)
+      .appendingPathComponent("memo-notes.json")
+  }
+
+  private func metadataURL() throws -> URL {
+    let url = try memoRecordsFileURL()
+    let directory = url.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    return directory.appendingPathComponent("memo-notes.json")
+    return url
+  }
+
+  private func photosRootDirectory() throws -> URL {
+    guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+      throw CocoaError(.fileNoSuchFile)
+    }
+
+    return documentsDirectory.appendingPathComponent("MemoraNativeMemoPhotos", isDirectory: true)
   }
 
   private func photosDirectory(for audioFileId: String) throws -> URL {
-    guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-      throw CocoaError(.fileNoSuchFile)
-    }
-
-    let directory = documentsDirectory
-      .appendingPathComponent("MemoraNativeMemoPhotos", isDirectory: true)
-      .appendingPathComponent(audioFileId, isDirectory: true)
+    let directory = try photosRootDirectory().appendingPathComponent(audioFileId, isDirectory: true)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory
   }

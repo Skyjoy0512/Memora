@@ -94,6 +94,11 @@ const fallbackMemoNotes = new Map<string, { text: string; photos: PhotoAttachmen
 let fallbackPlayback: PlaybackStatusDTO | undefined;
 let fallbackPlaybackTimer: ReturnType<typeof setInterval> | undefined;
 
+type NativeModuleTestStub = {
+  /** vitest 専用の native モジュール代替。アプリ実行時（NODE_ENV !== 'test'）は参照しない。 */
+  __memoraNativeModuleForTests?: NativeExpoModule;
+};
+
 function fallbackMemoRecord(audioFileId: string) {
   const existing = fallbackMemoNotes.get(audioFileId);
   if (existing) return existing;
@@ -206,6 +211,14 @@ function loadNativeModule(): NativeExpoModule | undefined {
     return undefined;
   }
 
+  // vitest（Node）は require で TypeScript モジュールを解決できないため、
+  // テスト時のみ globalThis 上のスタブを参照する。アプリ実行時は require 経路を使う。
+  const testStub = (globalThis as typeof globalThis & NativeModuleTestStub)
+    .__memoraNativeModuleForTests;
+  if (process.env.NODE_ENV === 'test' && testStub) {
+    return testStub;
+  }
+
   try {
     const nativeModule = require('../../modules/memora-native').default as NativeExpoModule;
     return nativeModule;
@@ -214,6 +227,15 @@ function loadNativeModule(): NativeExpoModule | undefined {
   }
 }
 
+/**
+ * native モジュールを取得できた場合のみ、与えられた呼び出しを実行するヘルパー。
+ *
+ * 戻り値の意味論（R01 対応）:
+ * - native モジュール不在（web/デモ/未リンク）→ undefined。呼び出し元はフォールバックを継続する。
+ * - モジュールはあるがメソッド未定義（?.() で undefined）または null 返却 → undefined（従来互換）。
+ * - モジュールが存在するのにメソッド実行が throw した場合 → catch せずそのまま呼び出し元へ伝搬する。
+ *   （native 実処理の失敗をサンプル成功へ置換しない。）
+ */
 async function withNative<T>(
   call: (nativeModule: NativeExpoModule) => Promise<T | null | undefined> | undefined,
 ): Promise<T | undefined> {
@@ -223,12 +245,8 @@ async function withNative<T>(
     return undefined;
   }
 
-  try {
-    const result = await call(nativeModule);
-    return result ?? undefined;
-  } catch {
-    return undefined;
-  }
+  const result = await call(nativeModule);
+  return result ?? undefined;
 }
 
 export const MemoraNative: MemoraNativeModule = {
@@ -492,12 +510,21 @@ export const MemoraNative: MemoraNativeModule = {
     return fallbackProcessingRetries.length !== previousLength;
   },
   async startRecording() {
-    const nativeSession = await withNative((nativeModule) => nativeModule.startRecording?.());
+    const nativeModule = loadNativeModule();
+    const nativeSession = nativeModule?.startRecording
+      ? await nativeModule.startRecording()
+      : undefined;
 
     if (nativeSession) {
       return nativeSession;
     }
 
+    // モジュールが存在するのにセッションを取得できない場合は、サンプル成功へ置換せず明示エラーにする。
+    if (nativeModule) {
+      throw new Error('録音を開始できませんでした。ネイティブ側の録音機能が利用できません。');
+    }
+
+    // native モジュール不在（web/デモ）のときのみサンプルセッションを返す。
     return {
       id: `recording-${Date.now()}`,
       startedAt: new Date().toISOString(),
@@ -514,27 +541,41 @@ export const MemoraNative: MemoraNativeModule = {
     await withNative<void>((nativeModule) => nativeModule.discardRecording?.(sessionId));
   },
   async stopRecording(sessionId: string) {
-    const nativeFile = await withNative<AudioFile>((nativeModule) =>
-      nativeModule.stopRecording?.(sessionId),
-    );
+    const nativeModule = loadNativeModule();
+    const nativeFile = nativeModule?.stopRecording
+      ? await nativeModule.stopRecording(sessionId)
+      : undefined;
 
     if (nativeFile) {
       return nativeFile;
     }
 
+    // モジュールが存在するのに保存結果が得られない場合は、サンプル成果物へ置換せず明示エラーにする。
+    if (nativeModule) {
+      throw new Error('録音を保存できませんでした。ネイティブ側の録音機能が利用できません。');
+    }
+
+    // native モジュール不在（web/デモ）のときのみサンプルファイルを生成する。
     const generatedFile = createGeneratedFile(`${sessionId}.m4a`);
     upsertFallbackGeneratedFile(generatedFile);
     return generatedFile;
   },
   async importAudio(uri: string) {
-    const nativeFile = await withNative<AudioFile>((nativeModule) =>
-      nativeModule.importAudio?.(uri),
-    );
+    const nativeModule = loadNativeModule();
+    const nativeFile = nativeModule?.importAudio
+      ? await nativeModule.importAudio(uri)
+      : undefined;
 
     if (nativeFile) {
       return nativeFile;
     }
 
+    // モジュールが存在するのに読込結果が得られない場合は、サンプル成果物へ置換せず明示エラーにする。
+    if (nativeModule) {
+      throw new Error('音声ファイルを読み込めませんでした。ネイティブ側の読み込み機能が利用できません。');
+    }
+
+    // native モジュール不在（web/デモ）のときのみサンプルファイルを生成する。
     const generatedFile = createGeneratedFile(uri);
     upsertFallbackGeneratedFile(generatedFile);
     return generatedFile;

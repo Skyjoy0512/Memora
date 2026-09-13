@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   },
   block: {
     backgroundColor: colors.skeleton,
-    borderRadius: radius.sm,
+    borderRadius: 0,
   },
   headingBlock: {
     height: 15,

@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@callstack/liquid-glass": "^0.8.0",
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
     "@expo-google-fonts/ibm-plex-sans-jp": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/m-plus-1p": "^0.4.2",
     "@expo-google-fonts/murecho": "^0.4.1",
     "@expo-google-fonts/noto-sans-jp": "^0.4.3",

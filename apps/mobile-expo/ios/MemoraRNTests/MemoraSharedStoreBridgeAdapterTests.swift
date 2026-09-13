@@ -6,7 +6,7 @@ import Testing
 import MemoraSharedCore
 import MemoraSharedData
 import MemoraSharedSchema
-internal import MemoraNative
+@testable import MemoraNative
 
 @Suite("RN SpeechAnalyzer bridge")
 struct MemoraRNSpeechAnalyzerBridgeTests {
@@ -97,6 +97,32 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(dto.duration == "02:05")
     #expect(dto.status == "ready")
     #expect(dto.summary == "Summary")
+    // R11: memo はユーザーメモ専用。内部の格納パス（Stored path）を載せず、
+    // actionItems は SwiftData 未接続時は空配列のまま。
+    #expect(dto.memo.isEmpty)
+    #expect(dto.actionItems.isEmpty)
+  }
+
+  @Test("R11: SwiftData の actionItems を行単位の明示フィールドとして読み出す")
+  func actionItemsAreReadFromSwiftDataEntityAsExplicitDTOField() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Action fixture", audioURL: "/tmp/actions.m4a")
+    file.summary = "Summary"
+    file.isSummarized = true
+    file.actionItems = "alpha\n\n  beta  \n"
+    context.insert(file)
+    try context.save()
+
+    let store = MemoraSharedSwiftDataAudioFileStore(container: container)
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, container: container)
+    let dto = try #require(try adapter.getAudioFile(id: file.id.uuidString))
+    #expect(dto.memo.isEmpty)
+    #expect(dto.actionItems == ["alpha", "beta"])
+    #expect(dto.summary == "Summary")
   }
 
   @Test("playback paths are resolved from the same shared record as the DTO")
@@ -165,6 +191,52 @@ struct MemoraSharedStoreBridgeAdapterTests {
 
     let soughtStatus = try controller.seek(to: 0.11)
     #expect(soughtStatus.position >= 0.1)
+  }
+
+  @Test("audio session is activated at play time, not at load (R19)")
+  func configuresAudioSessionOnlyWhenPlayStarts() throws {
+    let id = UUID()
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-playback-session-tests-\(UUID().uuidString)", isDirectory: true)
+    let segmentURL = directory.appendingPathComponent("segment.wav")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try writeSilentAudio(to: segmentURL)
+
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: [
+        MemoraSharedAudioFileRecord(
+          id: id,
+          title: "Session deferral",
+          createdAt: Date(),
+          duration: 0.1,
+          audioURL: segmentURL.path,
+          segmentPaths: [segmentURL.path]
+        )
+      ])
+    )
+    let originalReader = MemoraNativeAudioFileReaderRegistry.audioFileReader
+    defer { MemoraNativeAudioFileReaderRegistry.audioFileReader = originalReader }
+    MemoraNativeAudioFileReaderRegistry.audioFileReader = adapter
+
+    let controller = MemoraAVAudioPlaybackController()
+    var activationCount = 0
+    controller.activateAudioSessionForPlayback = {
+      activationCount += 1
+    }
+
+    _ = try controller.load(audioFileId: id.uuidString)
+    #expect(activationCount == 0, "詳細表示（load）では AudioSession を変更しない")
+
+    _ = try controller.play()
+    #expect(activationCount == 1, "play で初めて再生用セッションへ切り替える")
+
+    _ = try controller.pause()
+    _ = try controller.seek(to: 0.05)
+    #expect(activationCount == 1, "pause / seek では再設定しない")
+
+    _ = try controller.play()
+    #expect(activationCount == 2, "一時停止後の再開（play）でも設定できる")
   }
 
   private func writeSilentAudio(to url: URL) throws {
@@ -239,6 +311,115 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(throws: MemoraSharedStoreBridgeError.self) {
       try adapter.moveAudioFile(id: UUID().uuidString, projectId: "not-a-project-uuid")
     }
+  }
+
+  @Test("R09: 削除は所有する音声実体（audioURL と分割セグメント）を消し、ストアからも消える")
+  func deleteAudioFileRemovesOwnedAudioPayloads() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-owned-\(UUID().uuidString)", isDirectory: true)
+    let audioURL = root.appendingPathComponent("Recordings").appendingPathComponent("session.m4a")
+    let segmentURLs = [
+      root.appendingPathComponent("Segments").appendingPathComponent("segment-1.wav"),
+      root.appendingPathComponent("Segments").appendingPathComponent("segment-2.wav")
+    ]
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    try FileManager.default.createDirectory(at: audioURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("audio-payload".utf8).write(to: audioURL)
+    try FileManager.default.createDirectory(at: segmentURLs[0].deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("segment-1".utf8).write(to: segmentURLs[0])
+    try Data("segment-2".utf8).write(to: segmentURLs[1])
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete owned payloads",
+        createdAt: Date(),
+        duration: 3,
+        audioURL: audioURL.path,
+        segmentPaths: segmentURLs.map(\.path)
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(try adapter.deleteAudioFile(id: id.uuidString))
+    #expect(try store.fetch(id: id) == nil)
+    #expect(FileManager.default.fileExists(atPath: audioURL.path) == false)
+    #expect(segmentURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+  }
+
+  @Test("R09: 所有範囲外の音声パス（importAudio の原本等）は削除しない")
+  func deleteAudioFileKeepsPayloadsOutsideOwnedRoots() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-owned-\(UUID().uuidString)", isDirectory: true)
+    let externalRoot = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-external-\(UUID().uuidString)", isDirectory: true)
+    defer {
+      try? FileManager.default.removeItem(at: root)
+      try? FileManager.default.removeItem(at: externalRoot)
+    }
+
+    let ownedAudioURL = root.appendingPathComponent("owned.m4a")
+    let externalAudioURL = externalRoot.appendingPathComponent("original-import.m4a")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: externalRoot, withIntermediateDirectories: true)
+    try Data("owned".utf8).write(to: ownedAudioURL)
+    try Data("external-original".utf8).write(to: externalAudioURL)
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete record but keep import original",
+        createdAt: Date(),
+        duration: 1,
+        audioURL: externalAudioURL.path,
+        segmentPaths: [ownedAudioURL.path]
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(try adapter.deleteAudioFile(id: id.uuidString))
+    #expect(try store.fetch(id: id) == nil)
+    // 所有ルート配下の実体のみ削除され、所有外（原本）は残る。
+    #expect(FileManager.default.fileExists(atPath: ownedAudioURL.path) == false)
+    #expect(FileManager.default.fileExists(atPath: externalAudioURL.path))
+  }
+
+  @Test("R09: 実体削除に失敗したらエラーを返し、レコードは残って再試行できる")
+  func deleteAudioFileFailureKeepsRecordForRetry() throws {
+    let id = UUID()
+    let root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-delete-failure-\(UUID().uuidString)", isDirectory: true)
+    let audioURL = root.appendingPathComponent("locked.m4a")
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path)
+      try? FileManager.default.removeItem(at: root)
+    }
+
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    try Data("locked-payload".utf8).write(to: audioURL)
+    // 親ディレクトリから書き込み権限を外し、removeItem を確実に失敗させる。
+    try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: root.path)
+
+    let store = MemoraInMemoryAudioFileStore(records: [
+      MemoraSharedAudioFileRecord(
+        id: id,
+        title: "Delete failure",
+        createdAt: Date(),
+        duration: 1,
+        audioURL: audioURL.path
+      )
+    ])
+    let adapter = MemoraSharedStoreBridgeAdapter(store: store, ownedAudioDirectories: [root])
+
+    #expect(throws: (any Error).self) {
+      try adapter.deleteAudioFile(id: id.uuidString)
+    }
+    // 実体削除失敗時はレコード削除まで進まない（再試行可能な状態を保つ）。
+    #expect(try store.fetch(id: id) != nil)
+    #expect(FileManager.default.fileExists(atPath: audioURL.path))
   }
 
   @Test("processing retries deduplicate, persist attempts, and complete")
@@ -348,30 +529,101 @@ struct MemoraSharedStoreBridgeAdapterTests {
     #expect(MemoraCustomVocabularyApplier(vocabulary: []).apply(to: "既存の整形結果") == "既存の整形結果")
   }
 
-  @Test("transcript DTO applies vocabulary to saved and fallback cleaned text without changing raw")
-  func transcriptDTOVocabularyPreservesRawText() throws {
+  @Test("STT 保存で辞書適用済みの cleanedText を DTO 読込時に再適用しない")
+  func transcriptDTODoesNotReapplyVocabularyAfterPersist() throws {
     let container = try ModelContainer(
       for: Schema(versionedSchema: MemoraSchemaV6.self),
       configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let context = ModelContext(container)
     let file = AudioFile(title: "Vocabulary fixture", audioURL: "/tmp/vocabulary.m4a")
-    let transcript = Transcript(audioFileID: file.id, text: "えー、メモラです")
+    let transcript = Transcript(audioFileID: file.id, text: "CRMを導入しました")
     transcript.audioFile = file
-    transcript.segmentTexts = ["えー、メモラです", "メモラを確認します"]
-    transcript.cleanedSegmentTexts = ["メモラです"]
+    let rawSegments = ["CRMを導入しました", "CRMの商談です"]
+    transcript.segmentTexts = rawSegments
     context.insert(file)
     context.insert(transcript)
-    context.insert(CustomVocabulary(pattern: "メモラ", replacement: "Memora", enabled: true))
-    context.insert(CustomVocabulary(pattern: "確認", replacement: "確認済み", enabled: false))
+    context.insert(CustomVocabulary(pattern: "CRM", replacement: "CRMシステム", enabled: true))
+    context.insert(CustomVocabulary(pattern: "商談", replacement: "商談済み", enabled: false))
+    try context.save()
+
+    // 保存時（MemoraRNTranscriptionBridge.persist）の適用順を再現する:
+    // clean 後に辞書を1回だけ適用し、適用済み文字列を cleanedSegmentTexts へ保存する。
+    let postProcessor = TranscriptPostProcessor()
+    let vocabularyApplier = MemoraCustomVocabularyApplier(
+      vocabulary: try context.fetch(FetchDescriptor<CustomVocabulary>())
+    )
+    transcript.cleanedSegmentTexts = rawSegments.map {
+      vocabularyApplier.apply(to: postProcessor.clean($0))
+    }
     try context.save()
 
     let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
     let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
-    #expect(dto.transcript[0]["text"] as? String == "えー、メモラです")
-    #expect(dto.transcript[0]["cleanedText"] as? String == "Memoraです")
-    #expect(dto.transcript[1]["text"] as? String == "メモラを確認します")
-    #expect(dto.transcript[1]["cleanedText"] as? String == "Memoraを確認します")
+    // text は補正前のまま
+    #expect(dto.transcript[0]["text"] as? String == "CRMを導入しました")
+    #expect(dto.transcript[1]["text"] as? String == "CRMの商談です")
+    // cleanedText は保存時の適用結果（1回のみ）。二重適用なら「CRMシステムシステム」になる。
+    #expect(dto.transcript[0]["cleanedText"] as? String == "CRMシステムを導入しました")
+    #expect(dto.transcript[1]["cleanedText"] as? String == "CRMシステムの商談です")
+    #expect((dto.transcript[0]["cleanedText"] as? String)?.contains("システムシステム") == false)
+  }
+
+  @Test("cleanedSegmentTexts 欠落時も DTO は辞書を再適用せず補正のみ行う")
+  func transcriptDTOFallbackNeverReappliesVocabulary() throws {
+    let container = try ModelContainer(
+      for: Schema(versionedSchema: MemoraSchemaV6.self),
+      configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let context = ModelContext(container)
+    let file = AudioFile(title: "Vocabulary fallback fixture", audioURL: "/tmp/vocabulary-fallback.m4a")
+    let transcript = Transcript(audioFileID: file.id, text: "CRMです")
+    transcript.audioFile = file
+    transcript.segmentTexts = ["CRMです", "えー、CRMの計画です"]
+    // 保存時に辞書適用済みの1件のみ保持（後続セグメントは保存時の欠落を模す）
+    transcript.cleanedSegmentTexts = ["CRMシステムです"]
+    context.insert(file)
+    context.insert(transcript)
+    context.insert(CustomVocabulary(pattern: "CRM", replacement: "CRMシステム", enabled: true))
+    try context.save()
+
+    let record = MemoraSharedAudioFileRecord(id: file.id, title: file.title, createdAt: file.createdAt, duration: 0, audioURL: file.audioURL)
+    let dto = try #require(try MemoraSharedStoreBridgeAdapter(store: MemoraInMemoryAudioFileStore(records: [record]), container: container).getAudioFile(id: file.id.uuidString))
+    // 保存済みの適用結果は素通し（再適用すると「CRMシステムシステムです」になる）
+    #expect(dto.transcript[0]["cleanedText"] as? String == "CRMシステムです")
+    // 欠落セグメントはフィラー除去などの補正のみ（辞書は適用しない）
+    #expect(dto.transcript[1]["cleanedText"] as? String == "CRMの計画です")
+    #expect(dto.transcript[1]["text"] as? String == "えー、CRMの計画です")
+  }
+
+  @Test("録音が51件以上でも一覧は全件を新しい順で返す（50件上限の撤廃）")
+  func listsAllRecordingsBeyondLegacyFiftyRecordCap() throws {
+    let totalCount = 53
+    let baseDate = Date(timeIntervalSince1970: 1_000_000)
+    let records = (0..<totalCount).map { index in
+      MemoraSharedAudioFileRecord(
+        id: UUID(),
+        title: "Recording \(index)",
+        createdAt: baseDate.addingTimeInterval(TimeInterval(index)),
+        duration: 1,
+        audioURL: "/tmp/recording-\(index).m4a"
+      )
+    }
+    // 生成順 = createdAt 昇順のため、先頭が最古、末尾が最新。
+    let oldest = try #require(records.first)
+    let newest = try #require(records.last)
+    let adapter = MemoraSharedStoreBridgeAdapter(
+      store: MemoraInMemoryAudioFileStore(records: records)
+    )
+
+    let dtos = try adapter.listAudioFiles()
+
+    // 旧実装は limit: 50 のため 51件目以降（最古の録音）が一覧結果に含まれなかった。
+    #expect(dtos.count == totalCount)
+    #expect(dtos.contains { $0.id == oldest.id.uuidString })
+    // ページングの重複・欠落がないことと、既存の並び順（新しい順）の維持。
+    #expect(Set(dtos.map(\.id)).count == totalCount)
+    #expect(dtos.first?.id == newest.id.uuidString)
   }
 }
 
@@ -480,5 +732,73 @@ struct MemoraSharedStoreProjectBridgeAdapterTests {
   func projectAdapterReturnsEmptyWhenNoProjects() throws {
     let adapter = try makeAdapter()
     #expect(try adapter.listProjects().isEmpty)
+  }
+}
+
+@Suite("RN native-files memo/photos deletion (R09)")
+struct MemoraNativeMemoDataDeletionTests {
+  /// R09: MemoraNativeModule.deleteAudioFile がレコード削除前に
+  /// MemoraMemoHandling.deleteMemoData を呼ぶ設計の実体削除側の検証。
+  /// モジュール層（AsyncFunction）自体はこのテストターゲットから直接呼べないため、
+  /// MemoraNativeFileMemoStore の実体削除（メモ JSON レコード・写真ディレクトリ）を
+  /// 対象ファイルのみ削除し他レコードを保持することを確認する。
+  @Test("メモと写真は対象ファイルのみ削除し、他レコードは保持する")
+  func deletesOnlyTargetMemoAndPhotos() throws {
+    let memoStore = MemoraNativeFileMemoStore()
+    let targetID = UUID().uuidString
+    let otherID = UUID().uuidString
+    let documents = try #require(
+      FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+    )
+    let memoFileURL = documents
+      .appendingPathComponent("MemoraNativeMetadata", isDirectory: true)
+      .appendingPathComponent("memo-notes.json")
+    let photosRootURL = documents.appendingPathComponent("MemoraNativeMemoPhotos", isDirectory: true)
+    let targetPhotosURL = photosRootURL.appendingPathComponent(targetID, isDirectory: true)
+
+    // テストが書き込んだファイルだけを確実に後始末する（既存データは保持）。
+    let memoFileExistedBefore = FileManager.default.fileExists(atPath: memoFileURL.path)
+    let photosRootExistedBefore = FileManager.default.fileExists(atPath: photosRootURL.path)
+    defer {
+      try? memoStore.deleteMemoData(audioFileId: targetID)
+      try? memoStore.deleteMemoData(audioFileId: otherID)
+      if !memoFileExistedBefore, FileManager.default.fileExists(atPath: memoFileURL.path),
+         let data = try? Data(contentsOf: memoFileURL),
+         String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "{}" {
+        try? FileManager.default.removeItem(at: memoFileURL)
+      }
+      if !photosRootExistedBefore, FileManager.default.fileExists(atPath: photosRootURL.path),
+         let contents = try? FileManager.default.contentsOfDirectory(atPath: photosRootURL.path),
+         contents.isEmpty {
+        try? FileManager.default.removeItem(at: photosRootURL)
+      }
+    }
+
+    // 写真のコピー元（テスト専用の一時ファイル）。
+    let sourceRoot = FileManager.default.temporaryDirectory
+      .appendingPathComponent("memora-memo-photo-source-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: sourceRoot) }
+    try FileManager.default.createDirectory(at: sourceRoot, withIntermediateDirectories: true)
+    let sourceURL = sourceRoot.appendingPathComponent("photo.jpg")
+    try Data("fake-jpeg-payload".utf8).write(to: sourceURL)
+
+    try memoStore.saveMemoDraft(audioFileId: otherID, text: "他ファイルのメモ")
+    try memoStore.saveMemoDraft(audioFileId: targetID, text: "削除対象メモ")
+    _ = try memoStore.addPhotoAttachment(audioFileId: targetID, sourceUri: sourceURL.absoluteString)
+    #expect(try memoStore.listPhotoAttachments(audioFileId: targetID).count == 1)
+    #expect(FileManager.default.fileExists(atPath: targetPhotosURL.path))
+
+    // 対象の削除: メモ本文・写真の一覧・写真ディレクトリ実体が消える。
+    try memoStore.deleteMemoData(audioFileId: targetID)
+    #expect(try memoStore.getMemoDraft(audioFileId: targetID).isEmpty)
+    #expect(try memoStore.listPhotoAttachments(audioFileId: targetID).isEmpty)
+    #expect(FileManager.default.fileExists(atPath: targetPhotosURL.path) == false)
+
+    // 他レコードは保持される。
+    #expect(try memoStore.getMemoDraft(audioFileId: otherID) == "他ファイルのメモ")
+
+    // べき等: 2回目・未知 ID の削除は副作用なく成功する。
+    try memoStore.deleteMemoData(audioFileId: targetID)
+    try memoStore.deleteMemoData(audioFileId: UUID().uuidString)
   }
 }

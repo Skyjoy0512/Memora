@@ -120,12 +120,20 @@ export type SecureCredentialProvider = SummaryOptionsDTO['provider'] | 'Notion';
 
 export type KnowledgeQueryScope = 'file' | 'project' | 'global';
 
+/** 追質問（R15）のためリクエストへ同梱する会話履歴の1メッセージ。 */
+export type KnowledgeQueryHistoryMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
 export type KnowledgeQueryRequestDTO = {
   scope: KnowledgeQueryScope;
   question: string;
   audioFileId?: string;
   projectId?: string;
   sessionId?: string;
+  /** 直前のやり取り。native の共有ストアは sessionId の永続メッセージを正とし、この値は web フォールバック等で利用する。 */
+  history?: KnowledgeQueryHistoryMessage[];
 };
 
 export type KnowledgeQueryResponseDTO = {
