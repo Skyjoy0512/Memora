@@ -6,7 +6,7 @@ import Testing
 import MemoraSharedCore
 import MemoraSharedData
 import MemoraSharedSchema
-internal import MemoraNative
+@testable import MemoraNative
 
 @Suite("RN SpeechAnalyzer bridge")
 struct MemoraRNSpeechAnalyzerBridgeTests {
